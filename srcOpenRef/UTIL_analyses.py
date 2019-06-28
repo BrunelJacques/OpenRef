@@ -17,11 +17,11 @@ import xpy.xGestionDB as xdb
 CHAMPS_TABLES = {
     '_Ident' : ['IDdossier','IDagc','IDexploitation','Clôture','IDuser','IDlocalisation','IDjuridique','NomExploitation',
                 'IDCodePostal','Siren','IDnaf','Filières','NbreMois','Fiscal','ImpSoc','Caf','SubvReçues','Cessions',
-                'NvxEmprunts','Apports','Investissements','RbtEmprunts','Prélèvements','RemAssociés','AnalyseProduction',
-                'AnalyseFinances','Perspectives','SAUfermage','SAUmétayage','SAUfvd','SAUmad','SAU','NbreAssociés',
+                'NvxEmprunts','Apports','Investissements','RbtEmprunts','Prélèvements','RemAssociés','Productions',
+                'Analyse','Remarques','SAUfermage','SAUmétayage','SAUfvd','SAUmad','SAU','NbreAssociés',
                 'MOexploitants','MOpermanents','MOsaisonniers','NbElemCar','ElemCar','Analytique','Validé'],
     '_Infos' : ['IDdossier','IDMinfo','Numerique','Bool','Texte'],
-    '_Balances':['IDdossier','Compte','IDligne','Libellé','Quantités1','Unité1','Quantités2','Unité2',
+    '_Balances':['IDdossier','Compte','IDligne','Libellé','MotsCléPrés','Quantités1','Unité1','Quantités2','Unité2',
                  'SoldeDeb','DBmvt','CRmvt','SoldeFin','IDplanCompte','Affectation'],
     'wVariables':[ 'Ordre','Colonne','Code','Libelle','Type','Fonction','Param','Atelier','Produit','Observation'],
     }
@@ -111,6 +111,7 @@ def NormaliseSQL(requete):
     requete = requete.strip()
     if not (requete[-1:] == ';'):
         requete = requete + ';'
+    return requete
 
 def NormaliseType(valeur,typeVariable,dicinfos=False):
     if dicinfos :
@@ -153,6 +154,7 @@ def GetClientsFilieres(agc, filieres, annee, nbanter, DBsql,saufvalide=False):
                     if not record[0]:
                         continue
                     requete = record[0].strip()
+                    requete = NormaliseSQL(requete)
                     mots = requete.split(' ')
                     # appel des clients répondants à la requête
                     if mots[0].upper() == 'SELECT':
@@ -161,8 +163,8 @@ def GetClientsFilieres(agc, filieres, annee, nbanter, DBsql,saufvalide=False):
                         req = """SELECT IDexploitation FROM _Ident %s"""%requete
                     elif len(mots[0]) == 0:
                         continue
-                    else : req = """SELECT IDexploitation FROM _Ident WHERE %s"""%requete
-                    requete = NormaliseSQL(requete)
+                    else :
+                        req = """SELECT IDexploitation FROM _Ident WHERE %s"""%requete
                     retour = DBsql.ExecuterReq(req, mess='accès OpenRef GetClientsFilieres2 %s'%filiere)
                     if retour == "ok":
                         recordset = DBsql.ResultatReq()
@@ -395,7 +397,28 @@ class Fonctions(object):
     def Balance_N1(self, param,*args):
         return self.Balance(param, n1=True)
 
-    def Produits(self, param,*args):
+    def Produits(self, calcul,atelier,produit,*args):
+        if calcul == 'Capacité':
+            pass
+        elif calcul == 'atelier':
+            pass
+        elif calcul == 'EffectifMoyen':
+            pass
+        elif calcul == 'Production':
+            pass
+        elif calcul == 'PU':
+            pass
+        elif calcul == 'Quantité':
+            pass
+        elif calcul == 'SurfaceProd':
+            pass
+        elif calcul == 'UGB':
+            pass
+        elif calcul == 'Unité':
+            pass
+        elif calcul == 'Vente':
+            pass
+
         return 0.0,''
         #TODO Produits'
 
@@ -700,8 +723,9 @@ class Analyse():
         lstDonnees=[]
         lstChamps=[]
         for colonne, code in self.dicExport.items():
-            lstDonnees.append(dicLigne[code])
-            lstChamps.append(code)
+            if code in dicLigne:
+                lstDonnees.append(dicLigne[code])
+                lstChamps.append(code)
         ret = self.DBsql.ReqInsert(self.nomTable,lstChamps,lstDonnees,mess='Insert %s, %s'%(exploitation,exercice))
         if ret != 'ok':
             wx.MessageBox('Export de la ligne\n\nerreur sur dossier : %s\n%s'%(str(tplIdent),ret))
@@ -720,13 +744,14 @@ class Analyse():
             if retour == "ok":
                 self.DBsql.Commit()
             self.CreationTable(self.nomTable,self.lstChampsExp)
+        elif tableExist and ('Ajout' in gestable):
+            pass
         else:
             ok = False
             if tableExist :
                 wx.MessageBox("Rejet de la demande\n\nVous voulez : '%s' !\n La table '%s' existe déjà"%(str(gestable),self.nomTable))
             else:
-                wx.MessageBox("Rejet de la demande\n\nVous voulez : '%s' !\n Le test si la table '%s' n'existe pas" % (
-        str(gestable), self.nomTable))
+                wx.MessageBox("Rejet de la demande\n\nVous voulez : '%s' !\n La table '%s' n'existe pas" % (str(gestable), self.nomTable))
         if ok:
             #test du nombre de variables prochain calcul % champs table
             req = "SHOW COLUMNS FROM  %s" % self.nomTable
@@ -740,7 +765,9 @@ class Analyse():
         return ok
 
     def CreationTable(self,nomTable,lstChampsExp):
-        # Affichage dans la StatusBar
+        for code, nature, comment in lstChampsExp:
+            comment = comment.replace("'"," ")
+            code = code.replace("'"," ")
         req = "CREATE TABLE %s (" % nomTable
         for nomChamp,typeChamp,labelChamp in lstChampsExp:
             if typeChamp.lower() in ('date') : typeChamp = "VARCHAR(10)"

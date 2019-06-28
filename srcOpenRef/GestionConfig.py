@@ -285,9 +285,9 @@ class DLG_import(wx.Dialog):
         lstNafs, nbDossiers = imp.GetNafs(annee)
         # affichage de la liste des nafs
         liste_Colonnes = [
-            ColumnDefn("Code Naf", 'left', 100, "code"),
-            ColumnDefn("Productions", 'left', 250, "productions"),
-            ColumnDefn("Nbre dossiers", 'right', 60, "nbDossiers")]
+            ColumnDefn("Code Naf", 'left', 80, "code"),
+            ColumnDefn("Productions", 'left', 700, "productions"),
+            ColumnDefn("Nbre dossiers", 'right', 80, "nbDossiers")]
         dicOlv = {'listeColonnes': liste_Colonnes,
                   'listeDonnees': lstNafs,
                   'longueur': 850,

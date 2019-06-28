@@ -11,9 +11,10 @@
 import os
 import wx
 import datetime
-import srcOpenRef.GestionConfig as orgc
 import xpy.xUTILS_Config as xucfg
+import srcOpenRef.UTIL_traitements as orut
 import xpy.xGestionDB as xdb
+
 
 def ListesToDict(listecles, listevaleurs):
     dic = {}
@@ -80,8 +81,29 @@ class ImportComptas(object):
         if 'gi' in bases:
             self.DBgi = self.GetGI()
         # ouverture base principale ( ouverture par défaut de db_prim via xGestionDB)
-        if 'sql' in bases:
-            self.DBsql = xdb.DB()
+        self.DBsql = xdb.DB()
+        self.lstMotsProd = self.GetMotsCle('mProduits')
+        self.lstMotsCout = self.GetMotsCle('mCoûts')
+        self.dicPlanComp = orut.PrechargePlanCompte(self.DBsql)
+
+    def GetMotsCle(self,table):
+        # découpe  tous les motscle de la table et les met dans une liste
+        lstMotsCle = []
+        # Constitue la liste des mots clé de mProduits 
+        req = """SELECT MotsCles
+                FROM %s;"""%table
+        retour = self.DBsql.ExecuterReq(req, mess='UTIL_import.GetMotsCle')                                        
+        if retour == "ok":
+            recordset = self.DBsql.ResultatReq()
+            lstMotsCle = []
+            for record in recordset:
+                lst = orut.Decoupe(str(record))
+                for mot in lst:
+                    mot = mot.strip()
+                    mot = mot.lower()
+                    if not mot in lstMotsCle:
+                        lstMotsCle.append(mot)
+        return lstMotsCle
 
     def GetGI(self):
         # pointer la gestion interne
@@ -96,14 +118,36 @@ class ImportComptas(object):
             if DBgi.echec == 1: DBgi = None
         return DBgi
 
-    def GetNafs(self,annee=None):
+    def GetClientsNafs(self,lstNafs,annee=None,*args):
+        # appelle les clients par naf de la liste
+        lstclients = []
+        lstNafs = str(lstNafs)[1:-1]
+        if not annee:
+            annee = datetime.date.today().year
+        if self.config['compta'] == 'quadratus':
+            req = """SELECT Clients.Code
+                    FROM   (Clients 
+                                LEFT JOIN Intervenants ON Clients.Code = Intervenants.Code) 
+                    WHERE (Intervenants.CodeNAF2008 in (%s)) 
+                            AND ((Clients.DateEntree)<#6/30/%s#) 
+                            AND ((Clients.DateSortie)>#12/31/%s# 
+                                        Or (Clients.DateSortie)<#1/1/1901#)
+                    ORDER BY Clients.Code;"""%(lstNafs,annee,annee)
+            retour = self.DBgi.ExecuterReq(req, mess='accès GI Clientsnafs', affichError=False)
+            if retour == "ok":
+                recordset = self.DBgi.ResultatReq()
+                for [client,] in recordset:
+                    lstclients.append(client)
+        return lstclients
+
+    def GetNafs(self,annee=None,*args):
         # appelle les nbre de clients par naf et par production principale dans la gestion interne
         lstNafs = []
         nbDossiers = 0
         if not annee:
             annee = datetime.date.today().year
         if self.config['compta'] == 'quadratus':
-            lstCle = ['code','libelle','nbre']
+            #lstCle = ['code','libelle','nbre']
             req = """SELECT Intervenants.CodeNAF2008, Activites.Libelle, Count(Clients.Code) AS CompteDeCode
                     FROM   (Clients 
                                 LEFT JOIN Intervenants ON Clients.Code = Intervenants.Code) 
@@ -120,6 +164,7 @@ class ImportComptas(object):
                 for code,label,nbre in recordset:
                     if not label: label = '...'
                     if not code : code = " "
+                    code=code.upper().strip()
                     if not(code in dicNaf): dicNaf[code] = {'activités':'','nbre':0}
                     dicNaf[code]['activités'] += label.lower()+"; "
                     dicNaf[code]['nbre'] += nbre
@@ -216,6 +261,34 @@ class ImportComptas(object):
             # import de la balance de la compta
             lstBalance = []
             if self.config['compta'] == 'quadratus':
+                def ChercheMotsCle(compte,lib,uneecr):
+                    #découpe le libellé et l'écriture exemple pour trouver les mots clés mis en minuscule qui matchent
+                    lstMots = []
+                    lstplus=[]
+                    if compte[:1] in ('7','6','3'):
+                        lstRef = self.lstMotsCout
+                        if compte[:1] in ('7','3'): lstRef = self.lstMotsProd
+                        if compte[:2] == '30':lstRef = self.lstMotsCout
+                        if compte[:3] == '604': lstRef = self.lstMotsProd
+                        lstlib = orut.Decoupe(lib)
+                        lstecr = orut.Decoupe(uneecr)
+                        if len(lstlib+lstecr)==0:
+                            req = """
+                                SELECT Ecritures.Libelle
+                                FROM Ecritures 
+                                WHERE Ecritures.Compte = %s;
+                                LIMIT 10
+                                """%compte
+                            retour = DBq.ExecuterReq(req, mess='accès Qcompta.ecritures TOP 10', affichError=False)
+                            if retour == "ok":
+                                recordset = DBq.ResultatReq()
+                                for record in recordset:
+                                    lstplus = orut.Decoupe(str(record))
+                        for mot in lstlib+lstecr+lstplus:
+                            if mot in lstRef:
+                                if not mot in lstMots:
+                                   lstMots.append(mot)
+                    return lstMots
                 # appel de la balance clients et fournisseurs
                 # lstCle = ['compte', 'libcompte', 'libecriture', 'anouv', 'qte', 'qtenature','qte2','qte2nature','debits','credits']
                 req = """
@@ -230,7 +303,7 @@ class ImportComptas(object):
                             Comptes.QuantiteLibelle, Comptes.QuantiteLibelle2;
                     """
                 retour = DBq.ExecuterReq(req, mess='accès Qcompta.ecritures auxiliaires quadra',affichError=False)
-                recordsetAux = recordset = []
+                recordsetAux , recordset = [],[]
                 if retour == "ok":
                     recordsetAux = DBq.ResultatReq()
                 #appel de la balance hors clients et fournisseurs
@@ -250,8 +323,7 @@ class ImportComptas(object):
                 retour = DBq.ExecuterReq(req, mess='accès Qcompta.ecritures quadra')
                 if retour == "ok":
                     recordset = DBq.ResultatReq()
-
-                # constitution des lignes a importer
+                # constitution des lignes a importer sur concaténation des deux recordset
                 for compte, libcompte, libmaxecriture, anouv, qte, qtenature,qte2,qte2nature,debits,credits in recordset + recordsetAux :
                     if anouv ==1 :
                         #cumul d'écritures a nouveaux
@@ -265,8 +337,10 @@ class ImportComptas(object):
                     if libcompte == None : libcompte = ''
                     if libmaxecriture == None : libmaxecriture = ''
                     if abs(mvtcre) + abs(mvtdeb) + abs(soldedeb) >0:
-                        lstBalance.append((compte, libcompte.strip() + ' # ' + libmaxecriture.strip(), qte, qtenature,
-                                       qte2,qte2nature, soldedeb,mvtdeb, mvtcre, soldefin))
+                        motsclepres = ChercheMotsCle(compte,libcompte,libmaxecriture)
+                        IDplanCompte = orut.ChercheIDplanCompte(compte,self.dicPlanComp)
+                        lstBalance.append((compte, libcompte.strip(),str(motsclepres)[1:-1], qte, qtenature,
+                                       qte2,qte2nature, soldedeb,mvtdeb, mvtcre, soldefin,IDplanCompte))
             dicCompta['balance'] = lstBalance
 
             dicIdent = {}
@@ -326,7 +400,7 @@ class ImportComptas(object):
                     for record in recordset:
                         SetDicProd(record)
                 # intégration des productions dans le memo
-                dicIdent['AnalyseFinances'] = "Production__surface__quantite\n"
+                dicIdent['Productions'] = "Production__surface__quantite\n"
                 dicElem = {}
                 for key in sorted(dicProd.keys()):
                     grp = key[:3]
@@ -335,7 +409,7 @@ class ImportComptas(object):
                         if not champ in dicProd[key].keys(): dicProd[key][champ] = 0
                     texte = str(dicProd[key]['lib'])+'__'+ str(dicProd[key]['surf']) +'__' + str(dicProd[key]['qte'])
                     try:
-                        dicIdent['AnalyseFinances'] += '\n%s'%texte
+                        dicIdent['Productions'] += '\n%s'%texte
                         dicElem[grp]['surf']+= float(dicProd[key]['surf'])
                         dicElem[grp]['qte']+= float(dicProd[key]['qte'])
                     except: pass
@@ -412,7 +486,7 @@ class ImportComptas(object):
                 retour = DBq.ExecuterReq(req, mess='accès Qcompta.historique quadra TBF')
                 if retour == "ok":
                     recordset = DBq.ResultatReq()
-                    dicIdent['Perspectives'] = ""
+                    dicIdent['Remarques'] = ""
                     for record in recordset:
                         if record[0] == 'ACTIVITE':
                             dicCompta['ident']['Filières']= self.filieres
@@ -442,7 +516,6 @@ class ImportComptas(object):
         if nomBase:
             # import des infos de l'exercice et naf dans la compta
             if self.config['compta'] == 'quadratus':
-                lstCle = ['cloture', 'naf']
                 req = """SELECT Dossier1.FinExercice, Dossier1.CodeNAF
                         FROM Dossier1;"""
                 retour = DBq.ExecuterReq(req, mess='accès Qcompta.dossier quadra')
@@ -451,7 +524,7 @@ class ImportComptas(object):
                     exercice,naf = recordset[0]
                     #controle du naf si filtre posé
                     if lstNafs:
-                        if not naf in lstNafs:
+                        if not naf.upper().strip() in lstNafs:
                             DBq.Close()
                             return True
                     anex = int(str(exercice)[:4])
@@ -485,7 +558,7 @@ class ImportComptas(object):
             dicCompta['ident']['IDdossier'] = IDdossier
 
             #insertion table _Balance
-            lstChamps = "Compte,Libellé,Quantités1,Unité1,Quantités2,Unité2,SoldeDeb,DBmvt,CRmvt,SoldeFin,IDdossier".split(',')
+            lstChamps = "Compte,Libellé,MotsCléPrés,Quantités1,Unité1,Quantités2,Unité2,SoldeDeb,DBmvt,CRmvt,SoldeFin,IDplanCompte,IDdossier".split(',')
             lstDonnees = []
             for ligne in dicCompta['balance']:
                 ligne += (IDdossier,)
@@ -562,23 +635,28 @@ class ImportComptas(object):
                 if not (self.config['nafs'] in (None,'','tous')):
                     if self.config['nafs'][:4].lower() != 'tous':
                         lstNafs = self.config['lstNafs']
+                        lstClientsNafs = self.GetClientsNafs(lstNafs)
                 #recherche de la liste des clients  dans dossier courant et archive du millesime
                 lstClients = []
                 lstPathsAnnee = self.QuadraLstPaths(self.config['pathCompta'], self.config['annee'], self.config['nbAnter'], )
-                for path in lstPathsAnnee:
-                    for client in os.listdir(path):
-                        if not client in lstClients:
-                            if os.path.isfile(path + '/' + client + '/QCompta.mdb'):
-                                configCPTA['serveur'] = path + '/' + client
-                            self.topWindow.SetStatusText( "%s - %s, Nombre: %d (%s)" % (path, client, len(lstClients),str(lstClients)[-200:]))
-                            if path[-2:] == 'DC':
-                                if self.HorsPeriode(configCPTA,self.config['annee'], self.config['nbAnter'],lstNafs):
-                                    continue
-                            lstClients.append(client)
+                if len(lstClientsNafs) > 0:
+                    lstClients = lstClientsNafs
+                else:
+                    for path in lstPathsAnnee:
+                        for client in os.listdir(path):
+                            if not client in lstClients:
+                                if os.path.isfile(path + '/' + client + '/QCompta.mdb'):
+                                    configCPTA['serveur'] = path + '/' + client
+                                self.topWindow.SetStatusText( "%s - %s, Nombre: %d (%s)" % (path, client, len(lstClients),str(lstClients)[-200:]))
+                                if path[-2:] == 'DC':
+                                    if self.HorsPeriode(configCPTA,self.config['annee'], self.config['nbAnter'],lstNafs):
+                                        continue
+                                lstClients.append(client)
             else:
                 # le client était choisi dans la config
                 lstClients = [self.config['client']]
             messBasEcran = ''
+
             for client in lstClients:
                 if self.topwin:
                     messBasEcran += " - Client : %s "%client

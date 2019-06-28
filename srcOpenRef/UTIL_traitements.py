@@ -15,11 +15,42 @@ import unicodedata
 import srcOpenRef.DATA_Tables as dtt
 
 CHAMPS_TABLES = {
-    '_Balances':['IDdossier','Compte','IDligne','Libellé','Quantités1','Unité1','Quantités2','Unité2',
+    '_Balances':['IDdossier','Compte','IDligne','Libellé','MotsCléPrés','Quantités1','Unité1','Quantités2','Unité2',
                  'SoldeDeb','DBmvt','CRmvt','SoldeFin','IDplanCompte','Affectation'],
     'produits':[ 'IDMatelier', 'IDMproduit', 'NomProduit', 'MoisRécolte', 'ProdPrincipal', 'UniteSAU', 'coefHa', 'CptProduit', 'MotsCles', 'TypesProduit'],
     'couts': ['IDMatelier','IDMcoût','UnitéQté','CptCoût','MotsCles','TypesCoût']
     }
+
+def ChercheIDplanCompte(compte, dicPlanComp):
+    # récupération de la clé du plan comptable standard
+    IDplanCompte = ''
+    for cptstd in dicPlanComp.keys():
+        if not cptstd == compte[:len(cptstd)]:
+            continue
+        else:
+            IDplanCompte = cptstd
+            break
+    if IDplanCompte == '':
+        IDplanCompte = compte[:5]
+    return IDplanCompte
+
+def Decoupe(texte):
+    # isole les mots du texte afin de les comparer aux mots clés
+    lstMots = []
+    texte = str(texte)
+    lstCar = [',', '[', ']', "'", '#', '__', '%', ';', '-', '\\n','(',')',"'","!"]
+    for lettre in lstCar:
+        texte = texte.replace(lettre, ' ')
+    # suppression des accents et forcé en minuscule
+    texte = ''.join(c for c in unicodedata.normalize('NFD', texte) if unicodedata.category(c) != 'Mn')
+    texte = texte.lower()
+    ltxt = texte.split(' ')
+    for mot in ltxt:
+        mot = mot.strip()
+        if len(mot) > 2:
+            if mot not in lstMots:
+                lstMots.append(mot)
+    return lstMots
 
 def PrechargePlanCompte(DBsql):
     # constitue un dictionnaire des modèles de produits à générer
@@ -60,6 +91,7 @@ def PrechargeProduits(agc, DBsql):
         for produit in dic:
             dic[produit]['clesstring']=GetMotsCles({'x':{'motscles':dic[produit]['motscles']}},avectuple=False)
             dic[produit]['clestuple'] = GetTuplesCles(dic[produit]['motscles'])
+            dic[produit]['lstmots'] = GetMotsCles({'x': {'motscles': dic[produit]['motscles']}}, avectuple=True)
     return dic
 
 def PrechargeCouts(agc, DBsql):
@@ -168,6 +200,7 @@ class Traitements():
         # pointeur de la base principale ( ouverture par défaut de db_prim via xGestionDB)
         self.DBsql = xdb.DB()
 
+        self.dic_Ateliers = {}
         #préchargement de la table des Produits et des coûts
         self.dicProduits = PrechargeProduits(agc,self.DBsql)
         self.dicCouts = PrechargeCouts(agc,self.DBsql)
@@ -186,25 +219,27 @@ class Traitements():
             return
 
         # déroulé du traitement
-        messBasEcran = ''
+        messBasEcran = 'Client : '
         nbreOK = 0
         for tplIdent in lstDossiers:
             messBasEcran += "%s "%tplIdent[1]
-            retour = 'ko'
+            if self.topwin:
+                self.topWindow.SetStatusText(messBasEcran)
             self.mess = ''
             retour = self.TraiteClient(tplIdent)
             if retour == 'ok':
                     nbreOK += 1
-            if self.topwin and len(self.mess) > 0:
+            if self.topwin:
                 messBasEcran += retour + ', '
                 messBasEcran = messBasEcran[-230:]
                 self.topWindow.SetStatusText(messBasEcran)
-            del retour
+            self.DBsql.Close()
+            self.DBsql = xdb.DB()
         wx.MessageBox("%d dossiers traités"%nbreOK)
 
-    def GetMotsVentes(self,tplIdent):
+    def GetMotsCleDossier(self,tplIdent):
         # récupère les mots clés des comptes de vente, de la production et des filières
-        req = """SELECT _Ident.IDdossier, _Ident.Filières, _Ident.AnalyseProduction, _Balances.Libellé
+        req = """SELECT _Ident.IDdossier, _Ident.Filières, _Ident.Productions, _Balances.MotsCléPrés
             FROM _Ident INNER JOIN _Balances ON _Ident.IDdossier = _Balances.IDdossier
             WHERE (_Balances.Compte Like '70%%') 
                 AND (_Ident.IDagc = '%s') 
@@ -212,24 +247,6 @@ class Traitements():
                 AND (_Ident.Clôture = '%s');
             """ % tplIdent
         retour = self.DBsql.ExecuterReq(req, mess='accès OpenRef GetVentes')
-
-        def Decoupe(texte):
-            # isole les mots du texte afin de les comparer aux mots clés
-            lstMots = []
-            texte = str(texte)
-            lstCar = [',','#','__','%',';','-','\\n']
-            for lettre in lstCar:
-                texte = texte.replace(lettre, ' ')
-            #suppression des accents et forcé en minuscule
-            texte = ''.join(c for c in unicodedata.normalize('NFD', texte) if unicodedata.category(c) != 'Mn')
-            texte = texte.lower()
-            ltxt = texte.split(' ')
-            for mot in ltxt:
-                mot = mot.strip()
-                if len(mot)>2:
-                    if mot not in lstMots:
-                        lstMots.append(mot)
-            return lstMots
 
         IDdossier = None
         lstVentes = []
@@ -244,10 +261,17 @@ class Traitements():
                         lstFilieres = Decoupe(filieres)
                         lstProduction = Decoupe(prod)
                     lstVentes.extend(Decoupe(libelle))
-        return IDdossier,lstVentes,lstFilieres,lstProduction
+        #compactage des répétitions
+        def Compacte(oldliste):
+            newliste=[]
+            for item in oldliste:
+                if not item in newliste:
+                    newliste.append(item)
+            return newliste
+        return IDdossier,Compacte(lstVentes),Compacte(lstFilieres),Compacte(lstProduction)
 
     def GetAtelierValide(self,IDdossier,table,cle,dossiervalide):
-        # rédupère l'atelier de l'affectation pour savoir s'il est validé ou si on peut purger
+        # Validé : récupère l'atelier de l'affectation pour savoir s'il est validé ou si on peut purger
         if table == '_Produits':
             req = """SELECT _Ateliers.IDMatelier, _Ateliers.Validation
                 FROM _Produits 
@@ -288,7 +312,7 @@ class Traitements():
         # récupère les ateliers produits et coûts validés qui ne devront pas être écrasés
         lstAteliersValid = []
         lstProduitsValid = []
-        lstCoûtsValid = []
+        lstCoutsValid = []
         req = """SELECT _Ateliers.IDMatelier, _Produits.IDMproduit, _Coûts.IDMcoût
             FROM (((((_Ident 
                         INNER JOIN _Ateliers ON _Ident.IDdossier = _Ateliers.IDdossier) 
@@ -307,11 +331,11 @@ class Traitements():
                 ;""" %(IDdossier)
         retour = self.DBsql.ExecuterReq(req, mess='accès OpenRef.UTIL_traitements.GetValide')
         if retour == 'ok':
-            for IDMatelier,IDMproduit, IDMcoût in self.DBsql.ResultatReq():
+            for IDMatelier,IDMproduit, IDMcout in self.DBsql.ResultatReq():
                 if IDMatelier not in lstAteliersValid : lstAteliersValid.append(IDMatelier)
                 if IDMproduit not in lstProduitsValid: lstProduitsValid.append(IDMproduit)
-                if IDMcoût not in lstCoûtsValid: lstCoûtsValid.append(IDMcoût)
-        return lstAteliersValid, lstProduitsValid,lstProduitsValid
+                if IDMcout not in lstCoutsValid: lstCoutsValid.append(IDMcout)
+        return lstAteliersValid, lstProduitsValid,lstCoutsValid
 
     def PurgeNonValide(self,IDdossier):
         # récupère les affectations précédentes dans _Balances, pour les purger
@@ -410,69 +434,76 @@ class Traitements():
         dic['Production'] = 0.0
         return dic
 
-    def GenereDicProduit(self, produit, lstMots, lstComptesRetenus, dicProduit=None):
-        # affectation des comptes de la balance à un produit, création ou MAJ de dicProduit, et MAJ de self.Balance
+    def GenereDicProduit(self, IDdossier, produit, lstMots, lstComptesRetenus, dicProduit=None):
+        # Balaye la balance  pour affecter à ce produit, création ou MAJ de dicProduit, et MAJ de self.Balance
         if not dicProduit:
             dicProduit = self.Init_dic_produit(produit)
+            dicProduit['IDdossier'] = IDdossier
         lstRadicaux = self.dicProduits[produit]['cptproduit'].split(',')
         compteencours = ''
         atelier = dicProduit['IDMatelier']
-        # on récupère les comptes ds balance, on les traite ou pas
-        for IDdossier, Compte, IDligne, Libelle, Quantites1, Unite1, Quantites2, Unite2, SoldeDeb, DBmvt, \
+        if(not atelier in self.dic_Ateliers) and atelier != 'ANY':
+            self.dic_Ateliers[atelier] = {'IDdossier':dicProduit['IDdossier'],'IDMatelier':atelier}
+        if self.dicProduits[produit]['typesproduit']:
+            dicProduit['TypesProduit'] += (self.dicProduits[produit]['typesproduit'] + ',')
+        # on récupère les comptes ds balance, on les traite sur le IDplanCompte
+        for IDdossier, Compte, IDligne, Libelle, MotsClePres,Quantites1, Unite1, Quantites2, Unite2, SoldeDeb, DBmvt, \
             CRmvt, SoldeFin, IDplanCompte, Affectation in self.balance:
-            #'AutreProduit sera au niveau de l'atelier, alors que AutrProd est au niveau du produit
-            autreProd = 'AutreProduit'
-            affectationAtelier = 'A_' + atelier
-            affectationProduit = 'P_' + produit
+            if not IDplanCompte : 
+                IDplanCompte = ChercheIDplanCompte(Compte,self.dicPlanComp)
+            if  not (IDplanCompte in self.dicPlanComp) : 
+                IDplanCompte = ChercheIDplanCompte(Compte,self.dicPlanComp)
+            if len(IDplanCompte.strip())==0: continue
             #if Compte == '70361020': (pour débug)
             # test sur liste de mot, on garde ceux qui contiennent un mot clé du produit
+            ok = False
             if lstMots:
                 # teste la présence du mot clé dans le compte
-                ok = False
                 for mot in lstMots:
-                    if mot in Libelle.lower():
+                    if mot in MotsClePres.lower():
                         ok = True
+                        #un mot présent suffit pour matcher
                         break
-                if not ok: continue
-                else:
-                    autreProd = 'AutreProd'
-                    affectationAtelier = 'P_' + produit
-            if Compte in lstComptesRetenus and Compte != compteencours: continue
+            if not ok: continue
+            # ce compte a matché il sera affecté au produit
+            affectation = ''
+            if Compte in lstComptesRetenus and Compte != compteencours:
+                # le compte à déjà été affecté par un autre produit et ce n'est pas une deuxième ligne d'un même compte
+                continue
             # si plusieurs lignes successives d'un même compte (quand plusieurs unités de qté) => compteencours cumule
             compteencours = Compte
             # teste si le compte rentre dans les radicaux possibles pour le modèle de produit
             for radical in lstRadicaux:
-                if radical == Compte[:len(radical)]:
+                if radical == IDplanCompte[:len(radical)]:
                     # le compte rentre dans le produit : calcul du produit
                     lstComptesRetenus.append(Compte)
                     dicProduit['Comptes'].append(Compte)
-                    if self.dicProduits[produit]['typesproduit']:
-                        dicProduit['TypesProduit'] += (self.dicProduits[produit]['typesproduit'] + ',')
                     dicProduit['Quantité1'] += Quantites1
                     dicProduit['Quantité2'] += Quantites2
                     # inversion des signes de balance pour retrouver du positif dans les produits ou stock
-                    if Compte[:2] == '70':
+                    if IDplanCompte[:2] == '70':
                         dicProduit['Ventes'] -= SoldeFin
-                    elif Compte[:2] == '71':
+                    elif IDplanCompte[:2] == '71':
                         dicProduit['DeltaStock'] -= SoldeFin
-                    elif Compte[:2] == '72':
-                        dicProduit[autreProd] -= SoldeFin
-                        dicProduit[autreProd+"CPT"].append(Compte)
-                    elif Compte[:2] == '74':
-                        dicProduit['Subventions'] -= SoldeFin
-                        dicProduit['CalculSubvention'].append(Compte)
-                    elif Compte[:2] == '75':
-                        dicProduit[autreProd] -= SoldeFin
-                        dicProduit[autreProd+"CPT"].append(Compte)
-                    elif Compte[:2] == '76':
-                        dicProduit[autreProd] -= SoldeFin
-                        dicProduit[autreProd+"CPT"].append(Compte)
-                    elif Compte[:3] == '603':
+                    elif IDplanCompte[:2] == '72':
+                        dicProduit['AutreProd'] -= SoldeFin
+                    elif IDplanCompte[:2] == '74':
+                        # les subventions seront affectées à l'atelier même avec mot clé présent niveau produit
+                        self.dic_Ateliers[atelier]['Subventions'] += SoldeFin
+                        self.dic_Ateliers[atelier]['CPTSubventions'].append(Compte)
+                        affectation = 'A.' + atelier + "." + 'Subventions'
+                    elif IDplanCompte[:2] == '75':
+                        dicProduit['AutreProd'] -= SoldeFin
+                    elif IDplanCompte[:2] == '76':
+                        self.dic_Ateliers[atelier]['AutreProduit'] += SoldeFin
+                        self.dic_Ateliers[atelier]['CPTAutreProduit'].append(Compte)
+                        affectation = 'A.' + atelier + "." + 'AutreProduit'
+                    elif IDplanCompte[:3] == '603':
                         dicProduit['DeltaStock'] -= SoldeFin
-                    elif Compte[:3] == '604':
+                    elif IDplanCompte[:3] == '604':
                         dicProduit['AchatAnmx'] -= SoldeFin
                     # le paramétrage ne doit pas contenir à la fois des ((603 ou 71) et 3) dans les radicaux
-                    elif Compte[:1] == '3':
+                    elif IDplanCompte[:1] == '3':
                         dicProduit['DeltaStock'] -= SoldeFin - SoldeDeb
                         dicProduit['StockFin'] -= SoldeFin
                     else:
@@ -483,33 +514,29 @@ class Traitements():
                     dicProduit['Production'] = production
                     # MAJ _Balances, recherche dans le plan comptable standard pour enrichir les types de produit
                     for cptstd in self.dicPlanComp.keys():
-                        if not cptstd == Compte[:len(cptstd)]:
-                            continue
-                        else:
+                        if len(IDplanCompte)>0:
                             for mot in self.dicPlanComp[cptstd]['type'].split(','):
                                 if not (mot in dicProduit['TypesProduit']):
                                     dicProduit['TypesProduit'] += mot + ','
-                            # enregistrement du compte std et marque d'affectation
-                            if cptstd[:2] in ('72','74','75','76'):
-                                affectation = affectationAtelier
-                            else:
-                                affectation = affectationProduit
-                            lstCouples = [('IDplanCompte', cptstd), ('Affectation', affectation)]
-                            condition = "IDligne = %d" % IDligne
-                            self.DBsql.ReqMAJ('_Balances', couples=lstCouples, condition=condition, mess= "GenereDicProduit MAJ _Balances")
+                    # enregistrement du compte std et marque d'affectation
+                    if affectation == '':
+                        affectation = 'P.'+atelier+'.'+produit
+                    lstCouples = [('IDplanCompte', IDplanCompte), ('Affectation', affectation)]
+                    condition = "IDligne = %d" % IDligne
+                    self.DBsql.ReqMAJ('_Balances', couples=lstCouples, condition=condition, mess= "GenereDicProduit MAJ _Balances")
+                    break
         return dicProduit
 
-    def Genere_Atelier(self,dicProduit):
+    def Genere_Atelier(self,IDMatelier,dicAtelier):
         # création ou MAJ d'un atelier par son produit et les modèles
-        IDMatelier = dicProduit['IDMatelier']
-        lstChamps = ['IDdossier','IDMatelier','AutreProduit','CalculAutreProduit','Subventions','CalculSubvention']
-        lstDonnees=[]
+        lstDonnees, lstChamps =[], []
         lstChampsTable = dtt.GetChamps('_Ateliers')
-        for champ in lstChamps:
+        for champ in dicAtelier.keys():
             if champ in lstChampsTable:
-                lstDonnees.append(dicProduit[champ])
-        self.DBsql.ReqInsert('_Ateliers',lstChamps,lstDonnees,mess= 'Genere_Atelier Atelier : %s'%IDMatelier)
-        return 'ok'
+                lstChamps.append(champ)
+                lstDonnees.append(dicAtelier[champ])
+        ok = self.DBsql.ReqInsert('_Ateliers',lstChamps,lstDonnees,mess= 'Genere_Atelier Atelier : %s'%IDMatelier)
+        return ok
 
     def Genere_Produit(self, dicProduit):
         # création ou MAJ d'un produits par son produit et les modèles
@@ -521,29 +548,25 @@ class Traitements():
             if champ in lstChampsTable:
                 lstChamps.append(champ)
                 lstDonnees.append(dicProduit[champ])
-        self.DBsql.ReqInsert('_Produits', lstChamps, lstDonnees, mess='GenereProduits Produit : %s' % IDMproduit)
-        return 'ok'
+        ok = self.DBsql.ReqInsert('_Produits', lstChamps, lstDonnees, mess='GenereProduits Produit : %s' % IDMproduit)
+        return ok
 
     def TraiteClient(self,tplIdent):
         # traitement effectué sur un dossier  pointé
-        (IDagc, IDexploitation, Cloture) = tplIdent
-        dic_Produits={}
-        dic_Ateliers={}
-        dic_Couts={}
+        #(IDagc, IDexploitation, Cloture) = tplIdent
 
         #premier accès sur les comptes de vente
-        IDdossier, lstVentes,lstFilieres,lstProduction = self.GetMotsVentes(tplIdent)
+        IDdossier, lstVentes,lstFilieres,lstProduction = self.GetMotsCleDossier(tplIdent)
         #les pointeurs d'affectation non validés doivent être mis à blanc
         self.PurgeNonValide(IDdossier)
         self.balance = self.GetBalance(IDdossier)
-        lstAteliersValid, lstProduitsValid, lstProduitsValid = self.GetValide(IDdossier)
+        lstAteliersValid, lstProduitsValid,lstCoutsValid = self.GetValide(IDdossier)
 
-        #matche les produits potentiels par les mots clés
+        #matche les produits potentiels par les mots clés simples ou première position tuple
         def ChercheProduits():
             lstProduits = []
             #recherches successives dans les listes
             def Matche(mot,lstProduits):
-                lstMots = []
                 #comparaison des motcle des produits modèles avec le mot testé venant du dossier
                 for motcle in self.lstMotsClesProduits:
                     if motcle in mot :
@@ -552,12 +575,11 @@ class Traitements():
                             if motcle in dic['clesstring']:
                                 if not (produit,motcle) in lstProduits:
                                     lstProduits.append((produit,motcle))
-                                return
+                                continue
                             for tup in dic['clestuple']:
                                 if motcle == tup[0]:
                                     if not (produit,tup) in lstProduits:
                                         lstProduits.append((produit,tup))
-                                    return
             # d'abord sur les libelles des comptes de vente
             for mot in lstVentes:
                 Matche(mot,lstProduits)
@@ -574,7 +596,8 @@ class Traitements():
         lstMotsDossier = lstVentes + lstProduction +lstFilieres
         # on vérifie les conditions de traitement pour les produits potentiels trouvés
         ix = -1
-        dicMotsProduit = {}
+        lstDel =[]
+        # élimination des produits ne vérifiant pas les conditions cumulatives
         for produit, trouve in lstProduits:
             #on vérifie si le produit n'est pas déjà validé (les non validés ont été purgés)
             ix +=1
@@ -583,27 +606,21 @@ class Traitements():
                 ix -= 1
                 continue
             #les mots isolés s'imposent
-            if not produit in dicMotsProduit:
-                dicMotsProduit[produit]=[]
             if isinstance(trouve, str):
-                dicMotsProduit[produit].append(trouve)
                 continue
             #les tuples sont des conditions cumulatives
             if isinstance(trouve, tuple):
                 ok = True
-                dicMotsProduit[produit].append(trouve[0])
                 for mot in trouve[1:]:
-                    if mot[:1] == '!' :
-                        sens = False
-                        mot = mot[1:]
-                    else : sens = True
                     present = (mot in lstMotsDossier)
-                    if not sens : present = not present
-                    ok = present
+                    if mot[:1] == '!' : present = not present
+                    if not present : ok = False
             if not ok :
-                del lstProduits[ix]
+                lstDel.append(ix)
                 ix -= 1
-
+        # abandon des produits ne correspondant pas aux conditions
+        for ix in lstDel:
+            del lstProduits[ix]
         #chaque produit retenu est calculé, on associe IDplanCompte et on marque le compte affecté
         lstComptesRetenus = []
         lstDicProduits = []
@@ -611,8 +628,7 @@ class Traitements():
 
         # Un premier passage pour n'affecter que les comptes ayant le mot clé dans le libellé
         for produit, trouve in lstProduits:
-            dicProduit = self.GenereDicProduit(produit,dicMotsProduit[produit],lstComptesRetenus)
-            dicProduit['IDdossier'] = IDdossier
+            dicProduit = self.GenereDicProduit(IDdossier,produit,self.dicProduits[produit]['lstmots'],lstComptesRetenus)
             lstDicProduits.append(dicProduit)
 
         produitLeader = ''
@@ -628,15 +644,16 @@ class Traitements():
         # il y a des produit calculés
         if produitLeader != '':
             #le plus gros produit , récupère des comptes sans mot clé dans le libellé
-            dicProduit = lstDicProduits[lstIxDicProduits.index(produitLeader)]
+            dicProduitLeader = lstDicProduits[lstIxDicProduits.index(produitLeader)]
             # on récupère les comptes ds balance qui restent
-            lstDicProduits[lstIxDicProduits.index(produitLeader)] = self.GenereDicProduit(produitLeader,None,lstComptesRetenus,dicProduit)
+            lstDicProduits[lstIxDicProduits.index(produitLeader)] = self.GenereDicProduit(IDdossier,produitLeader,None,
+                                                                                          lstComptesRetenus,dicProduitLeader)
 
             #Les produits de l'atelier ANY peuvent être rattachés à l'atelier du produit
             dicProduitsAny = GetProduitsAny(self.dicProduits)
             for produit, dic in dicProduitsAny.items():
-                dicProduit = self.GenereDicProduit(produit,None,lstComptesRetenus)
-                dicProduit['IDMatelier'] = produitLeader
+                dicProduit = self.GenereDicProduit(IDdossier,produit,None,lstComptesRetenus)
+                dicProduit['IDMatelier'] = dicProduitLeader['IDMatelier']
                 lstDicProduits.append(dicProduit)
                 lstIxDicProduits.append(produit)
 
@@ -644,22 +661,23 @@ class Traitements():
         for dicProduit in lstDicProduits:
             produit =  dicProduit['IDMproduit']
             if (produit != produitLeader) and (len(produitLeader)>0):
-                lstDicProduits[lstIxDicProduits.index(produit)] = self.GenereDicProduit(produit,None,lstComptesRetenus,dicProduit)
-
+                lstDicProduits[lstIxDicProduits.index(produit)] = self.GenereDicProduit(IDdossier,produit,None,lstComptesRetenus,dicProduit)
+        ok = 'ok'
         # stockage de l'info dans  _Produits et _Atelier
+        for atelier,dicAtelier in self.dic_Ateliers.items():
+            ret = self.Genere_Atelier(atelier,dicAtelier)
+            if ret != 'ok': ok = ret
         for dicProduit in lstDicProduits:
             if dicProduit['Production'] == 0.0 : continue
             if dicProduit['IDMatelier'] in lstAteliersValid: continue
-            self.Genere_Atelier(dicProduit)
-            self.Genere_Produit(dicProduit)
-            print(dicProduit['IDMproduit'],":",dicProduit)
-        
-        return 'ok'
+            ret = self.Genere_Produit(dicProduit)
+            if ret != 'ok': ok = ret
+        return ok
 
 #************************   Pour Test ou modèle  *********************************
 if __name__ == '__main__':
     app = wx.App(0)
-    fn = Traitements(annee='2018',client='001990',agc='ANY')
+    fn = Traitements(annee='2018',client='041058',agc='alpes')
     print('Retour: ',fn)
 
     app.MainLoop()

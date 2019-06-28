@@ -103,7 +103,6 @@ class MENU():
         cfg = gc.DLG_import(self.parent, multi=True, style = wx.RESIZE_BORDER )
         cfg.Show()
 
-
     def On_trait(self,event):
         #appel de l'trait d'un dossier
         cfg = gc.DLG_trait(self.parent, style = wx.RESIZE_BORDER )
