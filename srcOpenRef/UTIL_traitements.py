@@ -554,7 +554,7 @@ class Traitements():
     def TraiteClient(self,tplIdent):
         # traitement effectué sur un dossier  pointé
         #(IDagc, IDexploitation, Cloture) = tplIdent
-
+        self.dic_Ateliers = {}
         #premier accès sur les comptes de vente
         IDdossier, lstVentes,lstFilieres,lstProduction = self.GetMotsCleDossier(tplIdent)
         #les pointeurs d'affectation non validés doivent être mis à blanc
@@ -662,6 +662,9 @@ class Traitements():
             produit =  dicProduit['IDMproduit']
             if (produit != produitLeader) and (len(produitLeader)>0):
                 lstDicProduits[lstIxDicProduits.index(produit)] = self.GenereDicProduit(IDdossier,produit,None,lstComptesRetenus,dicProduit)
+
+        # s'il reste des comptes non affectés on les rattache à l'atelier principal
+
         ok = 'ok'
         # stockage de l'info dans  _Produits et _Atelier
         for atelier,dicAtelier in self.dic_Ateliers.items():
@@ -677,7 +680,8 @@ class Traitements():
 #************************   Pour Test ou modèle  *********************************
 if __name__ == '__main__':
     app = wx.App(0)
-    fn = Traitements(annee='2018',client='041058',agc='alpes')
+    fn = Traitements(annee='2018',client='009418',agc='prov')
+    #fn = Traitements(annee='2018',groupe='LOT1',agc='prov')
     print('Retour: ',fn)
 
     app.MainLoop()

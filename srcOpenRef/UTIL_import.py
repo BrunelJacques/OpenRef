@@ -284,8 +284,9 @@ class ImportComptas(object):
                                 recordset = DBq.ResultatReq()
                                 for record in recordset:
                                     lstplus = orut.Decoupe(str(record))
-                        for mot in lstlib+lstecr+lstplus:
-                            if mot in lstRef:
+                        lstMotsDossier = str(lstlib+lstecr+lstplus)
+                        for mot in lstRef:
+                            if mot in lstMotsDossier:
                                 if not mot in lstMots:
                                    lstMots.append(mot)
                     return lstMots
@@ -335,6 +336,8 @@ class ImportComptas(object):
                         mvtcre = round(credits,2)
                         soldefin = round(debits - credits,2)
                     if libcompte == None : libcompte = ''
+                    #if compte[-3:]=='836':
+                    #   print(compte, libcompte)
                     if libmaxecriture == None : libmaxecriture = ''
                     if abs(mvtcre) + abs(mvtdeb) + abs(soldedeb) >0:
                         motsclepres = ChercheMotsCle(compte,libcompte,libmaxecriture)

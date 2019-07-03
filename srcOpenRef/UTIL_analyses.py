@@ -786,7 +786,7 @@ class Analyse():
 #************************   Pour Test ou modèle  *********************************
 if __name__ == '__main__':
     app = wx.App(0)
-    fn = Fonctions(None,('prov','009418','2018-08-31'),analyse='AG83',agcuser='prov')
+    fn = Fonctions(None,('alpes','041058','2018-12-31'),analyse='AG83',agcuser='prov')
     valeur = fn.ComposeLigne()
     print('valeur variable: ',valeur[0])
     print('erreurs: ',valeur[1],'-')
