@@ -8,11 +8,9 @@
 # Licence:         Licence GNU GPL
 #------------------------------------------------------------------------
 
-import os
 import wx
-import datetime
-import xpy.xUTILS_Config as xucfg
 import xpy.xGestionDB as xdb
+import unicodedata
 
 CHAMPS_TABLES = {
     '_Ident' : ['IDdossier','IDagc','IDexploitation','Clôture','IDuser','IDlocalisation','IDjuridique','NomExploitation',
@@ -25,6 +23,66 @@ CHAMPS_TABLES = {
                  'SoldeDeb','DBmvt','CRmvt','SoldeFin','IDplanCompte','Affectation'],
     'wVariables':[ 'Ordre','Colonne','Code','Libelle','Type','Fonction','Param','Atelier','Produit','Observation'],
     }
+
+def DecoupeParam(texte):
+    # isole les mots ou filtres du texte comme paramètres de fonctions Produits ou Coûts
+    # lstFiltres est une liste de tuples (type,listeMotsFiltrés)
+    lstNoms = []
+    lstFiltres = []
+    if texte and len(texte)>0:
+        # suppression des accents, forcé en minuscule, normalisé
+        texte = ''.join(c for c in unicodedata.normalize('NFD', texte) if unicodedata.category(c) != 'Mn')
+        texte = texte.lower()
+        texte = texte.replace('[','(')
+        texte = texte.replace(']',')')
+        texte = texte.strip()
+        # des parenthèses externes sont supprimées
+        if texte[0] == '(' and texte[-1] == ')': texte = texte[1:-1]
+        expression = str(texte)
+        # différentiation d'un séparateur dans et hors parenthèses internes pour découpage avec imbrication
+        sep = ';'
+        lstCar = [',', ';']
+        ix = 0
+        for lettre in texte:
+            if lettre == '(': sep = ','
+            if lettre == ')': sep = ';'
+            if lettre in lstCar:
+                if len(texte) > ix+1 : fin = texte[ix+1:]
+                else: fin = ''
+                expression = expression[:ix] + sep + fin
+            ix +=1
+        lstItems = expression.split(';')
+        for item in lstItems:
+            #réduction des imbrications de parenthèses
+            lstnm = []
+            lstfl = []
+            if '(' in item:
+                ix1 = item.index('(')
+                if ')' in item:
+                    # récupération de la dernière parenthèse, par usage de liste inversée [::-1]
+                    ix2 = len(item) - 1 - item[::-1].index(')')
+                    lstnm,lstfl = DecoupeParam(item[ix1:ix2+1])
+                else: wx.MessageBox("Echec Fonction Produits en UTILS_analyses.DecoupParam\n\nManque parenthèse fermante :\n %s"%item)
+                for fl in lstfl:
+                    lstFiltres.append(fl.strip())
+            lstItems2 = item.strip().split('=')
+            if len(lstItems2)==2:
+                #présence de filtre on récupére l'argument du filtre
+                if len(lstnm) == 0:
+                    lstnm.append(str(lstItems2[1]).strip())
+                filtre = (lstItems2[0], lstnm)
+                lstFiltres.append(filtre)
+            elif len(lstItems2)>2:
+                wx.MessageBox("Echec Fonction Produits en UTILS_analyses.DecoupParam\n\nDécoupage des arguments impossible :\n %s"%item)
+            else:
+                #pas filtre, on prend le nom
+                for fl in lstfl:
+                    lstFiltres.append(fl.strip())
+                for nm in lstnm:
+                    lstNoms.append(nm.strip())
+                if lstnm == []:
+                    lstNoms.append(item.strip())
+    return lstNoms,lstFiltres
 
 def ListsToDic(listecles, donnees, poscle=0):
     #le dictionnaire généré a pour clé les champs dans liste clé en minuscules
@@ -397,7 +455,9 @@ class Fonctions(object):
     def Balance_N1(self, param,*args):
         return self.Balance(param, n1=True)
 
-    def Produits(self, calcul,atelier,produit,*args):
+    def Produits(self, calcul,ateliers,produits,*args):
+        AtelierNoms,AteliersFiltres = DecoupeParam(ateliers)
+        ProduitNoms,ProduitsFiltres = DecoupeParam(produits)
         if calcul == 'Capacité':
             pass
         elif calcul == 'atelier':
@@ -411,6 +471,7 @@ class Fonctions(object):
         elif calcul == 'Quantité':
             pass
         elif calcul == 'SurfaceProd':
+
             pass
         elif calcul == 'UGB':
             pass
@@ -786,7 +847,9 @@ class Analyse():
 #************************   Pour Test ou modèle  *********************************
 if __name__ == '__main__':
     app = wx.App(0)
-    fn = Fonctions(None,('alpes','041058','2018-12-31'),analyse='AG83',agcuser='prov')
+    dicanalyse = {100:{'ordre': 10000, 'colonne': 1000, 'code': 'V100', 'libelle': 'Produit de élevage caprin', 'type': 'nombre',
+                       'fonction': 'Produits', 'param': 'Production', 'atelier': '(brebis,caprin), type = (vitipart, fromagerie),nontype = agneau', 'produit': ''},}
+    fn = Fonctions(None,('prov','009418','2018-08-31'),dicAnalyse=dicanalyse,agcuser='prov')
     valeur = fn.ComposeLigne()
     print('valeur variable: ',valeur[0])
     print('erreurs: ',valeur[1],'-')
