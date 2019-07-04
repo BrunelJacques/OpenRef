@@ -89,7 +89,7 @@ DB_TABLES = {
         ("AutreProduit",  'float', ' DEFAULT NULL', "Valeur calculée ou forcée des autres produits de l'atelier non détaillés par la table produits"),
         ("CPTAutreProduit",  'varchar(128)', '  ', "Liste de comptes pour déterminer la valeur autre produit par défaut"),
         ("Subventions",  'float', ' DEFAULT NULL', " Valeur calculée ou forcée des subventions affectées à l'atelier"),
-        ("CPTSubvention",  'varchar(128)', '  ', "Liste de comptes pour déterminer la valeur des subventions affectées à l'atelier"),
+        ("CPTSubventions",  'varchar(128)', '  ', "Liste de comptes pour déterminer la valeur des subventions affectées à l'atelier"),
         ("Comm",  'float', ' DEFAULT NULL,', ''),
         ("CPTComm",  'varchar(128)', '  ', "Liste de comptes pour déterminer la valeur de la commercialisation non détaillée dans les coûts"),
         ("Conditionnement",  'float', ' DEFAULT NULL,', ''),
@@ -176,10 +176,10 @@ DB_TABLES = {
         ("NoLigne",  'int(2)', ' DEFAULT NULL', ''),
     ]}
 
-def GetChamps(table,tous = True,reel=False,deci=False,dte=False):
+def GetChamps(table,tous = True,reel=False,deci=False,dte=False,texte=False):
     lstChamps = []
     # les params d'un type précisé désactivent le param tous
-    if reel or deci or dte : tous=False
+    if reel or deci or dte or texte : tous=False
     for ligne in DB_TABLES[table]:
         champ = ligne[0]
         genre = ligne[1][:3]
@@ -188,6 +188,7 @@ def GetChamps(table,tous = True,reel=False,deci=False,dte=False):
         elif reel and genre == 'flo': lstChamps.append(champ)
         elif deci and genre == 'int': lstChamps.append(champ)
         elif dte and genre == 'dat': lstChamps.append(champ)
+        elif texte and genre == 'var': lstChamps.append(champ)
     return lstChamps
 
 if __name__ == '__main__':

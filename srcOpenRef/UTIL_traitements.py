@@ -434,8 +434,62 @@ class Traitements():
         dic['Production'] = 0.0
         return dic
 
+    def Init_dic_atelier(self,atelier,IDdossier):
+        #prépare un dictionnaire vide pour les champs nombre réels et texte provisoirement en liste
+        dic = {'IDMatelier':atelier}
+        for champ in dtt.GetChamps('_Ateliers',reel=True):
+            dic[champ] = 0.0
+        for champ in dtt.GetChamps('_Ateliers',texte=True):
+            dic[champ] = []
+        dic['IDMatelier'] = atelier
+        dic['IDdossier'] = IDdossier
+        return dic
+
+    def AffecteAtelier(self, IDdossier,atelier,lstComptesRetenus):
+        # Balaye la balance  pour affecter à l'atelier tout les comptes non affectés aux produits
+        # on récupère les comptes ds balance, on les traite sur le IDplanCompte
+        compteencours = ''
+        for IDdossier, Compte, IDligne, Libelle, MotsClePres,Quantites1, Unite1, Quantites2, Unite2, SoldeDeb, DBmvt, \
+            CRmvt, SoldeFin, IDplanCompte, Affectation in self.balanceCeg:
+            if Compte in lstComptesRetenus and Compte != compteencours: continue
+            if not IDplanCompte : 
+                IDplanCompte = ChercheIDplanCompte(Compte,self.dicPlanComp)
+            if  not (IDplanCompte in self.dicPlanComp) : 
+                IDplanCompte = ChercheIDplanCompte(Compte,self.dicPlanComp)
+            if len(IDplanCompte.strip())==0: continue
+            ok = False            
+            # ce compte sera affecté à l'atelier
+            post = 'cout'
+            # si plusieurs lignes successives d'un même compte (quand plusieurs unités de qté) => compteencours cumule
+            compteencours = Compte
+            lstComptesRetenus.append(Compte)
+            # inversion des signes de balance pour retrouver du positif dans les produits ou stock
+            if IDplanCompte[:2] == '74':
+                # subventions seront affectées à l'atelier
+                self.dic_Ateliers[atelier]['Subventions'] += SoldeFin
+                self.dic_Ateliers[atelier]['CPTSubventions'].append(Compte)
+                post='Subventions'
+            elif IDplanCompte[:1] in ('7','3'):
+                self.dic_Ateliers[atelier]['AutreProduit'] += SoldeFin
+                self.dic_Ateliers[atelier]['CPTAutreProduit'].append(Compte)
+                post='AutreProduit'
+            elif IDplanCompte[:3] in ('603','604'):
+                self.dic_Ateliers[atelier]['AutreProduit'] += SoldeFin
+                self.dic_Ateliers[atelier]['CPTAutreProduit'].append(Compte)
+                post = 'AutreProduit'
+
+            #TODO inserer les comptes de charges selon type
+
+            # MAJ _Balances
+            affectation = 'A.' + atelier + "." + post
+            lstCouples = [('IDplanCompte', IDplanCompte), ('Affectation', affectation)]
+            condition = "IDligne = %d" % IDligne
+            self.DBsql.ReqMAJ('_Balances', couples=lstCouples, condition=condition, mess= "GeneredicAtelier MAJ _Balances")
+
+        return
+
     def GenereDicProduit(self, IDdossier, produit, lstMots, lstComptesRetenus, dicProduit=None):
-        # Balaye la balance  pour affecter à ce produit, création ou MAJ de dicProduit, et MAJ de self.Balance
+        # Balaye la balance  pour affecter à ce produit, création ou MAJ de dicProduit, et MAJ de self.balanceCeg
         if not dicProduit:
             dicProduit = self.Init_dic_produit(produit)
             dicProduit['IDdossier'] = IDdossier
@@ -443,18 +497,18 @@ class Traitements():
         compteencours = ''
         atelier = dicProduit['IDMatelier']
         if(not atelier in self.dic_Ateliers) and atelier != 'ANY':
-            self.dic_Ateliers[atelier] = {'IDdossier':dicProduit['IDdossier'],'IDMatelier':atelier}
+            dicAtelier = self.Init_dic_atelier(atelier,dicProduit['IDdossier'])
+            self.dic_Ateliers[atelier] = dicAtelier
         if self.dicProduits[produit]['typesproduit']:
             dicProduit['TypesProduit'] += (self.dicProduits[produit]['typesproduit'] + ',')
         # on récupère les comptes ds balance, on les traite sur le IDplanCompte
         for IDdossier, Compte, IDligne, Libelle, MotsClePres,Quantites1, Unite1, Quantites2, Unite2, SoldeDeb, DBmvt, \
-            CRmvt, SoldeFin, IDplanCompte, Affectation in self.balance:
+            CRmvt, SoldeFin, IDplanCompte, Affectation in self.balanceCeg:
             if not IDplanCompte : 
                 IDplanCompte = ChercheIDplanCompte(Compte,self.dicPlanComp)
             if  not (IDplanCompte in self.dicPlanComp) : 
                 IDplanCompte = ChercheIDplanCompte(Compte,self.dicPlanComp)
             if len(IDplanCompte.strip())==0: continue
-            #if Compte == '70361020': (pour débug)
             # test sur liste de mot, on garde ceux qui contiennent un mot clé du produit
             ok = False
             if lstMots:
@@ -559,7 +613,7 @@ class Traitements():
         IDdossier, lstVentes,lstFilieres,lstProduction = self.GetMotsCleDossier(tplIdent)
         #les pointeurs d'affectation non validés doivent être mis à blanc
         self.PurgeNonValide(IDdossier)
-        self.balance = self.GetBalance(IDdossier)
+        self.balanceCeg = self.GetBalance(IDdossier)
         lstAteliersValid, lstProduitsValid,lstCoutsValid = self.GetValide(IDdossier)
 
         #matche les produits potentiels par les mots clés simples ou première position tuple
@@ -632,14 +686,16 @@ class Traitements():
             lstDicProduits.append(dicProduit)
 
         produitLeader = ''
+        atelierLeader = ''
         production = 0.0
-        # on détermine le produit retenu au plus gros CA
+        # on détermine le produitLeader par le plus gros CA
         for dicProduit in lstDicProduits:
             # Création d'un index pour pointer les dicProduits
             lstIxDicProduits.append(dicProduit['IDMproduit'])
-            if dicProduit['Production'] > production:
+            if (dicProduit['Production'] > production) and (dicProduit['IDMatelier'] != 'ANY'):
                 production = dicProduit['Production']
                 produitLeader = dicProduit['IDMproduit']
+                atelierLeader = dicProduit['IDMatelier']
 
         # il y a des produit calculés
         if produitLeader != '':
@@ -664,7 +720,8 @@ class Traitements():
                 lstDicProduits[lstIxDicProduits.index(produit)] = self.GenereDicProduit(IDdossier,produit,None,lstComptesRetenus,dicProduit)
 
         # s'il reste des comptes non affectés on les rattache à l'atelier principal
-
+        if atelierLeader != '':
+            self.AffecteAtelier(IDdossier, atelierLeader, lstComptesRetenus)
         ok = 'ok'
         # stockage de l'info dans  _Produits et _Atelier
         for atelier,dicAtelier in self.dic_Ateliers.items():
