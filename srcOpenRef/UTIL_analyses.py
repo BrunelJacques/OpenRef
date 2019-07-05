@@ -30,7 +30,7 @@ def DecoupeParam(texte):
     # lstFiltres est une liste de tuples (type,listeMotsFiltrés)
     lstNoms = []
     lstFiltres = []
-    if texte and len(texte)>0:
+    if texte != 'None' and len(texte)>0:
         # suppression des accents, forcé en minuscule, normalisé
         texte = ''.join(c for c in unicodedata.normalize('NFD', texte) if unicodedata.category(c) != 'Mn')
         texte = texte.lower()
@@ -72,7 +72,7 @@ def DecoupeParam(texte):
                 #présence de filtre on récupére l'argument du filtre
                 if len(lstnm) == 0:
                     lstnm.append(str(lstItems2[1]).strip())
-                filtre = (lstItems2[0], lstnm)
+                filtre = (lstItems2[0].strip(), lstnm)
                 lstFiltres.append(filtre)
             elif len(lstItems2)>2:
                 wx.MessageBox("Echec Fonction Produits en UTILS_analyses.DecoupParam\n\nDécoupage des arguments impossible :\n %s"%item)
@@ -124,7 +124,7 @@ def PrechargeAnalyse(analyse, DBsql):
             return {}
     return dic
 
-def GetExercicesClient(agc='*',client='001990',annee='1900',nbanter='0',DBsql=None,saufvalide=False):
+def GetExercicesClient(agc='ANY',client='001990',annee='1900',nbanter='0',DBsql=None,saufvalide=False):
     if not nbanter: nbanter = '0'
     if not annee: annee = '1900'
     annees = "( %s"%annee
@@ -140,7 +140,7 @@ def GetExercicesClient(agc='*',client='001990',annee='1900',nbanter='0',DBsql=No
     condition = ''
     if saufvalide :
         condition += 'AND ((Validé = 0) OR (Validé IS NULL) )'
-    if not (agc in ['*','','any']):
+    if not (agc.lower() in ['*','','any']):
         condition += "AND (IDagc = '%s') "%agc
     req = """SELECT IDagc, IDexploitation, Clôture
             FROM _Ident
@@ -467,29 +467,45 @@ class Fonctions(object):
         where = 'WHERE IDdossier = %d '%self.dicIdent['iddossier']
         def AjoutWhere(champ,lstRetenus):
             txt = "AND %s in ( %s) "%(champ,str(lstRetenus)[1:-1])
+            return txt
         if len(ateliersNoms) > 0:
             where += AjoutWhere('IDMatelier',ateliersNoms)
         if len(produitsNoms) > 0:
             where += AjoutWhere('IDMproduit',produitsNoms)
-        """
-        if len(produitsFiltres)>0:
-            for champmodele,params:
-                if champmodele.lower() == 'type':
-                    ajout = "AND ( mProduits = "
-                    for param in params:"""
-
-
+        # application des filtres
+        if len(produitsFiltres + ateliersFiltres)>0:
+            for champmodele,params in produitsFiltres + ateliersFiltres:
+                if (champmodele.lower() in ('type','nontype')) and len(params)>0:
+                    ajout = ""
+                    for param in params:
+                        if champmodele.lower()[:3] == 'non':
+                            sens = "AND NOT ("
+                        else: sens = "OR  ("
+                        ajout += "%s TypesProduit LIKE '%%%s%%')"%(sens,param)
+                    ajout = ajout[3:] +")"
+                    where += "AND (" + ajout
+                elif (champmodele.lower() in ('unité','nonunité')) and len(params)>0:
+                    for param in params:
+                        if champmodele.lower()[:3] == 'non':
+                            sens = "AND NOT ("
+                        else: sens = "OR  ("
+                        ajout += "%s UnitéQté1 LIKE '%%%s%%')"%(sens,param)
+                    ajout = ajout[3:] +")"
+                    where += "AND (" + ajout
         ok = False
         # préparation de la requête sur _Produits
         champs_Produits =  dtt.GetChamps('_Produits',reel=True)
-        if calcul.lower() in champs_Produits.lower():
+        champs_ProduitsLower = []
+        for champ in champs_Produits:
+            champs_ProduitsLower.append(champ.lower().strip())
+        if calcul.lower() in champs_ProduitsLower:
             # accès direct dans la table _Produits
-            champs = champs_Produits[champs_Produits.lower().index(calcul.lower())]
+            champs = champs_Produits[champs_ProduitsLower.index(calcul.lower())]
             ok = True
         elif calcul.lower() == 'production':
             champs = "Ventes, DeltaStock,AutreProd, AchatAnmx"
             ok = True
-        elif calcul.lower == 'pu':
+        elif calcul.lower() == 'pu':
             champs = "Ventes,Quantité1"
             ok = True
         if ok:
@@ -515,12 +531,17 @@ class Fonctions(object):
                         result = round(dicRet['Ventes']/dicRet['Quantité1'],2)
                     except:
                         result = dicRet['Ventes']
-                if calcul.lower() == 'production':
+                elif calcul.lower() == 'production':
                     try:
                         result = round(dicRet['Ventes']+dicRet['DeltaStock']+dicRet['AutreProd']-dicRet['AchatAnmx'],2)
                     except:
                         result = dicRet['Ventes']
-
+                else:
+                    # cas d'un champ simple
+                    try:
+                        result = round(dicRet[lstChamps[0]],2)
+                    except:
+                        result = 0.0
             else :
                 # échec requete
                 mess = retour
@@ -765,7 +786,6 @@ class Fonctions(object):
 
 class Analyse():
     def __init__(self,analyse=None, annee=None, nbanter=0, client=None, groupe=None, filiere=None, gestable=None, agc=None):
-
         # recherche pour affichage bas d'écran
         self.topwin = False
         self.topWindow = wx.GetApp().GetTopWindow()
@@ -794,7 +814,10 @@ class Analyse():
 
         # vérifie ou crée la table xAnalyse_agc_nomAnalyse
         ok = self.GestionTable(agc,analyse,gestable)
-        if not ok : return
+        if not ok :
+            if self.topwin:
+                self.topWindow.SetStatusText('Echec Gestion Table')
+            return
 
         # détermination des clients à traiter
         if client:
@@ -898,7 +921,7 @@ class Analyse():
 if __name__ == '__main__':
     app = wx.App(0)
     dicanalyse = {100:{'ordre': 10000, 'colonne': 1000, 'code': 'V100', 'libelle': 'Produit de élevage caprin', 'type': 'nombre',
-                       'fonction': 'Produits', 'param': 'Production', 'atelier': '(brebis,caprin), type = (vitipart, fromagerie),nontype = agneau', 'produit': ''},}
+                       'fonction': 'Produits', 'param': 'Ventes', 'atelier': '', 'produit': 'vincave, NonType = ANMX'},}
     fn = Fonctions(None,('prov','009418','2018-08-31'),dicAnalyse=dicanalyse,agcuser='prov')
     valeur = fn.ComposeLigne()
     print('valeur variable: ',valeur[0])

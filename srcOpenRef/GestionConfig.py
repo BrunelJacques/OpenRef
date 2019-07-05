@@ -571,7 +571,8 @@ class DLG_export(wx.Dialog):
         else: client = self.choix['client']
         imp = orua.Analyse(analyse=self.choix['analyse'], annee=self.choix['annee'], nbanter=self.choix['nbAnter'], client=client, groupe=groupe,
                            filiere= filiere, gestable=self.choix['gestiontable'], agc=self.agc)
-        self.Destroy()
+        if len(imp.mess)>0:
+            wx.MessageBox("Trace du traitement\n\n%s"%imp.mess)
 
     def OnEnter(self,event):
         #action evènement Enter sur le contrôle combo, correspond à un changement de choix

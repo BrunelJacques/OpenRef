@@ -500,7 +500,9 @@ class Traitements():
             dicAtelier = self.Init_dic_atelier(atelier,dicProduit['IDdossier'])
             self.dic_Ateliers[atelier] = dicAtelier
         if self.dicProduits[produit]['typesproduit']:
-            dicProduit['TypesProduit'] += (self.dicProduits[produit]['typesproduit'] + ',')
+            for tip in self.dicProduits[produit]['typesproduit'].split(','):
+                if not tip.lower() in dicProduit['TypesProduit'].lower():
+                    dicProduit['TypesProduit'] += (tip + ',')
         # on récupère les comptes ds balance, on les traite sur le IDplanCompte
         for IDdossier, Compte, IDligne, Libelle, MotsClePres,Quantites1, Unite1, Quantites2, Unite2, SoldeDeb, DBmvt, \
             CRmvt, SoldeFin, IDplanCompte, Affectation in self.balanceCeg:
@@ -566,12 +568,7 @@ class Traitements():
                     for poste in ('Ventes', 'DeltaStock', 'AchatAnmx', 'AutreProd'):
                         production += dicProduit[poste]
                     dicProduit['Production'] = production
-                    # MAJ _Balances, recherche dans le plan comptable standard pour enrichir les types de produit
-                    for cptstd in self.dicPlanComp.keys():
-                        if len(IDplanCompte)>0:
-                            for mot in self.dicPlanComp[cptstd]['type'].split(','):
-                                if not (mot in dicProduit['TypesProduit']):
-                                    dicProduit['TypesProduit'] += mot + ','
+                    # MAJ _Balances
                     # enregistrement du compte std et marque d'affectation
                     if affectation == '':
                         affectation = 'P.'+atelier+'.'+produit
