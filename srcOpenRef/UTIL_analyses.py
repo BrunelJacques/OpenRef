@@ -10,6 +10,7 @@
 
 import wx
 import xpy.xGestionDB as xdb
+import srcOpenRef.DATA_Tables as dtt
 import unicodedata
 
 CHAMPS_TABLES = {
@@ -35,6 +36,7 @@ def DecoupeParam(texte):
         texte = texte.lower()
         texte = texte.replace('[','(')
         texte = texte.replace(']',')')
+        texte = texte.replace("'","")
         texte = texte.strip()
         # des parenthèses externes sont supprimées
         if texte[0] == '(' and texte[-1] == ')': texte = texte[1:-1]
@@ -456,32 +458,80 @@ class Fonctions(object):
         return self.Balance(param, n1=True)
 
     def Produits(self, calcul,ateliers,produits,*args):
-        AtelierNoms,AteliersFiltres = DecoupeParam(ateliers)
-        ProduitNoms,ProduitsFiltres = DecoupeParam(produits)
-        if calcul == 'Capacité':
-            pass
-        elif calcul == 'atelier':
-            pass
-        elif calcul == 'EffectifMoyen':
-            pass
-        elif calcul == 'Production':
-            pass
-        elif calcul == 'PU':
-            pass
-        elif calcul == 'Quantité':
-            pass
-        elif calcul == 'SurfaceProd':
+        mess = ''
+        result = 0.00
+        ateliersNoms,ateliersFiltres = DecoupeParam(ateliers)
+        produitsNoms,produitsFiltres = DecoupeParam(produits)
 
-            pass
-        elif calcul == 'UGB':
-            pass
+        # éléments de requêtes
+        where = 'WHERE IDdossier = %d '%self.dicIdent['iddossier']
+        def AjoutWhere(champ,lstRetenus):
+            txt = "AND %s in ( %s) "%(champ,str(lstRetenus)[1:-1])
+        if len(ateliersNoms) > 0:
+            where += AjoutWhere('IDMatelier',ateliersNoms)
+        if len(produitsNoms) > 0:
+            where += AjoutWhere('IDMproduit',produitsNoms)
+        """
+        if len(produitsFiltres)>0:
+            for champmodele,params:
+                if champmodele.lower() == 'type':
+                    ajout = "AND ( mProduits = "
+                    for param in params:"""
+
+
+        ok = False
+        # préparation de la requête sur _Produits
+        champs_Produits =  dtt.GetChamps('_Produits',reel=True)
+        if calcul.lower() in champs_Produits.lower():
+            # accès direct dans la table _Produits
+            champs = champs_Produits[champs_Produits.lower().index(calcul.lower())]
+            ok = True
+        elif calcul.lower() == 'production':
+            champs = "Ventes, DeltaStock,AutreProd, AchatAnmx"
+            ok = True
+        elif calcul.lower == 'pu':
+            champs = "Ventes,Quantité1"
+            ok = True
+        if ok:
+            champs += ", TypesProduit"
+            req = """SELECT %s 
+                    FROM _Produits
+                    %s;""" %(champs,where)
+            retour = self.DBsql.ExecuterReq(req, mess='accès OpenRef Fonctions.Produits')
+            if retour == "ok":
+                recordset = self.DBsql.ResultatReq()
+                # traitement du retour requête, group by reconstitué sur les champs appelés
+                lstChamps = champs.split(',')
+                dicRet={}
+                ix = 0
+                for champ in lstChamps[:-1]:
+                    dicRet[champ] = 0.0
+                    for record in recordset:
+                        if record[ix]:
+                            dicRet[champ] += float(record[ix])
+                    ix += 1
+                if calcul.lower() == 'pu':
+                    try:
+                        result = round(dicRet['Ventes']/dicRet['Quantité1'],2)
+                    except:
+                        result = dicRet['Ventes']
+                if calcul.lower() == 'production':
+                    try:
+                        result = round(dicRet['Ventes']+dicRet['DeltaStock']+dicRet['AutreProd']-dicRet['AchatAnmx'],2)
+                    except:
+                        result = dicRet['Ventes']
+
+            else :
+                # échec requete
+                mess = retour
+                return 0.0,mess
+
+        #autres modes de calculs à gérer à l'avenir
         elif calcul == 'Unité':
             pass
-        elif calcul == 'Vente':
+        elif calcul == 'Capacité':
             pass
-
-        return 0.0,''
-        #TODO Produits'
+        return result,mess
 
     def Calcul(self,param,*args):
         #réduire un argument param de fonction calcul contenant une expression
@@ -540,7 +590,7 @@ class Fonctions(object):
         if mess == '':
             if nomvar:
                 self.dicVariables[nomvar.lower()] = valeur
-            return valeur,''
+            return valeur,mess
         else:
             if not self.errorResume:
                 rep = wx.MessageBox('Erreurs rencontrées : ABANDON ? \n\n%s'%mess,style = wx.YES_NO|wx.ICON_STOP)
