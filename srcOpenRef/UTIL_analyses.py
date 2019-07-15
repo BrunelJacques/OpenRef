@@ -844,6 +844,7 @@ class Analyse():
                     nbreOK += 1
             if len(mess) > 0:
                 self.mess += mess+'\n'
+            fn.DBsql.Close()
             del fn
             if self.topwin:
                 messBasEcran += retour + ', '

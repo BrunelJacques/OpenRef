@@ -609,6 +609,8 @@ class Traitements():
         #premier accès sur les comptes de vente
         IDdossier, lstVentes,lstFilieres,lstProduction = self.GetMotsCleDossier(tplIdent)
         #les pointeurs d'affectation non validés doivent être mis à blanc
+        if not IDdossier:
+            return 'Incomplet'
         self.PurgeNonValide(IDdossier)
         self.balanceCeg = self.GetBalance(IDdossier)
         lstAteliersValid, lstProduitsValid,lstCoutsValid = self.GetValide(IDdossier)
