@@ -322,10 +322,11 @@ class Fonctions(object):
                     dic[ligne[0]] = (ligne[1],ligne[2],ligne[3])
             return dic
         self.dicIdent = PrechargeIdent()
-        self.dicInfos = PrechargeInfos()
-        #dicVariables contient le résultat des variables du client, dicAnalyse la liste des expressions de calculs
-        self.dicVariables = {}
-        self.lstfonctions = ['Ident','Infosident','Communeinsee','Balancemvt','Balance_N1','Balance','Produits','Calcul','Div','Nz']
+        if len(self.dicIdent) >1:
+            self.dicInfos = PrechargeInfos()
+            #dicVariables contient le résultat des variables du client, dicAnalyse la liste des expressions de calculs
+            self.dicVariables = {}
+            self.lstfonctions = ['Ident','Infosident','Communeinsee','Balancemvt','Balance_N1','Balance','Produits','Calcul','Div','Nz']
 
     def Ident(self,param,*args):
         mess = ''
@@ -844,6 +845,7 @@ class Analyse():
                     nbreOK += 1
             if len(mess) > 0:
                 self.mess += mess+'\n'
+            fn.DBsql.Close()
             del fn
             if self.topwin:
                 messBasEcran += retour + ', '
