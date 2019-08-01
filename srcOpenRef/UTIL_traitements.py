@@ -188,6 +188,7 @@ def GetTuplesCles(mots):
                 tup += (mot.strip(),)
                 tuple = True
             else: continue
+    lstTuples.sort(key=lambda v: len(v[0]), reverse=True)
     return lstTuples
 
 def GetProduitsAny(dicProduits):
