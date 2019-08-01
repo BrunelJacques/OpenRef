@@ -120,7 +120,7 @@ DB_TABLES = {
         ("IDexploitation",  'varchar(8)', ' NOT NULL,', ''),
         ("Clôture",  'date', ' NOT NULL', ''),
         ("IDuser",  'varchar(64)', ' DEFAULT NULL', "Trace du dernier domaine.user qui a modifié le dossier"),
-        ("IDlocalisation",  'varchar(8)', ' DEFAULT NULL', "Agence (Implantation) de la compta qui a servi à l'import (trace du programme d'import)"),
+        ("IDlocalisation",  'varchar(24)', ' DEFAULT NULL', "Agence (Implantation) de la compta qui a servi à l'import (trace du programme d'import)"),
         ("IDjuridique",  'varchar(8)', ' DEFAULT NULL', "Forme juridique de l'exploitation du dossier"),
         ("NomExploitation",  'varchar(128)', ' DEFAULT NULL,', ''),
         ("IDCodePostal",  'varchar(8)', ' DEFAULT NULL,', ''),
