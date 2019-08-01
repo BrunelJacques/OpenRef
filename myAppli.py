@@ -52,4 +52,3 @@ if __name__ == "__main__":
     # Lancement de l'application
     app = MyApp(redirect=False)
     app.MainLoop()
-
