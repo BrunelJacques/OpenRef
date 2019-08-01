@@ -152,6 +152,8 @@ class DB():
                 self.ConnectAcessADO()
             elif self.typeDB == 'sqlite':
                 self.ConnectSQLite()
+            elif self.typeDB == 'mySqlLocal':
+                self.ConnectMySqlLocal()
             else:
                 wx.MessageBox('Accès DB non développé pour %s' %self.typeDB)
         except Exception as err:

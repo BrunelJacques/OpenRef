@@ -14,7 +14,29 @@ import datetime
 import xpy.xUTILS_Config as xucfg
 import srcOpenRef.UTIL_traitements as orut
 import xpy.xGestionDB as xdb
+import srcOpenRef.DATA_Tables as dtt
 
+def TronqueData(table,lstChamps,lstDonnees):
+    # vérifie la longueur des données texte pour éviter les plantages lors d'insertions SQL
+    champs_table = dtt.GetChamps(table, tous=True)
+    ixd = 0
+    for champ in lstChamps:
+        ix = champs_table.index(champ)
+        nature = dtt.DB_TABLES[table][ix][1]
+        if nature[:3].lower() == 'var':
+            lg = int(nature.replace(')','(').split('(')[1])
+            if isinstance(lstDonnees[0], (tuple, list)):
+                for donnees in lstDonnees:
+                    if donnees[ixd]:
+                        if len(donnees[ixd]) > lg:
+                            donnees[ixd] = donnees[ixd][:lg]
+            else:
+                donnee = lstDonnees[ixd]
+                if donnee:
+                    if len(donnee) > lg:
+                        donnee = donnee[:lg]
+        ixd += 1
+    return
 
 def ListesToDict(listecles, listevaleurs):
     dic = {}
@@ -342,8 +364,8 @@ class ImportComptas(object):
                     if abs(mvtcre) + abs(mvtdeb) + abs(soldedeb) >0:
                         motsclepres = ChercheMotsCle(compte,libcompte,libmaxecriture)
                         IDplanCompte = orut.ChercheIDplanCompte(compte,self.dicPlanComp)
-                        lstBalance.append((compte, libcompte.strip(),str(motsclepres)[1:-1], qte, qtenature,
-                                       qte2,qte2nature, soldedeb,mvtdeb, mvtcre, soldefin,IDplanCompte))
+                        lstBalance.append([compte, libcompte.strip(),str(motsclepres)[1:-1], qte, qtenature,
+                                       qte2,qte2nature, soldedeb,mvtdeb, mvtcre, soldefin,IDplanCompte])
             dicCompta['balance'] = lstBalance
 
             dicIdent = {}
@@ -552,10 +574,11 @@ class ImportComptas(object):
         def InsertOpenRef(IDdossier):
             #insertion table _Ident
             lstChamps,lstDonnees = DictToLists(dicCompta['ident'])
+            TronqueData('_Ident', lstChamps, lstDonnees)
             if IDdossier :
                 lstChamps.append('IDdossier')
                 lstDonnees.append(IDdossier)
-            ret = self.DBsql.ReqInsert('_Ident',lstChamps,lstDonnees,mess = 'Insert OpenRef._Ident')
+            ret = self.DBsql.ReqInsert('_Ident',lstChamps,lstDonnees,mess = 'UTIL_import.Stockage.InsertOpenRef._Ident')
             if not IDdossier:
                 IDdossier = self.DBsql.newID
             dicCompta['ident']['IDdossier'] = IDdossier
@@ -566,7 +589,8 @@ class ImportComptas(object):
             for ligne in dicCompta['balance']:
                 ligne += (IDdossier,)
                 lstDonnees.append(ligne)
-            ret = self.DBsql.ReqInsert('_Balances',lstChamps,lstDonnees,mess = 'Insert OpenRef._Balances')
+            TronqueData('_Balances', lstChamps, lstDonnees)
+            ret = self.DBsql.ReqInsert('_Balances',lstChamps,lstDonnees,mess = 'UTIL_import.Stockage.InsertOpenRef._Balances')
 
             #insertion table _Infos
             if len(lstDonnees) > 0:
@@ -579,7 +603,7 @@ class ImportComptas(object):
                     if isinstance(valeur, (int,float)) : numerique = valeur
                     IDMinfo = cle
                     lstDonnees.append((IDdossier, IDMinfo,numerique,vf,texte))
-                ret = self.DBsql.ReqInsert('_Infos',lstChamps,lstDonnees,mess = 'Insert OpenRef._Infos')
+                ret = self.DBsql.ReqInsert('_Infos',lstChamps,lstDonnees,mess = 'UTIL_import.Stockage.InsertOpenRef._Infos')
 
             #def InsertOpenRef, fin
 
