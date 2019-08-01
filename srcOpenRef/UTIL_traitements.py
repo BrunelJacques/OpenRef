@@ -17,7 +17,7 @@ import srcOpenRef.DATA_Tables as dtt
 CHAMPS_TABLES = {
     '_Balances':['IDdossier','Compte','IDligne','Libellé','MotsCléPrés','Quantités1','Unité1','Quantités2','Unité2',
                  'SoldeDeb','DBmvt','CRmvt','SoldeFin','IDplanCompte','Affectation'],
-    'produits':[ 'IDMatelier', 'IDMproduit', 'NomProduit', 'MoisRécolte', 'ProdPrincipal', 'UniteSAU', 'coefHa', 'CptProduit', 'MotsCles', 'TypesProduit'],
+    'produits':[ 'IDMatelier', 'IDMproduit', 'NomProduit', 'MoisRécolte', 'ProdPrincipal', 'UniteSAU', 'coefHa', 'CptProduit', 'Priorité', 'MotsCles', 'TypesProduit'],
     'couts': ['IDMatelier','IDMcoût','UnitéQté','CptCoût','MotsCles','TypesCoût']
     }
 
@@ -72,12 +72,14 @@ def PrechargeProduits(agc, DBsql):
     # constitue un dictionnaire des modèles de produits à générer
     lstChamps = CHAMPS_TABLES['produits']
     if agc:
-        req = """SELECT mProduits.IDMatelier, mProduits.IDMproduit, mProduits.NomProduit, mProduits.MoisRécolte, mProduits.ProdPrincipal, mProduits.UniteSAU, mProduits.coefHa, mProduits.CptProduit, mProduits.MotsCles, mProduits.TypesProduit
+        req = """SELECT mProduits.IDMatelier, mProduits.IDMproduit, mProduits.NomProduit, mProduits.MoisRécolte, mProduits.ProdPrincipal, mProduits.UniteSAU,
+                        mProduits.coefHa, mProduits.CptProduit, mProduits.Priorité, mProduits.MotsCles, mProduits.TypesProduit
             FROM mProduits LEFT JOIN mAteliers ON mProduits.IDMatelier = mAteliers.IDMatelier
             WHERE (((mAteliers.IDagc) In ('ANY','%s'))) OR (((mAteliers.IDagc) Is Null));
             """ %agc
     else:
-        req = """SELECT mProduits.IDMatelier, mProduits.IDMproduit, mProduits.NomProduit, mProduits.MoisRécolte, mProduits.ProdPrincipal, mProduits.UniteSAU, mProduits.coefHa, mProduits.CptProduit, mProduits.MotsCles, mProduits.TypesProduit
+        req = """SELECT mProduits.IDMatelier, mProduits.IDMproduit, mProduits.NomProduit, mProduits.MoisRécolte, mProduits.ProdPrincipal, mProduits.UniteSAU, 
+                        mProduits.coefHa, mProduits.CptProduit, mProduits.Priorité, mProduits.MotsCles, mProduits.TypesProduit
                 FROM mProduits LEFT JOIN mAteliers ON mProduits.IDMatelier = mAteliers.IDMatelier;"""
     retour = DBsql.ExecuterReq(req, mess='accès OpenRef précharge Produits')
     dic = {}
@@ -88,11 +90,16 @@ def PrechargeProduits(agc, DBsql):
         else:
             wx.MessageBox("Aucun modèle produit disponible, le traitement n'est pas lancé!")
             return {}
-        for produit in dic:
-            dic[produit]['clesstring']=GetMotsCles({'x':{'motscles':dic[produit]['motscles']}},avectuple=False)
-            dic[produit]['clestuple'] = GetTuplesCles(dic[produit]['motscles'])
-            dic[produit]['lstmots'] = GetMotsCles({'x': {'motscles': dic[produit]['motscles']}}, avectuple=True)
-    return dic
+        dicPriorites={}
+        for idmproduit in dic:
+            dic[idmproduit]['clesstring']=GetMotsCles({'x':{'motscles':dic[idmproduit]['motscles']}},avectuple=False)
+            dic[idmproduit]['clestuple'] = GetTuplesCles(dic[idmproduit]['motscles'])
+            dic[idmproduit]['lstmots'] = GetMotsCles({'x': {'motscles': dic[idmproduit]['motscles']}}, avectuple=True)
+            dicPriorites[(dic[idmproduit]['priorité'],idmproduit)]=idmproduit
+        lstPrioritesProduits = []
+        for ordre in sorted(dicPriorites.keys()):
+            lstPrioritesProduits.append(dicPriorites[ordre])
+    return dic,lstPrioritesProduits
 
 def PrechargeCouts(agc, DBsql):
     # constitue un dictionnaire des modèles de Couts à générer
@@ -144,11 +151,14 @@ def GetMotsCles(dic, avectuple = True):
                     mot = mot.replace('(','')
                     if not mot.strip() in lstMots:
                         if avectuple:
-                            lstMots.append(mot.strip())
+                            if len(mot.strip()) > 0:
+                                lstMots.append(mot.strip())
                     tuple = True
                 else:
                     if not mot.strip() in lstMots:
-                        lstMots.append(mot.strip())
+                        if len(mot.strip()) > 0:
+                            lstMots.append(mot.strip())
+    lstMots.sort(key=len,reverse=True)
     return lstMots
 
 def GetTuplesCles(mots):
@@ -202,7 +212,9 @@ class Traitements():
 
         self.dic_Ateliers = {}
         #préchargement de la table des Produits et des coûts
-        self.dicProduits = PrechargeProduits(agc,self.DBsql)
+        self.dicProduits, self.lstPrioritesProduits = PrechargeProduits(agc,self.DBsql)
+
+
         self.dicCouts = PrechargeCouts(agc,self.DBsql)
         self.dicPlanComp = PrechargePlanCompte(self.DBsql)
         self.lstMotsClesProduits = GetMotsCles(self.dicProduits, avectuple=True)
@@ -624,7 +636,8 @@ class Traitements():
                 for motcle in self.lstMotsClesProduits:
                     if motcle in mot :
                         #le mot contient un radical pouvant déterminer un produit, on recherche quel produit
-                        for produit, dic in self.dicProduits.items():
+                        for produit in self.lstPrioritesProduits:
+                            dic = self.dicProduits[produit]
                             if motcle in dic['clesstring']:
                                 if not (produit,motcle) in lstProduits:
                                     lstProduits.append((produit,motcle))

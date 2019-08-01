@@ -76,6 +76,7 @@ DB_TABLES = {
         ("RdtMaxi",  'float', ' DEFAULT NULL', "Contrôle lors de la saisie"),
         ("RdtMini",  'float', ' DEFAULT NULL', "Contrôle lors de la saisie"),
         ("CptProduit",  'varchar(128)', ' DEFAULT NULL', "Liste des radicaux des comptes entrant dans le calcul, éventuellement préfixés d'un signe"),
+        ("Priorité",  'int(2)', "NOT NULL DEFAULT '50'", "Ordre de priorité dans les traitements, 1 = avant, 100 = après"),
         ("MotsCles",  'varchar(200)', ' DEFAULT NULL', "Saisie de mots clés ou tuples pour automate de génération"),
         ("CtrlBloquant",  'varchar(128)', ' DEFAULT NULL', "Les contrôles doivent-ils bloquer la saisie si négatif"),
         ("TypesProduit",  'varchar(128)', ' DEFAULT NULL', "Liste des types de produits auxquels il se rattache"),

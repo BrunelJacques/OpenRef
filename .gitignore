@@ -8,6 +8,7 @@ __pycache__/
 
 # Personnel
 venv32/
+venv/
 srcOpenRef/Data/
 
 # Distribution / packaging
