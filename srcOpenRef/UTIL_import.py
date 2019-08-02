@@ -25,16 +25,27 @@ def TronqueData(table,lstChamps,lstDonnees):
         nature = dtt.DB_TABLES[table][ix][1]
         if nature[:3].lower() == 'var':
             lg = int(nature.replace(')','(').split('(')[1])
+            def Secateur(donnee):
+                # la donnée peut être liste ou str
+                for i in range(len(donnee)):
+                    donnee = donnee[:-1]
+                    if len(str(donnee)) <= lg - 4: break
+                if isinstance(donnee, str):
+                    donnee += "..."
+                if isinstance(donnee, list):
+                    donnee.append("...")
+                return donnee
             if isinstance(lstDonnees[0], (tuple, list)):
+                # cas d'une série de plusieurs lignes à inserer en une fois
                 for donnees in lstDonnees:
                     if donnees[ixd]:
                         if len(donnees[ixd]) > lg:
-                            donnees[ixd] = donnees[ixd][:lg]
+                            donnees[ixd] = Secateur(donnees[ixd])
             else:
-                donnee = lstDonnees[ixd]
-                if donnee:
-                    if len(donnee) > lg:
-                        donnee = donnee[:lg]
+                # une seule ligne à insérer, mais la donnée peut être une liste
+                if lstDonnees[ixd]:
+                    if len(str(lstDonnees[ixd])) > lg:
+                        lstDonnees[ixd] = Secateur(lstDonnees[ixd])
         ixd += 1
     return
 

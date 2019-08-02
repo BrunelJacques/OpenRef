@@ -10,6 +10,7 @@
 
 import wx
 import srcOpenRef.UTIL_analyses as orua
+import srcOpenRef.UTIL_import as orui
 import xpy.xGestionDB as xdb
 import unicodedata
 import srcOpenRef.DATA_Tables as dtt
@@ -476,19 +477,23 @@ class Traitements():
             # si plusieurs lignes successives d'un même compte (quand plusieurs unités de qté) => compteencours cumule
             compteencours = Compte
             lstComptesRetenus.append(Compte)
+            def AppendCompte(lstComptes,compte):
+                if not compte in lstComptes:
+                    lstComptes.append(compte)
+                return
             # inversion des signes de balance pour retrouver du positif dans les produits ou stock
             if IDplanCompte[:2] == '74':
                 # subventions seront affectées à l'atelier
                 self.dic_Ateliers[atelier]['Subventions'] += SoldeFin
-                self.dic_Ateliers[atelier]['CPTSubventions'].append(Compte)
+                AppendCompte(self.dic_Ateliers[atelier]['CPTSubventions'],Compte)
                 post='Subventions'
-            elif IDplanCompte[:1] in ('7','3'):
+            elif IDplanCompte[:2] in ('70','71','75','33','34','35','36','37'):
                 self.dic_Ateliers[atelier]['AutreProduit'] += SoldeFin
-                self.dic_Ateliers[atelier]['CPTAutreProduit'].append(Compte)
+                AppendCompte(self.dic_Ateliers[atelier]['CPTAutreProduit'],Compte)
                 post='AutreProduit'
-            elif IDplanCompte[:3] in ('603','604'):
+            elif IDplanCompte[:3] in ('307','604'):
                 self.dic_Ateliers[atelier]['AutreProduit'] += SoldeFin
-                self.dic_Ateliers[atelier]['CPTAutreProduit'].append(Compte)
+                AppendCompte(self.dic_Ateliers[atelier]['CPTAutreProduit'],Compte)
                 post = 'AutreProduit'
 
             #TODO inserer les comptes de charges selon type
@@ -599,6 +604,7 @@ class Traitements():
             if champ in lstChampsTable:
                 lstChamps.append(champ)
                 lstDonnees.append(dicAtelier[champ])
+        orui.TronqueData('_Ateliers',lstChamps,lstDonnees)
         ok = self.DBsql.ReqInsert('_Ateliers',lstChamps,lstDonnees,mess= 'Genere_Atelier Atelier : %s'%IDMatelier)
         return ok
 
@@ -612,6 +618,7 @@ class Traitements():
             if champ in lstChampsTable:
                 lstChamps.append(champ)
                 lstDonnees.append(dicProduit[champ])
+        orui.TronqueData('_Produits',lstChamps,lstDonnees)
         ok = self.DBsql.ReqInsert('_Produits', lstChamps, lstDonnees, mess='GenereProduits Produit : %s' % IDMproduit)
         return ok
 
@@ -737,14 +744,18 @@ class Traitements():
             self.AffecteAtelier(IDdossier, atelierLeader, lstComptesRetenus)
         ok = 'ok'
         # stockage de l'info dans  _Produits et _Atelier
-        for atelier,dicAtelier in self.dic_Ateliers.items():
-            ret = self.Genere_Atelier(atelier,dicAtelier)
-            if ret != 'ok': ok = ret
+        lstAteliersCrees = []
         for dicProduit in lstDicProduits:
             if dicProduit['Production'] == 0.0 : continue
-            if dicProduit['IDMatelier'] in lstAteliersValid: continue
+            atelier = dicProduit['IDMatelier']
+            if atelier in lstAteliersValid: continue
+            if not atelier in lstAteliersCrees:
+                dicAtelier = self.dic_Ateliers[atelier]
+                ret = self.Genere_Atelier(atelier,dicAtelier)
+                if ret != 'ok': ok = ret
+                lstAteliersCrees.append(atelier)
             ret = self.Genere_Produit(dicProduit)
-            if ret != 'ok': ok = ret
+            if ret != 'ok': ok += '; '+ret
         return ok
 
 #************************   Pour Test ou modèle  *********************************

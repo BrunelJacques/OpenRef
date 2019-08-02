@@ -263,7 +263,7 @@ def GetClientsGroupes(agc, groupes, annee, nbanter, DBsql,saufvalide=False):
                         client = client[-6:]
                         lstClients.append(client)
     if lstClients == []:
-        wx.messageBox("Aucun client ne correspond aux requêtes des groupes %s"%lstGroupes)
+        wx.MessageBox("Aucun client ne correspond aux requêtes des groupes %s"%lstGroupes)
         return []
     lstExercices = []
     for client in lstClients:
@@ -862,7 +862,7 @@ class Analyse():
             if code in dicLigne:
                 lstDonnees.append(dicLigne[code])
                 lstChamps.append(code)
-        ret = self.DBsql.ReqInsert(self.nomTable,lstChamps,lstDonnees,mess='Insert %s, %s'%(exploitation,exercice))
+        ret = self.DBsql.ReqInsert(self.nomTable,lstChamps,lstDonnees,mess='Analyse.ExporteLigne Insert %s, %s'%(exploitation,exercice))
         if ret != 'ok':
             wx.MessageBox('Export de la ligne\n\nerreur sur dossier : %s\n%s'%(str(tplIdent),ret))
         return ret
