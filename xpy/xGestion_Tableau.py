@@ -1,10 +1,11 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-#  Jacques Brunel x Sébastien Gouast x Ivan Lucas
-#  MATTHANIA - Projet XPY - xTableau.py (implémentation d'un tableau paramétrable)
+#  Jacques Brunel x Sébastien Gouast
+#  MATTHANIA - Projet XPY - xTableau.py (implémentation d'une gestion de tableau paramétrable)
 #  2019/04/18
 # note l'appel des fonctions 2.7 passent par le chargement de la bibliothèque future (vue comme past)
+# ce module reprend les fonctions de xUTILS_Tableau sans y faire appel
 
 import wx
 import os
@@ -78,10 +79,11 @@ class ListViewTableau(FastObjectListView):
         self.listeFiltres = []
 
         # Initialisation du listCtrl
-        FastObjectListView.__init__(self, *args, **kwds)
+        FastObjectListView.__init__(self, *args,**kwds)
         # Binds perso
         # self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnItemActivated)
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
+
 
     def formerTracks(self):
         self.tracks = list()
@@ -437,15 +439,15 @@ class PNL_tableau(wx.Panel):
 class DLG_tableau(wx.Dialog):
     def __init__(self,parent,dicOlv={}, **kwds):
         self.parent = parent
-        largeur = dicOlv.pop("largeur", 500)
-        longueur = dicOlv.pop("longueur", 700)
+        largeur = dicOlv.pop("largeur", 900)
+        hauteur = dicOlv.pop("hauteur", 700)
         listArbo=os.path.abspath(__file__).split("\\")
         titre = listArbo[-1:][0] + "/" + self.__class__.__name__
-        wx.Dialog.__init__(self,parent, title=titre, size=(largeur,longueur),style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
+        wx.Dialog.__init__(self,parent, title=titre, size=(largeur,hauteur),style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
         self.SetBackgroundColour(wx.WHITE)
         self.marge = 10
-        self.pnl = PNL_tableau(self, dicOlv,  **kwds )
-        self.myOlv = self.pnl.myOlv
+        #self.pnl = PNL_tableau(self, dicOlv,  **kwds )
+        #self.myOlv = self.pnl.myOlv
         self.CenterOnScreen()
         self.Layout()
     def Close(self):
@@ -472,8 +474,8 @@ if __name__ == '__main__':
                      ]
     dicOlv = {'listeColonnes':liste_Colonnes,
                     'listeDonnees':liste_Donnees,
-                    'longueur':850,
-                    'largeur':1000,
+                    'hauteur':650,
+                    'largeur':850,
                     'recherche':False,
                     'msgIfEmpty':"Aucune donnée ne correspond à votre recherche"}
     exampleframe = DLG_tableau(None,dicOlv=dicOlv)
