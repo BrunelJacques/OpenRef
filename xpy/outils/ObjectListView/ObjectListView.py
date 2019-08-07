@@ -245,8 +245,6 @@ class ObjectListView(wx.ListCtrl):
         will be nothing, and no images will be registered in the image lists. This
         parameter only has effect at creation time -- it has no impact after creation.
 
-        """
-
         # We have two collections of objects: our model objects and our working list
         # ("innerList"). The model objects are those given to use by the user; the working
         # list is what is actually used to populate the control. This separation let us
@@ -254,6 +252,7 @@ class ObjectListView(wx.ListCtrl):
         # to (in the future) implement filtering or some other view-like capabilities.
         # Currently, for ObjectListView, these collections will be identical, but for a
         # GroupListView they are different.
+        """
         self.modelObjects = []
         self.innerList = []
         self.columns = []
@@ -3058,36 +3057,6 @@ class FastObjectListView(AbstractVirtualObjectListView):
 
         self.SelectObjects(selection)
         self.RefreshObjects()
-
-
-##############################################################################
-
-
-class PanelAvecFooter(wx.Panel):
-    def __init__(self, parent, listview=None, kwargs={}, dictColonnes={}, style=wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL):
-        wx.Panel.__init__(self, parent, id=-1, style=style)
-
-        # Contrôles
-        kwargs["parent"] = self
-        #        if kwargs.has_key("parent") == False : kwargs["parent"] = self # BUG ICI
-        if kwargs.has_key("id") == False: kwargs["id"] = -1
-        if kwargs.has_key("style") == False: kwargs[
-            "style"] = wx.LC_REPORT | wx.NO_BORDER | wx.LC_SINGLE_SEL | wx.LC_HRULES | wx.LC_VRULES
-
-        self.ctrl_listview = listview(**kwargs)
-        self.ctrl_listview.SetMinSize((10, 10))
-        self.ctrl_footer = Footer.Footer(self)
-        self.ctrl_listview.SetFooter(ctrl=self.ctrl_footer, dictColonnes=dictColonnes)
-
-        # Layout
-        sizerbase = wx.BoxSizer(wx.VERTICAL)
-        sizerbase.Add(self.ctrl_listview, 1, wx.ALL | wx.EXPAND, 0)
-        sizerbase.Add(self.ctrl_footer, 0, wx.ALL | wx.EXPAND, 0)
-        self.SetSizer(sizerbase)
-        self.Layout()
-
-    def GetListview(self):
-        return self.ctrl_listview
 
 #######################################################################
 

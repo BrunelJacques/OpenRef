@@ -9,14 +9,14 @@
 
 import wx
 import os
-from xpy.outils.ObjectListView import FastObjectListView, ColumnDefn, Filter
+from xpy.outils.ObjectListView import FastObjectListView, ColumnDefn, Filter, Footer
 
 import xpy.outils.xformat
 from xpy.outils.xconst import *
 
 # ------------------------------------------------------------------------------------------------------------------
 
-class ListViewTableau(FastObjectListView):
+class ListView(FastObjectListView):
     """
     Lors de l'instanciation de cette classe vous pouvez y passer plusieurs parametres :
 
@@ -44,12 +44,12 @@ class ListViewTableau(FastObjectListView):
     lors du double clic sur une ligne
 
     Dictionnaire optionnel ou on indique si on veut faire le bilan (exemple somme des valeurs)
-
     """
 
     def __init__(self, *args, **kwds):
         # Récupération des paramètres perso
         self.classeAppelante = kwds.pop("classeAppelante", None)
+        self.checkColonne = kwds.pop("checkColonne",True)
         self.listeColonnes = kwds.pop("listeColonnes", [])
         self.msgIfEmpty = kwds.pop("msgIfEmpty", "Tableau vide")
         self.colonneTri = kwds.pop("colonneTri", None)
@@ -79,11 +79,21 @@ class ListViewTableau(FastObjectListView):
         self.listeFiltres = []
 
         # Initialisation du listCtrl
+        #test
+        #self.test = kwds.pop("dictColonnes", True)
         FastObjectListView.__init__(self, *args,**kwds)
         # Binds perso
         # self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnItemActivated)
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
 
+    def SetFooter(self, ctrl=None, dictColonnes={}):
+        self.ctrl_footer = ctrl
+        self.ctrl_footer.listview = self
+        self.ctrl_footer.dictColonnes = dictColonnes
+
+    def MAJ_footer(self):
+        if self.ctrl_footer != None:
+            self.ctrl_footer.MAJ()
 
     def formerTracks(self):
         self.tracks = list()
@@ -115,7 +125,8 @@ class ListViewTableau(FastObjectListView):
         self.useExpansionColumn = True
         # On définit les colonnes
         self.SetColumns(self.listeColonnes)
-        self.CreateCheckStateColumn(0)
+        if self.checkColonne:
+            self.CreateCheckStateColumn(0)
         # On définit le message en cas de tableau vide
         self.SetEmptyListMsg(self.msgIfEmpty)
         self.SetEmptyListMsgFont(wx.FFont(11, wx.DEFAULT))
@@ -135,6 +146,7 @@ class ListViewTableau(FastObjectListView):
             self.selectionTrack = None
         self.InitModel()
         self.InitObjectListView()
+        self.ctrl_footer.MAJ()
         # Sélection d'un item
         if self.selectionTrack != None:
             self.SelectObject(self.selectionTrack, deselectOthers=True, ensureVisible=True)
@@ -146,7 +158,8 @@ class ListViewTableau(FastObjectListView):
     def Selection(self):
         return self.GetSelectedObjects()
 
-    def GetTracks(self):
+    def \
+            GetTracks(self):
         """ Récupération des données """
         return self.tracks
 
@@ -270,22 +283,6 @@ class ListViewTableau(FastObjectListView):
                                                         orientation=self.GetOrientationImpression())
         prt.Print()
 
-    # def OuvrirFicheFamille(self, event): Cette fonction sera surement recopiée ailleurs donc je la laisse pour le moment
-    #     if UTILS_Utilisateurs.VerificationDroitsUtilisateurActuel("familles_fiche", "consulter") == False: return
-    #     if len(self.Selection()) == 0:
-    #         dlg = wx.MessageDialog(self, "Vous n'avez sélectionné aucune fiche famille à ouvrir !"),
-    #                                "Erreur de saisie"), wx.OK | wx.ICON_EXCLAMATION)
-    #         dlg.ShowModal()
-    #         dlg.Destroy()
-    #         return
-    #     IDfamille = self.Selection()[0].IDfamille
-    #     import DLG_Famille
-    #     dlg = DLG_Famille.Dialog(self, IDfamille)
-    #     if dlg.ShowModal() == wx.ID_OK:
-    #         pass
-    #     dlg.Destroy()
-    #     self.MAJ(IDfamille)
-
     def ExportTexte(self, event):
         import xpy.outils.xexport
         xpy.outils.xexport.ExportTexte(self, titre=self.titreImpression, autoriseSelections=False)
@@ -332,6 +329,33 @@ class ListViewTableau(FastObjectListView):
 
     def GetTracksCoches(self):
         return self.GetCheckedObjects()
+
+class PanelOLVFooter(wx.Panel):
+    #def __init__(self, parent, listview=None, kwargs={}, dictColonnes={}, style=wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL):
+    def __init__(self, parent, **kwargs):
+        id = -1
+        style = wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL
+        wx.Panel.__init__(self, parent, id=id, style=style)
+        dictColonnes = kwargs.pop("dictColonnes", None)
+        if not "id" in kwargs: kwargs["id"] = wx.ID_ANY
+        if not "style" in kwargs: kwargs["style"] = wx.LC_REPORT|wx.NO_BORDER|wx.LC_SINGLE_SEL|wx.LC_HRULES|wx.LC_VRULES
+        listview = ListView(self,**kwargs)
+        kwargs["parent"] = self
+
+        self.ctrl_listview = listview
+        self.ctrl_listview.SetMinSize((10, 10))
+        self.ctrl_footer = Footer.Footer(self)
+        self.ctrl_listview.SetFooter(ctrl=self.ctrl_footer, dictColonnes=dictColonnes)
+
+        # Layout
+        sizerbase = wx.BoxSizer(wx.VERTICAL)
+        sizerbase.Add(self.ctrl_listview, 1, wx.ALL | wx.EXPAND, 0)
+        sizerbase.Add(self.ctrl_footer, 0, wx.ALL | wx.EXPAND, 0)
+        self.SetSizer(sizerbase)
+        self.Layout()
+
+    def GetListview(self):
+        return self.ctrl_listview
 
 class BarreRecherche(wx.SearchCtrl):
     def __init__(self, parent, listview):
@@ -403,20 +427,23 @@ class PNL_tableau(wx.Panel):
                         'toutDecocher',
                         'inverserSelection',
                         'titreImpression',
-                        'orientationImpression']
+                        'orientationImpression',
+                        'dictColonnes']
         #récup des seules clés possibles pour dicOLV
         dicOlvOut = {}
-        dicOlvOut['id']=-1
-        dicOlvOut['style']=wx.LC_REPORT | wx.SUNKEN_BORDER | wx.LC_SINGLE_SEL | wx.LC_HRULES | wx.LC_VRULES
         for key,valeur in dicOlv.items():
             if key in lstParamsOlv:
                  dicOlvOut[key] = valeur
 
-        self.myOlv = ListViewTableau(self,**dicOlvOut)
+        #test
+        self.myOlv = PanelOLVFooter(self,**dicOlvOut)
+        #self.myOlv = ListView(self,**dicOlvOut)
 
         if barreRecherche:
             self.barreRecherche = BarreRecherche(self, listview=self.myOlv)
-        self.myOlv.MAJ()
+        #test
+        self.myOlv.ctrl_listview.MAJ()
+        #self.myOlv.MAJ()
 
         self.BoutonOK = wx.BitmapButton(self, wx.ID_ANY, wx.Bitmap("xpy/Images/100x30/Bouton_ok.png", wx.BITMAP_TYPE_ANY))
         self.BoutonOK.SetToolTip(("Cliquez ici pour enregistrer et fermer la fenêtre"))
@@ -446,8 +473,8 @@ class DLG_tableau(wx.Dialog):
         wx.Dialog.__init__(self,parent, title=titre, size=(largeur,hauteur),style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
         self.SetBackgroundColour(wx.WHITE)
         self.marge = 10
-        #self.pnl = PNL_tableau(self, dicOlv,  **kwds )
-        #self.myOlv = self.pnl.myOlv
+        self.pnl = PNL_tableau(self, dicOlv,  **kwds )
+        self.myOlv = self.pnl.myOlv
         self.CenterOnScreen()
         self.Layout()
     def Close(self):
@@ -477,7 +504,9 @@ if __name__ == '__main__':
                     'hauteur':650,
                     'largeur':850,
                     'recherche':False,
-                    'msgIfEmpty':"Aucune donnée ne correspond à votre recherche"}
+                    'msgIfEmpty':"Aucune donnée ne correspond à votre recherche",
+                    'dictColonnes':{"nombre" : {"mode" : "total",  "alignement" : wx.ALIGN_CENTER},}
+    }
     exampleframe = DLG_tableau(None,dicOlv=dicOlv)
     app.SetTopWindow(exampleframe)
     ret = exampleframe.ShowModal()

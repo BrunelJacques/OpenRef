@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-# -*- coding: iso-8859-15 -*-
+# -*- coding: utf-8 -*-
 #------------------------------------------------------------------------
-# Application :    Noethys, gestion multi-activités
+# Application :    Noethys, gestion multi-activitÃ©s
 # Site internet :  www.noethys.com
 # Auteur:           Ivan LUCAS
 # Copyright:       (c) 2010-14 Ivan LUCAS
@@ -40,7 +40,7 @@ class Footer(wx.PyControl):
     def MAJ_totaux(self):
         self.dictTotaux = {}
         for track in self.listview.innerList :
-            for nomColonne, dictColonne in self.dictColonnes.iteritems() :
+            for nomColonne, dictColonne in self.dictColonnes.items() :
                 if dictColonne["mode"] == "total" :
                     if hasattr(track, nomColonne) :
                         total = getattr(track, nomColonne)
@@ -75,29 +75,28 @@ class Footer(wx.PyControl):
             texte = ""
             font = wx.Font(8, wx.SWISS, wx.NORMAL, wx.NORMAL)
             couleur = wx.Colour(140, 140, 140)
-            largeur = col.width
             largeur = self.listview.GetColumnWidth(indexColonne)
             converter = col.stringConverter
-            nom = col.valueGetter
+            nom = col.title
             if col.align == "left" : alignement = wx.ALIGN_LEFT
             if col.align == "centre" : alignement = wx.ALIGN_CENTER
             if col.align == "right" : alignement = wx.ALIGN_RIGHT
-            
-            # Recherche infos personnalisées à afficher dans la colonne
+
+            # Recherche infos personnalisÃ©es Ã  afficher dans la colonne
             mode = None
-            if self.dictColonnes.has_key(nom) :
+            if nom in self.dictColonnes :
                 infoColonne = self.dictColonnes[nom]
                 mode = infoColonne["mode"]
-                
+
                 # Valeur : TOTAL
                 if mode == "total" :
-                    if self.dictTotaux.has_key(nom) :
+                    if nom in self.dictTotaux :
                         texte = self.dictTotaux[nom]
                     else :
                         texte = 0
                     if converter != None :
                         texte = converter(texte)
-                    if type(texte) in (int, float, long) :
+                    if type(texte) in (int, float) :
                         texte = str(texte)
                 
                 # Valeur : NOMBRE
@@ -112,12 +111,12 @@ class Footer(wx.PyControl):
                 if mode == "texte" :
                     texte = infoColonne["texte"]
 
-                # Paramètres personnalisés
-                if infoColonne.has_key("alignement") : alignement = infoColonne["alignement"]
-                if infoColonne.has_key("font") : font = infoColonne["font"]
-                if infoColonne.has_key("couleur") : couleur = infoColonne["couleur"]
+                # ParamÃ¨tres personnalisÃ©s
+                if "alignement" in infoColonne : alignement = infoColonne["alignement"]
+                if "font" in infoColonne : font = infoColonne["font"]
+                if "couleur" in infoColonne : couleur = infoColonne["couleur"]
             
-            # Pour éviter les bords si les cases sont vides
+            # Pour Ã©viter les bords si les cases sont vides
             ajustement = 0
             if mode != "total" and dernierTexte == "" :
                 ajustement = 5
@@ -125,7 +124,7 @@ class Footer(wx.PyControl):
             self.DrawColonne(dc, x-ajustement, largeur+ajustement, texte, alignement, couleur, font)
             x += largeur
             
-            # Mémorisation pour impression
+            # MÃ©morisation pour impression
             self.listeImpression.append({"texte" : texte, "alignement" : alignement})
             
             if mode == "total" :
@@ -133,7 +132,7 @@ class Footer(wx.PyControl):
             else :
                 dernierTexte = ""
         
-        # Dernière colonne de remplissage
+        # DerniÃ¨re colonne de remplissage
         if self.afficherColonneDroite :
             self.DrawColonne(dc, x, self.GetSize()[0]-x)
 
@@ -169,7 +168,7 @@ class Footer(wx.PyControl):
         return False
 
 
-if __name__ == '__main__':#Petit problème lors de l'execution mais je suppose que c'est un problème logique
+if __name__ == '__main__':#Petit problÃ¨me lors de l'execution mais je suppose que c'est un problÃ¨me logique
     """ DEMO FRAME"""
     app = wx.App()
     f = wx.Frame(None)

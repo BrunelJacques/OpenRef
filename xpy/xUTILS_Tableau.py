@@ -378,6 +378,7 @@ class TrackGeneral(object):
         for (donnee, nomColonne) in zip(donnees, nomColonnes):
             self.__setattr__(nomColonne, donnee)
 
+
 # ------------------------------------------------------------------------------------------------------------------
 
 class PNL_tableau(wx.Panel):

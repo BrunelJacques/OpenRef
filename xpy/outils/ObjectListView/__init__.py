@@ -25,7 +25,7 @@ from . OLVEvent import EVT_CELL_EDIT_STARTING, EVT_CELL_EDIT_STARTED, EVT_CELL_E
 from . OLVEvent import EVT_COLLAPSING, EVT_COLLAPSED, EVT_EXPANDING, EVT_EXPANDED, EVT_GROUP_CREATING, EVT_GROUP_SORT
 from . CellEditor import CellEditorRegistry, MakeAutoCompleteTextBox, MakeAutoCompleteComboBox
 from . ListCtrlPrinter import ListCtrlPrinter, ReportFormat, BlockFormat, LineDecoration, RectangleDecoration, ImageDecoration
-from . ObjectListView import ObjectListView, ColumnDefn, VirtualObjectListView, FastObjectListView, GroupListView, ListGroup, BatchedUpdate, PanelAvecFooter, BarreRecherche, CTRL_Outils
+from . ObjectListView import ObjectListView, ColumnDefn, VirtualObjectListView, FastObjectListView, GroupListView, ListGroup, BatchedUpdate, BarreRecherche, CTRL_Outils
 from . import Filter
 
 __all__ = [
