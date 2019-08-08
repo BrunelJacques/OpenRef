@@ -57,6 +57,7 @@ class ListView(FastObjectListView):
         self.menuPersonnel = kwds.pop("menuPersonnel", None)
         self.listeDonnees = kwds.pop("listeDonnees", None)
         self.nomlisteColonnes = self.formerNomColonnes()
+        self.dictColFooter = kwds.pop("dictColFooter", {})
         self.formerTracks()
 
         # Choix des options du 'tronc commun' du menu contextuel
@@ -80,16 +81,16 @@ class ListView(FastObjectListView):
 
         # Initialisation du listCtrl
         #test
-        #self.test = kwds.pop("dictColonnes", True)
+        #self.test = kwds.pop("dictColFooter", True)
         FastObjectListView.__init__(self, *args,**kwds)
         # Binds perso
         # self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnItemActivated)
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
 
-    def SetFooter(self, ctrl=None, dictColonnes={}):
+    def SetFooter(self, ctrl=None, dictColFooter={}):
         self.ctrl_footer = ctrl
         self.ctrl_footer.listview = self
-        self.ctrl_footer.dictColonnes = dictColonnes
+        self.ctrl_footer.dictColFooter = dictColFooter
 
     def MAJ_footer(self):
         if self.ctrl_footer != None:
@@ -112,7 +113,9 @@ class ListView(FastObjectListView):
     def formerNomColonnes(self):
         nomColonnes = list()
         for colonne in self.listeColonnes:
-            nomColonnes.append(colonne.valueGetter)
+            nom = colonne.valueGetter
+            #nom = colonne.title
+            nomColonnes.append(nom)
         return nomColonnes
 
     def InitModel(self):
@@ -331,12 +334,12 @@ class ListView(FastObjectListView):
         return self.GetCheckedObjects()
 
 class PanelOLVFooter(wx.Panel):
-    #def __init__(self, parent, listview=None, kwargs={}, dictColonnes={}, style=wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL):
+    #def __init__(self, parent, listview=None, kwargs={}, dictColFooter={}, style=wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL):
     def __init__(self, parent, **kwargs):
         id = -1
         style = wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL
         wx.Panel.__init__(self, parent, id=id, style=style)
-        dictColonnes = kwargs.pop("dictColonnes", None)
+        dictColFooter = kwargs.pop("dictColFooter", None)
         if not "id" in kwargs: kwargs["id"] = wx.ID_ANY
         if not "style" in kwargs: kwargs["style"] = wx.LC_REPORT|wx.NO_BORDER|wx.LC_SINGLE_SEL|wx.LC_HRULES|wx.LC_VRULES
         listview = ListView(self,**kwargs)
@@ -345,7 +348,7 @@ class PanelOLVFooter(wx.Panel):
         self.ctrl_listview = listview
         self.ctrl_listview.SetMinSize((10, 10))
         self.ctrl_footer = Footer.Footer(self)
-        self.ctrl_listview.SetFooter(ctrl=self.ctrl_footer, dictColonnes=dictColonnes)
+        self.ctrl_listview.SetFooter(ctrl=self.ctrl_footer, dictColFooter=dictColFooter)
 
         # Layout
         sizerbase = wx.BoxSizer(wx.VERTICAL)
@@ -428,7 +431,7 @@ class PNL_tableau(wx.Panel):
                         'inverserSelection',
                         'titreImpression',
                         'orientationImpression',
-                        'dictColonnes']
+                        'dictColFooter']
         #récup des seules clés possibles pour dicOLV
         dicOlvOut = {}
         for key,valeur in dicOlv.items():
@@ -485,17 +488,17 @@ if __name__ == '__main__':
     app = wx.App(0)
     os.chdir("..")
     liste_Colonnes = [
-        ColumnDefn("cle", 'left', 70, "trackLabel1"),
-        ColumnDefn("mot", 'left', 200, "un mot"),
-        ColumnDefn("nombre", 'right', 80, "un nombre", stringConverter=xpy.outils.xformat.FormateSolde),
-        ColumnDefn("prix", 'right', 80, "un prix", stringConverter=xpy.outils.xformat.FormateMontant)
+        ColumnDefn("entête", 'left', 70, "cle"),
+        ColumnDefn("annoncer un mot", 'left', 200, "mot"),
+        ColumnDefn("_nombre", 'right', 80, "nombre", stringConverter=xpy.outils.xformat.FmtDecimal),
+        ColumnDefn("_ prix", 'right', 80, "prix", stringConverter=xpy.outils.xformat.FmtMontant)
     ]
-    liste_Donnees = [[18, "Bonjour", 57.02, 9],
-                     [19, "Bonsoir", 57.05, 208.99],
-                     [20, "Jonbour", 57.08, 209],
-                     [29, "Salut", 57.08, 209],
+    liste_Donnees = [[18, "Bonjour", -1230.05939,-1230.05939],
+                     [19, "Bonsoir", 57.5, 208.99],
+                     [20, "Jonbour", 57.089, 209],
+                     [29, "Salut", 57.082, 209],
                      [78, "Salutation", 57.08, 209],
-                     [21, "Python", 57.08, 29],
+                     [21, "Python", 1557.08, 29],
                      [34, "Java", 57.08, 219],
                      [98, "langage C", 10000, 209],
                      ]
@@ -505,10 +508,9 @@ if __name__ == '__main__':
                     'largeur':850,
                     'recherche':False,
                     'msgIfEmpty':"Aucune donnée ne correspond à votre recherche",
-                    'dictColonnes':{"nombre" : {"mode" : "total",  "alignement" : wx.ALIGN_CENTER},}
+                    'dictColFooter':{"nombre" : {"mode" : "total",  "alignement" : wx.ALIGN_CENTER},}
     }
     exampleframe = DLG_tableau(None,dicOlv=dicOlv)
     app.SetTopWindow(exampleframe)
     ret = exampleframe.ShowModal()
-    print(ret)
     app.MainLoop()

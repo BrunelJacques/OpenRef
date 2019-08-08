@@ -459,8 +459,8 @@ if __name__ == '__main__':
     liste_Colonnes = [
         ColumnDefn("cle", 'left', 70, "trackLabel1"),
         ColumnDefn("mot", 'left', 200, "un mot"),
-        ColumnDefn("nombre", 'right', 80, "un nombre", stringConverter=xpy.outils.xformat.FormateSolde),
-        ColumnDefn("prix", 'right', 80, "un prix", stringConverter=xpy.outils.xformat.FormateMontant)
+        ColumnDefn("nombre", 'right', 80, "un nombre", stringConverter=xpy.outils.xformat.FmtSolde),
+        ColumnDefn("prix", 'right', 80, "un prix", stringConverter=xpy.outils.xformat.FmtMontant)
     ]
     liste_Donnees = [[18, "Bonjour", 57.02, 9],
                      [19, "Bonsoir", 57.05, 208.99],

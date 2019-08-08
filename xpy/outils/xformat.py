@@ -1,31 +1,30 @@
 # Il faudra optimiser les fonctions de ce fichier mais plus tard
-import decimal
-
 SYMBOLE = "€"
 
+def FmtDecimal(montant):
+    if montant == None or float(montant) == 0.0 :
+        return ""
+    strMtt = '{:,.2f} '.format(montant)
+    strMtt = strMtt.replace(',',' ')
+    return strMtt
 
-def FloatToDecimal(montant=0, plusProche=False):
-    """ Transforme un float en decimal """
-    if not montant:
-        montant = 0
-    return decimal.Decimal("%.2f" % montant)
+def FmtMontant(montant):
+    if montant == None or float(montant) == 0.0:
+        return ""
+    strMtt = '{:,.2f} '.format(montant)
+    strMtt = strMtt.replace(',',' ')+ SYMBOLE
+    return strMtt
 
-
-def FormateMontant(montant):
-    if montant == None or montant == 0.0 or montant == FloatToDecimal(0.0):
+def FmtSolde(montant):
+    if montant == None :
         return u""
-    return u"%.2f %s" % (montant, SYMBOLE)
-
-
-def FormateSolde(montant):
-    if montant == None or montant == 0.0 or montant == FloatToDecimal(0.0):
-        return u""
-    if montant >= decimal.Decimal(str("0.0")):
-        return u"+ %.2f %s" % (montant, SYMBOLE)
-    else:
-        return u"- %.2f %s" % (-montant, SYMBOLE)
+    strMtt = '{:+,.2f} '.format(montant)
+    strMtt = strMtt.replace(',',' ')+ SYMBOLE
+    return strMtt
 
 
 if __name__ == '__main__':
-    print(FormateSolde(0.547))
-    print(FloatToDecimal(0.055, plusProche=False))
+    print(FmtDecimal(1230.05189),FmtDecimal(-1230.05189),FmtDecimal(0))
+    print(FmtSolde(8520.547),FmtSolde(-8520.547),FmtSolde(0))
+    print(FmtMontant(8520.547),FmtMontant(-8520.547),FmtMontant(0))
+

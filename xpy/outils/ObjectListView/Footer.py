@@ -10,24 +10,16 @@
 
 import wx
 
-
-class Footer(wx.PyControl):
-    def __init__(self,
-                 parent,
-                 id=-1,
-                 pos=wx.DefaultPosition,
-                 size=wx.DefaultSize,
-                 style=wx.NO_BORDER,
-                 name="footer"
-                 ):
+class Footer(wx.Control):
+    def __init__(self, parent, id=-1, pos=wx.DefaultPosition, size=wx.DefaultSize, style=wx.NO_BORDER, name="footer"):
         self.hauteur = 24
         self.afficherColonneDroite = True
         
         self.listview = None
-        self.dictColonnes = {}
+        self.dictColFooter = {}
         self.dictTotaux = {}
         self.listeImpression = []
-        wx.PyControl.__init__(self, parent, id=id, pos=pos, size=size, style=style, name=name)
+        wx.Control.__init__(self, parent, id=id, pos=pos, size=size, style=style, name=name)
         self.SetInitialSize(size)
                     
         self.Bind(wx.EVT_PAINT, self.OnPaint)
@@ -40,11 +32,11 @@ class Footer(wx.PyControl):
     def MAJ_totaux(self):
         self.dictTotaux = {}
         for track in self.listview.innerList :
-            for nomColonne, dictColonne in self.dictColonnes.items() :
+            for nomColonne, dictColonne in self.dictColFooter.items() :
                 if dictColonne["mode"] == "total" :
                     if hasattr(track, nomColonne) :
                         total = getattr(track, nomColonne)
-                        if self.dictTotaux.has_key(nomColonne) == False :
+                        if not nomColonne in self.dictTotaux:
                             self.dictTotaux[nomColonne] = 0
                         if total != None :
                             self.dictTotaux[nomColonne] += total
@@ -77,15 +69,15 @@ class Footer(wx.PyControl):
             couleur = wx.Colour(140, 140, 140)
             largeur = self.listview.GetColumnWidth(indexColonne)
             converter = col.stringConverter
-            nom = col.title
+            nom = str(col.valueGetter)
             if col.align == "left" : alignement = wx.ALIGN_LEFT
             if col.align == "centre" : alignement = wx.ALIGN_CENTER
             if col.align == "right" : alignement = wx.ALIGN_RIGHT
 
             # Recherche infos personnalisées à afficher dans la colonne
             mode = None
-            if nom in self.dictColonnes :
-                infoColonne = self.dictColonnes[nom]
+            if nom in self.dictColFooter :
+                infoColonne = self.dictColFooter[nom]
                 mode = infoColonne["mode"]
 
                 # Valeur : TOTAL
