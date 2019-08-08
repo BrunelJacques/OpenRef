@@ -27,11 +27,14 @@ class Footer(wx.Control):
         self.Bind(wx.EVT_SIZE, self.MAJ_affichage)
     
     def MAJ_affichage(self, event=None):
-        self.Refresh() 
+        self.Refresh()
     
     def MAJ_totaux(self):
         self.dictTotaux = {}
-        for track in self.listview.innerList :
+        objects = self.listview.GetCheckedObjects()
+        if len(objects) == 0:
+            objects = self.listview.innerList
+        for track in objects:
             for nomColonne, dictColonne in self.dictColFooter.items() :
                 if dictColonne["mode"] == "total" :
                     if hasattr(track, nomColonne) :
@@ -40,11 +43,12 @@ class Footer(wx.Control):
                             self.dictTotaux[nomColonne] = 0
                         if total != None :
                             self.dictTotaux[nomColonne] += total
+        print(self.dictTotaux)
     
     def MAJ(self):
         self.MAJ_totaux()
-        self.MAJ_affichage() 
-        
+        self.MAJ_affichage()
+
     def DrawColonne(self, dc, x, largeur, label="", alignement=None, couleur=None, font=None):
         """ Dessine une colonne """
         render = wx.RendererNative.Get()
@@ -78,6 +82,7 @@ class Footer(wx.Control):
             mode = None
             if nom in self.dictColFooter :
                 infoColonne = self.dictColFooter[nom]
+                
                 mode = infoColonne["mode"]
 
                 # Valeur : TOTAL
@@ -93,7 +98,12 @@ class Footer(wx.Control):
                 
                 # Valeur : NOMBRE
                 if mode == "nombre" :
-                    nombre = len(self.listview.innerList)
+                    if not "singulier" in infoColonne: infoColonne["singulier"] = "ligne"
+                    if not "pluriel" in infoColonne: infoColonne["pluriel"] = "lignes"
+                    objects = self.listview.GetCheckedObjects()
+                    if len(objects) == 0:
+                        objects = self.listview.innerList
+                    nombre = len(objects)
                     if nombre > 1 :
                         texte = u"%d %s" % (nombre, infoColonne["pluriel"])
                     else :
@@ -107,7 +117,7 @@ class Footer(wx.Control):
                 if "alignement" in infoColonne : alignement = infoColonne["alignement"]
                 if "font" in infoColonne : font = infoColonne["font"]
                 if "couleur" in infoColonne : couleur = infoColonne["couleur"]
-            
+
             # Pour éviter les bords si les cases sont vides
             ajustement = 0
             if mode != "total" and dernierTexte == "" :

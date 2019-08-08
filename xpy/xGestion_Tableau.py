@@ -84,7 +84,10 @@ class ListView(FastObjectListView):
         #self.test = kwds.pop("dictColFooter", True)
         FastObjectListView.__init__(self, *args,**kwds)
         # Binds perso
-        # self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnItemActivated)
+        print(self)
+        #self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnItemActivated)
+        #self.Bind(wx.EVT_LIST_ITEM_CHECKED, self.OnItemChecked)
+        #self.Bind(wx.EVT_LIST_ITEM_UNCHECKED, self.OnItemChecked)
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
 
     def SetFooter(self, ctrl=None, dictColFooter={}):
@@ -161,8 +164,7 @@ class ListView(FastObjectListView):
     def Selection(self):
         return self.GetSelectedObjects()
 
-    def \
-            GetTracks(self):
+    def GetTracks(self):
         """ Récupération des données """
         return self.tracks
 
@@ -265,6 +267,7 @@ class ListView(FastObjectListView):
             self.PopupMenu(menuPop)
         menuPop.Destroy()
 
+
     def MenuNonVide(self):  # Permet de vérifier si le menu créé est vide
         return self.exportExcel or self.exportTexte or self.apercuAvantImpression or self.toutCocher or self.toutDecocher or self.imprimer or self.menuPersonnel
 
@@ -333,13 +336,13 @@ class ListView(FastObjectListView):
     def GetTracksCoches(self):
         return self.GetCheckedObjects()
 
-class PanelOLVFooter(wx.Panel):
+class PanelListView(wx.Panel):
     #def __init__(self, parent, listview=None, kwargs={}, dictColFooter={}, style=wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL):
     def __init__(self, parent, **kwargs):
         id = -1
         style = wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL
         wx.Panel.__init__(self, parent, id=id, style=style)
-        dictColFooter = kwargs.pop("dictColFooter", None)
+        dictColFooter = kwargs.pop("dictColFooter", {})
         if not "id" in kwargs: kwargs["id"] = wx.ID_ANY
         if not "style" in kwargs: kwargs["style"] = wx.LC_REPORT|wx.NO_BORDER|wx.LC_SINGLE_SEL|wx.LC_HRULES|wx.LC_VRULES
         listview = ListView(self,**kwargs)
@@ -439,7 +442,7 @@ class PNL_tableau(wx.Panel):
                  dicOlvOut[key] = valeur
 
         #test
-        self.myOlv = PanelOLVFooter(self,**dicOlvOut)
+        self.myOlv = PanelListView(self,**dicOlvOut)
         #self.myOlv = ListView(self,**dicOlvOut)
 
         if barreRecherche:
@@ -464,7 +467,11 @@ class PNL_tableau(wx.Panel):
         self.SetSizerAndFit(sizerbase)
 
     def OnBoutonOK(self,event):
-         self.parent.Close()
+        self.myOlv.ctrl_listview.MAJ_footer()
+        dc = wx.BufferedPaintDC(self.myOlv.ctrl_listview.ctrl_footer)
+        dc.Clear()
+        self.myOlv.ctrl_footer.Paint(dc)
+        self.parent.Close()
 
 class DLG_tableau(wx.Dialog):
     def __init__(self,parent,dicOlv={}, **kwds):
@@ -508,7 +515,9 @@ if __name__ == '__main__':
                     'largeur':850,
                     'recherche':False,
                     'msgIfEmpty':"Aucune donnée ne correspond à votre recherche",
-                    'dictColFooter':{"nombre" : {"mode" : "total",  "alignement" : wx.ALIGN_CENTER},}
+                    'dictColFooter':{"nombre" : {"mode" : "total",  "alignement" : wx.ALIGN_RIGHT},
+                                     "cle" : {"mode" : "nombre",  "alignement" : wx.ALIGN_CENTER},
+                                     }
     }
     exampleframe = DLG_tableau(None,dicOlv=dicOlv)
     app.SetTopWindow(exampleframe)
