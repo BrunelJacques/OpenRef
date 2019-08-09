@@ -100,7 +100,7 @@ import string
 import time
 import six
 import unicodedata
-
+from xpy.outils.ObjectListView import Filter
 from .CellEditor import *
 from .OLVEvent import *
 
@@ -265,7 +265,7 @@ class ObjectListView(wx.ListCtrl):
         self.selectionBeforeCellEdit = []
         self.checkStateColumn = None
         self.handleStandardKeys = True
-        self.searchPrefix = u""
+        self.searchPrefix = ""
         self.whenLastTypingEvent = 0
         self.filter = None
         self.objectToIndexMap = None
@@ -1458,7 +1458,7 @@ class ObjectListView(wx.ListCtrl):
             return False
 
         if evt.GetKeyCode() in (wx.WXK_BACK, wx.WXK_DELETE):
-            self.searchPrefix = u""
+            self.searchPrefix = ""
             return True
 
         # On which column are we going to compare values? If we should search on the
@@ -2438,59 +2438,6 @@ class ObjectListView(wx.ListCtrl):
 
         return listeFiltresFinale
 
-    def GetInscrits(self, mode="individu", listeActivites=[], listeGroupes=[], periode=None):
-        """ Récupération de la liste des individus inscrits et présents """
-        # Conditions Activites
-        if listeActivites == None or listeActivites == []:
-            conditionActivites = ""
-        else:
-            if len(listeActivites) == 1:
-                conditionActivites = " AND inscriptions.IDactivite=%d" % listeActivites[0]
-            else:
-                conditionActivites = " AND inscriptions.IDactivite IN %s" % str(tuple(listeActivites))
-
-        # Conditions Groupes
-        if listeGroupes == None or listeGroupes == []:
-            conditionGroupes = ""
-        else:
-            if len(listeGroupes) == 1:
-                conditionGroupes = " AND inscriptions.IDgroupe=%d" % listeGroupes[0]
-            else:
-                conditionGroupes = " AND inscriptions.IDgroupe IN %s" % str(tuple(listeGroupes))
-            if periode != None:
-                conditionGroupes = conditionGroupes.replace("inscriptions", "consommations")
-
-        # Conditions Présents
-        conditionPresents = ""
-        jointurePresents = ""
-        if periode != None:
-            conditionPresents = " AND (consommations.date>='%s' AND consommations.date<='%s')" % (
-            str(periode[0]), str(periode[1]))
-            jointurePresents = "LEFT JOIN consommations ON consommations.IDindividu = inscriptions.IDindividu"
-
-        # Choix de la key
-        if mode == "individu":
-            key = "inscriptions.IDindividu"
-        if mode == "famille":
-            key = "inscriptions.IDfamille"
-
-        import GestionDB
-        DB = GestionDB.DB()
-        req = """SELECT %s
-        FROM inscriptions 
-        %s
-        WHERE (inscriptions.parti=0 OR inscriptions.parti IS NULL)  %s %s %s
-        GROUP BY %s
-        ;""" % (key, jointurePresents, conditionActivites, conditionGroupes, conditionPresents, key)
-        DB.ExecuterReq(req)
-        listeDonnees = DB.ResultatReq()
-        DB.Close()
-
-        listeID = []
-        for donnees in listeDonnees:
-            listeID.append(donnees[0])
-        return listeID
-
     def SetBarreRecherche(self, ctrl=None):
         self.barreRecherche = ctrl
 
@@ -2518,7 +2465,6 @@ class ObjectListView(wx.ListCtrl):
                 if selection == track:
                     break
         self.OnCheck(None)
-
 
 ########################################################################
 
@@ -2699,7 +2645,6 @@ class AbstractVirtualObjectListView(ObjectListView):
 
         return self.lastGetObject
 
-
 ########################################################################
 
 class VirtualObjectListView(AbstractVirtualObjectListView):
@@ -2782,20 +2727,23 @@ class VirtualObjectListView(AbstractVirtualObjectListView):
 ########################################################################
 
 class BarreRecherche(wx.SearchCtrl):
-    def __init__(self, parent, listview, texteDefaut=u"Rechercher..."):
+    def __init__(self, parent, listview, texteDefaut="Rechercher..."):
         wx.SearchCtrl.__init__(self, parent, size=(-1, -1), style=wx.TE_PROCESS_ENTER)
         self.parent = parent
         self.listview = listview
         self.rechercheEnCours = False
 
         # Assigne cette barre de recherche au listview
-        self.listview.SetBarreRecherche(self)
+        #self.listview.SetBarreRecherche(self)
 
         self.SetDescriptiveText(texteDefaut)
         self.ShowSearchButton(True)
 
-        self.SetCancelBitmap(wx.Bitmap("Images/16x16/Interdit.png", wx.BITMAP_TYPE_PNG))
-        self.SetSearchBitmap(wx.Bitmap("Images/16x16/Loupe.png", wx.BITMAP_TYPE_PNG))
+        self.nbreColonnes = self.listview.GetColumnCount()
+        self.listview.SetFilter(Filter.TextSearch(self.listview, self.listview.columns[0:self.nbreColonnes]))
+
+        self.SetCancelBitmap(wx.Bitmap("xpy/Images/16x16/Interdit.png", wx.BITMAP_TYPE_PNG))
+        self.SetSearchBitmap(wx.Bitmap("xpy/Images/16x16/Loupe.png", wx.BITMAP_TYPE_PNG))
 
         self.Bind(wx.EVT_SEARCHCTRL_SEARCH_BTN, self.OnSearch)
         self.Bind(wx.EVT_SEARCHCTRL_CANCEL_BTN, self.OnCancel)
@@ -2818,56 +2766,63 @@ class BarreRecherche(wx.SearchCtrl):
     def Recherche(self):
         txtSearch = self.GetValue()
         self.ShowCancelButton(len(txtSearch))
-        self.listview.Filtrer(txtSearch)
+        self.listview.GetFilter().SetText(txtSearch)
+        self.listview.RepopulateList()
 
+        #self.listview.Filtrer(txtSearch)
 
 class CTRL_Outils(wx.Panel):
-    def __init__(self, parent, listview=None, texteDefaut=u"Rechercher...", afficherCocher=False,
+    def __init__(self, parent, listview=None, texteDefaut="Rechercher...", afficherCocher=False,
                  style=wx.NO_BORDER | wx.TAB_TRAVERSAL):
         wx.Panel.__init__(self, parent, id=-1, style=style)
         self.listview = listview
 
         # Contrôles
         self.barreRecherche = BarreRecherche(self, listview=listview, texteDefaut=texteDefaut)
-        ##        self.bouton_filtrage = wx.Button(self, -1, u"Filtrage avancé", size=(-1, 20))
-        ##        self.bouton_filtrage = wx.BitmapButton(self, -1, wx.Bitmap("Images/BoutonsImages/Filtrer_liste_2.png", wx.BITMAP_TYPE_ANY))
+        ##        self.bouton_filtrage = wx.Button(self, -1, "Filtrage avancé", size=(-1, 20))
+        ##        self.bouton_filtrage = wx.BitmapButton(self, -1, wx.Bitmap("xpy/Images/BoutonsImages/Filtrer_liste_2.png", wx.BITMAP_TYPE_ANY))
 
         import wx.lib.platebtn as platebtn
 
         # Bouton Filtrer
-        self.bouton_filtrer = platebtn.PlateButton(self, -1, u" Filtrer",
-                                                   wx.Bitmap("Images/16x16/Filtre.png", wx.BITMAP_TYPE_ANY))
-        self.bouton_filtrer.SetToolTipString(u"Cliquez ici pour filtrer cette liste")
+        self.bouton_filtrer = platebtn.PlateButton(self, -1, " Filtrer",
+                                                   wx.Bitmap("xpy/Images/16x16/Filtre.png", wx.BITMAP_TYPE_ANY))
+        self.bouton_filtrer.SetToolTip("Cliquez ici pour filtrer cette liste")
 
         menu = wx.Menu()
-        item = wx.MenuItem(menu, 10, u"Ajouter, modifier ou supprimer des filtres",
-                           u"Cliquez ici pour accéder à la gestion des filtres de listes")
-        item.SetBitmap(wx.Bitmap("Images/16x16/Filtre.png", wx.BITMAP_TYPE_ANY))
-        menu.AppendItem(item)
+        item = wx.MenuItem(menu, 10, "Gérer un filtre",
+                           "Cliquez ici pour accéder à la gestion d'un filtre")
+        item.SetBitmap(wx.Bitmap("xpy/Images/16x16/Filtre.png", wx.BITMAP_TYPE_ANY))
+        menu.Append(item)
         menu.AppendSeparator()
-        item = wx.MenuItem(menu, 11, u"Supprimer tous les filtres", u"Cliquez ici pour supprimer tous les filtres")
-        item.SetBitmap(wx.Bitmap("Images/16x16/Filtre_supprimer.png", wx.BITMAP_TYPE_ANY))
-        menu.AppendItem(item)
+        item = wx.MenuItem(menu, 11, "Ajouter un autre filtre",
+                           "Cliquez ici pour ajouter un filtre supplémentaire")
+        item.SetBitmap(wx.Bitmap("xpy/Images/16x16/Filtre.png", wx.BITMAP_TYPE_ANY))
+        menu.Append(item)
+        menu.AppendSeparator()
+        item = wx.MenuItem(menu, 12, "Supprimer tous les filtres", "Cliquez ici pour supprimer tous les filtres")
+        item.SetBitmap(wx.Bitmap("xpy/Images/16x16/Filtre_supprimer.png", wx.BITMAP_TYPE_ANY))
+        menu.Append(item)
         self.bouton_filtrer.SetMenu(menu)
         self.Bind(wx.EVT_BUTTON, self.OnBoutonFiltrer, self.bouton_filtrer)
 
         # Bouton Cocher
         if afficherCocher == True:
-            self.bouton_cocher = platebtn.PlateButton(self, -1, u" Cocher",
-                                                      wx.Bitmap("Images/16x16/Cocher.png", wx.BITMAP_TYPE_ANY))
+            self.bouton_cocher = platebtn.PlateButton(self, -1, " Cocher",
+                                                      wx.Bitmap("xpy/Images/16x16/Cocher.png", wx.BITMAP_TYPE_ANY))
             self.bouton_cocher.SetToolTipString(
-                u"Cliquez ici pour cocher ou décocher rapidement tous les éléments de cette liste")
+                "Cliquez ici pour cocher ou décocher rapidement tous les éléments de cette liste")
 
             menu = wx.Menu()
-            item = wx.MenuItem(menu, 20, u"Tout cocher", u"Cliquez ici pour cocher tous les éléments de la liste")
-            item.SetBitmap(wx.Bitmap("Images/16x16/Cocher.png", wx.BITMAP_TYPE_ANY))
+            item = wx.MenuItem(menu, 20, "Tout cocher", "Cliquez ici pour cocher tous les éléments de la liste")
+            item.SetBitmap(wx.Bitmap("xpy/Images/16x16/Cocher.png", wx.BITMAP_TYPE_ANY))
             menu.AppendItem(item)
-            item = wx.MenuItem(menu, 21, u"Tout décocher", u"Cliquez ici pour décocher tous les éléments de la liste")
-            item.SetBitmap(wx.Bitmap("Images/16x16/Decocher.png", wx.BITMAP_TYPE_ANY))
+            item = wx.MenuItem(menu, 21, "Tout décocher", "Cliquez ici pour décocher tous les éléments de la liste")
+            item.SetBitmap(wx.Bitmap("xpy/Images/16x16/Decocher.png", wx.BITMAP_TYPE_ANY))
             menu.AppendItem(item)
-            item = wx.MenuItem(menu, 22, u"Inverser jusqu'à Selection",
-                               u"Cliquez ici pour inverser les coches jusqu'à la selection")
-            item.SetBitmap(wx.Bitmap("Images/16x16/Decocher.png", wx.BITMAP_TYPE_ANY))
+            item = wx.MenuItem(menu, 22, "Inverser jusqu'à Selection",
+                               "Cliquez ici pour inverser les coches jusqu'à la selection")
+            item.SetBitmap(wx.Bitmap("xpy/Images/16x16/Decocher.png", wx.BITMAP_TYPE_ANY))
             menu.AppendItem(item)
             self.bouton_cocher.SetMenu(menu)
             self.Bind(wx.EVT_BUTTON, self.OnBoutonCocher, self.bouton_cocher)
@@ -2899,17 +2854,17 @@ class CTRL_Outils(wx.Panel):
             nomImage = "Filtre_%d" % nbreFiltres
         else:
             nomImage = "Filtre_10"
-        self.bouton_filtrer.SetBitmap(wx.Bitmap("Images/16x16/%s.png" % nomImage, wx.BITMAP_TYPE_ANY))
+        self.bouton_filtrer.SetBitmap(wx.Bitmap("xpy/Images/16x16/%s.png" % nomImage, wx.BITMAP_TYPE_ANY))
         self.bouton_filtrer.Refresh()
 
         # Modifie le tip en fonction des filtres activés
         if nbreFiltres == 0:
-            texte = u"Cliquez ici pour filtrer cette liste"
+            texte = "Cliquez ici pour filtrer cette liste"
         else:
             if nbreFiltres == 1:
-                texte = u"Cliquez ici pour filtrer cette liste\n> 1 filtre activé"
+                texte = "Cliquez ici pour filtrer cette liste\n> 1 filtre activé"
             else:
-                texte = u"Cliquez ici pour filtrer cette liste\n> %d filtres activés" % nbreFiltres
+                texte = "Cliquez ici pour filtrer cette liste\n> %d filtres activés" % nbreFiltres
         self.bouton_filtrer.SetToolTipString(texte)
 
     def OnBoutonFiltrer(self, event):
@@ -2950,8 +2905,8 @@ class CTRL_Outils(wx.Panel):
         if ID == 22:
             self.listview.CocheJusqua()
 
-
 ########################################################################
+
 class FastObjectListView(AbstractVirtualObjectListView):
 
     """
@@ -3057,8 +3012,6 @@ class FastObjectListView(AbstractVirtualObjectListView):
 
         self.SelectObjects(selection)
         self.RefreshObjects()
-
-#######################################################################
 
 class GroupListView(FastObjectListView):
 
@@ -3782,9 +3735,6 @@ class GroupListView(FastObjectListView):
     #    """
     #    pass
 
-
-#######################################################################
-
 class ListGroup(object):
 
     """
@@ -3804,7 +3754,6 @@ class ListGroup(object):
         Add the given model to those that belong to this group.
         """
         self.modelObjects.append(model)
-
 
 #######################################################################
 
@@ -4411,7 +4360,6 @@ class ColumnDefn(object):
 
 #======================================================================
 
-
 class NamedImageList(object):
 
     """
@@ -4459,7 +4407,6 @@ class NamedImageList(object):
         return self.nameToImageIndexMap.get(name, -1)
 
 #======================================================================
-
 
 class BatchedUpdate(object):
 
@@ -4682,7 +4629,6 @@ class BatchedUpdate(object):
 from six import BytesIO
 import zlib
 
-
 def _getSmallUpArrowData():
     return zlib.decompress(
         b'x\xda\xeb\x0c\xf0s\xe7\xe5\x92\xe2b``\xe0\xf5\xf4p\t\x02\xd2\x02 \xcc\xc1\
@@ -4691,14 +4637,12 @@ def _getSmallUpArrowData():
 \xbe?x\x0e\x1a0LO\x8ay\xe4sD\xe3\x90\xfay\x8bYB\xec\x8d\x8c\x0c\xc1\x01b9\
 \xe1\xbc\x8fw\x01\ra\xf0t\xf5sY\xe7\x94\xd0\x04\x00\xb7\x89#\xbb')
 
-
 def _getSmallUpArrowBitmap():
     stream = BytesIO(_getSmallUpArrowData())
     if 'phoenix' in wx.PlatformInfo:
         return wx.Bitmap(wx.Image(stream))
     else:
         return wx.BitmapFromImage(wx.ImageFromStream(stream))
-
 
 def _getSmallDownArrowData():
     return zlib.decompress(
@@ -4709,14 +4653,12 @@ def _getSmallDownArrowData():
 \xe1\xc2\x87\xf6v\x95@&\xdb\xb1\x8bK|v22,W\x12\xd0\xdb-\xc4\xe4\x044\x9b\xc1\
 \xd3\xd5\xcfe\x9dSB\x13\x00$1+:')
 
-
 def _getSmallDownArrowBitmap():
     stream = BytesIO(_getSmallDownArrowData())
     if 'phoenix' in wx.PlatformInfo:
         return wx.Bitmap(wx.Image(stream))
     else:
         return wx.BitmapFromImage(wx.ImageFromStream(stream))
-
 
 #
 #######################################################################

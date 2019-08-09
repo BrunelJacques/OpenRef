@@ -43,6 +43,8 @@ DECOCHER_16X16_IMG = PREFIXE_DOSSIER_IMG + "Images/16x16/Decocher.png"
 IMPRIMANTE_16X16_IMG = PREFIXE_DOSSIER_IMG + "Images/16x16/Imprimante.png"
 ACTIVITE_16X16_IMG = PREFIXE_DOSSIER_IMG + "Images/16x16/Activite.png"
 FILTRE_16X16_IMG = PREFIXE_DOSSIER_IMG + "Images/16x16/Filtre.png"
+FILTREOUT_16X16_IMG = PREFIXE_DOSSIER_IMG + "Images/16x16/Filtre_supprimer.png"
+
 # -----------------------------------------------------------
 
 #  outils/xtableau.py

@@ -475,7 +475,7 @@ if __name__ == '__main__':
                     'listeDonnees':liste_Donnees,
                     'longueur':850,
                     'largeur':1000,
-                    'recherche':False,
+                    'recherche':True,
                     'msgIfEmpty':"Aucune donnée ne correspond à votre recherche"}
     exampleframe = DLG_tableau(None,dicOlv=dicOlv)
     app.SetTopWindow(exampleframe)

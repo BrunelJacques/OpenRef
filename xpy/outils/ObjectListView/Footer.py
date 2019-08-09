@@ -43,8 +43,7 @@ class Footer(wx.Control):
                             self.dictTotaux[nomColonne] = 0
                         if total != None :
                             self.dictTotaux[nomColonne] += total
-        print(self.dictTotaux)
-    
+
     def MAJ(self):
         self.MAJ_totaux()
         self.MAJ_affichage()
@@ -147,9 +146,9 @@ class Footer(wx.Control):
         return listeDonnees[1:]
     
     def OnPaint(self, evt):
-        dc = wx.BufferedPaintDC(self)
-        dc.Clear()
-        self.Paint(dc)
+        self.dc = wx.BufferedPaintDC(self)
+        self.dc.Clear()
+        self.Paint(self.dc)
         
     def OnErase(self, evt):
         """Noop because of double buffering"""
