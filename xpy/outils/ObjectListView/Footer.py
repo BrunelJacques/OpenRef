@@ -44,7 +44,7 @@ class Footer(wx.Control):
                         if total != None :
                             self.dictTotaux[nomColonne] += total
 
-    def MAJ(self):
+    def zzMAJ(self):
         self.MAJ_totaux()
         self.MAJ_affichage()
 
@@ -66,6 +66,7 @@ class Footer(wx.Control):
         x = 0 - self.listview.GetScrollPos(wx.HORIZONTAL) 
         self.listeImpression = []
         dernierTexte = ""
+        self.MAJ_totaux()
         for (indexColonne, col) in enumerate(self.listview.columns):
             texte = ""
             font = wx.Font(8, wx.SWISS, wx.NORMAL, wx.NORMAL)
@@ -146,9 +147,9 @@ class Footer(wx.Control):
         return listeDonnees[1:]
     
     def OnPaint(self, evt):
-        self.dc = wx.BufferedPaintDC(self)
-        self.dc.Clear()
-        self.Paint(self.dc)
+        dc = wx.BufferedPaintDC(self)
+        dc.Clear()
+        self.Paint(dc)
         
     def OnErase(self, evt):
         """Noop because of double buffering"""

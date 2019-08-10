@@ -47,8 +47,9 @@ class ListView(FastObjectListView):
 
     def __init__(self, *args, **kwds):
         self.ctrl_footer = None
+        self.pnlfooter = kwds.pop("pnlfooter", None)
         # Récupération des paramètres perso
-        self.classeAppelante = kwds.pop("classeAppelante", None)
+        #self.classeAppelante = kwds.pop("classeAppelante", None)
         self.checkColonne = kwds.pop("checkColonne",True)
         self.listeColonnes = kwds.pop("listeColonnes", [])
         self.msgIfEmpty = kwds.pop("msgIfEmpty", "Tableau vide")
@@ -171,7 +172,8 @@ class ListView(FastObjectListView):
         return self.tracks
 
     def OnItemChecked(self, event):
-        self.MAJ_footer()
+        if self.pnlfooter:
+            self.pnlfooter.SetFooter(reinit=True)
 
     def OnContextMenu(self, event):
         """
@@ -346,67 +348,41 @@ class PanelListView(wx.Panel):
         id = -1
         style = wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL
         wx.Panel.__init__(self, parent, id=id, style=style)
-        dictColFooter = kwargs.pop("dictColFooter", {})
+        self.dictColFooter = kwargs.pop("dictColFooter", {})
         if not "id" in kwargs: kwargs["id"] = wx.ID_ANY
         if not "style" in kwargs: kwargs["style"] = wx.LC_REPORT|wx.NO_BORDER|wx.LC_SINGLE_SEL|wx.LC_HRULES|wx.LC_VRULES
+        kwargs["pnlfooter"]=self
         listview = ListView(self,**kwargs)
         kwargs["parent"] = self
 
         self.ctrl_listview = listview
         self.ctrl_listview.SetMinSize((10, 10))
-        self.ctrl_footer = Footer.Footer(self)
-        self.ctrl_listview.SetFooter(ctrl=self.ctrl_footer, dictColFooter=dictColFooter)
+        self.ctrl_footer = None
+        self.SetFooter(reinit=False)
 
         # Layout
+    def Compose(self):
         sizerbase = wx.BoxSizer(wx.VERTICAL)
         sizerbase.Add(self.ctrl_listview, 1, wx.ALL | wx.EXPAND, 0)
         sizerbase.Add(self.ctrl_footer, 0, wx.ALL | wx.EXPAND, 0)
         self.SetSizer(sizerbase)
         self.Layout()
 
+    def SetFooter(self,reinit=False):
+        if reinit:
+            del self.ctrl_footer
+        self.ctrl_footer = Footer.Footer(self)
+        self.ctrl_listview.SetFooter(ctrl=self.ctrl_footer, dictColFooter=self.dictColFooter)
+        self.Compose()
+        #self.MAJ()
+
     def MAJ(self):
         self.ctrl_listview.MAJ()
+        if self.ctrl_footer:
+            self.ctrl_footer.MAJ()
 
     def GetListview(self):
         return self.ctrl_listview
-
-class zzBarreRecherche(wx.SearchCtrl):
-    def __init__(self, parent, listview):
-        wx.SearchCtrl.__init__(self, parent, size=(-1, -1), style=wx.TE_PROCESS_ENTER)
-        self.parent = parent
-        self.listView = listview
-        self.rechercheEnCours = False
-
-        self.SetDescriptiveText("Rechercher un texte...")
-        self.ShowSearchButton(True)
-
-        self.nbreColonnes = self.listView.GetColumnCount()
-        self.listView.SetFilter(Filter.TextSearch(self.listView, self.listView.columns[0:self.nbreColonnes]))
-
-        self.SetCancelBitmap(wx.Bitmap(FILTREOUT_16X16_IMG, wx.BITMAP_TYPE_PNG))
-        self.SetSearchBitmap(wx.Bitmap(FILTRE_16X16_IMG, wx.BITMAP_TYPE_PNG))
-
-        self.Bind(wx.EVT_SEARCHCTRL_SEARCH_BTN, self.OnSearch)
-        self.Bind(wx.EVT_SEARCHCTRL_CANCEL_BTN, self.OnCancel)
-        self.Bind(wx.EVT_TEXT_ENTER, self.OnDoSearch)
-        self.Bind(wx.EVT_TEXT, self.OnDoSearch)
-
-    def OnSearch(self, evt):
-        self.Recherche()
-
-    def OnCancel(self, evt):
-        self.SetValue("")
-        self.Recherche()
-
-    def OnDoSearch(self, evt):
-        self.Recherche()
-
-    def Recherche(self):
-        txtSearch = self.GetValue()
-        self.ShowCancelButton(len(txtSearch))
-        self.listView.GetFilter().SetText(txtSearch)
-        self.listView.RepopulateList()
-        self.Refresh()
 
 class TrackGeneral(object):
     """
@@ -463,8 +439,8 @@ class PNL_tableau(wx.Panel):
             self.barreRecherche = CTRL_Outils(self, listview=self.ctrlOlv, afficherCocher=False)
             #self.barreRecherche.SetBackgroundColour((255, 255, 255))
         self.ctrlOlv.MAJ()
-        if self.ctrlOlv.ctrl_footer:
-            self.ctrlOlv.ctrl_footer.MAJ()
+        #if self.ctrlOlv.ctrl_footer:
+        #    self.ctrlOlv.ctrl_footer.MAJ()
 
         self.BoutonOK = wx.BitmapButton(self, wx.ID_ANY, wx.Bitmap("xpy/Images/100x30/Bouton_ok.png", wx.BITMAP_TYPE_ANY))
         self.BoutonOK.SetToolTip(("Cliquez ici pour enregistrer et fermer la fenêtre"))
@@ -526,7 +502,8 @@ if __name__ == '__main__':
                     'recherche':True,
                     'msgIfEmpty':"Aucune donnée ne correspond à votre recherche",
                     'dictColFooter':{"nombre" : {"mode" : "total",  "alignement" : wx.ALIGN_RIGHT},
-                                     "cle" : {"mode" : "nombre",  "alignement" : wx.ALIGN_CENTER},
+                                     "mot" : {"mode" : "nombre",  "alignement" : wx.ALIGN_CENTER},
+                                     "prix": {"mode": "total", "alignement": wx.ALIGN_RIGHT},
                                      }
     }
     exampleframe = DLG_tableau(None,dicOlv=dicOlv)
