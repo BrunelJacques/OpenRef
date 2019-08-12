@@ -10,6 +10,7 @@
 
 import wx
 import os
+import datetime
 import wx.propgrid as wxpg
 import copy
 
@@ -80,6 +81,8 @@ def Normalise(genre, name, label, value):
         if not isinstance(value, int): value = 0
     elif (genre in ['multichoice']):
         if (not isinstance(value, list)): value = []
+    elif genre in ['date','time','datetime']:
+        if not isinstance(value,(wx.DateTime)): value = wx.DateTime.Today()
     else :
         if not isinstance(value,str) :
             if not value: value=''
@@ -176,9 +179,13 @@ class CTRL_property(wxpg.PropertyGrid):
 
                             elif genre in ['bool','check']:
                                 wxpg.PG_BOOL_USE_CHECKBOX = 1
-                                propriete = wxpg.BoolProperty(label= label, name=name, value= value)
+                                propriete = wxpg.DateProperty(label= label, name=name, value= value)
                                 propriete.PG_BOOL_USE_CHECKBOX = 1
 
+                            elif genre == 'date':
+                                wxpg.PG_BOOL_USE_CHECKBOX = 1
+                                propriete = wxpg.BoolProperty(label= label, name=name, value= value)
+                                propriete.PG_BOOL_USE_CHECKBOX = 1
 
                             elif genre == 'dir':
                                 propriete = wxpg.DirProperty(name)
@@ -891,7 +898,7 @@ if __name__ == '__main__':
             ],
         ("choix_config", "Choisissez votre configuration"):
             [
-                {'genre': 'Enum', 'name': 'config', 'label': 'Configuration active','labels':['a','b','c'], 'value':2,
+                {'genre': 'Date', 'name': 'config', 'label': 'DateConfiguration active','label': 'Configurations','value':datetime.date.today(),
                  'help': "Le bouton de droite vous permet de créer une nouvelle configuration"},
                  {'genre': 'MultiChoice', 'name': 'multi', 'label': 'Configurations','labels':['aa','bb','cc'], 'value':['1','2'],
                  'help': "Le bouton de droite vous permet de créer une nouvelle configuration",

@@ -503,8 +503,7 @@ if __name__ == '__main__':
                     'msgIfEmpty':"Aucune donnée ne correspond à votre recherche",
                     'dictColFooter':{"nombre" : {"mode" : "total",  "alignement" : wx.ALIGN_RIGHT},
                                      "mot" : {"mode" : "nombre",  "alignement" : wx.ALIGN_CENTER},
-                                     "prix": {"mode": "total", "alignement": wx.ALIGN_RIGHT},
-                                     }
+                                     "prix": {"mode": "total", "alignement": wx.ALIGN_RIGHT},}
     }
     exampleframe = DLG_tableau(None,dicOlv=dicOlv)
     app.SetTopWindow(exampleframe)
