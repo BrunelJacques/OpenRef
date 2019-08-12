@@ -10,9 +10,29 @@
 
 import wx
 import os
-import datetime
 import wx.propgrid as wxpg
 import copy
+
+
+
+def DDstrdate2wxdate(date,iso=True):
+    if not isinstance(date, str) : date = str(date)
+    if len(date) < 10: return None
+    if iso:
+        dmy = (int(date[8:10]), int(date[5:7]) - 1, int(date[:4]))
+    else:
+        dmy = (int(date[:2]), int(date[3:5]) - 1, int(date[6:10]))
+    dateout = wx.DateTime.FromDMY(*dmy)
+    dateout.SetCountry(5)
+    return dateout
+
+def DDwxdate2strdate(date,iso=True):
+    if not isinstance(date, wx.DateTime): return None
+    #if date.IsValid():
+    if iso:
+        return date.Format('%Y-%m-%d')
+    else:
+        return date.Format('%d/%m/%Y')
 
 def Transpose(matrice,dlColonnes,lddDonnees):
     # Transposition des lignes de la matrice pour présentation colonnes dans le format grille listCtrl
@@ -179,12 +199,13 @@ class CTRL_property(wxpg.PropertyGrid):
 
                             elif genre in ['bool','check']:
                                 wxpg.PG_BOOL_USE_CHECKBOX = 1
-                                propriete = wxpg.DateProperty(label= label, name=name, value= value)
+                                propriete = wxpg.BoolProperty(label= label, name=name, value= value)
                                 propriete.PG_BOOL_USE_CHECKBOX = 1
 
-                            elif genre == 'date':
+                            elif genre in ['date','datetime','time']:
                                 wxpg.PG_BOOL_USE_CHECKBOX = 1
-                                propriete = wxpg.BoolProperty(label= label, name=name, value= value)
+                                propriete = wxpg.DateProperty(label= label, name=name, value= value)
+                                propriete.SetFormat('%d/%m/%Y')
                                 propriete.PG_BOOL_USE_CHECKBOX = 1
 
                             elif genre == 'dir':
@@ -348,6 +369,8 @@ class PNL_ctrl(wx.Panel):
                 commande = 'Set Value'
                 if lgenre in ['int','float']:
                     lvalue = str(lvalue)
+                if lgenre in ['date','time','datetime']:
+                    lvalue = DDwxdate2strdate(lvalue,iso=False)
                 self.ctrl.SetValue(lvalue)
             if help:
                 self.ctrl.SetToolTip(help)
@@ -365,7 +388,7 @@ class PNL_ctrl(wx.Panel):
 
         except Exception as err:
             wx.MessageBox(
-                "Echec sur PNL_ctrl de genre - name - value: %s - %s - %s (%s)\n\nLe retour d'erreur est : \n%s\n\nSur commande : %s"
+                "Echec sur PNL_ctrl de:\ngenre: %s\nname: %s\nvalue: %s (%s)\n\nLe retour d'erreur est : \n%s\n\nSur commande : %s"
                 % (lgenre, name, value, type(value), err, commande),
                 'PNL_ctrl.__init__() : Paramètre de ligne indigeste !', wx.OK | wx.ICON_STOP
             )
@@ -736,7 +759,8 @@ class DLG_listCtrl(wx.Dialog):
     def OnModifier(self,event, items):
         # documentation dans dupliquer
         dlgGest = DLG_vide(self, )
-        ddDonnees = copy.deepcopy(self.lddDonnees[items])
+        #ddDonnees = copy.deepcopy(self.lddDonnees[items])
+        ddDonnees = self.lddDonnees[items]
 
         if self.gestionProperty:
             dlgGest.pnl = PNL_property(dlgGest, self, matrice=self.dldMatrice)
@@ -747,7 +771,8 @@ class DLG_listCtrl(wx.Dialog):
         ret = dlgGest.ShowModal()
         if ret == wx.OK:
             ddDonnees = dlgGest.pnl.GetValeurs()
-            self.lddDonnees[items] = copy.deepcopy(ddDonnees)
+            #self.lddDonnees[items] = copy.deepcopy(ddDonnees)
+            self.lddDonnees[items] = ddDonnees
             self.lddDonnees, self.ltColonnes, self.llItems = Transpose(self.dldMatrice, self.dlColonnes, self.lddDonnees)
             self.pnl.SetValeurs(self.llItems, self.ltColonnes)
         self.pnl.ctrl.Select(items)
@@ -887,7 +912,14 @@ class FramePanels(wx.Frame):
 if __name__ == '__main__':
     app = wx.App(0)
     os.chdir("..")
-    dictDonnees = {"bd_reseau": {'serveur': 'mon serveur','bdReseau':False, 'utilisateur' : 'moi-meme','config': 1, 'monTexte': "élève", 'choix': ["choix2", "choix3"],'multi':["choixmulti1", "choimulti2"]},"ident": {'domaine': 'mon domaine'}}
+    dictDonnees = {"bd_reseau": {'serveur': 'mon serveur',
+                                 'bdReseau':False,
+                                 'utilisateur' : 'moi-meme',
+                                 'config': DDstrdate2wxdate('2020-02-28',iso=True),
+                                 'monTexte': "élève",
+                                 'choix': 12,'multi':[12, 13]
+                                 },
+                   "ident": {'domaine': 'mon domaine'}}
     dictMatrice = {
         ("ident", "Votre session"):
             [
@@ -898,9 +930,9 @@ if __name__ == '__main__':
             ],
         ("choix_config", "Choisissez votre configuration"):
             [
-                {'genre': 'Date', 'name': 'config', 'label': 'DateConfiguration active','label': 'Configurations','value':datetime.date.today(),
+                {'genre': 'Date', 'name': 'config', 'label': 'DateConfiguration','value':DDstrdate2wxdate('27/02/2019',iso=False),
                  'help': "Le bouton de droite vous permet de créer une nouvelle configuration"},
-                 {'genre': 'MultiChoice', 'name': 'multi', 'label': 'Configurations','labels':['aa','bb','cc'], 'value':['1','2'],
+                {'genre': 'MultiChoice', 'name': 'multi', 'label': 'Configurations','labels':['aa','bb','cc'], 'value':['1','2'],
                  'help': "Le bouton de droite vous permet de créer une nouvelle configuration",
                  'btnLabel': "...", 'btnHelp': "Cliquez pour gérer les configurations",
                  'btnAction': 'OnEnter'},
@@ -921,7 +953,7 @@ if __name__ == '__main__':
     """
 
     frame_4 = DLG_listCtrl(None,dldMatrice=dictMatrice, dlColonnes={'bd_reseau':['serveur'],'ident':['utilisateur']},
-                lddDonnees=[dictDonnees,dictDonnees,{"bd_reseau":{'serveur': 'serveur3'}}])
+                lddDonnees=[dictDonnees,{"bd_reseau":{'serveur': 'serveur3'}}])
     frame_4.Init()
     app.SetTopWindow(frame_4)
     frame_4.Show()

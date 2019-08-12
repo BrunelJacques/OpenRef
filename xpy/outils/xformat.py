@@ -1,12 +1,39 @@
 # Il faudra optimiser les fonctions de ce fichier mais plus tard
 SYMBOLE = "€"
 
+import wx
+
+def DDstrdate2wxdate(date,iso=False):
+    if not isinstance(date, str) : date = str(date)
+    if len(date) < 10: return None
+    if iso:
+        dmy = (int(date[8:10]), int(date[5:7]) - 1, int(date[:4]))
+    else:
+        dmy = (int(date[:2]), int(date[3:5]) - 1, int(date[6:10]))
+    dateout = wx.DateTime.FromDMY(*dmy)
+    dateout.SetCountry(5)
+    return dateout
+
+def DDwxdate2strdate(date,iso=False):
+    if not isinstance(date, wx.DateTime): return ''
+    #if date.IsValid():
+    if iso:
+        return date.Format('%Y-%m-%d')
+    else:
+        return date.Format('%d/%m/%Y')
+
 def FmtDecimal(montant):
     if montant == None or float(montant) == 0.0 :
         return ""
     strMtt = '{:,.2f} '.format(montant)
     strMtt = strMtt.replace(',',' ')
     return strMtt
+
+def FmtDate(date):
+    if date == None  == 0.0:
+        return ""
+    strdate = DDwxdate2strdate(date)
+    return strdate
 
 def FmtMontant(montant):
     if montant == None or float(montant) == 0.0:

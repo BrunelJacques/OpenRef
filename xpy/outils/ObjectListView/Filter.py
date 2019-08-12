@@ -1,4 +1,4 @@
-# -*- coding: iso-8859-15 -*-
+# -*- coding: utf-8 -*-
 #----------------------------------------------------------------------------
 # Name:         Filter.py
 # Author:       Phillip Piper
@@ -7,11 +7,6 @@
 # SVN-ID:       $Id$
 # License:      wxWindows license
 #----------------------------------------------------------------------------
-# Change log:
-# 2008/08/26  JPP   First version
-#----------------------------------------------------------------------------
-# To do:
-#
 
 """
 Filters provide a structured mechanism to display only some of the model objects
@@ -30,6 +25,7 @@ object to see if it should be included. Head() and Tail() are exceptions
 to this observation.
 """
 
+import wx
 
 def Predicate(predicate):
     """
@@ -40,7 +36,6 @@ def Predicate(predicate):
     """
     return lambda modelObjects: [x for x in modelObjects if predicate(x)]
 
-
 def Head(num):
     """
     Display at most the first N of the model objects
@@ -49,7 +44,6 @@ def Head(num):
         self.olv.SetFilter(Filter.Head(1000))
     """
     return lambda modelObjects: modelObjects[:num]
-
 
 def Tail(num):
     """
@@ -60,6 +54,23 @@ def Tail(num):
     """
     return lambda modelObjects: modelObjects[-num:]
 
+#**************************  Gestion des filtres à ajouter************************************************************
+
+class DLG_saisiefiltre(wx.Dialog):
+    def __init__(self, parent, *args, **kwds):
+        self.parent = parent
+        self.listview = kwds.pop('listview',None)
+        titre = self.__class__.__name__
+        wx.Dialog.__init__(self, parent, *args, title=titre, style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+                           **kwds)
+        self.SetBackgroundColour(wx.WHITE)
+        self.marge = 10
+
+        # ****************Exemple de Chaînage à faire passer au sizer*****************
+        # self.pnl = PNL_property(self, parent, *args, matrice = matrice, **kwds )
+        # ****************************************************************************
+
+#**************************************************************************************************
 
 class TextSearch(object):
     """
@@ -98,7 +109,7 @@ class TextSearch(object):
         def _containsText(modelObject):
             for col in cols:
                 valeur = col.GetStringValue(modelObject)
-                if valeur == None : valeur = u""
+                if valeur == None : valeur = ""
                 textInListe = self.EnleveAccents(valeur).lower()
                 # Recherche de la chaine
                 if textToFind in textInListe :
@@ -120,7 +131,6 @@ class TextSearch(object):
         """
         self.text = text
 
-
 class Chain(object):
     """
     Return only model objects that match all of the given filters.
@@ -133,18 +143,11 @@ class Chain(object):
     """
 
     def __init__(self, *filters):
-        """
-        Create a filter that performs all the given filters.
-
-        The order of the filters is important.
-        """
+        #Create a filter that performs all the given filters. The order of the filters is important.
         self.filters = filters
 
-
     def __call__(self, modelObjects):
-        """
-        Return the model objects that match all of our filters
-        """
+        #Return the model objects that match all of our filters
         for filter in self.filters:
             modelObjects = filter(modelObjects)
         return modelObjects

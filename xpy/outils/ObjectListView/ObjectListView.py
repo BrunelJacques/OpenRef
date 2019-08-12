@@ -92,19 +92,19 @@ back into the model. See `ColumnDefn` for more information.
 
 """
 
+import wx
 import datetime
 import itertools
 import locale
 import operator
-import string
+#import string
 import time
 import six
 import unicodedata
-from xpy.outils.ObjectListView import Filter
-from .CellEditor import *
 from .OLVEvent import *
+from xpy.outils.ObjectListView import Filter
+from xpy.outils.ObjectListView import CellEditor
 
-import wx
 
 __author__ = "Phillip Piper"
 __date__ = "18 June 2008"
@@ -2779,8 +2779,7 @@ class CTRL_Outils(wx.Panel):
 
         # Contrôles
         self.barreRecherche = BarreRecherche(self, listview=listview, texteDefaut=texteDefaut)
-        ##        self.bouton_filtrage = wx.Button(self, -1, "Filtrage avancé", size=(-1, 20))
-        ##        self.bouton_filtrage = wx.BitmapButton(self, -1, wx.Bitmap("xpy/Images/BoutonsImages/Filtrer_liste_2.png", wx.BITMAP_TYPE_ANY))
+        self.bouton_filtrage = wx.Button(self, -1, "Filtrage avancé", size=(-1, 20))
 
         import wx.lib.platebtn as platebtn
 
@@ -2869,8 +2868,8 @@ class CTRL_Outils(wx.Panel):
 
     def OnBoutonFiltrer(self, event):
         listeFiltres = []
-        import DLG_Filtres_listes
-        dlg = DLG_Filtres_listes.Dialog(self, ctrl_listview=self.listview)
+        #print(self.bouton_filtrer.GetState())
+        dlg = Filter.DLG_saisiefiltre(self, listview=self.listview)
         if dlg.ShowModal() == wx.ID_OK:
             listeFiltres = dlg.GetDonnees()
             self.listview.SetFiltresColonnes(listeFiltres)
