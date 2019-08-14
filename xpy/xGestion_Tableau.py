@@ -47,6 +47,7 @@ class ListView(FastObjectListView):
 
     def __init__(self, *args, **kwds):
         self.ctrl_footer = None
+        self.parent = args[0].parent
         self.pnlfooter = kwds.pop("pnlfooter", None)
         # Récupération des paramètres perso
         #self.classeAppelante = kwds.pop("classeAppelante", None)
@@ -57,7 +58,8 @@ class ListView(FastObjectListView):
         self.sensTri = kwds.pop("sensTri", True)
         self.menuPersonnel = kwds.pop("menuPersonnel", None)
         self.listeDonnees = kwds.pop("listeDonnees", None)
-        self.nomlisteColonnes = self.formerNomColonnes()
+        self.lstNomsColonnes = self.formerNomColonnes()
+        self.lstTypesColonnes = self.formerTypesColonnes()
         self.dictColFooter = kwds.pop("dictColFooter", {})
         self.formerTracks()
 
@@ -114,7 +116,7 @@ class ListView(FastObjectListView):
         return
 
     def formerTrack(self, listeDonnee):
-        track = TrackGeneral(donnees=listeDonnee, nomColonnes=self.nomlisteColonnes)
+        track = TrackGeneral(donnees=listeDonnee, nomColonnes=self.lstNomsColonnes)
         return track
 
     def formerNomColonnes(self):
@@ -124,6 +126,20 @@ class ListView(FastObjectListView):
             #nom = colonne.title
             nomColonnes.append(nom)
         return nomColonnes
+
+    def formerTypesColonnes(self):
+        typesColonnes = list()
+        for colonne in self.listeColonnes:
+            tip = 'texte'
+            fmt = colonne.stringConverter
+            if fmt:
+                fmt = colonne.stringConverter.__name__
+                if fmt[3:] in ('Montant','Solde','Decimal','Entier'):
+                    tip = 'nombre'
+                elif fmt[3:] == 'Date':
+                    tip = 'date'
+            typesColonnes.append(tip)
+        return typesColonnes
 
     def InitModel(self):
         self.donnees = self.GetTracks()
@@ -346,6 +362,7 @@ class PanelListView(wx.Panel):
     #def __init__(self, parent, listview=None, kwargs={}, dictColFooter={}, style=wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL):
     def __init__(self, parent, **kwargs):
         id = -1
+        self.parent = parent
         style = wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL
         wx.Panel.__init__(self, parent, id=id, style=style)
         self.dictColFooter = kwargs.pop("dictColFooter", {})
@@ -353,7 +370,7 @@ class PanelListView(wx.Panel):
         if not "style" in kwargs: kwargs["style"] = wx.LC_REPORT|wx.NO_BORDER|wx.LC_SINGLE_SEL|wx.LC_HRULES|wx.LC_VRULES
         kwargs["pnlfooter"]=self
         listview = ListView(self,**kwargs)
-        kwargs["parent"] = self
+        #kwargs["parent"] = self
 
         self.ctrl_listview = listview
         self.ctrl_listview.SetMinSize((10, 10))
@@ -484,16 +501,17 @@ if __name__ == '__main__':
         ColumnDefn("entête", 'left', 70, "cle"),
         ColumnDefn("annoncer un mot", 'left', 200, "mot"),
         ColumnDefn("_nombre", 'right', 80, "nombre", stringConverter=xpy.outils.xformat.FmtDecimal),
-        ColumnDefn("_ prix", 'right', 80, "prix", stringConverter=xpy.outils.xformat.FmtMontant)
+        ColumnDefn("_ prix", 'right', 80, "prix", stringConverter=xpy.outils.xformat.FmtMontant),
+        ColumnDefn("date", 'center', 80, "date", stringConverter=xpy.outils.xformat.FmtDate)
     ]
-    liste_Donnees = [[18, "Bonjour", -1230.05939,-1230.05939],
-                     [19, "Bonsoir", 57.5, 208.99],
-                     [20, "Jonbour", 57.089, 209],
-                     [29, "Salut", 57.082, 209],
-                     [78, "Salutation", 57.08, 209],
-                     [21, "Python", 1557.08, 29],
-                     [34, "Java", 57.08, 219],
-                     [98, "langage C", 10000, 209],
+    liste_Donnees = [[18, "Bonjour", -1230.05939,-1230.05939,wx.DateTime.FromDMY(28,1,2019)],
+                     [19, "Bonsoir", 57.5, 208.99,wx.DateTime.FromDMY(15,11,2018)],
+                     [20, "Jonbour", 0 , 209,wx.DateTime.FromDMY(6,11,2018)],
+                     [29, "Salut", 57.082, 209,wx.DateTime.FromDMY(1,0,1900)],
+                     [78, "Salutation", 57.08, 0,wx.DateTime.FromDMY(1,0,1900)],
+                     [21, "Python", 1557.08, 29,wx.DateTime.FromDMY(1,0,1900)],
+                     [34, "Java", 57.08, 219,wx.DateTime.FromDMY(1,0,1900)],
+                     [98, "langage C", 10000, 209,wx.DateTime.FromDMY(1,0,1900)],
                      ]
     dicOlv = {'listeColonnes':liste_Colonnes,
                     'listeDonnees':liste_Donnees,

@@ -8,10 +8,10 @@
 
 import wx
 import os
+from xpy.outils.ObjectListView import FastObjectListView, ColumnDefn, Filter
+
 import xpy.outils.xformat
-import xpy.xUTILS_SaisieParams as xusp
 from xpy.outils.xconst import *
-from xpy.outils.ObjectListView import FastObjectListView, ColumnDefn, Filter, CTRL_Outils
 
 # ------------------------------------------------------------------------------------------------------------------
 
@@ -414,8 +414,7 @@ class PNL_tableau(wx.Panel):
         self.myOlv = ListViewTableau(self,**dicOlvOut)
 
         if barreRecherche:
-            #self.barreRecherche = BarreRecherche(self, listview=self.myOlv)
-            self.barreRecherche = CTRL_Outils(self, listview=self.myOlv)
+            self.barreRecherche = BarreRecherche(self, listview=self.myOlv)
         self.myOlv.MAJ()
 
         self.BoutonOK = wx.BitmapButton(self, wx.ID_ANY, wx.Bitmap("xpy/Images/100x30/Bouton_ok.png", wx.BITMAP_TYPE_ANY))
@@ -461,21 +460,20 @@ if __name__ == '__main__':
         ColumnDefn("cle", 'left', 70, "trackLabel1"),
         ColumnDefn("mot", 'left', 200, "un mot"),
         ColumnDefn("nombre", 'right', 80, "un nombre", stringConverter=xpy.outils.xformat.FmtSolde),
-        ColumnDefn("prix", 'right', 80, "un prix", stringConverter=xpy.outils.xformat.FmtMontant),
-        ColumnDefn("date", 'right', 80, "une date", stringConverter=xpy.outils.xformat.FmtDate)
+        ColumnDefn("prix", 'right', 80, "un prix", stringConverter=xpy.outils.xformat.FmtMontant)
     ]
-    liste_Donnees = [[18, "Bonjôur", 57.02, 9,xusp.DDstrdate2wxdate("2019-02-28")],
-                     [19, "Bonsoir", 57.05, 208.99,xusp.DDstrdate2wxdate("2019-02-27")],
-                     [20, "Jonbour", 57.08, 209,xusp.DDstrdate2wxdate("2019-02-08")],
-                     [29, "élevé", 57.08, 209,xusp.DDstrdate2wxdate("2019-02-23")],
-                     [78, "Salutation", 57.08, 209,xusp.DDstrdate2wxdate("2019-08-07")],
-                     [21, "Python", 57.08, 29,xusp.DDstrdate2wxdate("2019-12-28")],
-                     [34, "èlu", 57.08, 219,xusp.DDstrdate2wxdate("2020-02-28")],
-                     [98, "éludé", 10000, 209,xusp.DDstrdate2wxdate("2019-01-28")],
+    liste_Donnees = [[18, "Bonjour", 57.02, 9],
+                     [19, "Bonsoir", 57.05, 208.99],
+                     [20, "Jonbour", 57.08, 209],
+                     [29, "Salut", 57.08, 209],
+                     [78, "Salutation", 57.08, 209],
+                     [21, "Python", 57.08, 29],
+                     [34, "Java", 57.08, 219],
+                     [98, "langage C", 10000, 209],
                      ]
     dicOlv = {'listeColonnes':liste_Colonnes,
                     'listeDonnees':liste_Donnees,
-                    'longueur':700,
+                    'longueur':850,
                     'largeur':1000,
                     'recherche':True,
                     'msgIfEmpty':"Aucune donnée ne correspond à votre recherche"}

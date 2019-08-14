@@ -101,7 +101,7 @@ import operator
 import time
 import six
 import unicodedata
-from .OLVEvent import *
+from xpy.outils.ObjectListView.OLVEvent import *
 from xpy.outils.ObjectListView import Filter
 from xpy.outils.ObjectListView import CellEditor
 
@@ -2420,19 +2420,6 @@ class ObjectListView(wx.ListCtrl):
                     filtre = "track.%s != None and str(track.%s) >= '%s' and str(track.%s) <= '%s'" % (
                     code, code, min, code, max)
 
-            # Inscrits
-            if typeDonnee == "inscrits":
-                if choix == "INSCRITS":
-                    filtre = "track.ID%s in %s" % (code, self.GetInscrits(mode=code,
-                                                                          listeActivites=criteres["listeActivites"],
-                                                                          listeGroupes=criteres["listeGroupes"]))
-                if choix == "PRESENTS":
-                    filtre = "track.ID%s in %s" % (code, self.GetInscrits(mode=code,
-                                                                          listeActivites=criteres["listeActivites"],
-                                                                          listeGroupes=criteres["listeGroupes"],
-                                                                          periode=(criteres["date_debut"],
-                                                                                   criteres["date_fin"])))
-
             # Mémorisation
             listeFiltresFinale.append(filtre)
 
@@ -3982,6 +3969,7 @@ class ColumnDefn(object):
             useInitialLetterForGroupKey=False,
             groupTitleSingleItem=None,
             groupTitlePluralItems=None):
+
         """
         Create a new ColumnDefn using the given attributes.
 

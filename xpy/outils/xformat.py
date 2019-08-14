@@ -3,6 +3,29 @@ SYMBOLE = "€"
 
 import wx
 
+CHOIX_FILTRES = {'nombre':[
+                            ('EGAL','égal à '),
+                            ('DIFFERENT','différent de '),
+                            ('INF','plus petit que '),
+                            ('INFEGAL','inférieur ou égal à '),
+                            ('SUP','plus grand que '),
+                            ('SUPEGAL','supérieur ou égal à ')],
+                 'date': [
+                            ('EGAL', 'égal à '),
+                            ('DIFFERENT', 'différent de '),
+                            ('INF', 'plus petit que '),
+                            ('INFEGAL', 'inférieur ou égal à '),
+                            ('SUP', 'plus grand que '),
+                            ('SUPEGAL', 'supérieur ou égal à ')],
+                 'texte':[
+                            ('CONTIENT','contient '),
+                            ('CONTIENTPAS','ne contient pas '),
+                            ('DIFFERENT','différent de '),
+                            ('EGAL','égal à '),
+                            ('PASVIDE',"pas à blanc "),
+                            ('VIDE','est à blanc ')]
+                }
+
 def DDstrdate2wxdate(date,iso=False):
     if not isinstance(date, str) : date = str(date)
     if len(date) < 10: return None
@@ -30,7 +53,7 @@ def FmtDecimal(montant):
     return strMtt
 
 def FmtDate(date):
-    if date == None  == 0.0:
+    if date == None or date == wx.DateTime.FromDMY(1,0,1900):
         return ""
     strdate = DDwxdate2strdate(date)
     return strdate
