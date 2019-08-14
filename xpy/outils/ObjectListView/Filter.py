@@ -27,6 +27,8 @@ to this observation.
 
 import wx
 import wx.propgrid as wxpg
+import xpy.outils.xformat as xpof
+
 
 def Predicate(predicate):
     """
@@ -130,7 +132,7 @@ class CTRL_property(wxpg.PropertyGrid):
                             if 'help' in ligne:
                                 propriete.SetHelpString(ligne['help'])
                             self.Append(propriete)
-
+                            self.ptactive = propriete
                         except Exception as err:
                             wx.MessageBox(
                             "Echec sur Property de name - value: %s - %s (%s)\nLe retour d'erreur est : \n%s\n\nSur commande : %s"
@@ -182,6 +184,8 @@ class DLG_saisiefiltre(wx.Dialog):
         sizer.Add(gridsizer, 0, wx.ALL | wx.ALIGN_RIGHT, self.marge)
         sizer.SetSizeHints(self)
         self.SetSizer(sizer)
+        self.Layout()
+        self.ctrl.SelectProperty(self.ctrl.ptactive,True)
 
     def OnBtnOK(self,evt):
         values = self.ctrl.GetValeurs()
@@ -189,14 +193,19 @@ class DLG_saisiefiltre(wx.Dialog):
         if self.etape == 1:
             self.colonne = values['colonne']['colonne']
             self.Etape2()
+            return
         if self.etape == 2:
             self.action = values['action']['action']
             self.Etape3()
+            return
+        if self.etape == 3:
+            self.valeur = values['valeur']['valeur']
+            self.EndModal(wx.ID_OK)
         else:
-            print(values)
+            wx.MessageBox(str(values))
 
     def OnBtnAbort(self,evt):
-        self.Destroy()
+        self.EndModal(wx.ID_CANCEL)
 
     def Etape1(self):
         self.etape = 1
@@ -208,7 +217,6 @@ class DLG_saisiefiltre(wx.Dialog):
         dictMatrice['colonne']['lignes'][0]['values'] = self.lstNomsColonnes
         ctrlproperty = CTRL_property(self, matrice=dictMatrice)
         self.Sizer(ctrlproperty)
-        self.Refresh()
 
     def Etape2(self):
         self.etape = 2
@@ -217,15 +225,15 @@ class DLG_saisiefiltre(wx.Dialog):
                 {'nomchapitre': "Que faire sur la colonne %s"%self.colonne,
                  'lignes': [{'genre': 'Enum', 'name': 'action', 'label': 'Type de filtre :',
                              'value': '', 'help': 'Choisir par le type de filtre'}], }}
-        import xpy.outils.xformat as xpof
         idx = self.lstNomsColonnes.index(self.colonne)
-        tip = self.lstTypesColonnes[idx]
-        if not tip: genre = 'texte'
-        if not tip in xpof.CHOIX_FILTRES:
+        self.tip = self.lstTypesColonnes[idx]
+        self.choixactions = xpof.CHOIX_FILTRES[self.tip]
+        if not self.tip: self.tip = 'texte'
+        if not self.tip in xpof.CHOIX_FILTRES:
             wx.MessageBox("Le genre '%s' de la colonne '%' n'est pas connu dans CHOIX_FILTRES")
-            self.Destroy()
+            self.EndModal(wx.ID_CANCEL)
         values = []
-        for (code,label) in xpof.CHOIX_FILTRES[tip]:
+        for (code,label) in self.choixactions:
             values.append(label)
         dictMatrice['action']['lignes'][0]['values'] = values
         ctrlproperty = CTRL_property(self, matrice=dictMatrice)
@@ -236,10 +244,27 @@ class DLG_saisiefiltre(wx.Dialog):
         dictMatrice = {
             "valeur":
                 {'nomchapitre': "Choix de la valeur",
-                 'lignes': [{'genre': 'Texte', 'name': 'valeur', 'label': 'Valeur :',
+                 'lignes': [{'genre': 'String', 'name': 'valeur', 'label': 'Valeur :',
                              'value': '', 'help': 'Choisir la valeur'}], }}
         ctrlproperty = CTRL_property(self, matrice=dictMatrice)
         self.Sizer(ctrlproperty)
+
+    def GetDonnees(self):
+        # {'typeDonnee': 'entier', 'criteres': '1', 'choix': 'SUPEGAL', 'code': 'IDprestation',
+        #                      'titre': u'ID'}
+        # {'typeDonnee': 'texte', 'criteres': u'hj', 'choix': 'CONTIENTPAS', 'code': 'prenomIndividu',
+        #                       'titre': u'Individu'}
+        for (code,label) in xpof.CHOIX_FILTRES[self.tip]:
+            if label == self.action:
+                codechoix = code
+                break
+
+        filtre =  {'typeDonnee': self.tip,
+                   'criteres': self.valeur,
+                   'choix': codechoix,
+                   'code': self.colonne,
+                   'titre': self.colonne}
+        return filtre
 
 #**************************************************************************************************
 

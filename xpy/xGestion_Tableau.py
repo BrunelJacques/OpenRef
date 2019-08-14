@@ -452,9 +452,7 @@ class PNL_tableau(wx.Panel):
             self.ctrlOlv = ListView(self,**dicOlvOut)
             self.olv = self.ctrlOlv
         if barreRecherche:
-            #self.barreRecherche = BarreRecherche(self, listview=self.ctrlOlv)
-            self.barreRecherche = CTRL_Outils(self, listview=self.ctrlOlv, afficherCocher=False)
-            #self.barreRecherche.SetBackgroundColour((255, 255, 255))
+            self.ctrloutils = CTRL_Outils(self, listview=self.ctrlOlv, afficherCocher=False)
         self.ctrlOlv.MAJ()
         #if self.ctrlOlv.ctrl_footer:
         #    self.ctrlOlv.ctrl_footer.MAJ()
@@ -467,7 +465,7 @@ class PNL_tableau(wx.Panel):
         #sizerbase = wx.BoxSizer(wx.VERTICAL)
         sizerbase.Add(self.olv, 10, wx.EXPAND, 40)
         if barreRecherche:
-            sizerbase.Add(self.barreRecherche, 10, wx.EXPAND, 40)
+            sizerbase.Add(self.ctrloutils, 10, wx.EXPAND, 40)
         sizerbase.Add(self.BoutonOK, 10, wx.ALIGN_RIGHT, 40)
         sizerbase.AddGrowableCol(0,1)
         sizerbase.AddGrowableRow(0,1)

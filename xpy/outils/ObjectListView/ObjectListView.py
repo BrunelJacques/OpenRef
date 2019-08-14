@@ -102,6 +102,7 @@ import time
 import six
 import unicodedata
 from xpy.outils.ObjectListView.OLVEvent import *
+from xpy.outils.ObjectListView import OLVEvent
 from xpy.outils.ObjectListView import Filter
 from xpy.outils.ObjectListView import CellEditor
 
@@ -2337,18 +2338,22 @@ class ObjectListView(wx.ListCtrl):
 
         # Filtres de colonnes
         for texteFiltre in self.formatageFiltres(self.listeFiltresColonnes):
-            exec("filtre = Filter.Predicate(lambda track: %s)" % texteFiltre)
-            listeFiltres.append(filtre)
+            filtre = None
+            fn = lambda track: "%s"%texteFiltre
+            filtre = Filter.Predicate(fn)
+            #exec("filtre = Filter.Predicate(lambda track: %s)" % texteFiltre)
+            if filtre:
+                listeFiltres.append(filtre)
 
         self.SetFilter(Filter.Chain(*listeFiltres))
         self.RepopulateList()
         self.Refresh()
-        self.OnCheck(None)
+        #self.OnCheck(None)
 
     def SetFiltresColonnes(self, listeFiltresColonnes=[]):
         self.listeFiltresColonnes = listeFiltresColonnes
-        if self.barreRecherche != None:
-            self.barreRecherche.Cancel()
+        if self.parent.ctrloutils.barreRecherche != None:
+            self.parent.ctrloutils.barreRecherche.Cancel()
         self.Filtrer()
 
     def formatageFiltres(self, listeFiltres=[]):
@@ -2796,7 +2801,7 @@ class CTRL_Outils(wx.Panel):
         if afficherCocher == True:
             self.bouton_cocher = platebtn.PlateButton(self, -1, " Cocher",
                                                       wx.Bitmap("xpy/Images/16x16/Cocher.png", wx.BITMAP_TYPE_ANY))
-            self.bouton_cocher.SetToolTipString(
+            self.bouton_cocher.SetToolTip(
                 "Cliquez ici pour cocher ou décocher rapidement tous les éléments de cette liste")
 
             menu = wx.Menu()
@@ -2837,9 +2842,9 @@ class CTRL_Outils(wx.Panel):
         if nbreFiltres == 0:
             nomImage = "Filtre"
         elif nbreFiltres < 10:
-            nomImage = "Filtre_%d" % nbreFiltres
+            nomImage = "Filtre"
         else:
-            nomImage = "Filtre_10"
+            nomImage = "Filtre"
         self.bouton_filtrer.SetBitmap(wx.Bitmap("xpy/Images/16x16/%s.png" % nomImage, wx.BITMAP_TYPE_ANY))
         self.bouton_filtrer.Refresh()
 
@@ -2851,14 +2856,15 @@ class CTRL_Outils(wx.Panel):
                 texte = "Cliquez ici pour filtrer cette liste\n> 1 filtre activé"
             else:
                 texte = "Cliquez ici pour filtrer cette liste\n> %d filtres activés" % nbreFiltres
-        self.bouton_filtrer.SetToolTipString(texte)
+        self.bouton_filtrer.SetToolTip(texte)
 
     def OnBoutonFiltrer(self, event):
         listeFiltres = []
         #print(self.bouton_filtrer.GetState())
         dlg = Filter.DLG_saisiefiltre(self, listview=self.listview)
         if dlg.ShowModal() == wx.ID_OK:
-            listeFiltres = dlg.GetDonnees()
+            listeFiltres.append(dlg.GetDonnees())
+
             self.listview.SetFiltresColonnes(listeFiltres)
             self.listview.Filtrer()
             self.MAJ_ctrl_filtrer()
@@ -4097,7 +4103,8 @@ class ColumnDefn(object):
         try:
             return fmt % value
         except UnicodeError:
-            return unicode(fmt) % value
+            #return unicode(fmt) % value
+            return
 
     def GetGroupKey(self, modelObject):
         """
@@ -4550,7 +4557,7 @@ class BatchedUpdate(object):
 
         self.objectsToRefresh.extend(modelObjects)
 
-    def RemoveObject(self, modelObjects):
+    def RemoveObject(self, modelObject):
         """
         Remember the given model objects so that they can be removed when the next update cycle occurs
         """
