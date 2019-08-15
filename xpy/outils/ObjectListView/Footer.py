@@ -3,7 +3,7 @@
 #------------------------------------------------------------------------
 # Application :    Noethys, gestion multi-activités
 # Site internet :  www.noethys.com
-# Auteur:           Ivan LUCAS
+# Auteur:           Ivan LUCAS, Jacques Brunel
 # Copyright:       (c) 2010-14 Ivan LUCAS
 # Licence:         Licence GNU GPL
 #------------------------------------------------------------------------
