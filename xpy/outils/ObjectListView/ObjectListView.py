@@ -7,6 +7,7 @@
 # License:      wxWindows license
 #----------------------------------------------------------------------------
 # Change log:
+# 2019-08-15  JB    - Adaptations pour footer et filtres personnalisés
 # 2009-06-09  JPP   - AutoSizeColumns() now updates space filling columns
 #                   - FastObjectListView.RepopulateList() now uses Freeze/Thaw
 #                   - Fixed bug with virtual lists being clearws when scrolled vertically

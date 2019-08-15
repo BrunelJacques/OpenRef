@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #----------------------------------------------------------------------------
 # Name:         Filter.py
-# Author:       Phillip Piper
+# Author:       Phillip Piper, adaptations JB
 # Created:      26 August 2008
 # Copyright:    (c) 2008 Phillip Piper
 # SVN-ID:       $Id$
