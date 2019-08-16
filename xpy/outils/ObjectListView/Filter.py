@@ -161,7 +161,7 @@ class DLG_saisiefiltre(wx.Dialog):
         self.etape=0
         titre = kwds.pop('titre',"Pas d'argument kwd 'listview' pas de choix de colonnes")
         if self.listview:
-            self.lstNomsColonnes = self.listview.lstNomsColonnes
+            self.lstLabelsColonnes = self.listview.lstLabelsColonnes
             self.lstTypesColonnes = self.listview.lstTypesColonnes
             titre = kwds.pop('titre',"Saisie d'un filtre élaboré")
         wx.Dialog.__init__(self, parent, *args, title=titre, style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
@@ -214,7 +214,7 @@ class DLG_saisiefiltre(wx.Dialog):
                 {'nomchapitre': "Choix de la colonne à filtrer",
                  'lignes': [{'genre': 'Enum', 'name': 'colonne', 'label': 'Colonne à filtrer :',
                              'value': '', 'help': 'Choisir par le triangle noir'}], }}
-        dictMatrice['colonne']['lignes'][0]['values'] = self.lstNomsColonnes
+        dictMatrice['colonne']['lignes'][0]['values'] = self.lstLabelsColonnes
         ctrlproperty = CTRL_property(self, matrice=dictMatrice)
         self.Sizer(ctrlproperty)
 
@@ -225,7 +225,7 @@ class DLG_saisiefiltre(wx.Dialog):
                 {'nomchapitre': "Que faire sur la colonne %s"%self.colonne,
                  'lignes': [{'genre': 'Enum', 'name': 'action', 'label': 'Type de filtre :',
                              'value': '', 'help': 'Choisir par le type de filtre'}], }}
-        idx = self.lstNomsColonnes.index(self.colonne)
+        idx = self.lstLabelsColonnes.index(self.colonne)
         self.tip = self.lstTypesColonnes[idx]
         self.choixactions = xpof.CHOIX_FILTRES[self.tip]
         if not self.tip: self.tip = 'texte'

@@ -59,6 +59,7 @@ class ListView(FastObjectListView):
         self.menuPersonnel = kwds.pop("menuPersonnel", None)
         self.listeDonnees = kwds.pop("listeDonnees", None)
         self.lstNomsColonnes = self.formerNomColonnes()
+        self.lstLabelsColonnes = self.formerLabelsColonnes()
         self.lstTypesColonnes = self.formerTypesColonnes()
         self.dictColFooter = kwds.pop("dictColFooter", {})
         self.formerTracks()
@@ -124,6 +125,13 @@ class ListView(FastObjectListView):
         for colonne in self.listeColonnes:
             nom = colonne.valueGetter
             #nom = colonne.title
+            nomColonnes.append(nom)
+        return nomColonnes
+
+    def formerLabelsColonnes(self):
+        nomColonnes = list()
+        for colonne in self.listeColonnes:
+            nom = colonne.title
             nomColonnes.append(nom)
         return nomColonnes
 
@@ -496,10 +504,10 @@ if __name__ == '__main__':
     app = wx.App(0)
     os.chdir("..")
     liste_Colonnes = [
-        ColumnDefn("entête", 'left', 70, "cle"),
-        ColumnDefn("annoncer un mot", 'left', 200, "mot"),
-        ColumnDefn("_nombre", 'right', 80, "nombre", stringConverter=xpy.outils.xformat.FmtDecimal),
-        ColumnDefn("_ prix", 'right', 80, "prix", stringConverter=xpy.outils.xformat.FmtMontant),
+        ColumnDefn("cle", 'left', 70, "cle"),
+        ColumnDefn("mot", 'left', 200, "mot"),
+        ColumnDefn("nombre", 'right', 80, "nombre", stringConverter=xpy.outils.xformat.FmtDecimal),
+        ColumnDefn("prix", 'right', 80, "prix", stringConverter=xpy.outils.xformat.FmtMontant),
         ColumnDefn("date", 'center', 80, "date", stringConverter=xpy.outils.xformat.FmtDate)
     ]
     liste_Donnees = [[18, "Bonjour", -1230.05939,-1230.05939,wx.DateTime.FromDMY(28,1,2019)],
@@ -507,7 +515,7 @@ if __name__ == '__main__':
                      [20, "Jonbour", 0 , 209,wx.DateTime.FromDMY(6,11,2018)],
                      [29, "Salut", 57.082, 209,wx.DateTime.FromDMY(1,0,1900)],
                      [78, "Salutation", 57.08, 0,wx.DateTime.FromDMY(1,0,1900)],
-                     [21, "Python", 1557.08, 29,wx.DateTime.FromDMY(1,0,1900)],
+                     [None, "Python", 1557.08, 29,wx.DateTime.FromDMY(1,0,1900)],
                      [34, "Java", 57.08, 219,wx.DateTime.FromDMY(1,0,1900)],
                      [98, "langage C", 10000, 209,wx.DateTime.FromDMY(1,0,1900)],
                      ]

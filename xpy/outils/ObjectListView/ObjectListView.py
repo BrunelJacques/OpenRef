@@ -2340,10 +2340,20 @@ class ObjectListView(wx.ListCtrl):
         # Filtres de colonnes
         for texteFiltre in self.formatageFiltres(self.listeFiltresColonnes):
             filtre = None
-            fn = lambda track: "%s"%texteFiltre
+            def fn(track):
+                if isinstance(track.cle,int):
+                    track.cle = str(track.cle)
+                result = (track.cle != None and '8'.lower() in track.cle.lower())
+                return result
+            #fn = lambda track: track.cle != None and '8'.lower() in track.cle.lower()
             filtre = Filter.Predicate(fn)
-            #exec("filtre = Filter.Predicate(lambda track: %s)" % texteFiltre)
+            #fn = lambda track: "%s"%texteFiltre
+            #filtre = Filter.Predicate(fn)
+            commande = "filtre = Filter.Predicate(lambda track: %s)" % texteFiltre
+            #commande = "filtre = Filter.Predicate(lambda track: track.cle != None )"
+            #exec(commande)
             if filtre:
+                print("coucou")
                 listeFiltres.append(filtre)
 
         self.SetFilter(Filter.Chain(*listeFiltres))
