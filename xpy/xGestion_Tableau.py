@@ -60,7 +60,7 @@ class ListView(FastObjectListView):
         self.listeDonnees = kwds.pop("listeDonnees", None)
         self.lstNomsColonnes = self.formerNomColonnes()
         self.lstLabelsColonnes = self.formerLabelsColonnes()
-        self.lstTypesColonnes = self.formerTypesColonnes()
+        self.lstSetterValues = self.formerSetterValues()
         self.dictColFooter = kwds.pop("dictColFooter", {})
         self.formerTracks()
 
@@ -113,12 +113,9 @@ class ListView(FastObjectListView):
             return
 
         for listeDonnee in self.listeDonnees:
-            self.tracks.append(self.formerTrack(listeDonnee))
+            self.tracks.append(TrackGeneral(donnees=listeDonnee,nomColonnes=self.lstNomsColonnes,
+                                            setterValues=self.lstSetterValues))
         return
-
-    def formerTrack(self, listeDonnee):
-        track = TrackGeneral(donnees=listeDonnee, nomColonnes=self.lstNomsColonnes)
-        return track
 
     def formerNomColonnes(self):
         nomColonnes = list()
@@ -135,19 +132,23 @@ class ListView(FastObjectListView):
             nomColonnes.append(nom)
         return nomColonnes
 
-    def formerTypesColonnes(self):
-        typesColonnes = list()
+    def formerSetterValues(self):
+        setterValues = list()
         for colonne in self.listeColonnes:
-            tip = 'texte'
-            fmt = colonne.stringConverter
-            if fmt:
-                fmt = colonne.stringConverter.__name__
-                if fmt[3:] in ('Montant','Solde','Decimal','Entier'):
-                    tip = 'nombre'
-                elif fmt[3:] == 'Date':
-                    tip = 'date'
-            typesColonnes.append(tip)
-        return typesColonnes
+            tip = None
+            if colonne.valueSetter:
+                tip = colonne.valueSetter
+            if not tip:
+                tip = ''
+                fmt = colonne.stringConverter
+                if fmt:
+                    fmt = colonne.stringConverter.__name__
+                    if fmt[3:] in ('Montant','Solde','Decimal','Entier'):
+                        tip = 0.0
+                    elif fmt[3:] == 'Date':
+                        tip = wx.DateTime.FromDMY(1,0,1900)
+            setterValues.append(tip)
+        return setterValues
 
     def InitModel(self):
         self.donnees = self.GetTracks()
@@ -410,12 +411,20 @@ class PanelListView(wx.Panel):
         return self.ctrl_listview
 
 class TrackGeneral(object):
-    """
-    Cette classe va transformer les listes en objets
-    """
-
-    def __init__(self, donnees, nomColonnes):
-        for (donnee, nomColonne) in zip(donnees, nomColonnes):
+    #    Cette classe va transformer les listes en objets
+    def __init__(self, donnees, nomColonnes, setterValues):
+        for (donnee, nomColonne, setterValue) in zip(donnees, nomColonnes, setterValues):
+            if setterValue:
+                if (donnee is None):
+                    donnee = setterValue
+                else:
+                    if not isinstance(donnee,type(setterValue)):
+                        try:
+                            if type(setterValue) in (int,float):
+                                donnee = float(donnee)
+                            elif type(setterValue) == str:
+                                donnee = str(donnee)
+                        except : pass
             self.__setattr__(nomColonne, donnee)
 
 # ------------------------------------------------------------------------------------------------------------------
@@ -504,19 +513,19 @@ if __name__ == '__main__':
     app = wx.App(0)
     os.chdir("..")
     liste_Colonnes = [
-        ColumnDefn("cle", 'left', 70, "cle"),
-        ColumnDefn("mot", 'left', 200, "mot"),
-        ColumnDefn("nombre", 'right', 80, "nombre", stringConverter=xpy.outils.xformat.FmtDecimal),
-        ColumnDefn("prix", 'right', 80, "prix", stringConverter=xpy.outils.xformat.FmtMontant),
-        ColumnDefn("date", 'center', 80, "date", stringConverter=xpy.outils.xformat.FmtDate)
+        ColumnDefn("cle", 'left', 70, "cle",valueSetter=1),
+        ColumnDefn("mot", 'left', 200, "mot",valueSetter=''),
+        ColumnDefn("nombre", 'right', 80, "nombre",valueSetter=0.0, stringConverter=xpy.outils.xformat.FmtDecimal),
+        ColumnDefn("prix", 'right', 80, "prix",valueSetter=0.0, stringConverter=xpy.outils.xformat.FmtMontant),
+        ColumnDefn("date", 'center', 80, "date",valueSetter=wx.DateTime.FromDMY(1,0,1900), stringConverter=xpy.outils.xformat.FmtDate)
     ]
-    liste_Donnees = [[18, "Bonjour", -1230.05939,-1230.05939,wx.DateTime.FromDMY(28,1,2019)],
+    liste_Donnees = [[18, "Bonjour", -1230.05939,-1230.05939,None],
                      [19, "Bonsoir", 57.5, 208.99,wx.DateTime.FromDMY(15,11,2018)],
-                     [20, "Jonbour", 0 , 209,wx.DateTime.FromDMY(6,11,2018)],
-                     [29, "Salut", 57.082, 209,wx.DateTime.FromDMY(1,0,1900)],
-                     [78, "Salutation", 57.08, 0,wx.DateTime.FromDMY(1,0,1900)],
-                     [None, "Python", 1557.08, 29,wx.DateTime.FromDMY(1,0,1900)],
-                     [34, "Java", 57.08, 219,wx.DateTime.FromDMY(1,0,1900)],
+                     [1, "Jonbour", 0 , 209,wx.DateTime.FromDMY(6,11,2018)],
+                     [29, "Salut", 57.082, 209,wx.DateTime.FromDMY(28,1,2019)],
+                     [78, "Salutation", 57.08, 0,wx.DateTime.FromDMY(1,7,1997)],
+                     [2, "Python", 1557.08, 29,wx.DateTime.FromDMY(7,1,1997)],
+                     [3, "Java", 57.08, 219,wx.DateTime.FromDMY(1,0,1900)],
                      [98, "langage C", 10000, 209,wx.DateTime.FromDMY(1,0,1900)],
                      ]
     dicOlv = {'listeColonnes':liste_Colonnes,

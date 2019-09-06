@@ -7,6 +7,7 @@
 # License:      wxWindows license
 #----------------------------------------------------------------------------
 # Change log:
+# 2019-09-10  JB    - Adaptations pour tris possibles de valeurs null
 # 2019-08-15  JB    - Adaptations pour footer et filtres personnalisés
 # 2009-06-09  JPP   - AutoSizeColumns() now updates space filling columns
 #                   - FastObjectListView.RepopulateList() now uses Freeze/Thaw
@@ -1961,7 +1962,9 @@ class ObjectListView(wx.ListCtrl):
             else:
                 return primary
 
-        modelObjects.sort(key=_getSortValue, reverse=(not self.sortAscending))
+        try:
+            modelObjects.sort(key=_getSortValue, reverse=(not self.sortAscending))
+        except: pass
 
         # Sorting invalidates our object map
         self.objectToIndexMap = None
@@ -4008,6 +4011,7 @@ class ColumnDefn(object):
         self.title = title
         self.align = align
         self.valueGetter = valueGetter
+        self.valueSetter = valueSetter
         self.imageGetter = imageGetter
         self.stringConverter = stringConverter
         self.valueSetter = valueSetter
