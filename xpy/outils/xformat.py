@@ -2,22 +2,43 @@
 SYMBOLE = "€"
 
 import wx
+import datetime
 
-CHOIX_FILTRES = {'nombre':[
+CHOIX_FILTRES = {float:[
                             ('EGAL','égal à '),
                             ('DIFFERENT','différent de '),
-                            ('INF','plus petit que '),
-                            ('INFEGAL','inférieur ou égal à '),
-                            ('SUP','plus grand que '),
+                            ('INF','inférieur à '),
+                            ('INFEGAL','supérieur à '),
                             ('SUPEGAL','supérieur ou égal à ')],
-                 'date': [
+                 int:[
+                            ('EGAL','égal à '),
+                            ('DIFFERENT','différent de '),
+                            ('INF','inférieur à '),
+                            ('INFEGAL','inférieur ou égal à '),
+                            ('SUP','supérieur à '),
+                            ('SUPEGAL','supérieur ou égal à ')],
+                 wx.DateTime: [
                             ('EGAL', 'égal à '),
                             ('DIFFERENT', 'différent de '),
-                            ('INF', 'plus petit que '),
-                            ('INFEGAL', 'inférieur ou égal à '),
-                            ('SUP', 'plus grand que '),
-                            ('SUPEGAL', 'supérieur ou égal à ')],
-                 'texte':[
+                            ('INF', 'avant '),
+                            ('INFEGAL', 'avant ou égal à '),
+                            ('SUP', 'après '),
+                            ('SUPEGAL', 'après ou égal à ')],
+                 datetime.date: [
+                            ('EGAL', 'égal à '),
+                            ('DIFFERENT', 'différent de '),
+                            ('INF', 'avant '),
+                            ('INFEGAL', 'avant ou égal à '),
+                            ('SUP', 'après '),
+                            ('SUPEGAL', 'après ou égal à ')],
+                 datetime.datetime: [
+                            ('EGAL', 'égal à '),
+                            ('DIFFERENT', 'différent de '),
+                            ('INF', 'avant '),
+                            ('INFEGAL', 'avant ou égal à '),
+                            ('SUP', 'après '),
+                            ('SUPEGAL', 'après ou égal à ')],
+                 str:[
                             ('CONTIENT','contient '),
                             ('CONTIENTPAS','ne contient pas '),
                             ('DIFFERENT','différent de '),

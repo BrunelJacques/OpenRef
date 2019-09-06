@@ -272,6 +272,8 @@ class ObjectListView(wx.ListCtrl):
         self.whenLastTypingEvent = 0
         self.filter = None
         self.objectToIndexMap = None
+        self.listeFiltresColonnes = []
+        self.original = True
 
         self.rowFormatter = kwargs.pop("rowFormatter", None)
         self.useAlternateBackColors = kwargs.pop(
@@ -1004,6 +1006,7 @@ class ObjectListView(wx.ListCtrl):
         """
         Set the list of modelObjects to be displayed by the control.
         """
+        self.original = True
         if preserveSelection:
             selection = self.GetSelectedObjects()
 
@@ -1025,10 +1028,13 @@ class ObjectListView(wx.ListCtrl):
         Build the list that will actually populate the control
         """
         # This is normally just the list of model objects
-        if self.filter:
-            self.innerList = self.filter(self.modelObjects)
+        if self.original:
+            if self.filter:
+                self.innerList = self.filter(self.modelObjects)
+            else:
+                self.innerList = self.modelObjects
         else:
-            self.innerList = self.modelObjects
+            self.innerList = self.filter(self.innerList)
 
         # Our map isn't valid after doing this
         self.objectToIndexMap = None
@@ -2344,19 +2350,10 @@ class ObjectListView(wx.ListCtrl):
         for texteFiltre in self.formatageFiltres(self.listeFiltresColonnes):
             filtre = None
             def fn(track):
-                if isinstance(track.cle,int):
-                    track.cle = str(track.cle)
-                result = (track.cle != None and '8'.lower() in track.cle.lower())
+                result = eval(texteFiltre)
                 return result
-            #fn = lambda track: track.cle != None and '8'.lower() in track.cle.lower()
             filtre = Filter.Predicate(fn)
-            #fn = lambda track: "%s"%texteFiltre
-            #filtre = Filter.Predicate(fn)
-            commande = "filtre = Filter.Predicate(lambda track: %s)" % texteFiltre
-            #commande = "filtre = Filter.Predicate(lambda track: track.cle != None )"
-            #exec(commande)
             if filtre:
-                print("coucou")
                 listeFiltres.append(filtre)
 
         self.SetFilter(Filter.Chain(*listeFiltres))
@@ -2380,7 +2377,7 @@ class ObjectListView(wx.ListCtrl):
             typeDonnee = dictFiltre["typeDonnee"]
 
             # Texte
-            if typeDonnee == "texte":
+            if typeDonnee == str:
                 if choix == "EGAL":
                     filtre = "track.%s != None and track.%s.lower() == '%s'.lower()" % (code, code, criteres)
                 if choix == "DIFFERENT":
@@ -2395,7 +2392,7 @@ class ObjectListView(wx.ListCtrl):
                     filtre = "track.%s != '' and track.%s != None" % (code, code)
 
             # Entier, montant
-            if typeDonnee in ("entier", "montant"):
+            if typeDonnee in (int, float):
 
                 if choix == "COMPRIS":
                     min = str(criteres.split(";")[0])
@@ -2419,25 +2416,27 @@ class ObjectListView(wx.ListCtrl):
                     filtre = "track.%s >= %s and track.%s <= %s" % (code, min, code, max)
 
             # Date
-            if typeDonnee == "date":
-
+            if typeDonnee in (datetime.date,wx.DateTime,datetime.datetime):
+                crit = "%s%s%s" %(criteres[-4:],criteres[3:5],criteres[:2])
+                trackdat = "(str(track.%s.year)+ ('0'+str(track.%s.month))[-2:]+ ('0'+str(track.%s.day))[-2:])"\
+                           %(code,code,code)
                 if choix == "EGAL":
-                    filtre = "track.%s != None and str(track.%s) == '%s'" % (code, code, criteres)
+                    filtre = "track.%s != None and %s == '%s'" % (code, trackdat, crit)
                 if choix == "DIFFERENT":
-                    filtre = "track.%s != None and str(track.%s) != '%s'" % (code, code, criteres)
+                    filtre = "track.%s != None and %s != '%s'" % (code, trackdat, crit)
                 if choix == "SUP":
-                    filtre = "track.%s != None and str(track.%s) > '%s'" % (code, code, criteres)
+                    filtre = "track.%s != None and %s > '%s'" % (code, trackdat, crit)
                 if choix == "SUPEGAL":
-                    filtre = "track.%s != None and str(track.%s) >= '%s'" % (code, code, criteres)
+                    filtre = "track.%s != None and %s >= '%s'" % (code, trackdat, crit)
                 if choix == "INF":
-                    filtre = "track.%s != None and str(track.%s) < '%s'" % (code, code, criteres)
+                    filtre = "track.%s != None and %s < '%s'" % (code, trackdat, crit)
                 if choix == "INFEGAL":
-                    filtre = "track.%s != None and str(track.%s) <= '%s'" % (code, code, criteres)
+                    filtre = "track.%s != None and %s <= '%s'" % (code, trackdat, crit)
                 if choix == "COMPRIS":
-                    min = criteres.split(";")[0]
-                    max = criteres.split(";")[1]
-                    filtre = "track.%s != None and str(track.%s) >= '%s' and str(track.%s) <= '%s'" % (
-                    code, code, min, code, max)
+                    min = crit.split(";")[0]
+                    max = crit.split(";")[1]
+                    filtre = "track.%s != None and %s >= '%s' and %s <= '%s'" % (
+                    code, trackdat, min, code, max)
 
             # Mémorisation
             listeFiltresFinale.append(filtre)
@@ -2772,17 +2771,18 @@ class BarreRecherche(wx.SearchCtrl):
     def Recherche(self):
         txtSearch = self.GetValue()
         self.ShowCancelButton(len(txtSearch))
-        self.listview.GetFilter().SetText(txtSearch)
+        if len(txtSearch) > 0:
+            self.listview.SetFilter(Filter.TextSearch(self.listview, self.listview.columns[0:self.nbreColonnes]))
+            self.listview.GetFilter().SetText(txtSearch)
         self.listview.RepopulateList()
-
-        #self.listview.Filtrer(txtSearch)
+        self.listview.Filtrer(txtSearch)
 
 class CTRL_Outils(wx.Panel):
     def __init__(self, parent, listview=None, texteDefaut="Rechercher...", afficherCocher=False,
                  style=wx.NO_BORDER | wx.TAB_TRAVERSAL):
         wx.Panel.__init__(self, parent, id=-1, style=style)
         self.listview = listview
-
+        self.listeFiltres = []
         # Contrôles
         self.barreRecherche = BarreRecherche(self, listview=listview, texteDefaut=texteDefaut)
         self.bouton_filtrage = wx.Button(self, -1, "Filtrage avancé", size=(-1, 20))
@@ -2872,37 +2872,54 @@ class CTRL_Outils(wx.Panel):
                 texte = "Cliquez ici pour filtrer cette liste\n> %d filtres activés" % nbreFiltres
         self.bouton_filtrer.SetToolTip(texte)
 
-    def OnBoutonFiltrer(self, event):
-        listeFiltres = []
-        #print(self.bouton_filtrer.GetState())
+    def SetFiltres(self, listeFiltres=[]):
+        self.listview.SetFiltresColonnes(listeFiltres)
+        self.listview.Filtrer()
+        self.MAJ_ctrl_filtrer()
+
+    def ChoixFiltres(self):
         dlg = Filter.DLG_saisiefiltre(self, listview=self.listview)
         if dlg.ShowModal() == wx.ID_OK:
-            listeFiltres.append(dlg.GetDonnees())
-
-            self.listview.SetFiltresColonnes(listeFiltres)
+            self.listeFiltres.append(dlg.GetDonnees())
+            self.listview.SetFiltresColonnes(self.listeFiltres)
             self.listview.Filtrer()
             self.MAJ_ctrl_filtrer()
         dlg.Destroy()
 
-    def SetFiltres(self, listeFiltres=[]):
-        self.listview.SetFiltresColonnes(listeFiltres)
+    def UnFiltre(self):
+        self.listview.original = False
+        self.listeFiltres = []
+        self.ChoixFiltres()
+
+    def AjoutFiltre(self):
+        self.listview.original = False
+        self.ChoixFiltres()
+
+    def SupprimerFiltres(self):
+        self.listeFiltres = []
+        self.listview.original = True
+        self.listview.SetFiltresColonnes([])
         self.listview.Filtrer()
         self.MAJ_ctrl_filtrer()
 
     def OnBoutonCocher(self, event):
         self.bouton_cocher.ShowMenu()
 
+    def OnBoutonFiltrer(self, event):
+        self.ChoixFiltres()
+
     def OnMenu(self, event):
         ID = event.GetId()
         # Accéder à la gestion des filtres
         if ID == 10:
-            self.OnBoutonFiltrer(None)
-        # Supprimer tous les filtres
+            self.UnFiltre()
+        # ajouter un nouveau filtre
         if ID == 11:
-            self.listview.SetFiltresColonnes([])
-            self.listview.Filtrer()
-            self.MAJ_ctrl_filtrer()
-            # Tout cocher
+            self.AjoutFiltre()
+        # Supprimer tous les filtres
+        if ID == 12:
+            self.SupprimerFiltres()
+        # Tout cocher
         if ID == 20:
             self.listview.CocheListeTout()
         # Tout décocher

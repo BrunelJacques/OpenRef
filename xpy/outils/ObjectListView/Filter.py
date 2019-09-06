@@ -29,7 +29,6 @@ import wx
 import wx.propgrid as wxpg
 import xpy.outils.xformat as xpof
 
-
 def Predicate(predicate):
     """
     Display only those objects that match the given predicate
@@ -37,7 +36,8 @@ def Predicate(predicate):
     Example::
         self.olv.SetFilter(Filter.Predicate(lambda x: x.IsOverdue()))
     """
-    return lambda modelObjects: [x for x in modelObjects if predicate(x)]
+    filtred = lambda modelObjects: [x for x in modelObjects if predicate(x)]
+    return filtred
 
 def Head(num):
     """
@@ -162,7 +162,7 @@ class DLG_saisiefiltre(wx.Dialog):
         titre = kwds.pop('titre',"Pas d'argument kwd 'listview' pas de choix de colonnes")
         if self.listview:
             self.lstLabelsColonnes = self.listview.lstLabelsColonnes
-            self.lstTypesColonnes = self.listview.lstTypesColonnes
+            self.lstSetterValues = self.listview.lstSetterValues
             titre = kwds.pop('titre',"Saisie d'un filtre élaboré")
         wx.Dialog.__init__(self, parent, *args, title=titre, style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
                            **kwds)
@@ -226,9 +226,9 @@ class DLG_saisiefiltre(wx.Dialog):
                  'lignes': [{'genre': 'Enum', 'name': 'action', 'label': 'Type de filtre :',
                              'value': '', 'help': 'Choisir par le type de filtre'}], }}
         idx = self.lstLabelsColonnes.index(self.colonne)
-        self.tip = self.lstTypesColonnes[idx]
+        self.tip = type(self.lstSetterValues[idx])
         self.choixactions = xpof.CHOIX_FILTRES[self.tip]
-        if not self.tip: self.tip = 'texte'
+        if not self.tip: self.tip = str
         if not self.tip in xpof.CHOIX_FILTRES:
             wx.MessageBox("Le genre '%s' de la colonne '%' n'est pas connu dans CHOIX_FILTRES")
             self.EndModal(wx.ID_CANCEL)
@@ -250,10 +250,6 @@ class DLG_saisiefiltre(wx.Dialog):
         self.Sizer(ctrlproperty)
 
     def GetDonnees(self):
-        # {'typeDonnee': 'entier', 'criteres': '1', 'choix': 'SUPEGAL', 'code': 'IDprestation',
-        #                      'titre': u'ID'}
-        # {'typeDonnee': 'texte', 'criteres': u'hj', 'choix': 'CONTIENTPAS', 'code': 'prenomIndividu',
-        #                       'titre': u'Individu'}
         for (code,label) in xpof.CHOIX_FILTRES[self.tip]:
             if label == self.action:
                 codechoix = code

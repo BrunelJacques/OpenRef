@@ -205,14 +205,12 @@ class ListView(FastObjectListView):
         Ouverture du menu contextuel
 
         L'idée serait de créer dans ce menu tout le 'tronc commun' c'est à dire Aperçu avant impression, Imprimer,
-        Exporter au format texte (il faut demander à Isabelle si cette fonction est vraiment utilisée sinon on peut la
-        supprimer), Exporter au format Excel, et pourquoi pas ajouter une option copier (la ligne ou tout le tableau)
+        Exporter au format texte , Exporter au format Excel, et pourquoi pas ajouter une option copier (la ligne ou tout le tableau)
 
         Ensuite on pourrait passer en paramètre une partie du menu qui sera simplement ajoutée au début.
 
         Par exemple les options 'tout cocher' et 'tout décocher' pourraient être activées de base et paramétrables lors de l'initialisation
 
-        C'est ce que je vais tenter de faire dans l'exemple.
         """
         if len(self.Selection()):  # equivalent a !=0
             noSelection = False
@@ -226,14 +224,6 @@ class ListView(FastObjectListView):
             menuPop.AppendSeparator()
         else:
             menuPop = wx.Menu()
-        # On ne sait pas encore si on va garder celui la ici
-        # # Item Ouverture fiche famille
-        # item = wx.MenuItem(menuPop, 10, "Ouvrir la fiche famille"))
-        # item.SetBitmap(wx.Bitmap("Images/16x16/Famille.png", wx.BITMAP_TYPE_PNG))
-        # menuPop.AppendItem(item)
-        # self.Bind(wx.EVT_MENU, self.OuvrirFicheFamille, id=10)
-        #
-        # menuPop.AppendSeparator()
 
         # Item Tout cocher
         if self.toutCocher:
@@ -261,6 +251,28 @@ class ListView(FastObjectListView):
         # On met le separateur seulement si un des deux menus est present
         if self.toutDecocher or self.toutCocher:
             menuPop.AppendSeparator()
+
+        # Item filtres
+        item = wx.MenuItem(menuPop, 81, UN_FILTRE)
+        bmp = wx.Bitmap(FILTRE_16X16_IMG, wx.BITMAP_TYPE_PNG)
+        item.SetBitmap(bmp)
+        menuPop.Append(item)
+        self.Bind(wx.EVT_MENU, self.UnFiltre, id=81)
+
+        item = wx.MenuItem(menuPop, 82, AJOUT_FILTRE)
+        bmp = wx.Bitmap(FILTRE_16X16_IMG, wx.BITMAP_TYPE_PNG)
+        item.SetBitmap(bmp)
+        menuPop.Append(item)
+        self.Bind(wx.EVT_MENU, self.AjoutFiltre, id=82)
+
+        item = wx.MenuItem(menuPop, 83, SUPPRIMER_FILTRES)
+        bmp = wx.Bitmap(FILTREOUT_16X16_IMG, wx.BITMAP_TYPE_PNG)
+        item.SetBitmap(bmp)
+        menuPop.Append(item)
+        self.Bind(wx.EVT_MENU, self.SupprimerFiltres, id=83)
+
+        # On met le separateur
+        menuPop.AppendSeparator()
 
         # Item Apercu avant impression
         if self.apercuAvantImpression:
@@ -366,6 +378,15 @@ class ListView(FastObjectListView):
 
     def GetTracksCoches(self):
         return self.GetCheckedObjects()
+
+    def UnFiltre(self, event=None):
+        self.parent.ctrloutils.UnFiltre()
+
+    def AjoutFiltre(self, event=None):
+        self.parent.ctrloutils.AjoutFiltre()
+
+    def SupprimerFiltres(self, event=None):
+        self.parent.ctrloutils.SupprimerFiltres()
 
 class PanelListView(wx.Panel):
     #def __init__(self, parent, listview=None, kwargs={}, dictColFooter={}, style=wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL):
@@ -542,3 +563,4 @@ if __name__ == '__main__':
     app.SetTopWindow(exampleframe)
     ret = exampleframe.ShowModal()
     app.MainLoop()
+    'Exporter au format texte'
