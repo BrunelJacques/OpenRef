@@ -8,7 +8,8 @@ CHOIX_FILTRES = {float:[
                             ('EGAL','égal à '),
                             ('DIFFERENT','différent de '),
                             ('INF','inférieur à '),
-                            ('INFEGAL','supérieur à '),
+                            ('INFEGAL','inférieur ou égal à '),
+                            ('SUP','supérieur à '),
                             ('SUPEGAL','supérieur ou égal à ')],
                  int:[
                             ('EGAL','égal à '),

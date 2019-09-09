@@ -36,8 +36,7 @@ def Predicate(predicate):
     Example::
         self.olv.SetFilter(Filter.Predicate(lambda x: x.IsOverdue()))
     """
-    filtred = lambda modelObjects: [x for x in modelObjects if predicate(x)]
-    return filtred
+    return lambda modelObjects: [x for x in modelObjects if predicate(x)]
 
 def Head(num):
     """
@@ -81,6 +80,7 @@ class CTRL_property(wxpg.PropertyGrid):
 
     def OnPropGridChange(self, event):
         event.Skip()
+        #self.parent.OnBtnOK(None)
 
     def InitMatrice(self):
         # Compose la grille de saisie des paramètres selon le dictionnaire matrice
@@ -190,6 +190,7 @@ class DLG_saisiefiltre(wx.Dialog):
     def OnBtnOK(self,evt):
         values = self.ctrl.GetValeurs()
         self.ctrl.Destroy()
+        del self.ctrl
         if self.etape == 1:
             self.colonne = values['colonne']['colonne']
             self.Etape2()

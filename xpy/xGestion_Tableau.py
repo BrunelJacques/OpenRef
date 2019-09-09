@@ -544,7 +544,7 @@ if __name__ == '__main__':
                      [19, "Bonsoir", 57.5, 208.99,wx.DateTime.FromDMY(15,11,2018)],
                      [1, "Jonbour", 0 , 209,wx.DateTime.FromDMY(6,11,2018)],
                      [29, "Salut", 57.082, 209,wx.DateTime.FromDMY(28,1,2019)],
-                     [78, "Salutation", 57.08, 0,wx.DateTime.FromDMY(1,7,1997)],
+                     [None, "Salutation", 57.08, 0,wx.DateTime.FromDMY(1,7,1997)],
                      [2, "Python", 1557.08, 29,wx.DateTime.FromDMY(7,1,1997)],
                      [3, "Java", 57.08, 219,wx.DateTime.FromDMY(1,0,1900)],
                      [98, "langage C", 10000, 209,wx.DateTime.FromDMY(1,0,1900)],

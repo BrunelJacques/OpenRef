@@ -2809,6 +2809,7 @@ class CTRL_Outils(wx.Panel):
         item.SetBitmap(wx.Bitmap("xpy/Images/16x16/Filtre_supprimer.png", wx.BITMAP_TYPE_ANY))
         menu.Append(item)
         self.bouton_filtrer.SetMenu(menu)
+
         self.Bind(wx.EVT_BUTTON, self.OnBoutonFiltrer, self.bouton_filtrer)
 
         # Bouton Cocher
@@ -2887,7 +2888,7 @@ class CTRL_Outils(wx.Panel):
         dlg.Destroy()
 
     def UnFiltre(self):
-        self.listview.original = False
+        self.listview.original = True
         self.listeFiltres = []
         self.ChoixFiltres()
 
@@ -2906,7 +2907,7 @@ class CTRL_Outils(wx.Panel):
         self.bouton_cocher.ShowMenu()
 
     def OnBoutonFiltrer(self, event):
-        self.ChoixFiltres()
+        self.bouton_filtrer.ShowMenu()
 
     def OnMenu(self, event):
         ID = event.GetId()
