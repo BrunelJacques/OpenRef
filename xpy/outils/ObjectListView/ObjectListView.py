@@ -2370,6 +2370,7 @@ class ObjectListView(wx.ListCtrl):
     def formatageFiltres(self, listeFiltres=[]):
         # Formatage du filtre
         listeFiltresFinale = []
+        filtre = None
         for dictFiltre in listeFiltres:
             code = dictFiltre["code"]
             choix = dictFiltre["choix"]
@@ -2378,6 +2379,9 @@ class ObjectListView(wx.ListCtrl):
 
             # Texte
             if typeDonnee == str:
+                tpldate = criteres.split('/')
+                if len(tpldate)==3:
+                    criteres = ('20'+tpldate[2])[-4:]+'-'+('0'+tpldate[1])[-2:]+'-'+('0'+tpldate[0])[-2:]
                 if choix == "EGAL":
                     filtre = "track.%s != None and track.%s.lower() == '%s'.lower()" % (code, code, criteres)
                 if choix == "DIFFERENT":
@@ -2390,16 +2394,14 @@ class ObjectListView(wx.ListCtrl):
                     filtre = "track.%s == '' or track.%s == None" % (code, code)
                 if choix == "PASVIDE":
                     filtre = "track.%s != '' and track.%s != None" % (code, code)
+                if choix == "SUPEGAL":
+                    filtre = "track.%s.lower() >= '%s'.lower()" % (code, criteres)
+                if choix == "INFEGAL":
+                    filtre = "track.%s.lower() <= '%s'.lower()" % (code, criteres)
 
             # Entier, montant
             if typeDonnee in (int, float):
-
-                if choix == "COMPRIS":
-                    min = str(criteres.split(";")[0])
-                    max = str(criteres.split(";")[1])
-                else:
-                    criteres = str(criteres)
-
+                criteres = str(criteres)
                 if choix == "EGAL":
                     filtre = "track.%s == %s" % (code, criteres)
                 if choix == "DIFFERENT":
@@ -2412,31 +2414,30 @@ class ObjectListView(wx.ListCtrl):
                     filtre = "track.%s < %s" % (code, criteres)
                 if choix == "INFEGAL":
                     filtre = "track.%s <= %s" % (code, criteres)
-                if choix == "COMPRIS":
-                    filtre = "track.%s >= %s and track.%s <= %s" % (code, min, code, max)
 
             # Date
             if typeDonnee in (datetime.date,wx.DateTime,datetime.datetime):
                 crit = "%s%s%s" %(criteres[-4:],criteres[3:5],criteres[:2])
                 trackdat = "(str(track.%s.year)+ ('0'+str(track.%s.month))[-2:]+ ('0'+str(track.%s.day))[-2:])"\
                            %(code,code,code)
+                if typeDonnee == wx.DateTime:
+                    trackdat = "(str(track.%s.year)+ ('0'+str(track.%s.month+1))[-2:]+ ('0'+str(track.%s.day))[-2:])"\
+                               %(code,code,code)
                 if choix == "EGAL":
-                    filtre = "track.%s != None and %s == '%s'" % (code, trackdat, crit)
+                    filtre = " %s == '%s'" % (trackdat, crit)
                 if choix == "DIFFERENT":
-                    filtre = "track.%s != None and %s != '%s'" % (code, trackdat, crit)
+                    filtre = " %s != '%s'" % (trackdat, crit)
                 if choix == "SUP":
-                    filtre = "track.%s != None and %s > '%s'" % (code, trackdat, crit)
+                    filtre = " %s > '%s'" % (trackdat, crit)
                 if choix == "SUPEGAL":
-                    filtre = "track.%s != None and %s >= '%s'" % (code, trackdat, crit)
+                    filtre = " %s >= '%s'" % (trackdat, crit)
                 if choix == "INF":
-                    filtre = "track.%s != None and %s < '%s'" % (code, trackdat, crit)
+                    filtre = " %s < '%s'" % (trackdat, crit)
                 if choix == "INFEGAL":
-                    filtre = "track.%s != None and %s <= '%s'" % (code, trackdat, crit)
-                if choix == "COMPRIS":
-                    min = crit.split(";")[0]
-                    max = crit.split(";")[1]
-                    filtre = "track.%s != None and %s >= '%s' and %s <= '%s'" % (
-                    code, trackdat, min, code, max)
+                    filtre = " %s <= '%s'" % (trackdat, crit)
+            if not filtre:
+                wx.MessageBox("Pb de programmation\npour le type de donnée '%s' il n'y a pas de choix '%s' connu"
+                              %(typeDonnee,choix))
 
             # Mémorisation
             listeFiltresFinale.append(filtre)
@@ -2888,8 +2889,7 @@ class CTRL_Outils(wx.Panel):
         dlg.Destroy()
 
     def UnFiltre(self):
-        self.listview.original = True
-        self.listeFiltres = []
+        self.SupprimerFiltres()
         self.ChoixFiltres()
 
     def AjoutFiltre(self):

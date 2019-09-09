@@ -45,8 +45,10 @@ CHOIX_FILTRES = {float:[
                             ('DIFFERENT','différent de '),
                             ('EGAL','égal à '),
                             ('PASVIDE',"pas à blanc "),
-                            ('VIDE','est à blanc ')]
-                }
+                            ('VIDE','est à blanc '),
+                            ('INFEGAL', 'inférieur ou égal à '),
+                            ('SUPEGAL', 'supérieur ou égal à ')],
+}
 
 def DDstrdate2wxdate(date,iso=False):
     if not isinstance(date, str) : date = str(date)
@@ -76,8 +78,13 @@ def FmtDecimal(montant):
 
 def FmtDate(date):
     if date == None or date == wx.DateTime.FromDMY(1,0,1900):
-        return ""
-    strdate = DDwxdate2strdate(date)
+        return ''
+    if isinstance(date,str):
+        tpldate = date.split('-')
+        if len(tpldate)!=3: return ''
+        strdate = tpldate[2]+'/'+tpldate[1]+'/'+tpldate[0]
+    else:
+        strdate = DDwxdate2strdate(date)
     return strdate
 
 def FmtMontant(montant):

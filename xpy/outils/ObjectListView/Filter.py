@@ -63,8 +63,7 @@ class CTRL_property(wxpg.PropertyGrid):
     def __init__(self, parent, matrice={}, valeursDefaut={}, enable=True, style=wxpg.PG_SPLITTER_AUTO_CENTER):
         wxpg.PropertyGrid.__init__(self, parent, wx.ID_ANY, style=style)
         self.parent = parent
-        self.matrice=matrice
-        self.MinSize = (300,50)
+        self.MinSize = (300,100)
         self.dictValeursDefaut = valeursDefaut
         self.Bind(wxpg.EVT_PG_CHANGED, self.OnPropGridChange)
         if not enable:
@@ -76,82 +75,78 @@ class CTRL_property(wxpg.PropertyGrid):
             self.SetEmptySpaceColour(couleurFond)
 
         # Remplissage de la matrice
-        self.InitMatrice()
+        self.InitMatrice(matrice)
 
     def OnPropGridChange(self, event):
         event.Skip()
-        #self.parent.OnBtnOK(None)
+        self.parent.OnBtnOK(False)
 
-    def InitMatrice(self):
+    def InitMatrice(self, matrice):
         # Compose la grille de saisie des paramètres selon le dictionnaire matrice
-        for code,lignes  in self.matrice.items():
-            chapitre = self.matrice[code]['nomchapitre']
-            if isinstance(chapitre, str):
-                self.Append(wxpg.PropertyCategory(chapitre))
-                for ligne in self.matrice[code]['lignes']:
-                    if 'name' in ligne and 'genre' in ligne:
-                        if not 'label' in ligne : ligne['name'] = None
-                        if not 'value' in ligne : ligne['value'] = None
-                        codeName = code + '.' + ligne['name']
-                        genre, name, label, value = (ligne['genre'],codeName,ligne['label'],ligne['value'])
-                        genre = genre.lower()
-                        if not 'labels' in ligne: ligne['labels'] = []
-                        if 'values' in ligne and ligne['values']:
-                            if ligne['labels']:
-                                if len(ligne['values']) > 0 and len(ligne['labels']) == 0:
-                                    ligne['labels'] = ligne['values']
-                            else: ligne['labels'] = ligne['values']
-                        commande = ''
-                        try:
-                            commande = genre
-                            if genre in ['enum','combo']:
-                                values = list(range(0,len(ligne['labels'])))
-                                choix = wxpg.PGChoices(ligne['labels'], values=values)
-                                propriete = wxpg.EnumProperty(label=label,name=name,choices=choix,value=0)
+        self.matrice=matrice
+        self.dicProperties = {}
+        chapitre = self.matrice['nomchapitre']
+        if isinstance(chapitre, str):
+            self.Append(wxpg.PropertyCategory(chapitre))
+        for ligne in self.matrice['lignes']:
+            if 'name' in ligne and 'genre' in ligne:
+                if not 'label' in ligne : ligne['name'] = None
+                if not 'value' in ligne : ligne['value'] = None
+                genre, name, label, value = (ligne['genre'],ligne['name'],ligne['label'],ligne['value'])
+                genre = genre.lower()
+                if not 'labels' in ligne: ligne['labels'] = []
+                """
+                if 'values' in ligne and ligne['values']:
+                    if ligne['labels']:
+                        if len(ligne['values']) > 0 and len(ligne['labels']) == 0:
+                            ligne['labels'] = ligne['values']
+                    else: ligne['labels'] = ligne['values']
+                """
+                commande = ''
+                try:
+                    commande = genre
+                    if genre in ['enum','combo']:
+                        values = list(range(0,len(ligne['labels'])))
+                        if not isinstance(value,int): value = 0
+                        choix = wxpg.PGChoices(ligne['labels'], values=values)
+                        propriete = wxpg.EnumProperty(label=label,name=name,choices=choix, value = value)
 
-                            elif genre == 'multichoice':
-                                propriete = wxpg.MultiChoiceProperty(label, name, choices=ligne['labels'], value=value)
+                    elif genre == 'multichoice':
+                        propriete = wxpg.MultiChoiceProperty(label, name, choices=ligne['labels'], value=value)
 
-                            elif genre in ['bool','check']:
-                                wxpg.PG_BOOL_USE_CHECKBOX = 1
-                                propriete = wxpg.BoolProperty(label= label, name=name, value= value)
-                                propriete.PG_BOOL_USE_CHECKBOX = 1
+                    elif genre in ['bool','check']:
+                        wxpg.PG_BOOL_USE_CHECKBOX = 1
+                        propriete = wxpg.BoolProperty(label= label, name=name, value= value)
+                        propriete.PG_BOOL_USE_CHECKBOX = 1
 
-                            elif genre in ['date','datetime','time']:
-                                wxpg.PG_BOOL_USE_CHECKBOX = 1
-                                propriete = wxpg.DateProperty(label= label, name=name, value= value)
-                                propriete.SetFormat('%d/%m/%Y')
-                                propriete.PG_BOOL_USE_CHECKBOX = 1
+                    elif genre in ['date','datetime','time']:
+                        wxpg.PG_BOOL_USE_CHECKBOX = 1
+                        propriete = wxpg.DateProperty(label= label, name=name, value= value)
+                        propriete.SetFormat('%d/%m/%Y')
+                        propriete.PG_BOOL_USE_CHECKBOX = 1
 
-                            elif genre == 'dir':
-                                propriete = wxpg.DirProperty(name)
-
-                            else:
-                                commande = "wxpg." + genre.upper()[:1] + genre.lower()[1:] + "Property(label= label, name=name, value=value)"
-                                propriete = eval(commande)
-                            if 'help' in ligne:
-                                propriete.SetHelpString(ligne['help'])
-                            self.Append(propriete)
-                            self.ptactive = propriete
-                        except Exception as err:
-                            wx.MessageBox(
-                            "Echec sur Property de name - value: %s - %s (%s)\nLe retour d'erreur est : \n%s\n\nSur commande : %s"
-                            %(name,value,type(value),err,commande),
-                            'CTRL_property.InitMatrice() : Paramètre ligne indigeste !', wx.OK | wx.ICON_STOP
-                            )
+                    else:
+                        commande = "wxpg."  + genre.upper()[:1] + genre.lower()[1:] \
+                                            + "Property(label= label, name=name, value=value)"
+                        propriete = eval(commande)
+                    if 'help' in ligne:
+                        propriete.SetHelpString(ligne['help'])
+                    self.Append(propriete)
+                    self.dicProperties[propriete] = name
+                    self.dicProperties[name] = propriete
+                except Exception as err:
+                    wx.MessageBox(
+                    "Echec sur Property de name - value: %s - %s (%s)\nLe retour d'erreur est : \n%s\n\nSur commande : %s"
+                    %(name,value,type(value),err,commande),
+                    'CTRL_property.InitMatrice() : Paramètre ligne indigeste !', wx.OK | wx.ICON_STOP
+                    )
 
     def GetValeurs(self):
         values = self.GetPropertyValues()
         ddDonnees = {}
         for nom, valeur in values.items():
-            [code, champ] = nom.split('.')
-            if not code in ddDonnees : ddDonnees[code] = {}
-            # récupération de la valeur choisie pour une combo
-            for dicligne in self.matrice[code]['lignes']:
-                if champ in dicligne['name']:
-                    if dicligne['genre'].lower() in ['enum','combo']:
-                        valeur = dicligne['values'][valeur]
-            ddDonnees[code][champ] = valeur
+            label = self.dicProperties[nom].GetValueString()
+            ddDonnees[nom] = label
         return ddDonnees
 
 class DLG_saisiefiltre(wx.Dialog):
@@ -159,9 +154,11 @@ class DLG_saisiefiltre(wx.Dialog):
         self.parent = parent
         self.listview = kwds.pop('listview',None)
         self.etape=0
+        self.idxdefault = 1
         titre = kwds.pop('titre',"Pas d'argument kwd 'listview' pas de choix de colonnes")
         if self.listview:
             self.lstLabelsColonnes = self.listview.lstLabelsColonnes
+            self.lstNomsColonnes = self.listview.lstNomsColonnes
             self.lstSetterValues = self.listview.lstSetterValues
             titre = kwds.pop('titre',"Saisie d'un filtre élaboré")
         wx.Dialog.__init__(self, parent, *args, title=titre, style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
@@ -172,12 +169,29 @@ class DLG_saisiefiltre(wx.Dialog):
         self.Bind(wx.EVT_BUTTON, self.OnBtnOK, self.btnOK)
         self.Bind(wx.EVT_BUTTON, self.OnBtnAbort, self.btnAbort)
         if self.listview:
-            self.Etape1()
+            self.dictMatrice = {'nomchapitre': "Choix du filtre",
+                                'lignes': [{'genre': 'Enum', 'name': 'colonne', 'label': 'Colonne à filtrer :',
+                                            'value': self.idxdefault, 'help': 'Choisir par le triangle noir',
+                                            'labels': self.lstLabelsColonnes}], }
 
-    def Sizer(self,ctrl):
-        self.ctrl=ctrl
+            self.tip = type(self.lstSetterValues[self.idxdefault])
+            self.choixactions = xpof.CHOIX_FILTRES[self.tip]
+            values = []
+            for (code, label) in self.choixactions:
+                values.append(label)
+            self.dictMatrice['lignes'].append({'genre': 'Enum', 'name': 'action', 'label': 'Type de filtre :',
+                                               'labels': values})
+
+            self.dictMatrice['lignes'].append({'genre': 'String', 'name': 'valeur', 'label': 'Valeur :',
+                                                      'value': '', 'help': 'Choisir la valeur'})
+
+            self.ctrl = CTRL_property(self, matrice=self.dictMatrice)
+            self.Sizer()
+            self.ctrl.SelectProperty('colonne',True)
+
+    def Sizer(self):
         sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(ctrl, 1, wx.EXPAND | wx.ALL, self.marge)
+        sizer.Add(self.ctrl, 1, wx.EXPAND | wx.ALL, self.marge)
         gridsizer = wx.FlexGridSizer(1, 2, 0, 0)
         gridsizer.Add(self.btnOK)
         gridsizer.Add(self.btnAbort)
@@ -185,47 +199,29 @@ class DLG_saisiefiltre(wx.Dialog):
         sizer.SetSizeHints(self)
         self.SetSizer(sizer)
         self.Layout()
-        self.ctrl.SelectProperty(self.ctrl.ptactive,True)
 
     def OnBtnOK(self,evt):
         values = self.ctrl.GetValeurs()
-        self.ctrl.Destroy()
-        del self.ctrl
+        self.colonne = values['colonne']
+        self.nomColonne = self.lstNomsColonnes[self.lstLabelsColonnes.index(self.colonne)]
+        self.action = values['action']
+        self.valeur = values['valeur']
+        self.etape = ['colonne','action','valeur'].index(self.ctrl.dicProperties[self.ctrl.GetSelection()])+1
+
         if self.etape == 1:
-            self.colonne = values['colonne']['colonne']
             self.Etape2()
-            return
-        if self.etape == 2:
-            self.action = values['action']['action']
-            self.Etape3()
-            return
-        if self.etape == 3:
-            self.valeur = values['valeur']['valeur']
-            self.EndModal(wx.ID_OK)
+        elif self.etape == 2:
+            pass
+        elif self.etape == 3:
+            if self.valeur and evt:
+                self.EndModal(wx.ID_OK)
         else:
-            wx.MessageBox(str(values))
+            wx.MessageBox('Quelle étape ?', str(values))
 
     def OnBtnAbort(self,evt):
         self.EndModal(wx.ID_CANCEL)
 
-    def Etape1(self):
-        self.etape = 1
-        dictMatrice = {
-            "colonne":
-                {'nomchapitre': "Choix de la colonne à filtrer",
-                 'lignes': [{'genre': 'Enum', 'name': 'colonne', 'label': 'Colonne à filtrer :',
-                             'value': '', 'help': 'Choisir par le triangle noir'}], }}
-        dictMatrice['colonne']['lignes'][0]['values'] = self.lstLabelsColonnes
-        ctrlproperty = CTRL_property(self, matrice=dictMatrice)
-        self.Sizer(ctrlproperty)
-
     def Etape2(self):
-        self.etape = 2
-        dictMatrice = {
-            "action":
-                {'nomchapitre': "Que faire sur la colonne %s"%self.colonne,
-                 'lignes': [{'genre': 'Enum', 'name': 'action', 'label': 'Type de filtre :',
-                             'value': '', 'help': 'Choisir par le type de filtre'}], }}
         idx = self.lstLabelsColonnes.index(self.colonne)
         self.tip = type(self.lstSetterValues[idx])
         self.choixactions = xpof.CHOIX_FILTRES[self.tip]
@@ -233,24 +229,18 @@ class DLG_saisiefiltre(wx.Dialog):
         if not self.tip in xpof.CHOIX_FILTRES:
             wx.MessageBox("Le genre '%s' de la colonne '%' n'est pas connu dans CHOIX_FILTRES")
             self.EndModal(wx.ID_CANCEL)
-        values = []
+        #recomposition des choix d'action
+        labels = []
         for (code,label) in self.choixactions:
-            values.append(label)
-        dictMatrice['action']['lignes'][0]['values'] = values
-        ctrlproperty = CTRL_property(self, matrice=dictMatrice)
-        self.Sizer(ctrlproperty)
+            labels.append(label)
+        values = list(range(0, len(labels)))
+        choix = wxpg.PGChoices(labels, values=values)
+        self.ctrl.dicProperties['action'].SetChoices(choix)
+        self.Layout()
 
-    def Etape3(self):
-        self.etape = 3
-        dictMatrice = {
-            "valeur":
-                {'nomchapitre': "Choix de la valeur",
-                 'lignes': [{'genre': 'String', 'name': 'valeur', 'label': 'Valeur :',
-                             'value': '', 'help': 'Choisir la valeur'}], }}
-        ctrlproperty = CTRL_property(self, matrice=dictMatrice)
-        self.Sizer(ctrlproperty)
 
     def GetDonnees(self):
+        codechoix = 'None'
         for (code,label) in xpof.CHOIX_FILTRES[self.tip]:
             if label == self.action:
                 codechoix = code
@@ -259,7 +249,7 @@ class DLG_saisiefiltre(wx.Dialog):
         filtre =  {'typeDonnee': self.tip,
                    'criteres': self.valeur,
                    'choix': codechoix,
-                   'code': self.colonne,
+                   'code': self. nomColonne,
                    'titre': self.colonne}
         return filtre
 

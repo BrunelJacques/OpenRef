@@ -121,7 +121,6 @@ class ListView(FastObjectListView):
         nomColonnes = list()
         for colonne in self.listeColonnes:
             nom = colonne.valueGetter
-            #nom = colonne.title
             nomColonnes.append(nom)
         return nomColonnes
 
@@ -434,6 +433,9 @@ class PanelListView(wx.Panel):
 class TrackGeneral(object):
     #    Cette classe va transformer les listes en objets
     def __init__(self, donnees, nomColonnes, setterValues):
+        if not(len(donnees) == len(nomColonnes) == len(setterValues)):
+            wx.MessageBox("Problème de nombre d'occurences!\n%d donnees, %d colonnes et %d valeurs défaut"
+                          %(len(donnees), len(nomColonnes), len(setterValues)))
         for (donnee, nomColonne, setterValue) in zip(donnees, nomColonnes, setterValues):
             if setterValue:
                 if (donnee is None):
@@ -534,20 +536,22 @@ if __name__ == '__main__':
     app = wx.App(0)
     os.chdir("..")
     liste_Colonnes = [
-        ColumnDefn("cle", 'left', 70, "cle",valueSetter=1),
-        ColumnDefn("mot", 'left', 200, "mot",valueSetter=''),
-        ColumnDefn("nombre", 'right', 80, "nombre",valueSetter=0.0, stringConverter=xpy.outils.xformat.FmtDecimal),
+        ColumnDefn("clé", 'left', 70, "cle",valueSetter=1),
+        ColumnDefn("mot d'ici", 'left', 200, "mot",valueSetter=''),
+        ColumnDefn("nombre_", 'right', 80, "nombre",valueSetter=0.0, stringConverter=xpy.outils.xformat.FmtDecimal),
         ColumnDefn("prix", 'right', 80, "prix",valueSetter=0.0, stringConverter=xpy.outils.xformat.FmtMontant),
-        ColumnDefn("date", 'center', 80, "date",valueSetter=wx.DateTime.FromDMY(1,0,1900), stringConverter=xpy.outils.xformat.FmtDate)
+        ColumnDefn("date", 'center', 80, "date",valueSetter=wx.DateTime.FromDMY(1,0,1900), stringConverter=xpy.outils.xformat.FmtDate),
+        ColumnDefn("date SQL", 'center', 80, "datesql", valueSetter='2000-01-01',
+                   stringConverter=xpy.outils.xformat.FmtDate)
     ]
-    liste_Donnees = [[18, "Bonjour", -1230.05939,-1230.05939,None],
-                     [19, "Bonsoir", 57.5, 208.99,wx.DateTime.FromDMY(15,11,2018)],
-                     [1, "Jonbour", 0 , 209,wx.DateTime.FromDMY(6,11,2018)],
-                     [29, "Salut", 57.082, 209,wx.DateTime.FromDMY(28,1,2019)],
-                     [None, "Salutation", 57.08, 0,wx.DateTime.FromDMY(1,7,1997)],
-                     [2, "Python", 1557.08, 29,wx.DateTime.FromDMY(7,1,1997)],
-                     [3, "Java", 57.08, 219,wx.DateTime.FromDMY(1,0,1900)],
-                     [98, "langage C", 10000, 209,wx.DateTime.FromDMY(1,0,1900)],
+    liste_Donnees = [[18, "Bonjour", -1230.05939,-1230.05939,None,None],
+                     [19, "Bonsoir", 57.5, 208.99,wx.DateTime.FromDMY(15,11,2018),'2019-03-29'],
+                     [1, "Jonbour", 0 , 209,wx.DateTime.FromDMY(6,11,2018),'2019-03-01'],
+                     [29, "Salut", 57.082, 209,wx.DateTime.FromDMY(28,1,2019),'2019-11-23'],
+                     [None, "Salutation", 57.08, 0,wx.DateTime.FromDMY(1,7,1997),'2019-10-24'],
+                     [2, "Python", 1557.08, 29,wx.DateTime.FromDMY(7,1,1997),'2000-12-25'],
+                     [3, "Java", 57.08, 219,wx.DateTime.FromDMY(1,0,1900),''],
+                     [98, "langage C", 10000, 209,wx.DateTime.FromDMY(1,0,1900),''],
                      ]
     dicOlv = {'listeColonnes':liste_Colonnes,
                     'listeDonnees':liste_Donnees,
