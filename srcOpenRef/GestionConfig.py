@@ -17,7 +17,7 @@ import xpy.xGestionDB as xdb
 import srcOpenRef.UTIL_import as orui
 import srcOpenRef.UTIL_analyses as orua
 import srcOpenRef.UTIL_traitements as orut
-import xpy.xUTILS_Tableau as tbl
+import xpy.xGestion_Tableau as tbl
 from xpy.outils.ObjectListView import ColumnDefn
 
 MATRICE_COMPTA = {
@@ -294,18 +294,18 @@ class DLG_import(wx.Dialog):
                   'largeur': 1000,
                   'recherche': True,
                   'msgIfEmpty': "Aucun Naf ne correspond à votre recherche"}
-        dlg_olv =  tbl.DLG_tableau(self, dicOlv=dicOlv)
+        dlg_olv =  tbl.DLG_tableau(None, dicOlv=dicOlv)
         # cocher les lignes retenues précédement
         if ('lstNafs' in self.choix) and (self.choix['lstNafs'] != []):
-            for obj in dlg_olv.myOlv.GetObjects():
+            for obj in dlg_olv.ctrlOlv.GetObjects():
                 if obj.code in self.choix['lstNafs']:
-                    dlg_olv.myOlv.SetCheckState(obj, True)
+                    dlg_olv.ctrlOlv.SetCheckState(obj, True)
         ret = dlg_olv.ShowModal()
         if ret == wx.OK:
             # récup des codes nafs checked
             self.lstIDnafs = []
             nbd = 0
-            for ligne in dlg_olv.myOlv.GetCheckedObjects() :
+            for ligne in dlg_olv.ctrlOlv.GetCheckedObjects() :
                 self.lstIDnafs.append(ligne.code)
                 nbd +=ligne.nbDossiers
             if nbd>0 : nbDossiers = nbd
@@ -703,7 +703,7 @@ class DLG_gestionTables(wx.Dialog):
                   'msgIfEmpty': "Aucune Table d'export ne peut être supprimée"}
 
         self.pnl =  tbl.PNL_tableau(self, dicOlv, **kwds)
-        self.myOlv = self.pnl.myOlv
+        self.myOlv = self.pnl.ctrlOlv
         self.CenterOnScreen()
         self.Layout()
 

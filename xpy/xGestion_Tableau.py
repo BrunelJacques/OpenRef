@@ -399,7 +399,6 @@ class PanelListView(wx.Panel):
         if not "style" in kwargs: kwargs["style"] = wx.LC_REPORT|wx.NO_BORDER|wx.LC_SINGLE_SEL|wx.LC_HRULES|wx.LC_VRULES
         kwargs["pnlfooter"]=self
         listview = ListView(self,**kwargs)
-        #kwargs["parent"] = self
 
         self.ctrl_listview = listview
         self.ctrl_listview.SetMinSize((10, 10))
@@ -407,6 +406,7 @@ class PanelListView(wx.Panel):
         self.SetFooter(reinit=False)
 
         # Layout
+
     def Compose(self):
         sizerbase = wx.BoxSizer(wx.VERTICAL)
         sizerbase.Add(self.ctrl_listview, 1, wx.ALL | wx.EXPAND, 0)
@@ -491,6 +491,7 @@ class PNL_tableau(wx.Panel):
         else:
             self.ctrlOlv = ListView(self,**dicOlvOut)
             self.olv = self.ctrlOlv
+            self.ctrlOlv.parent = self.ctrlOlv.Parent
         if barreRecherche:
             self.ctrloutils = CTRL_Outils(self, listview=self.ctrlOlv, afficherCocher=False)
         self.ctrlOlv.MAJ()
@@ -526,6 +527,7 @@ class DLG_tableau(wx.Dialog):
         self.SetBackgroundColour(wx.WHITE)
         self.marge = 10
         self.pnl = PNL_tableau(self, dicOlv,  **kwds )
+        self.ctrlOlv = self.pnl.ctrlOlv
         self.CenterOnScreen()
         self.Layout()
     def Close(self):
