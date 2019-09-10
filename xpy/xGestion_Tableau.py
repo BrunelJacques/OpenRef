@@ -250,28 +250,28 @@ class ListView(FastObjectListView):
         # On met le separateur seulement si un des deux menus est present
         if self.toutDecocher or self.toutCocher:
             menuPop.AppendSeparator()
+        if self.parent.barreRecherche:
+            # Item filtres
+            item = wx.MenuItem(menuPop, 81, UN_FILTRE)
+            bmp = wx.Bitmap(FILTRE_16X16_IMG, wx.BITMAP_TYPE_PNG)
+            item.SetBitmap(bmp)
+            menuPop.Append(item)
+            self.Bind(wx.EVT_MENU, self.UnFiltre, id=81)
 
-        # Item filtres
-        item = wx.MenuItem(menuPop, 81, UN_FILTRE)
-        bmp = wx.Bitmap(FILTRE_16X16_IMG, wx.BITMAP_TYPE_PNG)
-        item.SetBitmap(bmp)
-        menuPop.Append(item)
-        self.Bind(wx.EVT_MENU, self.UnFiltre, id=81)
+            item = wx.MenuItem(menuPop, 82, AJOUT_FILTRE)
+            bmp = wx.Bitmap(FILTRE_16X16_IMG, wx.BITMAP_TYPE_PNG)
+            item.SetBitmap(bmp)
+            menuPop.Append(item)
+            self.Bind(wx.EVT_MENU, self.AjoutFiltre, id=82)
 
-        item = wx.MenuItem(menuPop, 82, AJOUT_FILTRE)
-        bmp = wx.Bitmap(FILTRE_16X16_IMG, wx.BITMAP_TYPE_PNG)
-        item.SetBitmap(bmp)
-        menuPop.Append(item)
-        self.Bind(wx.EVT_MENU, self.AjoutFiltre, id=82)
+            item = wx.MenuItem(menuPop, 83, SUPPRIMER_FILTRES)
+            bmp = wx.Bitmap(FILTREOUT_16X16_IMG, wx.BITMAP_TYPE_PNG)
+            item.SetBitmap(bmp)
+            menuPop.Append(item)
+            self.Bind(wx.EVT_MENU, self.SupprimerFiltres, id=83)
 
-        item = wx.MenuItem(menuPop, 83, SUPPRIMER_FILTRES)
-        bmp = wx.Bitmap(FILTREOUT_16X16_IMG, wx.BITMAP_TYPE_PNG)
-        item.SetBitmap(bmp)
-        menuPop.Append(item)
-        self.Bind(wx.EVT_MENU, self.SupprimerFiltres, id=83)
-
-        # On met le separateur
-        menuPop.AppendSeparator()
+            # On met le separateur
+            menuPop.AppendSeparator()
 
         # Item Apercu avant impression
         if self.apercuAvantImpression:
@@ -454,8 +454,11 @@ class TrackGeneral(object):
 
 class PNL_tableau(wx.Panel):
     def __init__(self, parent, dicOlv,*args, **kwds):
+        self.lstActions = kwds.pop('lstActions',None)
+        self.lstInfos = kwds.pop('lstInfos',None)
+        self.lstBtns = kwds.pop('lstBtns',None)
         wx.Panel.__init__(self, parent, *args,  **kwds)
-        #ci dessous l'ensemble des paramètres possibles pour OLV
+        #ci dessous l'ensemble des autres paramètres possibles pour OLV
         lstParamsOlv = ['id',
                         'style',
                         'listeColonnes',
@@ -472,10 +475,10 @@ class PNL_tableau(wx.Panel):
                         'titreImpression',
                         'orientationImpression',
                         'dictColFooter']
-        avecFooter = "dictColFooter" in dicOlv
-        if not avecFooter : lstParamsOlv.remove('dictColFooter')
-        if 'recherche' in dicOlv: barreRecherche = dicOlv['recherche']
-        else : barreRecherche = True
+        self.avecFooter = "dictColFooter" in dicOlv
+        if not self.avecFooter : lstParamsOlv.remove('dictColFooter')
+        if 'recherche' in dicOlv: self.barreRecherche = dicOlv['recherche']
+        else : self.barreRecherche = True
         self.parent = parent
         #récup des seules clés possibles pour dicOLV
         dicOlvOut = {}
@@ -485,33 +488,70 @@ class PNL_tableau(wx.Panel):
 
         # choix footer ou pas
         pnlOlv = PanelListView(self,**dicOlvOut)
-        if avecFooter:
+        if self.avecFooter:
             self.ctrlOlv = pnlOlv.ctrl_listview
             self.olv = pnlOlv
         else:
             self.ctrlOlv = ListView(self,**dicOlvOut)
             self.olv = self.ctrlOlv
             self.ctrlOlv.parent = self.ctrlOlv.Parent
-        if barreRecherche:
+        if self.barreRecherche:
             self.ctrloutils = CTRL_Outils(self, listview=self.ctrlOlv, afficherCocher=False)
         self.ctrlOlv.MAJ()
-        #if self.ctrlOlv.ctrl_footer:
-        #    self.ctrlOlv.ctrl_footer.MAJ()
 
-        self.BoutonOK = wx.BitmapButton(self, wx.ID_ANY, wx.Bitmap("xpy/Images/100x30/Bouton_ok.png", wx.BITMAP_TYPE_ANY))
-        self.BoutonOK.SetToolTip(("Cliquez ici pour enregistrer et fermer la fenêtre"))
-        self.BoutonOK.Bind(wx.EVT_BUTTON, self.OnBoutonOK)
+        #composition de l'écran selon les composants
+        sizerbase = wx.BoxSizer(wx.VERTICAL)
+        sizerhaut = wx.BoxSizer(wx.HORIZONTAL)
+        sizerolv = wx.BoxSizer(wx.VERTICAL)
+        sizerolv.Add(self.olv, 10, wx.EXPAND, 10)
+        if self.barreRecherche:
+            sizerolv.Add(self.ctrloutils, 0, wx.EXPAND, 10)
+        sizerhaut.Add(sizerolv,10,wx.ALL|wx.EXPAND,3)
+        if self.lstActions:
+            sizeractions = wx.StaticBoxSizer(wx.VERTICAL, self, label='Actions')
+            itemsActions = self.GetItemsBtn(self.lstActions)
+            sizeractions.AddMany(itemsActions)
+            sizerhaut.Add(sizeractions,0,wx.ALL|wx.EXPAND,3)
 
-        sizerbase = wx.FlexGridSizer(rows=3, cols=1, vgap=10, hgap=10)
-        #sizerbase = wx.BoxSizer(wx.VERTICAL)
-        sizerbase.Add(self.olv, 10, wx.EXPAND, 40)
-        if barreRecherche:
-            sizerbase.Add(self.ctrloutils, 10, wx.EXPAND, 40)
-        sizerbase.Add(self.BoutonOK, 10, wx.ALIGN_RIGHT, 40)
-        sizerbase.AddGrowableCol(0,1)
-        sizerbase.AddGrowableRow(0,1)
+        sizerbase.Add(sizerhaut, 10, wx.EXPAND, 10)
+        sizerbase.Add(wx.StaticLine(self), 0, wx.TOP| wx.EXPAND, 3)
+        sizerpied = wx.BoxSizer(wx.HORIZONTAL)
+        if self.lstInfos:
+            sizerinfos = wx.StaticBoxSizer(wx.HORIZONTAL,self,label='infos')
+            itemsInfos = self.GetItemsInfos(self.lstInfos)
+            sizerinfos.AddMany(itemsInfos)
+            sizerpied.Add(sizerinfos,10,wx.BOTTOM|wx.LEFT|wx.EXPAND,3)
+        if self.lstBtns:
+            itemsBtns = self.GetItemsBtn(self.lstBtns)
+            sizerpied.AddMany(itemsBtns)
+        sizerbase.Add(sizerpied,0,wx.EXPAND,5)
 
         self.SetSizerAndFit(sizerbase)
+
+    def GetItemsBtn(self,lstBtns):
+        lstBtn = []
+        for (code,label,tooltip) in lstBtns:
+            if isinstance(label,wx.Bitmap):
+                bouton = wx.BitmapButton(self, wx.ID_ANY, label)
+            elif isinstance(label,str):
+                bouton = wx.Button(self,wx.ID_OK,label)
+            else: bouton = wx.Button(self,wx.ID_OK,'Erreur!')
+            bouton.SetToolTip(tooltip)
+            if code == 'BtnOK':
+                bouton.Bind(wx.EVT_BUTTON, self.OnBoutonOK)
+            lstBtn.append((bouton,0,wx.ALL,5))
+        return lstBtn
+
+    def GetItemsInfos(self,lstInfos):
+        lstInfo = []
+        for label in lstInfos:
+            if isinstance(label,wx.Bitmap):
+                info = wx.StaticBitmap(self, wx.ID_ANY, label)
+            elif isinstance(label,str):
+                info = wx.StaticText(self,wx.ID_ANY,label)
+            else: info = wx.Button(self,wx.ID_OK,'Erreur!')
+            lstInfo.append((info,0,wx.RIGHT|wx.ALIGN_LEFT,10))
+        return lstInfo
 
     def OnBoutonOK(self,event):
         self.parent.Close()
@@ -565,7 +605,18 @@ if __name__ == '__main__':
                                      "mot" : {"mode" : "nombre",  "alignement" : wx.ALIGN_CENTER},
                                      "prix": {"mode": "total", "alignement": wx.ALIGN_RIGHT},}
     }
-    exampleframe = DLG_tableau(None,dicOlv=dicOlv)
+
+    # bmp = wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16))
+
+    BtnOK = ('BtnOK',wx.Bitmap("xpy/Images/100x30/Bouton_ok.png", wx.BITMAP_TYPE_ANY),"Cliquez ici pour fermer la fenêtre")
+    BtnPrec = ('BtnPrec',wx.ArtProvider.GetBitmap(wx.ART_GO_BACK, wx.ART_OTHER, (42, 22)),"Cliquez ici pour retourner à l'écran précédent")
+    BtnPrec2 = ('BtnPrec',"Ecran\nprécédent","Retour à l'écran précédent")
+    lstBtns = [BtnPrec,BtnPrec2,BtnOK]
+
+    lstActions = [('Action1','Choix un',"Cliquez pour l'action 1"),('Action2','Choix deux',"Cliquez pour l'action 2")]
+    lstInfos = ['Première',"Voici",wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)),"Autre\nInfo"]
+
+    exampleframe = DLG_tableau(None,dicOlv=dicOlv,lstBtns= lstBtns,lstActions=lstActions,lstInfos=lstInfos)
     app.SetTopWindow(exampleframe)
     ret = exampleframe.ShowModal()
     app.MainLoop()
