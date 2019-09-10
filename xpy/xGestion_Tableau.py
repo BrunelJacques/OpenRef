@@ -457,6 +457,11 @@ class PNL_tableau(wx.Panel):
         self.lstActions = kwds.pop('lstActions',None)
         self.lstInfos = kwds.pop('lstInfos',None)
         self.lstBtns = kwds.pop('lstBtns',None)
+        if (not self.lstBtns) and (not self.lstInfos):
+            #force la présence d'un pied d'écran
+            self.lstBtns = [('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_ok.png", wx.BITMAP_TYPE_ANY),
+                           "Cliquez ici pour fermer la fenêtre")]
+
         wx.Panel.__init__(self, parent, *args,  **kwds)
         #ci dessous l'ensemble des autres paramètres possibles pour OLV
         lstParamsOlv = ['id',
@@ -498,7 +503,9 @@ class PNL_tableau(wx.Panel):
         if self.barreRecherche:
             self.ctrloutils = CTRL_Outils(self, listview=self.ctrlOlv, afficherCocher=False)
         self.ctrlOlv.MAJ()
+        self.Sizer()
 
+    def Sizer(self):
         #composition de l'écran selon les composants
         sizerbase = wx.BoxSizer(wx.VERTICAL)
         sizerhaut = wx.BoxSizer(wx.HORIZONTAL)
@@ -509,8 +516,8 @@ class PNL_tableau(wx.Panel):
         sizerhaut.Add(sizerolv,10,wx.ALL|wx.EXPAND,3)
         if self.lstActions:
             sizeractions = wx.StaticBoxSizer(wx.VERTICAL, self, label='Actions')
-            itemsActions = self.GetItemsBtn(self.lstActions)
-            sizeractions.AddMany(itemsActions)
+            self.itemsActions = self.GetItemsBtn(self.lstActions)
+            sizeractions.AddMany(self.itemsActions)
             sizerhaut.Add(sizeractions,0,wx.ALL|wx.EXPAND,3)
 
         sizerbase.Add(sizerhaut, 10, wx.EXPAND, 10)
@@ -518,28 +525,34 @@ class PNL_tableau(wx.Panel):
         sizerpied = wx.BoxSizer(wx.HORIZONTAL)
         if self.lstInfos:
             sizerinfos = wx.StaticBoxSizer(wx.HORIZONTAL,self,label='infos')
-            itemsInfos = self.GetItemsInfos(self.lstInfos)
-            sizerinfos.AddMany(itemsInfos)
+            self.itemsInfos = self.GetItemsInfos(self.lstInfos)
+            sizerinfos.AddMany(self.itemsInfos)
             sizerpied.Add(sizerinfos,10,wx.BOTTOM|wx.LEFT|wx.EXPAND,3)
+        else: sizerpied.Add((10,10),10,wx.BOTTOM|wx.LEFT|wx.EXPAND,3)
         if self.lstBtns:
-            itemsBtns = self.GetItemsBtn(self.lstBtns)
-            sizerpied.AddMany(itemsBtns)
+            self.itemsBtns = self.GetItemsBtn(self.lstBtns)
+            sizerpied.AddMany(self.itemsBtns)
         sizerbase.Add(sizerpied,0,wx.EXPAND,5)
-
         self.SetSizerAndFit(sizerbase)
 
     def GetItemsBtn(self,lstBtns):
         lstBtn = []
-        for (code,label,tooltip) in lstBtns:
-            if isinstance(label,wx.Bitmap):
-                bouton = wx.BitmapButton(self, wx.ID_ANY, label)
-            elif isinstance(label,str):
-                bouton = wx.Button(self,wx.ID_OK,label)
-            else: bouton = wx.Button(self,wx.ID_OK,'Erreur!')
-            bouton.SetToolTip(tooltip)
-            if code == 'BtnOK':
-                bouton.Bind(wx.EVT_BUTTON, self.OnBoutonOK)
-            lstBtn.append((bouton,0,wx.ALL,5))
+        for btn in lstBtns:
+            try:
+                (code,ID,label,tooltip) = btn
+                if isinstance(label,wx.Bitmap):
+                    bouton = wx.BitmapButton(self,ID,label)
+                elif isinstance(label,str):
+                    bouton = wx.Button(self,ID,label)
+                else: bouton = wx.Button(self,ID,'Erreur!')
+                bouton.SetToolTip(tooltip)
+                bouton.name = code
+                if code == 'BtnOK':
+                    bouton.Bind(wx.EVT_BUTTON, self.OnBoutonOK)
+                lstBtn.append((bouton,0,wx.ALL|wx.ALIGN_RIGHT,5))
+            except:
+                bouton = wx.Button(self, wx.ID_ANY, 'Erreur!')
+                lstBtn.append((bouton, 0, wx.ALL, 5))
         return lstBtn
 
     def GetItemsInfos(self,lstInfos):
@@ -606,18 +619,16 @@ if __name__ == '__main__':
                                      "prix": {"mode": "total", "alignement": wx.ALIGN_RIGHT},}
     }
 
-    # bmp = wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16))
-
-    BtnOK = ('BtnOK',wx.Bitmap("xpy/Images/100x30/Bouton_ok.png", wx.BITMAP_TYPE_ANY),"Cliquez ici pour fermer la fenêtre")
-    BtnPrec = ('BtnPrec',wx.ArtProvider.GetBitmap(wx.ART_GO_BACK, wx.ART_OTHER, (42, 22)),"Cliquez ici pour retourner à l'écran précédent")
-    BtnPrec2 = ('BtnPrec',"Ecran\nprécédent","Retour à l'écran précédent")
-    lstBtns = [BtnPrec,BtnPrec2,BtnOK]
-
-    lstActions = [('Action1','Choix un',"Cliquez pour l'action 1"),('Action2','Choix deux',"Cliquez pour l'action 2")]
+    lstBtns = [ ('BtnPrec',wx.ID_FORWARD,   wx.ArtProvider.GetBitmap(wx.ART_GO_BACK, wx.ART_OTHER, (42, 22)),
+                                            "Cliquez ici pour retourner à l'écran précédent"),
+                ('BtnPrec2',wx.ID_PREVIEW_NEXT,"Ecran\nprécédent","Retour à l'écran précédent next"),
+                ('BtnOK',wx.ID_OK,wx.Bitmap("xpy/Images/100x30/Bouton_ok.png", wx.BITMAP_TYPE_ANY),"Cliquez ici pour fermer la fenêtre")]
+    lstActions = [('Action1',wx.ID_COPY,'Choix un',"Cliquez pour l'action 1"),
+                  ('Action2',wx.ID_CUT,'Choix deux',"Cliquez pour l'action 2")]
     lstInfos = ['Première',"Voici",wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)),"Autre\nInfo"]
 
-    exampleframe = DLG_tableau(None,dicOlv=dicOlv,lstBtns= lstBtns,lstActions=lstActions,lstInfos=lstInfos)
-    app.SetTopWindow(exampleframe)
-    ret = exampleframe.ShowModal()
+    exempleframe = DLG_tableau(None,dicOlv=dicOlv,lstBtns= lstBtns,lstActions=lstActions,lstInfos=lstInfos)
+    app.SetTopWindow(exempleframe)
+    ret = exempleframe.ShowModal()
+    print(ret)
     app.MainLoop()
-    'Exporter au format texte'
