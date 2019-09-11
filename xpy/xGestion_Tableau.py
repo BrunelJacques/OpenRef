@@ -457,6 +457,7 @@ class PNL_tableau(wx.Panel):
         self.lstActions = kwds.pop('lstActions',None)
         self.lstInfos = kwds.pop('lstInfos',None)
         self.lstBtns = kwds.pop('lstBtns',None)
+        self.dicOnClick = kwds.pop('dicOnClick',None)
         if (not self.lstBtns) and (not self.lstInfos):
             #force la présence d'un pied d'écran
             self.lstBtns = [('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_ok.png", wx.BITMAP_TYPE_ANY),
@@ -549,7 +550,14 @@ class PNL_tableau(wx.Panel):
                 bouton.name = code
                 if code == 'BtnOK':
                     bouton.Bind(wx.EVT_BUTTON, self.OnBoutonOK)
-                lstBtn.append((bouton,0,wx.ALL|wx.ALIGN_RIGHT,5))
+                #implémente les fonctions bind, soit par le pointeur transmis soit par eval du texte
+                if self.dicOnClick and code in self.dicOnClick:
+                    if isinstance(self.dicOnClick[code],str):
+                        fonction = lambda evt,code=code: eval(self.dicOnClick[code])
+                    else: fonction = self.dicOnClick[code]
+                    bouton.Bind(wx.EVT_BUTTON, fonction)
+                lstBtn.append((bouton, 0, wx.ALL | wx.ALIGN_RIGHT, 5))
+
             except:
                 bouton = wx.Button(self, wx.ID_ANY, 'Erreur!')
                 lstBtn.append((bouton, 0, wx.ALL, 5))
@@ -627,7 +635,9 @@ if __name__ == '__main__':
                   ('Action2',wx.ID_CUT,'Choix deux',"Cliquez pour l'action 2")]
     lstInfos = ['Première',"Voici",wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)),"Autre\nInfo"]
 
-    exempleframe = DLG_tableau(None,dicOlv=dicOlv,lstBtns= lstBtns,lstActions=lstActions,lstInfos=lstInfos)
+    dicOnClick = {'Action1': lambda evt: wx.MessageBox('ceci active la fonction action1'),'BtnPrec' : 'self.parent.Close()'}
+
+    exempleframe = DLG_tableau(None,dicOlv=dicOlv,lstBtns= lstBtns,lstActions=lstActions,lstInfos=lstInfos,dicOnClick=dicOnClick)
     app.SetTopWindow(exempleframe)
     ret = exempleframe.ShowModal()
     print(ret)
