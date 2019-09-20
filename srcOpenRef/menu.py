@@ -61,6 +61,20 @@ class MENU():
                          "image": "Images/16x16/Mecanisme.png",
                          "action": "On_traitFiliere", "genre": wx.ITEM_NORMAL},
         ]},
+    {"code": "affectations\tCtrl-A", "label": ("Affectations manuelles"), "items": [
+        {"code": "affect", "label": ("&Choix d'un dossier\tCtrl-D"),
+                         "infobulle": (u"Gérer les affectations d'un dossier"),
+                         "image": "Images/16x16/Mecanisme.png",
+                         "action": "On_affect", "genre": wx.ITEM_NORMAL},
+        {"code": "affectgroupe", "label": ("&Choix d'un groupe\tCtrl-G"),
+                         "infobulle": (u"Gérer les affectations d'une liste de dossiers"),
+                         "image": "Images/16x16/Mecanisme.png",
+                         "action": "On_affectGroupe", "genre": wx.ITEM_NORMAL},
+        {"code": "affectfilière", "label": ("&Choix d'une filière\tCtrl-F"),
+                         "infobulle": (u"Gérer les affectations de dossiers filtrés par une requête"),
+                         "image": "Images/16x16/Mecanisme.png",
+                         "action": "On_affectFiliere", "genre": wx.ITEM_NORMAL},
+        ]},
     {"code": "&Exports\tCtrl-X", "label": ("Export d'Analyses"), "items": [
         {"code": "export", "label": ("&Analyse d'un dossier\tCtrl-D"),
                          "infobulle": (u"Exporter l'analyse d'un dossier"),
@@ -116,6 +130,21 @@ class MENU():
     def On_traitFiliere(self, event):
         # appel de l'trait de plusieurs dossiers
         cfg = gc.DLG_trait(self.parent, multi='filiere', style=wx.RESIZE_BORDER)
+        cfg.Show()
+
+    def On_affect(self,event):
+        #appel de des affectations d'un dossier
+        cfg = gc.DLG_affect(self.parent, style = wx.RESIZE_BORDER )
+        cfg.Show()
+
+    def On_affectGroupe(self,event):
+        #appel de des affectations de plusieurs dossiers
+        cfg = gc.DLG_affect(self.parent, multi='groupe', style = wx.RESIZE_BORDER )
+        cfg.Show()
+
+    def On_affectFiliere(self, event):
+        # appel de des affectations de plusieurs dossiers
+        cfg = gc.DLG_affect(self.parent, multi='filiere', style=wx.RESIZE_BORDER)
         cfg.Show()
 
     def On_export(self,event):

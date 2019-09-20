@@ -17,6 +17,7 @@ import xpy.xGestionDB as xdb
 import srcOpenRef.UTIL_import as orui
 import srcOpenRef.UTIL_analyses as orua
 import srcOpenRef.UTIL_traitements as orut
+import srcOpenRef.UTIL_affectations as oruaf
 import xpy.xGestion_Tableau as tbl
 from xpy.outils.ObjectListView import ColumnDefn
 
@@ -402,6 +403,182 @@ class DLG_trait(wx.Dialog):
         elif self.multi == 'groupe' : groupe = self.choix['groupe']
         else: client = self.choix['client']
         imp = orut.Traitements(annee=self.choix['annee'], client=client, groupe=groupe,
+                           filiere= filiere, agc=self.agc)
+        self.Destroy()
+
+    def OnEnter(self,event):
+        #action evènement Enter sur le contrôle combo, correspond à un changement de choix
+        self.choix = self.ctrlExport.GetValues()
+        if not self.multi:
+            self.codeclient = self.CodeClient(self.choix['client'])
+            self.choix['client'] = self.codeclient
+        cfg = xucfg.ParamUser()
+        cfg.SetDict(self.choix, groupe='EXPORT')
+        self.ctrlExport.SetValues(self.choix)
+
+    # paramétrage des boutons d'aide à droite des contrôles
+    def OnBtnChoixAnalyse(self,event):
+        # l'agence local étant non liée à une agc elle donne accès à toutes les agc c'est l'agc '*'
+        # sur clic du bouton pour élargir le choix de la combo
+        self.lstChamps = ['IDanalyse', 'NomAnalyse', 'IDagc', 'Description']
+        self.nomTable = "cAnalyses"
+        if self.agc == '*':
+            self.req = """SELECT cAnalyses.IDanalyse, cAnalyses.NomAnalyse, cAnalyses.IDagc, cAnalyses.Description
+                FROM cAnalyses;"""
+        else:
+            self.req = """SELECT cAnalyses.IDanalyse, cAnalyses.NomAnalyse, cAnalyses.IDagc, cAnalyses.Description
+                FROM cAnalyses
+                WHERE (cAnalyses.IDagc In ('%s','*')); """%self.agc
+        self.matriceParam = MATRICE_CHOIXANALYSE
+        self.nameCtrl = 'analyse'
+        self.choisi = self.ctrlExport.GetOneValue(self.nameCtrl)
+        self.LanceSaisieParams()
+
+    def OnBtnChoixGroupe(self, event):
+        self.lstChamps = ['IDgroupe', 'NomGroupe', 'IDagc', 'Membres']
+        self.nomTable = "cGroupes"
+        if self.agc == '*':
+            self.req = """SELECT cGroupes.IDgroupe, cGroupes.NomGroupe, cGroupes.IDagc, cGroupes.Membres
+                        FROM cGroupes;"""
+        else:
+            self.req = """SELECT cGroupes.IDgroupe, cGroupes.NomGroupe, cGroupes.IDagc, cGroupes.Membres
+                        FROM cGroupes
+                        WHERE (cGroupes.IDagc In ('%s','*')); """%self.agc
+        self.matriceParam = MATRICE_CHOIXGROUPE
+        self.nameCtrl = 'groupe'
+        self.choisi = self.ctrlExport.GetOneValue(self.nameCtrl)
+        self.LanceSaisieParams()
+
+    def OnBtnChoixFiliere(self, event):
+        self.lstChamps = ['IDfilière', 'NomFilière', 'IDagc', 'Requête']
+        self.nomTable = "cFilières"
+        if self.agc == '*':
+            self.req = """SELECT cFilières.IDfilière, cFilières.NomFilière, cFilières.IDagc, cFilières.Requête
+                        FROM cFilières;"""
+        else:
+            self.req = """SELECT cFilières.IDfilière, cFilières.NomFilière, cFilières.IDagc, cFilières.Requête
+                        FROM cFilières
+                        WHERE (cFilières.IDagc In ('%s','*')); """%self.agc
+        self.matriceParam = MATRICE_CHOIXFILIERE
+        self.nameCtrl = 'filiere'
+        self.choisi = self.ctrlExport.GetOneValue(self.nameCtrl)
+        self.LanceSaisieParams()
+
+    # le lancement de SaisieParams, permet la gestion des lignes affichées gérée au retour ci dessous
+    def LanceSaisieParams(self):
+        lstcol = []
+        categorie = ''
+        for bloc in self.matriceParam.keys():
+            categorie = bloc[0]
+            for ligne in self.matriceParam[bloc]:
+                lstcol.append(ligne['name'])
+        self.DBsql = xdb.DB()
+        gp = xgc.DLG_saisieParams(self)
+        retour = self.DBsql.ExecuterReq(self.req, mess='accès OpenRef précharge param')
+        dic = {}
+        if retour == "ok":
+            recordset = self.DBsql.ResultatReq()
+            gp.matrice = self.matriceParam
+            lddDonnees=TplsToLDDic(recordset,lstcol,categorie)
+            gp.lddDonnees = lddDonnees
+            gp.init()
+            gp.ShowModal()
+            value = gp.GetChoix(idxColonne=0)
+            nomctrl = 'choix_config.'+self.nameCtrl
+            self.ctrlExport.SetOneValue(nomctrl, value)
+        del gp
+
+    def Ajouter(self,lstItems):
+        self.DBsql.ReqInsert(nomTable=self.nomTable,lstChamps=self.lstChamps,lstlstDonnees=lstItems)
+
+    def Supprimer(self,lstItems):
+        condition = "%s = '%s'"%(self.lstChamps[0],lstItems[0])
+        self.DBsql.ReqDEL(nomTable=self.nomTable,condition=condition)
+
+    def Modifier(self,lstItems):
+        condition = "%s = '%s'"%(self.lstChamps[0],lstItems[0])
+        self.DBsql.ReqMAJ(nomTable=self.nomTable,condition= condition, lstChamps=self.lstChamps,lstDonnees=lstItems)
+
+class DLG_affect(wx.Dialog):
+    # Ecran de saisie de paramètres en dialog
+    def __init__(self, parent,multi = None, *args, **kwds):
+        self.multi = multi
+        self.codeclient = None
+        listArbo=os.path.abspath(__file__).split("\\")
+        titre = listArbo[-1:][0] + "/" + self.__class__.__name__
+        wx.Dialog.__init__(self, parent, -1,pos=(400,50),title = titre,
+                           style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
+        self.parent = parent
+        def TakeTwo(matrice):
+            # récupère les deux premieres lignes de la matrice
+            matretour = {('choix_config','-'):[]}
+            for key,valeur in matrice.items():
+                for i in range(2):
+                    matretour[('choix_config','-')].append(matrice[key][i])
+                break
+            return matretour
+
+        if self.multi == 'groupe':
+            self.client = None
+            self.matrice = TakeTwo(MATRICE_EXPORTGROUPE)
+            self.titre = wx.StaticText(self, -1, "Affectation Produits, Coûts, Balances d\'un groupe de dossiers (liste)")
+        elif self.multi == 'filiere':
+            self.matrice = TakeTwo(MATRICE_EXPORTFILIERE)
+            self.titre = wx.StaticText(self, -1, "Affectation Produits, Coûts, Balances des dossiers d'une filière")
+        else:
+            self.matrice = TakeTwo(MATRICE_EXPORT)
+            self.titre = wx.StaticText(self, -1, "Affectation Produits, Coûts, Balances d'un dossier")
+        cadre_staticbox = wx.StaticBox(self, -1)
+        topbox = wx.StaticBoxSizer(cadre_staticbox, wx.VERTICAL)
+        self.btn = xusp.BTN_action(self,help="Lancement de l'écran choix",image=wx.Bitmap("xpy/Images/100x30/Bouton_action.png"))
+        self.btn.Bind(wx.EVT_BUTTON, self.OnAction)
+
+        def Affiche():
+            # récupère les paramètres à afficher dans la grille
+            code, label, lignes = xgc.AppelLgnesMatrice(None, self.matrice)
+
+            # contrôle gérant la saisie des paramètres
+            self.ctrlExport = xusp.BoxPanel(self, -1, lblbox=label, code=code, lignes=lignes, dictDonnees={})
+
+            # recherche dans le groupe implantation géré dans la configuration initiale
+            cfg = xucfg.ParamUser()
+            self.implantation= cfg.GetDict(dictDemande=None, groupe='IMPLANTATION', close=False)
+            self.agc = self.implantation['agc']
+            #récup de choix antérieurs de cette grille
+            self.choix= cfg.GetDict(dictDemande=None, groupe='EXPORT')
+            #pose les valeurs lues dans la grille de saisie
+            self.ctrlExport.SetValues(self.choix)
+
+            topbox.Add(self.titre, 0, wx.LEFT, 60)
+            topbox.Add((20,20), 0, wx.ALIGN_TOP, 0)
+            topbox.Add(self.ctrlExport, 0, wx.ALIGN_TOP| wx.EXPAND, 0)
+            topbox.Add((40,40), 0, wx.ALIGN_TOP, 0)
+            piedbox = wx.BoxSizer(wx.HORIZONTAL)
+            piedbox.Add(self.btn, 0, wx.RIGHT|wx.ALIGN_RIGHT, 11)
+            topbox.Add(piedbox, 0, wx.ALIGN_RIGHT, 0)
+        Affiche()
+        self.SetSizerAndFit(topbox)
+
+    def CodeClient(self,codeclient):
+        if codeclient and int(codeclient)>0:
+            codeclient = "000000"+str(codeclient)
+            codeclient = codeclient[-6:]
+        return codeclient
+
+    def OnAction(self,event):
+        # enregistre les valeurs de l'utilisateur
+        self.OnEnter(None)
+        if self.multi == None:
+            if not (self.codeclient and self.choix['annee'])  :
+                wx.MessageBox('Les champs client et année et sont obligatoires à minima')
+        else:
+            if not self.choix['annee']:
+                wx.MessageBox('Le champ année est obligatoire à minima')
+        client = groupe = filiere = None
+        if self.multi == 'filiere' : filiere = self.choix['filiere']
+        elif self.multi == 'groupe' : groupe = self.choix['groupe']
+        else: client = self.choix['client']
+        imp = oruaf.Affectations(annee=self.choix['annee'], client=client, groupe=groupe,
                            filiere= filiere, agc=self.agc)
         self.Destroy()
 

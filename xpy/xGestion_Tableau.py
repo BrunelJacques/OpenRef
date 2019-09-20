@@ -388,7 +388,7 @@ class ListView(FastObjectListView):
         self.parent.ctrloutils.SupprimerFiltres()
 
 class PanelListView(wx.Panel):
-    #def __init__(self, parent, listview=None, kwargs={}, dictColFooter={}, style=wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL):
+    # Le Panel contiendra le listView et le footer, attention à l'étape généalogique supplémentaire
     def __init__(self, parent, **kwargs):
         id = -1
         self.parent = parent
@@ -407,7 +407,7 @@ class PanelListView(wx.Panel):
 
         # Layout
 
-    def Compose(self):
+    def Sizer(self):
         sizerbase = wx.BoxSizer(wx.VERTICAL)
         sizerbase.Add(self.ctrl_listview, 1, wx.ALL | wx.EXPAND, 0)
         sizerbase.Add(self.ctrl_footer, 0, wx.ALL | wx.EXPAND, 0)
@@ -419,8 +419,7 @@ class PanelListView(wx.Panel):
             del self.ctrl_footer
         self.ctrl_footer = Footer.Footer(self)
         self.ctrl_listview.SetFooter(ctrl=self.ctrl_footer, dictColFooter=self.dictColFooter)
-        self.Compose()
-        #self.MAJ()
+        self.Sizer()
 
     def MAJ(self):
         self.ctrl_listview.MAJ()
@@ -431,7 +430,7 @@ class PanelListView(wx.Panel):
         return self.ctrl_listview
 
 class TrackGeneral(object):
-    #    Cette classe va transformer les listes en objets
+    #    Cette classe va transformer une ligne en objet selon les listes de colonnes et valeurs par défaut(setter)
     def __init__(self, donnees, nomColonnes, setterValues):
         if not(len(donnees) == len(nomColonnes) == len(setterValues)):
             wx.MessageBox("Problème de nombre d'occurences!\n%d donnees, %d colonnes et %d valeurs défaut"
@@ -453,13 +452,14 @@ class TrackGeneral(object):
 # ------------------------------------------------------------------------------------------------------------------
 
 class PNL_tableau(wx.Panel):
+    #panel olv avec habillage optionnel pour des boutons actions (à droite) des infos (bas gauche) et boutons sorties
     def __init__(self, parent, dicOlv,*args, **kwds):
         self.lstActions = kwds.pop('lstActions',None)
         self.lstInfos = kwds.pop('lstInfos',None)
         self.lstBtns = kwds.pop('lstBtns',None)
         self.dicOnClick = kwds.pop('dicOnClick',None)
         if (not self.lstBtns) and (not self.lstInfos):
-            #force la présence d'un pied d'écran
+            #force la présence d'un pied d'écran par défaut
             self.lstBtns = [('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_ok.png", wx.BITMAP_TYPE_ANY),
                            "Cliquez ici pour fermer la fenêtre")]
 
@@ -537,6 +537,7 @@ class PNL_tableau(wx.Panel):
         self.SetSizerAndFit(sizerbase)
 
     def GetItemsBtn(self,lstBtns):
+        # décompactage des paramètres de type bouton
         lstBtn = []
         for btn in lstBtns:
             try:
@@ -548,9 +549,10 @@ class PNL_tableau(wx.Panel):
                 else: bouton = wx.Button(self,ID,'Erreur!')
                 bouton.SetToolTip(tooltip)
                 bouton.name = code
+                #le bouton OK est par défaut, il ferme l'écran DLG
                 if code == 'BtnOK':
                     bouton.Bind(wx.EVT_BUTTON, self.OnBoutonOK)
-                #implémente les fonctions bind, soit par le pointeur transmis soit par eval du texte
+                #implémente les fonctions bind transmises, soit par le pointeur soit par eval du texte
                 if self.dicOnClick and code in self.dicOnClick:
                     if isinstance(self.dicOnClick[code],str):
                         fonction = lambda evt,code=code: eval(self.dicOnClick[code])
@@ -578,6 +580,7 @@ class PNL_tableau(wx.Panel):
         self.parent.Close()
 
 class DLG_tableau(wx.Dialog):
+    # minimum fonctionnel dans dialog tout est dans pnl
     def __init__(self,parent,dicOlv={}, **kwds):
         self.parent = parent
         largeur = dicOlv.pop("largeur", 900)
@@ -598,6 +601,7 @@ class DLG_tableau(wx.Dialog):
 if __name__ == '__main__':
     app = wx.App(0)
     os.chdir("..")
+    # matrice OLV
     liste_Colonnes = [
         ColumnDefn("clé", 'left', 70, "cle",valueSetter=1),
         ColumnDefn("mot d'ici", 'left', 200, "mot",valueSetter=''),
@@ -627,14 +631,18 @@ if __name__ == '__main__':
                                      "prix": {"mode": "total", "alignement": wx.ALIGN_RIGHT},}
     }
 
+    # options d'enrichissement de l'écran
+    # params d'un bouton : name, ID, Image ou label, tooltip
     lstBtns = [ ('BtnPrec',wx.ID_FORWARD,   wx.ArtProvider.GetBitmap(wx.ART_GO_BACK, wx.ART_OTHER, (42, 22)),
                                             "Cliquez ici pour retourner à l'écran précédent"),
                 ('BtnPrec2',wx.ID_PREVIEW_NEXT,"Ecran\nprécédent","Retour à l'écran précédent next"),
-                ('BtnOK',wx.ID_OK,wx.Bitmap("xpy/Images/100x30/Bouton_ok.png", wx.BITMAP_TYPE_ANY),"Cliquez ici pour fermer la fenêtre")]
+                ('BtnOK',wx.ID_OK,wx.Bitmap("xpy/Images/100x30/Bouton_fermer.png", wx.BITMAP_TYPE_ANY),"Cliquez ici pour fermer la fenêtre")]
+    # params d'actions: idem boutons, ce sont des boutons placés à droite et non en bas
     lstActions = [('Action1',wx.ID_COPY,'Choix un',"Cliquez pour l'action 1"),
                   ('Action2',wx.ID_CUT,'Choix deux',"Cliquez pour l'action 2")]
+    # un param par info: texte ou objet window.  Les infos sont  placées en bas à gauche
     lstInfos = ['Première',"Voici",wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)),"Autre\nInfo"]
-
+    # params des actions ou boutons: name de l'objet, fonction ou texte à passer par eval()
     dicOnClick = {'Action1': lambda evt: wx.MessageBox('ceci active la fonction action1'),'BtnPrec' : 'self.parent.Close()'}
 
     exempleframe = DLG_tableau(None,dicOlv=dicOlv,lstBtns= lstBtns,lstActions=lstActions,lstInfos=lstInfos,dicOnClick=dicOnClick)

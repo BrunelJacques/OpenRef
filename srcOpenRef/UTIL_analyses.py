@@ -245,7 +245,7 @@ def GetClientsGroupes(agc, groupes, annee, nbanter, DBsql,saufvalide=False):
     # traitement de la liste des groupes choisis
     for groupe in lstGroupes:
         if len(groupe.strip()) > 1 :
-            # appel de la requête correspondant à la groupes en cours
+            # appel de la requête correspondant au groupe en cours
             req = """SELECT Membres
                     FROM cGroupes
                     WHERE ((IDagc='%s') OR (IDagc Like '*')) AND (IDgroupe = '%s')
