@@ -76,6 +76,19 @@ def FmtDecimal(montant):
     strMtt = strMtt.replace(',',' ')
     return strMtt
 
+def FmtInt(montant):
+    if montant == None or int(montant) == 0 :
+        return ""
+    strMtt = '{:,.0f} '.format(montant)
+    strMtt = strMtt.replace(',',' ')
+    return strMtt
+
+def FmtPercent(montant):
+    if montant == None or int(montant) == 0 :
+        return ""
+    strMtt = '{:}% '.format(montant)
+    return strMtt
+
 def FmtDate(date):
     if date == None or date == wx.DateTime.FromDMY(1,0,1900):
         return ''

@@ -9,17 +9,64 @@
 #------------------------------------------------------------------------
 
 import wx
+import datetime
+import unicodedata
 import srcOpenRef.UTIL_analyses as orua
-import srcOpenRef.UTIL_import as orui
 import srcOpenRef.UTIL_traitements as orut
-import xpy.xGestionDB as xdb
 import srcOpenRef.DATA_Tables as dtt
+import xpy.xGestionDB as xdb
+import xpy.outils.xformat as xfmt
+import xpy.xUTILS_SaisieParams as xusp
+import xpy.xGestion_Tableau as xgt
 from xpy.outils.ObjectListView import ColumnDefn
+
+def DefColonnes(lstNoms,lstCodes,lstValDef,lstLargeur):
+    ix=0
+    lstColonnes = []
+    for colonne in lstNoms:
+        if isinstance(lstValDef[ix],(str,wx.DateTime)):
+            posit = 'left'
+        else: posit = 'right'
+        # ajoute un converter à partir de la valeur par défaut
+        if isinstance(lstValDef[ix], (float,)):
+            if '%' in colonne:
+                stringConverter = xfmt.FmtPercent
+            else:
+                stringConverter = xfmt.FmtInt
+        elif isinstance(lstValDef[ix], int):
+            stringConverter = xfmt.FmtInt
+        #elif isinstance(lstValDef[ix], datetime.date):
+        #    stringConverter = xfmt.FmtDate
+        else: stringConverter = None
+        lstColonnes.append(ColumnDefn(colonne, posit, lstLargeur[ix],lstCodes[ix], valueSetter=lstValDef[ix],
+                                      stringConverter=stringConverter))
+        ix +=1
+    return lstColonnes
+
+def DateSqlToWxdate(dateEng):
+    if dateEng == None : return None
+
+    if isinstance(dateEng,datetime.date):
+        return wx.DateTime.FromDMY(dateEng.day,dateEng.month-1,dateEng.year)
+
+    if isinstance(dateEng,str) and len(dateEng) < 10:
+        return wx.DateTime.FromDMY(int(dateEng[8:10]),int(dateEng[5:7]-1),int(dateEng[:4]))
+
+def DateSqlToDatetime(dateEng):
+    if dateEng == None : return None
+
+    if isinstance(dateEng,datetime.date):
+        return dateEng
+
+    if isinstance(dateEng,str) and len(dateEng) < 10:
+        return datetime(int(dateEng[:4]),int(dateEng[5:7]),int(dateEng[8:10]))
 
 class Affectations():
     def __init__(self,annee=None, client=None, groupe=None, filiere=None, agc='ANY'):
         self.title = '[UTIL_affectations].Affectations'
         self.mess = ''
+        self.annee = annee
+        self.clic = None
         # recherche pour affichage bas d'écran
         self.topwin = False
         self.topWindow = wx.GetApp().GetTopWindow()
@@ -33,32 +80,73 @@ class Affectations():
         #préchargement de la table des Produits et des coûts
         self.dicProduits, self.lstPrioritesProduits = orut.PrechargeProduits(agc,self.DBsql)
 
-
         self.dicCouts = orut.PrechargeCouts(agc,self.DBsql)
         self.dicPlanComp = orut.PrechargePlanCompte(self.DBsql)
         self.lstMotsClesProduits = orut.GetMotsCles(self.dicProduits, avectuple=True)
         self.lstMotsClesCouts = orut.GetMotsCles(self.dicCouts, avectuple=True)
         # détermination de la liste des clients présents, même ceux qui sont validés
         if client:
-            lstDossiers = orua.GetExercicesClient(agc,client,annee,0,self.DBsql,saufvalide=False)
+            self.lancement = "Dossiers du client: %s, année: %s"%(client,self.annee)
+            self.lstDossiers = orua.GetExercicesClient(agc,client,self.annee,0,self.DBsql,saufvalide=False)
         elif groupe:
-            lstDossiers=orua.GetClientsGroupes(agc, groupe, annee, 0, self.DBsql,saufvalide=False)
+            self.lancement = "Dossiers du groupe: %s, année: %s"%(groupe,self.annee)
+            self.lstDossiers=orua.GetClientsGroupes(agc, groupe, self.annee, 0, self.DBsql,saufvalide=False)
         elif filiere:
-            lstDossiers = orua.GetClientsFilieres(agc, filiere, annee, 0, self.DBsql,saufvalide=False)
+            self.lancement = "Dossiers de filière: %s, année: %s"%(filiere,self.annee)
+            self.lstDossiers = orua.GetClientsFilieres(agc, filiere, self.annee, 0, self.DBsql,saufvalide=False)
         else :
+            self.lancement = "Dossiers année: %s"%(self.annee)
             wx.MessageBox("Analyse : Aucun paramètre de lancement ne concerne un dossier")
             return
+        self.Traitement()
 
-        # déroulé du traitement
-        ret = self.EcranDossiers(lstDossiers,annee)
+    def Traitement(self):
+        # déroulé du traitement, navigation dans le écrans
+        self.retour = self.EcranDossiers()
 
-    def EcranDossiers(self,lstDossiers,annee):
+    def ComposeMatrice(self,lstChamps,lstTypes,lstHelp=None,champdeb=None,champfin=None):
+        ldmatrice = []
+        if champdeb:
+            ix1= lstChamps.index(champdeb)
+        else: ix1 = 0
+        if champfin:
+            ix2= lstChamps.index(champfin)
+        else: ix2 = len(lstChamps)-1
+        for ix in range(ix1,ix2):
+            code = ''.join(c for c in unicodedata.normalize('NFD', lstChamps[ix]) if unicodedata.category(c) != 'Mn')
+            code = code.lower()
+            dicchamp = {
+            'genre': lstTypes[ix],
+            'name': code,
+            'label': lstChamps[ix],
+            'help': lstHelp[ix]
+                       }
+            ldmatrice.append(dicchamp)
+        return ldmatrice
+
+    def ComposeDonnees(self,recordset0,lstChamps,champdeb=None,champfin=None):
+        lddonnees = []
+        if champdeb:
+            ix1= lstChamps.index(champdeb)
+        else: ix1 = 0
+        if champfin:
+            ix2= lstChamps.index(champfin)
+        else: ix2 = len(lstChamps)-1
+        dicdonnees={}
+        for ix in range(ix1,ix2):
+            code = ''.join(c for c in unicodedata.normalize('NFD', lstChamps[ix]) if unicodedata.category(c) != 'Mn')
+            code = code.lower()
+            dicdonnees[code] = recordset0[ix]
+            lddonnees.append(dicdonnees)
+        return lddonnees
+
+    def EcranDossiers(self):
         # appel des dossiers pour affichage
         lstClients = []
-        for agc,client,cloture in lstDossiers:
+        for agc,client,cloture in self.lstDossiers:
             lstClients.append(client)
-        # IDdossier,agc,exploitation,cloture,nomExploitation,nbreMois,fiscal,ventes,caNonAff,nbElemCar,elemCar,filieres,productions
 
+        # IDdossier,agc,exploitation,cloture,nomExploitation,nbreMois,fiscal,ventes,caNonAff,nbElemCar,elemCar,filieres,productions
         req = """
                 SELECT _ident.IDdossier, _ident.IDagc, _ident.IDexploitation, _ident.Clôture, _ident.NomExploitation, 
                 _ident.NbreMois, _ident.Fiscal,Sum(_balances.SoldeFin), Sum(((_balances.affectation="") * _balances.SoldeFin)),
@@ -70,68 +158,128 @@ class Affectations():
                         AND (_ident.IDexploitation In (%s))
                 GROUP BY _ident.IDdossier, IDagc, IDexploitation,Clôture, NomExploitation,
                         NbElemCar, ElemCar,Filières, NbreMois, Fiscal, Productions
-                ;"""%(str(annee),str(lstClients)[1:-1])
+                ;"""%(str(self.annee),str(lstClients)[1:-1])
         retour = self.DBsql.ExecuterReq(req, mess='Util_affectations.EcranDossiers')
         if retour == "ok":
             recordset = self.DBsql.ResultatReq()
-        else :
+            if len(recordset) == 0:
+                retour = "aucun enregistrement disponible"
+        if (not retour == "ok"):
             wx.MessageBox("Erreur : %s"%retour)
             return 'ko'
+        lstNomsColonnes = ["ID","agc","noClient","clôture","nomExploitation","nbreMois","fiscal","ventes",
+                           "% affecté","nbElemCar","elemCar","rendement","filières","productions"]
+        lstCodesColonnes = ["ID","agc","noclient","cloture","nomexploitation","nbremois","fiscal","ventes",
+                           "affect","nbelemCar","elemCar","rendement","filieres","productions"]
+        lstValDefColonnes = [0,"","",datetime.date(1900,1,1),"",0,"",0.0,
+                           0.0,0,"",0.0,"",""]
+        lstLargeurColonnes = [0,40,50,70,120,40,40,70,
+                           40,40,50,70,180,180]
         lstDonnees = []
         for IDdossier,IDagc,exploitation,cloture,nomExploitation,nbreMois,fiscal,ventes,caNonAff,nbElemCar,elemCar,filieres,\
             productions in recordset:
             affecT = round(100*(ventes-caNonAff)/ventes)
             if not nbElemCar : nbElemCar = 0.0
             if nbElemCar != 0.0:
-                rendement = ventes / nbElemCar
+                rendement = -ventes / nbElemCar
             else: rendement = 0.0
-            lstDonnees.append([IDdossier,agc,exploitation,cloture,nomExploitation,nbreMois,fiscal,ventes,affecT,
+            lstDonnees.append([IDdossier,IDagc,exploitation,DateSqlToDatetime(cloture),nomExploitation,nbreMois,fiscal,-ventes,affecT,
                                nbElemCar,elemCar,rendement,filieres,productions])
+
         messBasEcran = "Nbre de dossiers présents: %d "%len(lstDonnees)
         if self.topwin:
             self.topWindow.SetStatusText(messBasEcran)
         # matrice OLV
-        lstColonnes = [
-            ColumnDefn("clé", 'left', 70, "cle", valueSetter=1),
-            ColumnDefn("mot d'ici", 'left', 200, "mot", valueSetter=''),
-            ColumnDefn("nombre_", 'right', 80, "nombre", valueSetter=0.0,
-                       stringConverter=xpy.outils.xformat.FmtDecimal),
-            ColumnDefn("prix", 'right', 80, "prix", valueSetter=0.0, stringConverter=xpy.outils.xformat.FmtMontant),
-            ColumnDefn("date", 'center', 80, "date", valueSetter=wx.DateTime.FromDMY(1, 0, 1900),
-                       stringConverter=xpy.outils.xformat.FmtDate),
-            ColumnDefn("date SQL", 'center', 80, "datesql", valueSetter='2000-01-01',
-                       stringConverter=xpy.outils.xformat.FmtDate)
-        ]
-        dicOlv = {'listeColonnes': lstColonnes,
-                  'listeDonnees': lstDonnees,
-                  'hauteur': 650,
-                  'largeur': 850,
-                  'recherche': True,
-                  'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
-                  'dictColFooter': {"nombre": {"mode": "total", "alignement": wx.ALIGN_RIGHT},
-                                    "mot": {"mode": "nombre", "alignement": wx.ALIGN_CENTER},
-                                    "prix": {"mode": "total", "alignement": wx.ALIGN_RIGHT}, }
-                  }
+        lstColonnes = DefColonnes(lstNomsColonnes,lstCodesColonnes,lstValDefColonnes,lstLargeurColonnes)
+        dicOlv = {
+                'lanceur': self,
+                'listeColonnes': lstColonnes,
+                'listeDonnees': lstDonnees,
+                'checkColonne': False,
+                'hauteur': 650,
+                'largeur': 1250,
+                'recherche': True,
+                'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
+                'dictColFooter': {"nomexploitation": {"mode": "nombre", "alignement": wx.ALIGN_CENTER},
+                                }
+                }
 
         # options d'enrichissement de l'écran
         # params d'un bouton : name, ID, Image ou label, tooltip
-        lstBtns = [('BtnPrec', wx.ID_FORWARD, wx.ArtProvider.GetBitmap(wx.ART_GO_BACK, wx.ART_OTHER, (42, 22)),
-                    "Cliquez ici pour retourner à l'écran précédent"),
-                   ('BtnPrec2', wx.ID_PREVIEW_NEXT, "Ecran\nprécédent", "Retour à l'écran précédent next"),
-                   ('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_fermer.png", wx.BITMAP_TYPE_ANY),
+        lstBtns = [('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_fermer.png", wx.BITMAP_TYPE_ANY),
                     "Cliquez ici pour fermer la fenêtre")]
         # params d'actions: idem boutons, ce sont des boutons placés à droite et non en bas
-        lstActions = [('Action1', wx.ID_COPY, 'Choix un', "Cliquez pour l'action 1"),
-                      ('Action2', wx.ID_CUT, 'Choix deux', "Cliquez pour l'action 2")]
+        lstActions = [('ident',wx.ID_APPLY,'Descriptif\ndossier',"Cliquez ici pour gérer l'identification"),
+                      ('balance',wx.ID_APPLY,'Balance\nrésultats',"Cliquez ici pour affecter les comptes"),
+                      ('ateliers',wx.ID_APPLY,'Ateliers\ndu dossier',"Cliquez ici pour les ateliers"),
+                      ('produits',wx.ID_APPLY,'Produits\ndu dossier',"Cliquez ici pour gérer les produits"),]
         # un param par info: texte ou objet window.  Les infos sont  placées en bas à gauche
-        lstInfos = ['Première', "Voici", wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)),
-                    "Autre\nInfo"]
+        lstInfos = [self.lancement,]
         # params des actions ou boutons: name de l'objet, fonction ou texte à passer par eval()
-        dicOnClick = {'Action1': lambda evt: wx.MessageBox('ceci active la fonction action1'),
-                      'BtnPrec': 'self.parent.Close()'}
-        ecrDos = DLG_tableau(None,dicOlv=dicOlv,lstBtns= lstBtns,lstActions=lstActions,lstInfos=lstInfos,dicOnClick=dicOnClick)
-        ret = ecrDos.ShowModal()
+        dicOnClick = {'ident' : 'self.lanceur.OnIdent()',
+                      'balance' : 'self.lanceur.OnBalance()',
+                      'ateliers' : 'self.lanceur.OnAteliers()',
+                      'produits' : 'self.lanceur.OnProduits()'}
+        self.dlg = xgt.DLG_tableau(self,dicOlv=dicOlv,lstBtns= lstBtns,lstActions=lstActions,lstInfos=lstInfos,
+                                 dicOnClick=dicOnClick)
+        ret = self.dlg.ShowModal()
+        print("retour ecran: ",ret)
+        self.dlg.Destroy()
+        return wx.ID_OK
 
+    def EcranIdent(self):
+        # appel d'un dossier pour affichage table ident
+        req = """
+                SELECT *
+                FROM _ident 
+                WHERE (_ident.IDdossier = %s)
+                ;"""%(self.IDdossier)
+        retour = self.DBsql.ExecuterReq(req, mess='Util_affectations.EcranIdent')
+        if retour == "ok":
+            recordset = self.DBsql.ResultatReq()
+            if len(recordset) == 0:
+                retour = "aucun enregistrement disponible"
+        if (not retour == "ok"):
+            wx.MessageBox("Erreur : %s"%retour)
+            return 'ko'
+        lstChamps, lstTypes, lstHelp = dtt.GetChampsTypes('_Ident',tous=True)
+        dictDonnees = {}
+        dictMatrice = {}
+        dictMatrice['params',None]=self.ComposeMatrice(lstChamps,lstTypes,lstHelp=lstHelp,champdeb='IDjuridique',champfin='ImpSoc')
+        dictDonnees['params',None]=self.ComposeDonnees(recordset[0],lstChamps,champdeb='IDjuridique',champfin='ImpSoc')
+        dictMatrice['tabfin',None]=self.ComposeMatrice(lstChamps,lstTypes,lstHelp=lstHelp,champdeb='Caf',champfin='RemAssociés')
+        dictDonnees['tabfin',None]=self.ComposeDonnees(recordset[0],lstChamps,champdeb='Caf',champfin='RemAssociés')
+        dictMatrice['divers',None]=self.ComposeMatrice(lstChamps,lstTypes,lstHelp=lstHelp,champdeb='Productions')
+        dictDonnees['divers',None]=self.ComposeDonnees(recordset[0],lstChamps,champdeb='Productions')
+
+        self.dlg = xusp.DLG_monoLigne(None,dldMatrice=dictMatrice,lddDonnees=[dictDonnees],gestionProperty=False,minSize=(1200,500))
+        ret = self.dlg.ShowModal()
+        print("retour ecran: ",ret)
+        #self.dlg.Destroy()
+        return wx.ID_OK
+
+    def CtrlSelection(self):
+        if len(self.dlg.ctrlOlv.Selection())==0:
+            wx.MessageBox("Action Impossible\n\nVous n'avez pas selectionné une ligne!","Préalable requis")
+            return False
+        return True
+
+    def OnIdent(self):
+        if self.CtrlSelection():
+            self.IDdossier = self.dlg.ctrlOlv.Selection()[0].ID
+            self.EcranIdent()
+
+    def OnBalance(self):
+        if self.CtrlSelection():
+            wx.MessageBox('clic sur balance')
+
+    def OnAteliers(self):
+        if self.CtrlSelection():
+            wx.MessageBox('clic sur ateliers')
+
+    def OnProduits(self):
+        if self.CtrlSelection():
+            wx.MessageBox('clic sur produits')
 
     def Init_dic_produit(self,produit):
         #prépare un dictionnaire vide pour les champs nombre réels
@@ -328,9 +476,12 @@ class Affectations():
 #************************   Pour Test ou modèle  *********************************
 if __name__ == '__main__':
     app = wx.App(0)
-    fn = Affectations(annee='2018',client='009418',agc='prov')
-    #fn = Affectations(annee='2018',groupe='LOT1',agc='prov')
-    print('Retour: ',fn)
+    import os
+    os.chdir("..")
+    #fn = Affectations(annee='2018',client='009418',agc='prov')
+    fn = Affectations(annee=2018,groupe='testAlpes',agc='ANY')
+    ret = fn.retour
+    print('Retour appli: ',ret)
 
     app.MainLoop()
 

@@ -809,6 +809,62 @@ class DLG_listCtrl(wx.Dialog):
     def OnBtnEsc(self, event):
             self.Destroy()
 
+class DLG_monoLigne(wx.Dialog):
+    def __init__(self, parent, *args, dldMatrice={}, lddDonnees=[], **kwds):
+        self.parent = parent
+        self.gestionProperty = kwds.pop('gestionProperty',False)
+        self.marge = kwds.pop('marge',10)
+        self.minSize = kwds.pop('minSize',(800, 500))
+        self.couleur = kwds.pop('couleur',wx.WHITE)
+        listArbo = os.path.abspath(__file__).split("\\")
+        titre = listArbo[-1:][0] + "/" + self.__class__.__name__
+        super().__init__(parent, wx.ID_ANY, *args, title=titre, style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+                         **kwds)
+
+        self.SetBackgroundColour(self.couleur)
+        self.parent = parent
+        self.dldMatrice = dldMatrice
+        self.lddDonnees = lddDonnees
+        self.args = args
+        self.kwds = kwds
+        # bouton bas d'écran
+        self.btn = BTN_fermer(self)
+        self.btn.Bind(wx.EVT_BUTTON, self.OnFermer)
+        self.btnEsc = BTN_esc(self, action=self.OnBtnEsc)
+        if self.gestionProperty:
+            self.pnl = PNL_property(self, self, matrice=self.dldMatrice, lblbox='Modif d\'une ligne')
+        else:
+            self.pnl = TopBoxPanel(self, self, matrice=self.dldMatrice, lblbox='Modif d\'une ligne')
+        self.pnl.MinSize = self.minSize
+        self.Sizer()
+        self.lddDonnees, self.ltColonnes, self.llItems = Transpose(self.dldMatrice,{},self.lddDonnees)
+        self.pnl.SetValeurs(self.llItems)
+        ret = self.ShowModal()
+        if ret == wx.OK:
+            # récupération des valeurs saisies
+            ddDonnees = self.pnl.GetValeurs()
+            donnees = copy.deepcopy(ddDonnees)
+            self.lddDonnees.append(donnees)
+            self.lddDonnees, self.ltColonnes, self.llItems = Transpose(self.dldMatrice,{},self.lddDonnees)
+            self.pnl.SetValeurs(self.llItems, self.ltColonnes)
+        self.Destroy()
+
+    def Sizer(self):
+        topbox = wx.BoxSizer(wx.VERTICAL)
+        topbox.Add(self.pnl, 1, wx.EXPAND | wx.ALL, self.marge)
+        btnbox = wx.BoxSizer(wx.HORIZONTAL)
+        btnbox.Add(self.btnEsc, 0, wx.ALIGN_RIGHT | wx.RIGHT, 40)
+        btnbox.Add(self.btn, 0, wx.ALIGN_RIGHT | wx.RIGHT, 40)
+        topbox.Add(btnbox, 0, wx.ALIGN_RIGHT)
+        topbox.SetSizeHints(self)
+        self.SetSizer(topbox)
+
+    def OnFermer(self, event):
+        return self.Close()
+
+    def OnBtnEsc(self, event):
+            self.Destroy()
+
 #************************   Pour Test ou modèle  *********************************
 
 class xFrame(wx.Frame):
@@ -942,14 +998,13 @@ if __name__ == '__main__':
                 {'genre': 'Dir', 'name': 'localisation', 'label': 'Répertoire de localisation',
                  'value': True,
                  'help': "Il faudra connaître les identifiants d'accès à cette base"},
-                {'genre': 'String', 'name': 'serveur', 'label': 'Nom du serveur', 'value': '',
+                {'genre': 'String', 'name': 'serveur', 'label': 'Nom du serveur', 'value': 'monServeur',
                  'help': "Il s'agit du serveur de réseau porteur de la base de données"},
             ]
         }
 
 # Lancement des tests
 
-    """
     """
 
     frame_4 = DLG_listCtrl(None,dldMatrice=dictMatrice, dlColonnes={'bd_reseau':['serveur'],'ident':['utilisateur']},
@@ -972,6 +1027,13 @@ if __name__ == '__main__':
     app.SetTopWindow(frame_1)
     frame_1.Position = (50,50)
     frame_1.Show()
+    """
+    #frame_5 = DLG_monoLigne(None, matrice=dictMatrice, donnees=dictDonnees)
+    frame_5 = DLG_monoLigne(None,dldMatrice=dictMatrice,
+                lddDonnees=[dictDonnees],gestionProperty=False,minSize=(1200,500))
+    app.SetTopWindow(frame_5)
+    frame_5.Position = (20,20)
+    frame_5.Show()
     """
     """
     app.MainLoop()

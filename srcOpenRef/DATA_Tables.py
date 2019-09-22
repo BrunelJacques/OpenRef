@@ -209,6 +209,30 @@ def GetChamps(table,tous = True,reel=False,deci=False,dte=False,texte=False):
         elif texte and genre == 'var': lstChamps.append(champ)
     return lstChamps
 
+def GetChampsTypes(table,tous = True,reel=False,deci=False,dte=False,texte=False):
+    lstChamps = []
+    lstTypes = []
+    lstHelp = []
+    # les params d'un type précisé désactivent le param tous
+    if reel or deci or dte or texte : tous=False
+    for ligne in DB_TABLES[table]:
+        champ = ligne[0]
+        genre = ligne[1][:3]
+        tip = ligne[1]
+        help = ligne[3]
+        flag = False
+        if tous:
+            flag = True
+        elif reel and genre == 'flo': flag = True
+        elif deci and genre == 'int': flag = True
+        elif dte and genre == 'dat': flag = True
+        elif texte and genre == 'var': flag = True
+        if flag:
+            lstChamps.append(champ)
+            lstTypes.append(tip)
+            lstHelp.append(help)
+    return lstChamps, lstTypes, lstHelp
+
 if __name__ == '__main__':
     import wx
     app = wx.App(0)

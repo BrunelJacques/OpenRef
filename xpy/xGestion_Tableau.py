@@ -134,12 +134,12 @@ class ListView(FastObjectListView):
     def formerSetterValues(self):
         setterValues = list()
         for colonne in self.listeColonnes:
+            fmt = colonne.stringConverter
             tip = None
-            if colonne.valueSetter:
+            if colonne.valueSetter != None:
                 tip = colonne.valueSetter
-            if not tip:
+            if tip == None:
                 tip = ''
-                fmt = colonne.stringConverter
                 if fmt:
                     fmt = colonne.stringConverter.__name__
                     if fmt[3:] in ('Montant','Solde','Decimal','Entier'):
@@ -454,6 +454,7 @@ class TrackGeneral(object):
 class PNL_tableau(wx.Panel):
     #panel olv avec habillage optionnel pour des boutons actions (à droite) des infos (bas gauche) et boutons sorties
     def __init__(self, parent, dicOlv,*args, **kwds):
+        self.lanceur = dicOlv.pop('lanceur',None)
         self.lstActions = kwds.pop('lstActions',None)
         self.lstInfos = kwds.pop('lstInfos',None)
         self.lstBtns = kwds.pop('lstBtns',None)
@@ -473,6 +474,7 @@ class PNL_tableau(wx.Panel):
                         'sensTri',
                         'exportExcel',
                         'exportTexte',
+                        'checkColonne',
                         'apercuAvantImpression',
                         'imprimer',
                         'toutCocher',
@@ -587,7 +589,7 @@ class DLG_tableau(wx.Dialog):
         hauteur = dicOlv.pop("hauteur", 700)
         listArbo=os.path.abspath(__file__).split("\\")
         titre = listArbo[-1:][0] + "/" + self.__class__.__name__
-        wx.Dialog.__init__(self,parent, title=titre, size=(largeur,hauteur),style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
+        wx.Dialog.__init__(self,None, title=titre, size=(largeur,hauteur),style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
         self.SetBackgroundColour(wx.WHITE)
         self.marge = 10
         self.pnl = PNL_tableau(self, dicOlv,  **kwds )
