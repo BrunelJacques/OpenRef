@@ -132,7 +132,7 @@ class BTN_action(wx.BitmapButton):
 
 class BTN_fermer(wx.BitmapButton):
     def __init__(self, parent):
-        wx.BitmapButton.__init__(self, parent, wx.ID_ANY, wx.Bitmap("xpy/Images/100x30/Bouton_ok.png", wx.BITMAP_TYPE_ANY))
+        wx.BitmapButton.__init__(self, parent, wx.OK, wx.Bitmap("xpy/Images/100x30/Bouton_ok.png", wx.BITMAP_TYPE_ANY))
         self.SetToolTip(("Cliquez ici pour enregistrer et fermer la fenêtre"))
 
 class BTN_esc(wx.BitmapButton):
@@ -206,6 +206,11 @@ class CTRL_property(wxpg.PropertyGrid):
                                 wxpg.PG_BOOL_USE_CHECKBOX = 1
                                 propriete = wxpg.DateProperty(label= label, name=name, value= value)
                                 propriete.SetFormat('%d/%m/%Y')
+                                propriete.PG_BOOL_USE_CHECKBOX = 1
+
+                            elif genre in ['blob','longstring']:
+                                wxpg.PG_BOOL_USE_CHECKBOX = 1
+                                propriete = wxpg.LongStringProperty(label= label, name=name, value= value)
                                 propriete.PG_BOOL_USE_CHECKBOX = 1
 
                             elif genre == 'dir':
@@ -339,6 +344,7 @@ class PNL_ctrl(wx.Panel):
         if not values: values = []
         if len(values) > 0 and len(labels) == 0:
             labels = values
+        self.genre = lgenre
 
         try:
             commande = 'debut'
@@ -405,6 +411,7 @@ class PNL_ctrl(wx.Panel):
         return self.ctrl.GetValue()
 
     def SetValue(self,value):
+        if self.genre in ('int','float'): value = str(value)
         if value: self.ctrl.SetValue(value)
 
     def SetValues(self,values):
@@ -810,7 +817,7 @@ class DLG_listCtrl(wx.Dialog):
             self.Destroy()
 
 class DLG_monoLigne(wx.Dialog):
-    def __init__(self, parent, *args, dldMatrice={}, lddDonnees=[], **kwds):
+    def __init__(self, parent, *args, dldMatrice={}, ddDonnees={}, **kwds):
         self.parent = parent
         self.gestionProperty = kwds.pop('gestionProperty',False)
         self.marge = kwds.pop('marge',10)
@@ -820,11 +827,10 @@ class DLG_monoLigne(wx.Dialog):
         titre = listArbo[-1:][0] + "/" + self.__class__.__name__
         super().__init__(parent, wx.ID_ANY, *args, title=titre, style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
                          **kwds)
-
         self.SetBackgroundColour(self.couleur)
         self.parent = parent
         self.dldMatrice = dldMatrice
-        self.lddDonnees = lddDonnees
+        self.ddDonnees = ddDonnees
         self.args = args
         self.kwds = kwds
         # bouton bas d'écran
@@ -837,17 +843,7 @@ class DLG_monoLigne(wx.Dialog):
             self.pnl = TopBoxPanel(self, self, matrice=self.dldMatrice, lblbox='Modif d\'une ligne')
         self.pnl.MinSize = self.minSize
         self.Sizer()
-        self.lddDonnees, self.ltColonnes, self.llItems = Transpose(self.dldMatrice,{},self.lddDonnees)
-        self.pnl.SetValeurs(self.llItems)
-        ret = self.ShowModal()
-        if ret == wx.OK:
-            # récupération des valeurs saisies
-            ddDonnees = self.pnl.GetValeurs()
-            donnees = copy.deepcopy(ddDonnees)
-            self.lddDonnees.append(donnees)
-            self.lddDonnees, self.ltColonnes, self.llItems = Transpose(self.dldMatrice,{},self.lddDonnees)
-            self.pnl.SetValeurs(self.llItems, self.ltColonnes)
-        self.Destroy()
+        self.pnl.SetValeurs(self.ddDonnees)
 
     def Sizer(self):
         topbox = wx.BoxSizer(wx.VERTICAL)
@@ -863,7 +859,7 @@ class DLG_monoLigne(wx.Dialog):
         return self.Close()
 
     def OnBtnEsc(self, event):
-            self.Destroy()
+        self.Destroy()
 
 #************************   Pour Test ou modèle  *********************************
 
@@ -902,6 +898,7 @@ class xFrame(wx.Frame):
     def OnBoutonAction(self, event):
         #Bouton Test
         print("Bonjour l'action OnBoutonAction de l'appli")
+
     def OnChildEnter(self, event,*args):
             if self.parent != None:
                 self.EndModal(wx.OK)
@@ -968,7 +965,7 @@ class FramePanels(wx.Frame):
 if __name__ == '__main__':
     app = wx.App(0)
     os.chdir("..")
-    dictDonnees = {"bd_reseau": {'serveur': 'mon serveur',
+    dictDonnees = {"bd_reseau": {'serveur': 'my server',
                                  'bdReseau':False,
                                  'utilisateur' : 'moi-meme',
                                  'config': DDstrdate2wxdate('2020-02-28',iso=True),
@@ -1004,9 +1001,7 @@ if __name__ == '__main__':
         }
 
 # Lancement des tests
-
     """
-
     frame_4 = DLG_listCtrl(None,dldMatrice=dictMatrice, dlColonnes={'bd_reseau':['serveur'],'ident':['utilisateur']},
                 lddDonnees=[dictDonnees,{"bd_reseau":{'serveur': 'serveur3'}}])
     frame_4.Init()
@@ -1019,10 +1014,10 @@ if __name__ == '__main__':
     app.SetTopWindow(frame_3)
     frame_3.Show()
 
+
     frame_2 = FramePanels(None, )
     frame_2.Position = (500,300)
     frame_2.Show()
-
     frame_1 = xFrame(None, matrice=dictMatrice, donnees=dictDonnees)
     app.SetTopWindow(frame_1)
     frame_1.Position = (50,50)
@@ -1030,10 +1025,11 @@ if __name__ == '__main__':
     """
     #frame_5 = DLG_monoLigne(None, matrice=dictMatrice, donnees=dictDonnees)
     frame_5 = DLG_monoLigne(None,dldMatrice=dictMatrice,
-                lddDonnees=[dictDonnees],gestionProperty=False,minSize=(1200,500))
+                ddDonnees=dictDonnees,gestionProperty=True,minSize=(400,300))
     app.SetTopWindow(frame_5)
-    frame_5.Position = (20,20)
+    frame_5.Position = (200,20)
     frame_5.Show()
     """
     """
+
     app.MainLoop()

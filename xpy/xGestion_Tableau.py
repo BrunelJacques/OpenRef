@@ -58,8 +58,8 @@ class ListView(FastObjectListView):
         self.sensTri = kwds.pop("sensTri", True)
         self.menuPersonnel = kwds.pop("menuPersonnel", None)
         self.listeDonnees = kwds.pop("listeDonnees", None)
-        self.lstNomsColonnes = self.formerNomColonnes()
-        self.lstLabelsColonnes = self.formerLabelsColonnes()
+        self.lstCodesColonnes = self.formerCodeColonnes()
+        self.lstNomsColonnes = self.formerNomsColonnes()
         self.lstSetterValues = self.formerSetterValues()
         self.dictColFooter = kwds.pop("dictColFooter", {})
         self.formerTracks()
@@ -113,18 +113,18 @@ class ListView(FastObjectListView):
             return
 
         for listeDonnee in self.listeDonnees:
-            self.tracks.append(TrackGeneral(donnees=listeDonnee,nomColonnes=self.lstNomsColonnes,
-                                            setterValues=self.lstSetterValues))
+            self.tracks.append(TrackGeneral(donnees=listeDonnee,codesColonnes=self.lstCodesColonnes,
+                                            nomsColonnes=self.lstNomsColonnes,setterValues=self.lstSetterValues))
         return
 
-    def formerNomColonnes(self):
-        nomColonnes = list()
+    def formerCodeColonnes(self):
+        codeColonnes = list()
         for colonne in self.listeColonnes:
-            nom = colonne.valueGetter
-            nomColonnes.append(nom)
-        return nomColonnes
+            code = colonne.valueGetter
+            codeColonnes.append(code)
+        return codeColonnes
 
-    def formerLabelsColonnes(self):
+    def formerNomsColonnes(self):
         nomColonnes = list()
         for colonne in self.listeColonnes:
             nom = colonne.title
@@ -431,11 +431,11 @@ class PanelListView(wx.Panel):
 
 class TrackGeneral(object):
     #    Cette classe va transformer une ligne en objet selon les listes de colonnes et valeurs par défaut(setter)
-    def __init__(self, donnees, nomColonnes, setterValues):
-        if not(len(donnees) == len(nomColonnes) == len(setterValues)):
-            wx.MessageBox("Problème de nombre d'occurences!\n%d donnees, %d colonnes et %d valeurs défaut"
-                          %(len(donnees), len(nomColonnes), len(setterValues)))
-        for (donnee, nomColonne, setterValue) in zip(donnees, nomColonnes, setterValues):
+    def __init__(self, donnees,codesColonnes, nomsColonnes, setterValues):
+        if not(len(donnees) == len(codesColonnes)== len(nomsColonnes) == len(setterValues)):
+            wx.MessageBox("Problème de nombre d'occurences!\n%d donnees, %d codes, %d colonnes et %d valeurs défaut"
+                          %(len(donnees), len(codesColonnes), len(nomsColonnes), len(setterValues)))
+        for (donnee, codeColonne, nomColonne, setterValue) in zip(donnees, codesColonnes, nomsColonnes, setterValues):
             if setterValue:
                 if (donnee is None):
                     donnee = setterValue
@@ -447,7 +447,7 @@ class TrackGeneral(object):
                             elif type(setterValue) == str:
                                 donnee = str(donnee)
                         except : pass
-            self.__setattr__(nomColonne, donnee)
+            self.__setattr__(codeColonne, donnee)
 
 # ------------------------------------------------------------------------------------------------------------------
 
