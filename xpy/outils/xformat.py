@@ -72,21 +72,21 @@ def DDwxdate2strdate(date,iso=False):
 def FmtDecimal(montant):
     if montant == None or float(montant) == 0.0 :
         return ""
-    strMtt = '{:,.2f} '.format(montant)
+    strMtt = '{:,.2f} '.format(float(montant))
     strMtt = strMtt.replace(',',' ')
     return strMtt
 
 def FmtInt(montant):
     if montant == None or int(montant) == 0 :
         return ""
-    strMtt = '{:,.0f} '.format(montant)
+    strMtt = '{:,.0f} '.format(int(montant))
     strMtt = strMtt.replace(',',' ')
     return strMtt
 
 def FmtPercent(montant):
     if montant == None or int(montant) == 0 :
         return ""
-    strMtt = '{:}% '.format(montant)
+    strMtt = '{:}% '.format(int(montant))
     return strMtt
 
 def FmtDate(date):
@@ -103,14 +103,14 @@ def FmtDate(date):
 def FmtMontant(montant):
     if montant == None or float(montant) == 0.0:
         return ""
-    strMtt = '{:,.2f} '.format(montant)
+    strMtt = '{:,.2f} '.format(float(montant))
     strMtt = strMtt.replace(',',' ')+ SYMBOLE
     return strMtt
 
 def FmtSolde(montant):
     if montant == None :
         return u""
-    strMtt = '{:+,.2f} '.format(montant)
+    strMtt = '{:+,.2f} '.format(float(montant))
     strMtt = strMtt.replace(',',' ')+ SYMBOLE
     return strMtt
 
