@@ -276,15 +276,15 @@ class Affectations():
 
         # IDdossier,agc,exploitation,cloture,nomExploitation,nbreMois,fiscal,ventes,caNonAff,nbElemCar,elemCar,filieres,productions
         req = """
-                SELECT _ident.IDdossier, _ident.IDagc, _ident.IDexploitation, _ident.Clôture, _ident.NomExploitation, 
-                _ident.NbreMois, _ident.Fiscal,Sum(_balances.SoldeFin), Sum(((_balances.affectation="") * _balances.SoldeFin)),
-                _ident.NbElemCar,_ident.ElemCar, _ident.Filières, _ident.Productions
+                SELECT _Ident.IDdossier, _Ident.IDagc, _Ident.IDexploitation, _Ident.Clôture, _Ident.NomExploitation, 
+                _Ident.NbreMois, _Ident.Fiscal,Sum(_Balances.SoldeFin), Sum(((_Balances.affectation="") * _Balances.SoldeFin)),
+                _Ident.NbElemCar,_Ident.ElemCar, _Ident.Filières, _Ident.Productions
                 FROM _Ident 
-                LEFT JOIN _balances ON _ident.IDdossier = _balances.IDdossier
-                WHERE (((Left(_ident.Clôture,4)) = '%s')
-                        AND (_balances.Compte Like '70%%'))
-                        AND (_ident.IDexploitation In (%s))
-                GROUP BY _ident.IDdossier, IDagc, IDexploitation,Clôture, NomExploitation,
+                LEFT JOIN _Balances ON _Ident.IDdossier = _Balances.IDdossier
+                WHERE (((Left(_Ident.Clôture,4)) = '%s')
+                        AND (_Balances.Compte Like '70%%'))
+                        AND (_Ident.IDexploitation In (%s))
+                GROUP BY _Ident.IDdossier, IDagc, IDexploitation,Clôture, NomExploitation,
                         NbElemCar, ElemCar,Filières, NbreMois, Fiscal, Productions
                 ;"""%(str(self.annee),str(lstClients)[1:-1])
         retour = self.DBsql.ExecuterReq(req, mess='Util_affectations.EcranDossiers')
@@ -367,8 +367,8 @@ class Affectations():
         # appel d'un dossier pour affichage table ident
         req = """
                 SELECT *
-                FROM _ident 
-                WHERE (_ident.IDdossier = %s)
+                FROM _Ident 
+                WHERE (_Ident.IDdossier = %s)
                 ;"""%(self.IDdossier)
         retour = self.DBsql.ExecuterReq(req, mess='Util_affectations.EcranIdent')
         if retour == "ok":
