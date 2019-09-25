@@ -157,8 +157,8 @@ class DLG_saisiefiltre(wx.Dialog):
         self.idxdefault = 1
         titre = kwds.pop('titre',"Pas d'argument kwd 'listview' pas de choix de colonnes")
         if self.listview:
-            self.lstLabelsColonnes = self.listview.lstLabelsColonnes
             self.lstNomsColonnes = self.listview.lstNomsColonnes
+            self.lstCodesColonnes = self.listview.lstCodesColonnes
             self.lstSetterValues = self.listview.lstSetterValues
             titre = kwds.pop('titre',"Saisie d'un filtre élaboré")
         wx.Dialog.__init__(self, parent, *args, title=titre, style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
@@ -172,7 +172,7 @@ class DLG_saisiefiltre(wx.Dialog):
             self.dictMatrice = {'nomchapitre': "Choix du filtre",
                                 'lignes': [{'genre': 'Enum', 'name': 'colonne', 'label': 'Colonne à filtrer :',
                                             'value': self.idxdefault, 'help': 'Choisir par le triangle noir',
-                                            'labels': self.lstLabelsColonnes}], }
+                                            'labels': self.lstNomsColonnes}], }
 
             self.tip = type(self.lstSetterValues[self.idxdefault])
             self.choixactions = xpof.CHOIX_FILTRES[self.tip]
@@ -203,7 +203,7 @@ class DLG_saisiefiltre(wx.Dialog):
     def OnBtnOK(self,evt):
         values = self.ctrl.GetValeurs()
         self.colonne = values['colonne']
-        self.nomColonne = self.lstNomsColonnes[self.lstLabelsColonnes.index(self.colonne)]
+        self.codeColonne = self.lstCodesColonnes[self.lstNomsColonnes.index(self.colonne)]
         self.action = values['action']
         self.valeur = values['valeur']
         self.etape = ['colonne','action','valeur'].index(self.ctrl.dicProperties[self.ctrl.GetSelection()])+1
@@ -222,7 +222,7 @@ class DLG_saisiefiltre(wx.Dialog):
         self.EndModal(wx.ID_CANCEL)
 
     def Etape2(self):
-        idx = self.lstLabelsColonnes.index(self.colonne)
+        idx = self.lstNomsColonnes.index(self.colonne)
         self.tip = type(self.lstSetterValues[idx])
         self.choixactions = xpof.CHOIX_FILTRES[self.tip]
         if not self.tip: self.tip = str
@@ -249,7 +249,7 @@ class DLG_saisiefiltre(wx.Dialog):
         filtre =  {'typeDonnee': self.tip,
                    'criteres': self.valeur,
                    'choix': codechoix,
-                   'code': self. nomColonne,
+                   'code': self. codeColonne,
                    'titre': self.colonne}
         return filtre
 

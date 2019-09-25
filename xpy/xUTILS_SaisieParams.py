@@ -9,9 +9,13 @@
 #----------------------------------------------------------------------------------------------
 
 import wx
+import datetime
 import os
 import wx.propgrid as wxpg
 import copy
+import unicodedata
+import xpy.outils.xformat as xfmt
+from xpy.outils.ObjectListView import ColumnDefn
 
 
 
@@ -109,9 +113,108 @@ def Normalise(genre, name, label, value):
             value = str(value)
     return genre,name,label,value
 
+def SupprimeAccents(texte):
+    # met en minuscule sans accents et sans caractères spéciaux
+    code = ''.join(c for c in unicodedata.normalize('NFD', texte) if unicodedata.category(c) != 'Mn')
+    #code = str(unicodedata.normalize('NFD', texte).encode('ascii', 'ignore'))
+    code = code.lower()
+    code = ''.join(car.lower() for car in code if car not in " %)(.[]',;/\n")
+    return code
+
 #**********************************************************************************
 #                   GESTION des CONTROLES UNITES : Grilles ou composition en panel
 #**********************************************************************************
+
+def DefColonnes(lstNoms,lstCodes,lstValDef,lstLargeur):
+    # Composition d'une liste de définition de colonnes d'un OLV
+    ix=0
+    lstColonnes = []
+    for colonne in lstNoms:
+        if isinstance(lstValDef[ix],(str,wx.DateTime)):
+            posit = 'left'
+        else: posit = 'right'
+        # ajoute un converter à partir de la valeur par défaut
+        if isinstance(lstValDef[ix], (float,)):
+            if '%' in colonne:
+                stringConverter = xfmt.FmtPercent
+            else:
+                stringConverter = xfmt.FmtInt
+        elif isinstance(lstValDef[ix], int):
+            stringConverter = xfmt.FmtInt
+        #elif isinstance(lstValDef[ix], datetime.date):
+        #    stringConverter = xfmt.FmtDate
+        else: stringConverter = None
+        lstColonnes.append(ColumnDefn(title=colonne,align=posit,width=lstLargeur[ix],valueGetter=lstCodes[ix], valueSetter=lstValDef[ix],
+                                      stringConverter=stringConverter))
+        ix +=1
+    return lstColonnes
+
+def ExtractList(lstin, champdeb=None, champfin=None):
+    # Extraction d'une sous liste à partir du contenu des items début et fin
+    lstout = []
+    if champdeb in lstin:
+        ix1 = lstin.index(champdeb)
+    else:
+        ix1 = 0
+    if champfin in lstin:
+        ix2 = lstin.index(champfin)
+    else:
+        ix2 = ix1
+    for ix in range(ix1, ix2 + 1):
+        lstout.append(lstin[ix])
+    return lstout
+
+def ComposeMatrice(champdeb=None, champfin=None, lstChamps=[], lstTypes=[], lstHelp=[], record=()):
+    # Retourne une matrice (liste de dic[champ][params]) et  donnees (dic[champ][valeur]),
+    # nécessaire pour gestion d'un enregistrement par xUtils
+    lstNomsColonnes = ExtractList(lstChamps, champdeb=champdeb, champfin=champfin)
+    lstCodesColonnes = [SupprimeAccents(x) for x in lstNomsColonnes]
+    if len(lstTypes) < len(lstChamps) and len(record) == len(lstChamps):
+        lstTypes = []
+        for valeur in record:
+            if isinstance(valeur, int): tip = 'int'
+            elif isinstance(valeur, float): tip = 'float'
+            elif isinstance(valeur, datetime.date): tip = 'date'
+            else: tip = 'str'
+            if tip == 'str' and len(valeur)>200: tip = 'longstring'
+            lstTypes.append(tip)
+
+    ldmatrice = []
+
+    def Genre(tip):
+        if tip[:3] == 'int':
+            genre = 'int'
+        elif tip == 'tinyint(1)':
+            genre = 'bool'
+        elif tip[:7] == 'varchar':
+            genre = 'string'
+            if len(tip) == 12 and tip[8] > '2': genre = 'longstring'
+            if len(tip) > 12: genre = 'longstring'
+        elif 'blob' in tip:
+            genre = 'blob'
+        else:
+            genre = tip
+        return genre
+
+    for nom, code in zip(lstNomsColonnes, lstCodesColonnes):
+        ix = lstChamps.index(nom)
+        dicchamp = {
+            'genre': Genre(lstTypes[ix]),
+            'name': code,
+            'label': nom,
+            'help': lstHelp[ix]
+        }
+
+        ldmatrice.append(dicchamp)
+
+    # composition des données
+    dicdonnees = {}
+    for nom, code in zip(lstNomsColonnes, lstCodesColonnes):
+        ix = lstChamps.index(nom)
+        if len(record) > ix:
+            dicdonnees[code] = record[ix]
+    return ldmatrice, dicdonnees
+
 
 class BTN_reinitialisation(wx.BitmapButton):
     # à parfaire
@@ -213,6 +316,11 @@ class CTRL_property(wxpg.PropertyGrid):
                                 propriete = wxpg.LongStringProperty(label= label, name=name, value= value)
                                 propriete.PG_BOOL_USE_CHECKBOX = 1
 
+                            elif genre in ['str','string','texte','txt']:
+                                wxpg.PG_BOOL_USE_CHECKBOX = 1
+                                propriete = wxpg.StringProperty(label= label, name=name, value= value)
+                                propriete.PG_BOOL_USE_CHECKBOX = 1
+
                             elif genre == 'dir':
                                 propriete = wxpg.DirProperty(name)
 
@@ -225,7 +333,7 @@ class CTRL_property(wxpg.PropertyGrid):
 
                         except Exception as err:
                             wx.MessageBox(
-                            "Echec sur Property de name - value: %s - %s (%s)\nLe retour d'erreur est : \n%s\n\nSur commande : %s"
+                            "Echec sur Property de name: '%s' - value: '%s' (%s)\nLe retour d'erreur est : \n%s\n\nSur commande : %s"
                             %(name,value,type(value),err,commande),
                             'CTRL_property.InitMatrice() : Paramètre ligne indigeste !', wx.OK | wx.ICON_STOP
                             )

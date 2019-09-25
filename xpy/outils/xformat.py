@@ -50,7 +50,28 @@ CHOIX_FILTRES = {float:[
                             ('SUPEGAL', 'supérieur ou égal à ')],
 }
 
-def DDstrdate2wxdate(date,iso=False):
+def DateSqlToWxdate(dateen):
+    # Conversion de date récupérée de requête SQL aaaa-mm-jj(ou déjà en datetime) en wx.datetime
+    if dateen == None : return None
+
+    if isinstance(dateen,datetime.date):
+        return wx.DateTime.FromDMY(dateen.day,dateen.month-1,dateen.year)
+
+    if isinstance(dateen,str) and len(dateen) < 10:
+        return wx.DateTime.FromDMY(int(dateen[8:10]),int(dateen[5:7]-1),int(dateen[:4]))
+
+def DateSqlToDatetime(dateen):
+    # Conversion de date récupérée de requête SQL aaaa-mm-jj (ou déjà en datetime) en datetime
+    if dateen == None : return None
+
+    if isinstance(dateen,datetime.date):
+        return dateen
+
+    if isinstance(dateen,str) and len(dateen) < 10:
+        return datetime(int(dateen[:4]),int(dateen[5:7]),int(dateen[8:10]))
+
+def DateStrToWxdate(date,iso=False):
+    # Conversion d'une date chaîne jj-mm-aaaa en wx.datetime
     if not isinstance(date, str) : date = str(date)
     if len(date) < 10: return None
     if iso:
@@ -61,9 +82,9 @@ def DDstrdate2wxdate(date,iso=False):
     dateout.SetCountry(5)
     return dateout
 
-def DDwxdate2strdate(date,iso=False):
+def DatetimeToStr(date,iso=False):
+    # Conversion d'une date datetime ou wx.datetime en chaîne
     if not isinstance(date, wx.DateTime): return ''
-    #if date.IsValid():
     if iso:
         return date.Format('%Y-%m-%d')
     else:
@@ -97,7 +118,7 @@ def FmtDate(date):
         if len(tpldate)!=3: return ''
         strdate = tpldate[2]+'/'+tpldate[1]+'/'+tpldate[0]
     else:
-        strdate = DDwxdate2strdate(date)
+        strdate = DatetimeToStr(date)
     return strdate
 
 def FmtMontant(montant):

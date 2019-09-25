@@ -10,108 +10,24 @@
 
 import wx
 import datetime
-import unicodedata
 import srcOpenRef.UTIL_analyses as orua
 import srcOpenRef.UTIL_traitements as orut
 import srcOpenRef.DATA_Tables as dtt
 import xpy.xGestionDB as xdb
-import xpy.outils.xformat as xfmt
 import xpy.xUTILS_SaisieParams as xusp
 import xpy.xGestion_Tableau as xgt
-from xpy.outils.ObjectListView import ColumnDefn
+import xpy.outils.xformat as xfmt
 
-def SupprimeAccents(texte):
-    # met en minuscule sans accents et sans caractères spéciaux
-    code = ''.join(c for c in unicodedata.normalize('NFD', texte) if unicodedata.category(c) != 'Mn')
-    #code = str(unicodedata.normalize('NFD', texte).encode('ascii', 'ignore'))
-    code = code.lower()
-    code = ''.join(car.lower() for car in code if car not in " %)(.[]',;/\n")
-    return code
-
-def DefColonnes(lstNoms,lstCodes,lstValDef,lstLargeur):
-    ix=0
-    lstColonnes = []
-    for colonne in lstNoms:
-        if isinstance(lstValDef[ix],(str,wx.DateTime)):
-            posit = 'left'
-        else: posit = 'right'
-        # ajoute un converter à partir de la valeur par défaut
-        if isinstance(lstValDef[ix], (float,)):
-            if '%' in colonne:
-                stringConverter = xfmt.FmtPercent
-            else:
-                stringConverter = xfmt.FmtInt
-        elif isinstance(lstValDef[ix], int):
-            stringConverter = xfmt.FmtInt
-        #elif isinstance(lstValDef[ix], datetime.date):
-        #    stringConverter = xfmt.FmtDate
-        else: stringConverter = None
-        lstColonnes.append(ColumnDefn(title=colonne,align=posit,width=lstLargeur[ix],valueGetter=lstCodes[ix], valueSetter=lstValDef[ix],
-                                      stringConverter=stringConverter))
-        ix +=1
-    return lstColonnes
-
-def DateSqlToWxdate(dateEng):
-    if dateEng == None : return None
-
-    if isinstance(dateEng,datetime.date):
-        return wx.DateTime.FromDMY(dateEng.day,dateEng.month-1,dateEng.year)
-
-    if isinstance(dateEng,str) and len(dateEng) < 10:
-        return wx.DateTime.FromDMY(int(dateEng[8:10]),int(dateEng[5:7]-1),int(dateEng[:4]))
-
-def DateSqlToDatetime(dateEng):
-    if dateEng == None : return None
-
-    if isinstance(dateEng,datetime.date):
-        return dateEng
-
-    if isinstance(dateEng,str) and len(dateEng) < 10:
-        return datetime(int(dateEng[:4]),int(dateEng[5:7]),int(dateEng[8:10]))
-
-def ExtractList(lstin,champdeb=None,champfin=None):
-    lstout = []
-    if champdeb in lstin:
-        ix1= lstin.index(champdeb)
-    else: ix1 = 0
-    if champfin in lstin:
-        ix2= lstin.index(champfin)
-    else: ix2 = ix1
-    for ix in range(ix1,ix2):
-        lstout.append(lstin[ix])
-    return lstout
-    
-def ComposeMatrice(lstNomsColonnes,lstCodesColonnes,lstChamps,lstTypes,lstHelp=None):
-    ldmatrice = []
-    def genre(tip):
-        if tip[:3] == 'int': genre = 'int'
-        elif tip == 'tinyint(1)': genre = 'bool'
-        elif tip[:7] == 'varchar':
-            genre = 'string'
-            if len(tip) == 12 and tip[8]>'2': genre = 'longstring'
-            if len(tip) > 12: genre = 'longstring'
-        elif 'blob' in tip: genre = 'blob'
-        else: genre=tip
-        return genre
-    for nom,code in zip(lstNomsColonnes,lstCodesColonnes):
+def ComposeLstDonnees(lstNomsColonnes,record,lstChamps):
+    # Extrait une liste de donnees d'un record selon une sous liste de champs
+    lstdonnees=[]
+    for nom in lstNomsColonnes:
         ix = lstChamps.index(nom)
-        dicchamp = {
-        'genre': genre(lstTypes[ix]),
-        'name': code,
-        'label': nom,
-        'help': lstHelp[ix]
-                   }
-        ldmatrice.append(dicchamp)
-    return ldmatrice
-
-def ComposeDonnees(lstNomsColonnes,lstCodesColonnes,record,lstChamps):
-    dicdonnees={}
-    for nom,code in zip(lstNomsColonnes,lstCodesColonnes):
-        ix = lstChamps.index(nom)
-        dicdonnees[code] = record[ix]
-    return dicdonnees
+        lstdonnees.append(record[ix])
+    return lstdonnees
 
 def ValeursDefaut(lstNomsColonnes,lstChamps,lstTypes):
+    # Détermine des valeurs par défaut selon le type des variables
     lstValDef = []
     for colonne in lstNomsColonnes:
         tip = lstTypes[lstChamps.index(colonne)]
@@ -122,35 +38,37 @@ def ValeursDefaut(lstNomsColonnes,lstChamps,lstTypes):
     return lstValDef
 
 def LargeursDefaut(lstNomsColonnes,lstChamps,lstTypes):
+    # Evaluation de la largeur nécessaire des colonnes selon le type de donnee et la longueur du champ 
     lstLargDef = []
     for colonne in lstNomsColonnes:
         tip = lstTypes[lstChamps.index(colonne)]
-        if tip[:3] == 'int': lstLargDef.append(70)
-        elif tip[:5] == 'float': lstLargDef.append(80)
-        elif tip[:4] == 'date': lstLargDef.append(80)
+        if tip[:3] == 'int': lstLargDef.append(40)
+        elif tip[:5] == 'float': lstLargDef.append(60)
+        elif tip[:4] == 'date': lstLargDef.append(60)
         elif tip[:7] == 'varchar':
-            lg = int(tip[8:-1])*5
-            if lg > 200: lg = 200
+            lg = int(tip[8:-1])*7
+            if lg > 150: lg = 150
             lstLargDef.append(lg)
         elif 'blob' in tip:
-            lstLargDef.append(300)
-        else: lstLargDef.append(60)
+            lstLargDef.append(250)
+        else: lstLargDef.append(40)
     if len(lstLargDef)>0:
+        # La première colonne est masquée 
         lstLargDef[0]=0
     return lstLargDef
 
 def VerifSelection(parent,dlg,infos=True):
-        # contrôle la selection d'une ligne, puis marque le no dossier et eventuellement texte infos à afficher
-        if len(dlg.ctrlOlv.Selection())==0:
-            wx.MessageBox("Action Impossible\n\nVous n'avez pas selectionné une ligne!","Préalable requis")
-            return False
-        parent.IDdossier = dlg.ctrlOlv.Selection()[0].id
-        if infos:
-            noclient = dlg.ctrlOlv.Selection()[0].noclient
-            cloture = dlg.ctrlOlv.Selection()[0].cloture
-            nomexploitation = dlg.ctrlOlv.Selection()[0].nomexploitation
-            parent.infos = 'Dossier: %s, %s, %s'%(noclient,cloture,nomexploitation)
-        return True
+    # contrôle la selection d'une ligne, puis marque le no dossier et eventuellement texte infos à afficher
+    if len(dlg.ctrlOlv.Selection())==0:
+        wx.MessageBox("Action Impossible\n\nVous n'avez pas selectionné une ligne!","Préalable requis")
+        return False
+    parent.ixsel = parent.ctrlolv.donnees.index(parent.ctrlolv.Selection()[0])
+    if infos:
+        noclient = dlg.ctrlOlv.Selection()[0].noclient
+        cloture = dlg.ctrlOlv.Selection()[0].cloture
+        nomexploitation = dlg.ctrlOlv.Selection()[0].nomexploitation
+        parent.infos = 'Dossier: %s, %s, %s'%(noclient,cloture,nomexploitation)
+    return True
 
 class Balance():
     def __init__(self,parent):
@@ -166,8 +84,6 @@ class Balance():
 
     def EcranBalance(self):
         # appel de la balance du dossier pour affichage
-
-        # IDdossier,agc,exploitation,cloture,nomExploitation,nbreMois,fiscal,ventes,caNonAff,nbElemCar,elemCar,filieres,productions
         req = """
                 SELECT *
                 FROM _Balances
@@ -183,28 +99,28 @@ class Balance():
             return 'ko'
         lstChamps, lstTypes, lstHelp = dtt.GetChampsTypes('_Balances',tous=True)
 
-        lstNomsColonnes =   ExtractList(lstChamps,champdeb='Compte')\
-                            + ExtractList(lstChamps,champdeb='IDplanCompte',champfin='Affectation')\
-                            + ExtractList(lstChamps,champdeb='Libellé',champfin='SoldeFin')
-        lstCodesColonnes = [SupprimeAccents(x) for x in lstNomsColonnes]
+        lstNomsColonnes =   xusp.ExtractList(lstChamps,champdeb='IDdossier',champfin='Compte')\
+                            + xusp.ExtractList(lstChamps,champdeb='IDplanCompte',champfin='Affectation')\
+                            + xusp.ExtractList(lstChamps,champdeb='Libellé',champfin='SoldeFin')
+        lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstNomsColonnes]
         lstValDefColonnes = ValeursDefaut(lstNomsColonnes,lstChamps,lstTypes)
         lstLargeurColonnes = LargeursDefaut(lstNomsColonnes,lstChamps,lstTypes)
 
         # composition des données du tableau à partir du recordset
         lstDonnees = []
         for record in recordset:
-            ligne = ComposeDonnees(lstNomsColonnes, lstCodesColonnes, record, lstChamps)
+            ligne = ComposeLstDonnees(lstNomsColonnes, record, lstChamps)
             lstDonnees.append(ligne)
 
         # matrice OLV
-        lstColonnes = DefColonnes(lstNomsColonnes,lstCodesColonnes,lstValDefColonnes,lstLargeurColonnes)
+        lstColonnes = xusp.DefColonnes(lstNomsColonnes,lstCodesColonnes,lstValDefColonnes,lstLargeurColonnes)
         dicOlv = {
                 'lanceur': self,
                 'listeColonnes': lstColonnes,
                 'listeDonnees': lstDonnees,
                 'checkColonne': False,
                 'hauteur': 650,
-                'largeur': 1250,
+                'largeur': 1300,
                 'recherche': True,
                 'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
                 'dictColFooter': {"nomexploitation": {"mode": "nombre", "alignement": wx.ALIGN_CENTER},
@@ -215,47 +131,49 @@ class Balance():
         lstBtns = [('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_fermer.png", wx.BITMAP_TYPE_ANY),
                     "Cliquez ici pour fermer la fenêtre")]
         # params d'actions: idem boutons, ce sont des boutons placés à droite et non en bas
-        lstActions = [('ateliers',wx.ID_APPLY,'Ateliers\ndu dossier',"Cliquez ici pour les ateliers"),
-                      ('produits',wx.ID_APPLY,'Produits\ndu dossier',"Cliquez ici pour gérer les produits"),]
+        lstActions = [('modif',wx.ID_APPLY,'Modifier',"Cliquez ici pour modifier la ligne"),
+                      ('eclater',wx.ID_APPLY,'Eclater',"Cliquez ici pour subdiviser le compte"),
+                      ('regrouper', wx.ID_APPLY, 'Supprimer', "Supprimer la ligne et reporter le solde dessus"),
+                      ]
         # un param par info: texte ou objet window.  Les infos sont  placées en bas à gauche
-        lstInfos = [self.parent.infos,]
+        lstInfos = ["BALANCE -",self.parent.infos,]
         # params des actions ou boutons: name de l'objet, fonction ou texte à passer par eval()
         dicOnClick = {
-                      'ateliers' : 'self.lanceur.OnAteliers()',
-                      'produits' : 'self.lanceur.OnProduits()'}
-        self.dlgdossiers = xgt.DLG_tableau(self,dicOlv=dicOlv,lstBtns= lstBtns,lstActions=lstActions,lstInfos=lstInfos,
+                      'modif' : 'self.lanceur.OnModif()',
+                      'eclater' : 'self.lanceur.OnEclater()',
+                      'regrouper' : 'self.lanceur.OnRegrouper()'}
+        self.dlgolv = xgt.DLG_tableau(self,dicOlv=dicOlv,lstBtns= lstBtns,lstActions=lstActions,lstInfos=lstInfos,
                                  dicOnClick=dicOnClick)
+
+        #l'objet ctrlolv pourra être appelé, il sert de véhicule à params globaux de l'original
+        self.ctrlolv = self.dlgolv.ctrlOlv
+        self.ctrlolv.lstTblHelp = lstHelp
+        self.ctrlolv.lstTblChamps = lstChamps
+        self.ctrlolv.recordset = recordset
         if len(lstDonnees)>0:
             # selection de la première ligne
-            self.dlgdossiers.ctrlOlv.SelectObject(self.dlgdossiers.ctrlOlv.donnees[0])
-        ret = self.dlgdossiers.ShowModal()
+            self.ctrlolv.SelectObject(self.ctrlolv.donnees[0])
+        ret = self.dlgolv.ShowModal()
         return ret
 
-    def EcranCompte(self):
-        # appel d'un dossier pour affichage table ident
-        req = """
-                SELECT *
-                FROM _ident 
-                WHERE (_ident.IDdossier = %s)
-                ;"""%(self.IDdossier)
-        retour = self.DBsql.ExecuterReq(req, mess='Util_affectations.EcranCompte')
-        if retour == "ok":
-            recordset = self.DBsql.ResultatReq()
-            if len(recordset) == 0:
-                retour = "aucun enregistrement disponible"
-        if (not retour == "ok"):
-            wx.MessageBox("Erreur : %s"%retour)
-            return 'ko'
-        lstChamps, lstTypes, lstHelp = dtt.GetChampsTypes('_Balances',tous=True)
-        lstCodes = [SupprimeAccents(x) for x in lstChamps ]
-        dictDonnees = {}
+    def EcranCompte(self,ctrlolv,mode):
+        # affichage d'une ligne en vue de modif, toutes les colonnes ne sont pas reprises
+        all = ctrlolv.GetObjects()
+        selection = ctrlolv.Selection()[0]
+        ixsel = all.index(selection)
+        lstCodes = ctrlolv.lstCodesColonnes[2:]
         dictMatrice = {}
-        dictMatrice[('params','Paramètres')]=ComposeMatrice(lstChamps,lstCodes,lstTypes,lstHelp=lstHelp,champdeb='IDjuridique',champfin='ImpSoc')
-        dictDonnees['params']=ComposeDonnees(recordset[0],lstChamps,lstCodes,champdeb='IDjuridique',champfin='ImpSoc')
-        dictMatrice[('tabfin','Financement')]=ComposeMatrice(lstChamps,lstCodes,lstTypes,lstHelp=lstHelp,champdeb='Caf',champfin='RemAssociés')
-        dictDonnees['tabfin']=ComposeDonnees(recordset[0],lstChamps,lstCodes,champdeb='Caf',champfin='RemAssociés')
-        dictMatrice[('divers','Divers')]=ComposeMatrice(lstChamps,lstCodes,lstTypes,lstHelp=lstHelp,champdeb='Productions')
-        dictDonnees['divers']=ComposeDonnees(recordset[0],lstChamps,lstCodes,champdeb='Productions')
+        dictDonnees = {}
+        donnees, lstNoms, lstHelp = [],[],[]
+        for code in lstCodes:
+            ixolv = ctrlolv.lstCodesColonnes.index(code)
+            donnees.append(selection.donnees[ixolv])
+            lstNoms.append(ctrlolv.lstNomsColonnes[ixolv])
+            ixtbl = ctrlolv.lstTblChamps.index(ctrlolv.lstNomsColonnes[ixolv])
+            lstHelp.append(ctrlolv.lstTblHelp[ixtbl])
+
+        (dictMatrice[('params','DétailLigne')],dictDonnees['params'])=xusp.ComposeMatrice('Compte','SoldeFin',lstNoms,
+                                                                                    lstHelp=lstHelp,record=donnees)
 
         dlg = xusp.DLG_monoLigne(None,dldMatrice=dictMatrice,ddDonnees=dictDonnees,gestionProperty=True,
                                            pos=(300,0),minSize=(400,1000))
@@ -263,39 +181,53 @@ class Balance():
         if ret == 5101:
             # Retour par validation
             valeurs = dlg.pnl.GetValeurs()
-            # mise à jour de l'olv ecranDossiers
-            for champ in self.dlgdossiers.ctrlOlv.lstCodesColonnes:
-                if champ in lstCodes:
-                    for categorie, donnees in dlg.ddDonnees.items():
-                        if champ in donnees:
-                            valorigine=eval("self.dlgdossiers.ctrlOlv.Selection()[0].%s"%champ)
-                            if valorigine != valeurs[categorie][champ]:
+            # mise à jour de l'olv d'origine
+            for code in ctrlolv.lstCodesColonnes:
+                if code in lstCodes:
+                    for categorie, dicDonnees in dlg.ddDonnees.items():
+                        if code in dicDonnees:
+                            ix = ctrlolv.lstCodesColonnes.index(code)
+                            valorigine = selection.donnees[ix]
+                            if valorigine != valeurs[categorie][code]:
                                 if isinstance(valorigine,(str,datetime.date)):
-                                    action = "self.dlgdossiers.ctrlOlv.Selection()[0].__setattr__('%s','%s')"%(
-                                                champ,str(valeurs[categorie][champ]))
+                                    action = "selection.__setattr__('%s','%s')"%(
+                                                ctrlolv.lstCodesColonnes[ix],str(valeurs[categorie][code]))
                                 elif isinstance(valorigine, (int, float)):
-                                    action = "self.dlgdossiers.ctrlOlv.Selection()[0].__setattr__('%s',%d)" % (
-                                                champ, valeurs[categorie][champ])
-                                else: wx.MessageBox("%s, type non géré pour modifs: %s"%(champ,type(valorigine)))
+                                    action = "selection.__setattr__('%s',%d)" % (
+                                                ctrlolv.lstCodesColonnes[ix], valeurs[categorie][code])
+                                else: wx.MessageBox("%s, type non géré pour modifs: %s"%(code,type(valorigine)))
                                 eval(action)
-            # mise à jour table ident
+            ctrlolv.MAJ(ixsel)
+            # mise à jour table de base de donnee
             lstModifs = []
-            for categorie, donnees in dlg.ddDonnees.items():
-                for code,donnee in donnees.items():
-                    if donnee != None:
-                        lstModifs.append((lstChamps[lstCodes.index(code)],valeurs[categorie][code]))
-            if len(lstModifs)>0:
-                self.dlgdossiers.ctrlOlv.MAJ()
-                ret = self.DBsql.ReqMAJ('_Balances',lstModifs,'IDdossier = %d'%self.IDdossier,mess='MAJ affectations.EcranBalance')
+            for categorie, dicdonnees in valeurs.items():
+                for code,valeur in dicdonnees.items():
+                    if valeur != None:
+                        nom = lstNoms[lstCodes.index(code)]
+                        lstModifs.append((nom,valeur))
+
+            IDligne = ctrlolv.recordset[ixsel][ctrlolv.lstTblChamps.index('IDligne')]
+            if len(lstModifs)>0 and mode == 'modif':
+                wherecle = "IDligne = %d"%IDligne
+                ret = self.DBsql.ReqMAJ('_Balances',lstModifs,wherecle,mess='MAJ affectations.Balance.Ecran')
                 if ret != 'ok':
                     wx.MessageBox(ret)
+        #ctrlolv.Select(ixsel)
+        self.ctrlolv.SetFocus()
+        self.ctrlolv.SelectObject(self.ctrlolv.donnees[ixsel])
         dlg.Destroy()
-        return ret
 
-    def OnIdent(self):
-        if VerifSelection(self.dlgdossiers):
-            self.IDdossier = self.dlgdossiers.ctrlOlv.Selection()[0].id
-            self.EcranIdent()
+    def OnModif(self):
+        if VerifSelection(self,self.dlgolv,infos=False):
+            self.EcranCompte(self.ctrlolv,'modif')
+
+    def OnEclater(self):
+        if VerifSelection(self,self.dlgolv):
+            ret = Balance(self)
+
+    def OnRegrouper(self):
+        if VerifSelection(self,self.dlgolv):
+            ret = Balance(self)
 
 class Affectations():
     def __init__(self,annee=None, client=None, groupe=None, filiere=None, agc='ANY'):
@@ -347,7 +279,7 @@ class Affectations():
                 SELECT _ident.IDdossier, _ident.IDagc, _ident.IDexploitation, _ident.Clôture, _ident.NomExploitation, 
                 _ident.NbreMois, _ident.Fiscal,Sum(_balances.SoldeFin), Sum(((_balances.affectation="") * _balances.SoldeFin)),
                 _ident.NbElemCar,_ident.ElemCar, _ident.Filières, _ident.Productions
-                FROM _ident 
+                FROM _Ident 
                 LEFT JOIN _balances ON _ident.IDdossier = _balances.IDdossier
                 WHERE (((Left(_ident.Clôture,4)) = '%s')
                         AND (_balances.Compte Like '70%%'))
@@ -365,7 +297,7 @@ class Affectations():
             return 'ko'
         lstNomsColonnes = ["ID","agc","noClient","clôture","nomExploitation","nbreMois","fiscal","ventes",
                            "% affecté","nbElemCar","elemCar","rendement","filières","productions"]
-        lstCodesColonnes = [SupprimeAccents(x) for x in lstNomsColonnes]
+        lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstNomsColonnes]
 
         lstValDefColonnes = [0,"","",datetime.date(1900,1,1),"",0,"",0.0,
                            0.0,0,"",0.0,"",""]
@@ -379,14 +311,15 @@ class Affectations():
             if nbElemCar != 0.0:
                 rendement = -ventes / nbElemCar
             else: rendement = 0.0
-            lstDonnees.append([IDdossier,IDagc,exploitation,DateSqlToDatetime(cloture),nomExploitation,nbreMois,fiscal,-ventes,affecT,
+            dtcloture = xfmt.DateSqlToDatetime(cloture)
+            lstDonnees.append([IDdossier,IDagc,exploitation,dtcloture,nomExploitation,nbreMois,fiscal,-ventes,affecT,
                                nbElemCar,elemCar,rendement,filieres,productions])
 
         messBasEcran = "Nbre de dossiers présents: %d "%len(lstDonnees)
         if self.topwin:
             self.topWindow.SetStatusText(messBasEcran)
         # matrice OLV
-        lstColonnes = DefColonnes(lstNomsColonnes,lstCodesColonnes,lstValDefColonnes,lstLargeurColonnes)
+        lstColonnes = xusp.DefColonnes(lstNomsColonnes,lstCodesColonnes,lstValDefColonnes,lstLargeurColonnes)
         dicOlv = {
                 'lanceur': self,
                 'listeColonnes': lstColonnes,
@@ -418,13 +351,19 @@ class Affectations():
                       'produits' : 'self.lanceur.OnProduits()'}
         self.dlgdossiers = xgt.DLG_tableau(self,dicOlv=dicOlv,lstBtns= lstBtns,lstActions=lstActions,lstInfos=lstInfos,
                                  dicOnClick=dicOnClick)
+        self.ctrlolv = self.dlgdossiers.ctrlOlv
+        self.ctrlolv.recordset = recordset
+        self.ctrlolv.Bind(wx.EVT_ACTIVATE,self.OnSelection)
+
         if len(lstDonnees)>0:
             # selection de la première ligne
             self.dlgdossiers.ctrlOlv.SelectObject(self.dlgdossiers.ctrlOlv.donnees[0])
+            self.IDdossier = self.ctrlolv.Selection()[0].id
         ret = self.dlgdossiers.ShowModal()
         return ret
 
-    def EcranIdent(self):
+    def EcranIdent(self,ctrlolv,mode):
+        # affichage d'une ligne en vue de modif, toutes les colonnes ne sont pas reprises
         # appel d'un dossier pour affichage table ident
         req = """
                 SELECT *
@@ -440,54 +379,29 @@ class Affectations():
             wx.MessageBox("Erreur : %s"%retour)
             return 'ko'
 
-        def ComposeMatrice(champdeb=None,champfin=None,lstChamps=[],lstTypes=[],lstHelp=[],record=()):
-            lstNomsColonnes = ExtractList(lstChamps, champdeb=champdeb, champfin=champfin)
-            lstCodesColonnes = [SupprimeAccents(x) for x in lstNomsColonnes]
-            lstValDefColonnes = ValeursDefaut(lstNomsColonnes, lstChamps, lstTypes)
-            lstLargeurColonnes = LargeursDefaut(lstNomsColonnes, lstChamps, lstTypes)
-            ldmatrice = []
-            def genre(tip):
-                if tip[:3] == 'int':
-                    genre = 'int'
-                elif tip == 'tinyint(1)':
-                    genre = 'bool'
-                elif tip[:7] == 'varchar':
-                    genre = 'string'
-                    if len(tip) == 12 and tip[8] > '2': genre = 'longstring'
-                    if len(tip) > 12: genre = 'longstring'
-                elif 'blob' in tip:
-                    genre = 'blob'
-                else:
-                    genre = tip
-                return genre
-
-            for nom, code in zip(lstNomsColonnes, lstCodesColonnes):
-                ix = lstChamps.index(nom)
-                dicchamp = {
-                    'genre': genre(lstTypes[ix]),
-                    'name': code,
-                    'label': nom,
-                    'help': lstHelp[ix]
-                }
-                ldmatrice.append(dicchamp)
-
-            # composition des données
-            dicdonnees = {}
-            for nom, code in zip(lstNomsColonnes, lstCodesColonnes):
-                ix = lstChamps.index(nom)
-                dicdonnees[code] = record[ix]
-            return ldmatrice,dicdonnees
-
         lstChamps, lstTypes, lstHelp = dtt.GetChampsTypes('_Ident',tous=True)
+        self.ctrlolv.lstTblChamps = lstChamps
+        self.ctrlolv.lstTblHelp = lstHelp
         dictMatrice = {}
         dictDonnees = {}
-        (dictMatrice[('params','Paramètres')],dictDonnees['params'])=ComposeMatrice('IDjuridique','ImpSoc',lstChamps,lstTypes,
+        (dictMatrice[('params','Paramètres')],dictDonnees['params'])=xusp.ComposeMatrice('IDjuridique','ImpSoc',lstChamps,lstTypes,
                                                                                     lstHelp=lstHelp,record=recordset[0])
-        (dictMatrice[('tabfin','Financement')],dictDonnees['tabfin'])=ComposeMatrice('Caf','RemAssociés',lstChamps,lstTypes,
+        (dictMatrice[('tabfin','Financement')],dictDonnees['tabfin'])=xusp.ComposeMatrice('Caf','RemAssociés',lstChamps,lstTypes,
                                                                                     lstHelp=lstHelp,record=recordset[0])
 
-        (dictMatrice[('divers','Divers')],dictDonnees['divers'])=ComposeMatrice('Productions','Validé',lstChamps,lstTypes,
+        (dictMatrice[('divers','Divers')],dictDonnees['divers'])=xusp.ComposeMatrice('Productions','Validé',lstChamps,lstTypes,
                                                                                     lstHelp=lstHelp,record=recordset[0])
+
+        lstNoms, lstCodes = [],[]
+        for categorie,lstDicChamps in dictMatrice.items():
+            for dicChamp in lstDicChamps:
+                lstCodes.append(dicChamp["name"])
+                lstNoms.append(dicChamp["label"])
+        # fin de la spécificité _Ident
+
+        all = ctrlolv.GetObjects()
+        selection = ctrlolv.Selection()[0]
+        ixsel = all.index(selection)
 
         dlg = xusp.DLG_monoLigne(None,dldMatrice=dictMatrice,ddDonnees=dictDonnees,gestionProperty=True,
                                            pos=(300,0),minSize=(400,1000))
@@ -495,47 +409,57 @@ class Affectations():
         if ret == 5101:
             # Retour par validation
             valeurs = dlg.pnl.GetValeurs()
-            # mise à jour de l'olv ecranDossiers
-            lstCodesChamps = [SupprimeAccents(x) for x in lstChamps]
-            for champ in self.dlgdossiers.ctrlOlv.lstCodesColonnes:
-                if champ in lstCodesChamps:
-                    for categorie, donnees in dlg.ddDonnees.items():
-                        if champ in donnees:
-                            valorigine=eval("self.dlgdossiers.ctrlOlv.Selection()[0].%s"%champ)
-                            if valorigine != valeurs[categorie][champ]:
+            # mise à jour de l'olv d'origine
+            for code in ctrlolv.lstCodesColonnes:
+                if code in lstCodes:
+                    for categorie, dicDonnees in dlg.ddDonnees.items():
+                        if code in dicDonnees:
+                            ix = ctrlolv.lstCodesColonnes.index(code)
+                            valorigine = selection.donnees[ix]
+                            if valorigine != valeurs[categorie][code]:
                                 if isinstance(valorigine,(str,datetime.date)):
-                                    action = "self.dlgdossiers.ctrlOlv.Selection()[0].__setattr__('%s','%s')"%(
-                                                champ,str(valeurs[categorie][champ]))
+                                    action = "selection.__setattr__('%s','%s')"%(
+                                                ctrlolv.lstCodesColonnes[ix],str(valeurs[categorie][code]))
                                 elif isinstance(valorigine, (int, float)):
-                                    action = "self.dlgdossiers.ctrlOlv.Selection()[0].__setattr__('%s',%d)" % (
-                                                champ, valeurs[categorie][champ])
-                                else: wx.MessageBox("%s, type non géré pour modifs: %s"%(champ,type(valorigine)))
-                                eval(action)
-            # mise à jour table ident
+                                    action = "selection.__setattr__('%s',%d)" % (
+                                                ctrlolv.lstCodesColonnes[ix], valeurs[categorie][code])
+                                else: wx.MessageBox("%s, type non géré pour modifs: %s"%(code,type(valorigine)))
+                                try:
+                                    eval(action)
+                                except: pass
+            ctrlolv.MAJ(ixsel)
+            # mise à jour table de base de donnee
             lstModifs = []
-            for categorie, donnees in dlg.ddDonnees.items():
-                for code,donnee in donnees.items():
-                    if donnee != None:
-                        lstModifs.append((lstChamps[lstCodesChamps.index(code)],valeurs[categorie][code]))
-            if len(lstModifs)>0:
-                self.dlgdossiers.ctrlOlv.MAJ()
-                ret = self.DBsql.ReqMAJ('_Ident',lstModifs,'IDdossier = %d'%self.IDdossier,mess='MAJ affectations.EcranIdent')
+            for categorie, dicdonnees in valeurs.items():
+                for code,valeur in dicdonnees.items():
+                    if valeur != None:
+                        nom = lstNoms[lstCodes.index(code)]
+                        lstModifs.append((nom,valeur))
+
+            if len(lstModifs)>0 and mode == 'modif':
+                wherecle = "IDdossier = %d"%self.IDdossier
+                ret = self.DBsql.ReqMAJ('_Ident',lstModifs,wherecle,mess='MAJ affectations.EcranIdent')
                 if ret != 'ok':
                     wx.MessageBox(ret)
+        #ctrlolv.Select(ixsel)
+        self.ctrlolv.SetFocus()
+        self.ctrlolv.SelectObject(self.ctrlolv.donnees[ixsel])
         dlg.Destroy()
-        return ret
+
+    def OnSelection(self,event):
+        self.IDdossier = self.ctrlolv.Selection()[0].id
 
     def OnIdent(self):
         if VerifSelection(self,self.dlgdossiers):
-            self.IDdossier = self.dlgdossiers.ctrlOlv.Selection()[0].id
-            ix = self.dlgdossiers.ctrlOlv.donnees.index(self.dlgdossiers.ctrlOlv.Selection()[0])
-            self.EcranIdent()
-            self.dlgdossiers.ctrlOlv.SelectObject(self.dlgdossiers.ctrlOlv.donnees[ix])
-
+            self.EcranIdent(self.ctrlolv,'modif')
+            self.ctrlolv.SetFocus()
+            self.ctrlolv.SelectObject(self.dlgdossiers.ctrlOlv.donnees[self.ixsel])
 
     def OnBalance(self):
         if VerifSelection(self,self.dlgdossiers):
-            ret = Balance(self)
+            Balance(self)
+            self.ctrlolv.SetFocus()
+            self.ctrlolv.SelectObject(self.dlgdossiers.ctrlOlv.donnees[self.ixsel])
 
     def OnAteliers(self):
         if VerifSelection(self,self.dlgdossiers):

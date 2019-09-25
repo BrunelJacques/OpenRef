@@ -112,8 +112,8 @@ class ListView(FastObjectListView):
         if self.listeDonnees is None:
             return
 
-        for listeDonnee in self.listeDonnees:
-            self.tracks.append(TrackGeneral(donnees=listeDonnee,codesColonnes=self.lstCodesColonnes,
+        for ligneDonnees in self.listeDonnees:
+            self.tracks.append(TrackGeneral(donnees=ligneDonnees,codesColonnes=self.lstCodesColonnes,
                                             nomsColonnes=self.lstNomsColonnes,setterValues=self.lstSetterValues))
         return
 
@@ -172,12 +172,8 @@ class ListView(FastObjectListView):
         self.SetObjects(self.donnees)
 
     def MAJ(self, ID=None):
-        if ID != None:
-            self.selectionID = ID
-            self.selectionTrack = None
-        else:
-            self.selectionID = None
-            self.selectionTrack = None
+        self.selectionID = ID
+        self.selectionTrack = None
         self.InitModel()
         self.InitObjectListView()
         # Sélection d'un item
@@ -432,22 +428,24 @@ class PanelListView(wx.Panel):
 class TrackGeneral(object):
     #    Cette classe va transformer une ligne en objet selon les listes de colonnes et valeurs par défaut(setter)
     def __init__(self, donnees,codesColonnes, nomsColonnes, setterValues):
+        self.donnees = donnees
         if not(len(donnees) == len(codesColonnes)== len(nomsColonnes) == len(setterValues)):
             wx.MessageBox("Problème de nombre d'occurences!\n%d donnees, %d codes, %d colonnes et %d valeurs défaut"
                           %(len(donnees), len(codesColonnes), len(nomsColonnes), len(setterValues)))
-        for (donnee, codeColonne, nomColonne, setterValue) in zip(donnees, codesColonnes, nomsColonnes, setterValues):
-            if setterValue:
+        for ix in range(len(donnees)):
+            donnee = donnees[ix]
+            if setterValues[ix]:
                 if (donnee is None):
-                    donnee = setterValue
+                    donnee = setterValues[ix]
                 else:
-                    if not isinstance(donnee,type(setterValue)):
+                    if not isinstance(donnee,type(setterValues[ix])):
                         try:
-                            if type(setterValue) in (int,float):
+                            if type(setterValues[ix]) in (int,float):
                                 donnee = float(donnee)
-                            elif type(setterValue) == str:
+                            elif type(setterValues[ix]) == str:
                                 donnee = str(donnee)
                         except : pass
-            self.__setattr__(codeColonne, donnee)
+            self.__setattr__(codesColonnes[ix], donnee)
 
 # ------------------------------------------------------------------------------------------------------------------
 
