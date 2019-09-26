@@ -172,11 +172,25 @@ class Balance():
             ixtbl = ctrlolv.lstTblChamps.index(ctrlolv.lstNomsColonnes[ixolv])
             lstHelp.append(ctrlolv.lstTblHelp[ixtbl])
 
-        (dictMatrice[('params','DétailLigne')],dictDonnees['params'])=xusp.ComposeMatrice('Compte','SoldeFin',lstNoms,
-                                                                                    lstHelp=lstHelp,record=donnees)
+        # Spécificités écran
+        table = '_Balances'
+        IDenr = ctrlolv.recordset[ixsel][ctrlolv.lstTblChamps.index('IDligne')]
+        wherecle = "%s = %d" %(str(IDenr,IDenr))
+        dicOptions = {'affectation':{
+                        'genre': 'enum',
+                                                'btnLabel': "...",
+                        'btnHelp': "Cliquez pour ajouter des affectations à la liste",
+                        'btnAction': 'OnNvlAffectation',},
+                    'soldefin': {
+                        'ctrlAction': 'OnYva',}}
+        (dictMatrice[('params','DétailLigne')],dictDonnees['params']) \
+            = xusp.ComposeMatrice('Compte','SoldeFin',lstNoms, lstHelp=lstHelp,record=donnees,dicOptions=dicOptions)
+        pos = (300,0)
+        minSize = (400,1000)
 
-        dlg = xusp.DLG_monoLigne(None,dldMatrice=dictMatrice,ddDonnees=dictDonnees,gestionProperty=False,
-                                           pos=(300,0),minSize=(400,1000))
+        # Lancement de l'écran
+        dlg = xusp.DLG_monoLigne(self,dldMatrice=dictMatrice,ddDonnees=dictDonnees,gestionProperty=False,
+                                           pos=pos,minSize=minSize)
         ret = dlg.ShowModal()
         if ret == 5101:
             # Retour par validation
@@ -206,20 +220,28 @@ class Balance():
                         nom = lstNoms[lstCodes.index(code)]
                         lstModifs.append((nom,valeur))
 
-            IDligne = ctrlolv.recordset[ixsel][ctrlolv.lstTblChamps.index('IDligne')]
             if len(lstModifs)>0 and mode == 'modif':
-                wherecle = "IDligne = %d"%IDligne
-                ret = self.DBsql.ReqMAJ('_Balances',lstModifs,wherecle,mess='MAJ affectations.Balance.Ecran')
+                ret = self.DBsql.ReqMAJ(table,lstModifs,wherecle,mess='MAJ affectations.%s.Ecran'%table)
                 if ret != 'ok':
                     wx.MessageBox(ret)
-        #ctrlolv.Select(ixsel)
         self.ctrlolv.SetFocus()
         self.ctrlolv.SelectObject(self.ctrlolv.donnees[ixsel])
         dlg.Destroy()
 
+    def OnChildBtnAction(self,event):
+        print('Bonjour Enter sur le bouton : ',event.EventObject.nameBtn)
+        print( event.EventObject.labelBtn,)
+        print('Action prévue : ',event.EventObject.actionBtn)
+
+    def OnChildCtrlAction(self,event):
+        print('Bonjour Enter sur le controle : ',event.EventObject.nameCtrl)
+        print( event.EventObject.labelCtrl,)
+        print('Action prévue : ',event.EventObject.actionCtrl)
+
     def OnModif(self):
-        if VerifSelection(self,self.dlgolv,infos=False):
-            self.EcranCompte(self.ctrlolv,'modif')
+        if not VerifSelection(self,self.dlgolv,infos=False):
+            return
+        self.EcranCompte(self.ctrlolv,'modif')
 
     def OnEclater(self):
         if VerifSelection(self,self.dlgolv):

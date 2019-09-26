@@ -167,9 +167,8 @@ def ExtractList(lstin, champdeb=None, champfin=None):
         lstout.append(lstin[ix])
     return lstout
 
-def ComposeMatrice(champdeb=None, champfin=None, lstChamps=[], lstTypes=[], lstHelp=[], record=()):
-    # Retourne une matrice (liste de dic[champ][params]) et  donnees (dic[champ][valeur]),
-    # nécessaire pour gestion d'un enregistrement par xUtils
+def ComposeMatrice(champdeb=None, champfin=None, lstChamps=[], lstTypes=[], lstHelp=[], record=(),dicOptions={}):
+    # Retourne une matrice (dic[chapitre][champ]) et  donnees (dic[champ][valeur])
     lstNomsColonnes = ExtractList(lstChamps, champdeb=champdeb, champfin=champfin)
     lstCodesColonnes = [SupprimeAccents(x) for x in lstNomsColonnes]
     if len(lstTypes) < len(lstChamps) and len(record) == len(lstChamps):
@@ -183,7 +182,6 @@ def ComposeMatrice(champdeb=None, champfin=None, lstChamps=[], lstTypes=[], lstH
             lstTypes.append(tip)
 
     ldmatrice = []
-
     def Genre(tip):
         if tip[:3] == 'int':
             genre = 'int'
@@ -207,7 +205,10 @@ def ComposeMatrice(champdeb=None, champfin=None, lstChamps=[], lstTypes=[], lstH
             'label': nom,
             'help': lstHelp[ix]
         }
-
+        # Présence de la définition d'options ou dérogations au standart
+        if code in dicOptions:
+            for key,item in dicOptions[code].items():
+                dicchamp[key]=item
         ldmatrice.append(dicchamp)
 
     # composition des données
@@ -437,8 +438,9 @@ class PNL_property(wx.Panel):
         return ret
 
 class PNL_ctrl(wx.Panel):
-    # Panel contenant un contrôle ersatz d'une ligne de propertyGrid et en option (code) un bouton d'action permettant de contrôler les saisies
-    # GetValue retourne la valeur choisie dans le ctrl avec action possible par bouton à droite
+    # Panel contenant un contrôle ersatz d'une ligne de propertyGrid
+    """ et en option (code) un bouton d'action permettant de contrôler les saisies
+        GetValue retourne la valeur choisie dans le ctrl avec action possible par bouton à droite"""
     def __init__(self, parent, *args, genre='string', name=None, label=None, value= None, labels=[], values=[], help=None,
                  btnLabel=None, btnHelp=None, btnAction='', ctrlAction='', **kwds):
         wx.Panel.__init__(self,parent,*args, **kwds)
@@ -660,18 +662,11 @@ class BoxPanel(wx.Panel):
                         panel.btn.nameBtn = codename
                         panel.btn.labelBtn = ligne['btnLabel']
                         panel.btn.actionBtn = ligne['btnAction']
-                        command = 'panel.btn.Bind(wx.EVT_BUTTON,self.parent.%s)' % ligne['btnAction']
-                        try:
-                            eval(command)
-                        except Exception as err:
-                            wx.MessageBox("\nMatrice, Echec de la ligne : '%s'\n %s\nSur commande : %s\n" %(codename, err, command),
-                            'BoxPanel.panel.btn : Paramètre ligne indigeste !', wx.OK | wx.ICON_STOP)
-                            if 'btnAction' in ligne:
-                                panel.btn.Bind(wx.EVT_BUTTON,self.parent.OnBouton)
-                    if 'ctrlAction' in ligne:
-                        panel.ctrl.Bind(wx.EVT_TEXT_ENTER,self.parent.OnEnter)
-                        panel.ctrl.Bind(wx.EVT_COMBOBOX, self.parent.OnEnter)
-                        panel.ctrl.Bind(wx.EVT_CHECKBOX, self.parent.OnEnter)
+                        panel.btn.Bind(wx.EVT_BUTTON,self.parent.OnBtnAction)
+                    if panel.ctrl.actionCtrl:
+                        panel.ctrl.Bind(wx.EVT_KILL_FOCUS,self.parent.OnCtrlAction)
+                        panel.ctrl.Bind(wx.EVT_COMBOBOX, self.parent.OnCtrlAction)
+                        panel.ctrl.Bind(wx.EVT_CHECKBOX, self.parent.OnCtrlAction)
                     self.lstPanels.append(panel)
         self.SetSizerAndFit(self.ssbox)
 
@@ -731,11 +726,11 @@ class TopBoxPanel(wx.Panel):
                 self.topbox.Add(box, 1, wx.EXPAND,0)
         self.SetSizerAndFit(self.topbox)
 
-    def OnEnter(self,event):
-        self.parent.OnChildEnter(event)
+    def OnCtrlAction(self,event):
+        self.parent.OnChildCtrlAction(event)
 
-    def OnBouton(self,event):
-        self.parent.OnBouton(event)
+    def OnBtnAction(self,event):
+        self.parent.OnChildBtnAction(event)
 
     def GetValeurs(self):
         ddDonnees = {}
@@ -920,29 +915,34 @@ class DLG_vide(wx.Dialog):
 
     def OnChildSauvegarde(self, event):
             if self.parent != None:
-                self.parent.OnChildAction(event)
+                self.parent.OnChildSauvegarde(event)
             else:
                 print("Bonjour Sauvegarde de DLG_vide")
 
-    def OnChildEnter(self, event):
+    def OnChildBtnAction(self, event):
             if self.parent != None:
-                self.EndModal(wx.OK)
-                #self.parent.OnChildAction(event)
+                self.parent.OnChildBtnAction(event)
             else:
-                print("Bonjour l'Action de DLG_vide")
+                print("Bonjour BtnAction de DLG_vide")
+
+    def OnChildCtrlAction(self, event):
+            if self.parent != None:
+                self.parent.OnChildCtrlAction(event)
+            else:
+                print("Bonjour CtrlAction de DLG_vide")
 
 class DLG_monoLigne(wx.Dialog):
     # écran de saisie d'une ligne façon DLG_vide, mais enrichissement possible de boutons d'actions
     def __init__(self, parent, *args, dldMatrice={}, ddDonnees={}, **kwds):
-        self.parent = parent
         self.gestionProperty = kwds.pop('gestionProperty',False)
         self.marge = kwds.pop('marge',10)
         self.minSize = kwds.pop('minSize',(800, 500))
         self.couleur = kwds.pop('couleur',wx.WHITE)
         listArbo = os.path.abspath(__file__).split("\\")
         titre = listArbo[-1:][0] + "/" + self.__class__.__name__
-        super().__init__(parent, wx.ID_ANY, *args, title=titre, style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        super().__init__(None, wx.ID_ANY, *args, title=titre, style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
                          **kwds)
+        self.parent = parent
         self.SetBackgroundColour(self.couleur)
         self.parent = parent
         self.dldMatrice = dldMatrice
@@ -977,6 +977,24 @@ class DLG_monoLigne(wx.Dialog):
     def OnBtnEsc(self, event):
         self.Destroy()
 
+    def OnChildBtnAction(self, event):
+            if self.parent != None:
+                self.parent.OnChildBtnAction(event)
+            else:
+                print("Bonjour BtnAction de DLG_monoligne")
+
+    def OnChildCtrlAction(self, event):
+            if self.parent != None:
+                self.parent.OnChildCtrlAction(event)
+            else:
+                print("Bonjour CtrlAction de DLG_monoligne")
+
+    def OnChildEnter(self, event):
+            if self.parent != None:
+                self.parent.OnChildAction(event)
+            else:
+                print("Bonjour l'Action de DLG_monoLigne")
+
 #************************   Pour Test ou modèle  *********************************
 
 class xFrame(wx.Frame):
@@ -996,12 +1014,12 @@ class xFrame(wx.Frame):
         self.SetSizerAndFit(sizer_1)
         self.CentreOnScreen()
 
-    def OnEnter(self,event):
+    def OnCtrlAction(self,event):
         print('Bonjour Enter sur le ctrl : ',event.EventObject.Name)
         print(event.EventObject.genreCtrl, event.EventObject.nameCtrl, event.EventObject.labelCtrl,)
         print('Action prévue : ',event.EventObject.actionCtrl)
 
-    def OnBouton(self,event):
+    def OnChildBtnAction(self,event):
         print('Vous avez cliqué sur le bouton')
         print(event.EventObject.Name)
         print( event.EventObject.nameBtn, event.EventObject.labelBtn,)
@@ -1015,12 +1033,6 @@ class xFrame(wx.Frame):
         #Bouton Test
         print("Bonjour l'action OnBoutonAction de l'appli")
 
-    def OnChildEnter(self, event,*args):
-            if self.parent != None:
-                self.EndModal(wx.OK)
-                #self.parent.OnChildAction(event)
-            else:
-                print("Bonjour l'Action de xFrame")
 
 class FramePanels(wx.Frame):
     def __init__(self, *args, **kwds):
@@ -1105,7 +1117,7 @@ if __name__ == '__main__':
                 {'genre': 'MultiChoice', 'name': 'multi', 'label': 'Configurations','labels':['aa','bb','cc'], 'value':['1','2'],
                          'help': "Le bouton de droite vous permet de créer une nouvelle configuration",
                          'btnLabel': "...", 'btnHelp': "Cliquez pour gérer les configurations",
-                        'btnAction': 'OnEnter'},
+                        'btnAction': 'OnCtrlAction'},
             ],
         ("bd_reseau", "Base de donnée réseau"):
             [
@@ -1120,19 +1132,19 @@ if __name__ == '__main__':
         }
 
 # Lancement des tests
+    """
+    """
     frame_4 = DLG_listCtrl(None,dldMatrice=dictMatrice, dlColonnes={'bd_reseau':['serveur','choix','localisation','nombre'],'ident':['utilisateur']},
                 lddDonnees=[dictDonnees,{"bd_reseau":{'serveur': 'serveur3'}}])
     frame_4.Init()
     app.SetTopWindow(frame_4)
     frame_4.Show()
-    """
 
     frame_3 = DLG_vide(None,)
     pnl = PNL_property(frame_3,frame_3,matrice=dictMatrice,donnees=dictDonnees)
     frame_3.Sizer(pnl)
     app.SetTopWindow(frame_3)
     frame_3.Show()
-
     frame_2 = FramePanels(None, )
     frame_2.Position = (500,300)
     frame_2.Show()
@@ -1141,14 +1153,11 @@ if __name__ == '__main__':
     app.SetTopWindow(frame_1)
     frame_1.Position = (50,50)
     frame_1.Show()
-    """
-    """
-
     frame_5 = DLG_monoLigne(None,dldMatrice=dictMatrice,
                 ddDonnees=dictDonnees,gestionProperty=False,minSize=(400,300))
     app.SetTopWindow(frame_5)
     frame_5.Position = (200,20)
     frame_5.Show()
     """
-
+    """
     app.MainLoop()
