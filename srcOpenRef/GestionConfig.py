@@ -209,7 +209,7 @@ class DLG_import(wx.Dialog):
         return codeclient
 
     def OnTestImport(self,event):
-        self.OnEnter(None)
+        self.OnCtrlAction(None)
         if self.implantation['compta'] == 'quadratus':
             ok = False
             if self.multi:
@@ -267,7 +267,7 @@ class DLG_import(wx.Dialog):
                 del imp
         self.Destroy()
 
-    def OnEnter(self,event):
+    def OnCtrlAction(self,event):
         #action evènement Enter sur le contrôle combo, correspond à un changement de choix
         self.choix = self.ctrlImport.GetValues()
         if self.multi:
@@ -277,6 +277,10 @@ class DLG_import(wx.Dialog):
             self.choix['client'] = self.codeclient
         cfg = xucfg.ParamUser()
         cfg.SetDict(self.choix, groupe='IMPORT')
+
+    def OnBtnAction(self, event):
+        action = 'self.%s(event)'%event.EventObject.actionBtn
+        eval(action)
 
     def OnBtnChoixNafs(self,event):
         # sur clic du bouton pour élargir le choix de la combo
@@ -391,7 +395,7 @@ class DLG_trait(wx.Dialog):
 
     def OnAction(self,event):
         # enregistre les valeurs de l'utilisateur
-        self.OnEnter(None)
+        self.OnCtrlAction(None)
         if self.multi == None:
             if not (self.codeclient and self.choix['annee'])  :
                 wx.MessageBox('Les champs client et année et sont obligatoires à minima')
@@ -406,7 +410,7 @@ class DLG_trait(wx.Dialog):
                            filiere= filiere, agc=self.agc)
         self.Destroy()
 
-    def OnEnter(self,event):
+    def OnCtrlAction(self,event):
         #action evènement Enter sur le contrôle combo, correspond à un changement de choix
         self.choix = self.ctrlExport.GetValues()
         if not self.multi:
@@ -417,6 +421,10 @@ class DLG_trait(wx.Dialog):
         self.ctrlExport.SetValues(self.choix)
 
     # paramétrage des boutons d'aide à droite des contrôles
+    def OnBtnAction(self, event):
+        action = 'self.%s(event)'%event.EventObject.actionBtn
+        eval(action)
+
     def OnBtnChoixAnalyse(self,event):
         # l'agence local étant non liée à une agc elle donne accès à toutes les agc c'est l'agc '*'
         # sur clic du bouton pour élargir le choix de la combo
@@ -567,7 +575,7 @@ class DLG_affect(wx.Dialog):
 
     def OnAction(self,event):
         # enregistre les valeurs de l'utilisateur
-        self.OnEnter(None)
+        self.OnCtrlAction(None)
         if self.multi == None:
             if not (self.codeclient and self.choix['annee'])  :
                 wx.MessageBox('Les champs client et année et sont obligatoires à minima')
@@ -582,7 +590,7 @@ class DLG_affect(wx.Dialog):
                            filiere= filiere, agc=self.agc)
         self.Destroy()
 
-    def OnEnter(self,event):
+    def OnCtrlAction(self,event):
         #action evènement Enter sur le contrôle combo, correspond à un changement de choix
         self.choix = self.ctrlExport.GetValues()
         if not self.multi:
@@ -593,6 +601,10 @@ class DLG_affect(wx.Dialog):
         self.ctrlExport.SetValues(self.choix)
 
     # paramétrage des boutons d'aide à droite des contrôles
+    def OnBtnAction(self, event):
+        action = 'self.%s(event)'%event.EventObject.actionBtn
+        eval(action)
+
     def OnBtnChoixAnalyse(self,event):
         # l'agence local étant non liée à une agc elle donne accès à toutes les agc c'est l'agc '*'
         # sur clic du bouton pour élargir le choix de la combo
@@ -735,7 +747,7 @@ class DLG_export(wx.Dialog):
 
     def OnAction(self,event):
         # enregistre les valeurs de l'utilisateur
-        self.OnEnter(None)
+        self.OnCtrlAction(None)
         if self.multi == None:
             if not (self.codeclient and self.choix['annee'])  :
                 wx.MessageBox('Les champs client et année et sont obligatoires à minima')
@@ -751,7 +763,7 @@ class DLG_export(wx.Dialog):
         if len(imp.mess)>0:
             wx.MessageBox("Trace du traitement\n\n%s"%imp.mess)
 
-    def OnEnter(self,event):
+    def OnCtrlAction(self,event):
         #action evènement Enter sur le contrôle combo, correspond à un changement de choix
         self.choix = self.ctrlExport.GetValues()
         if not self.multi:
@@ -762,6 +774,10 @@ class DLG_export(wx.Dialog):
         self.ctrlExport.SetValues(self.choix)
 
     # paramétrage des boutons d'aide à droite des contrôles
+    def OnBtnAction(self, event):
+        action = 'self.%s(event)'%event.EventObject.actionBtn
+        eval(action)
+
     def OnBtnChoixAnalyse(self,event):
         # l'agence local étant non liée à une agc elle donne accès à toutes les agc c'est l'agc '*'
         # sur clic du bouton pour élargir le choix de la combo
@@ -948,7 +964,7 @@ class DLG_implantation(wx.Dialog):
         self.SetSizerAndFit(topbox)
 
     def OnTest(self,event):
-        self.OnEnter(None)
+        self.OnCtrlAction(None)
         DB = xdb.DB(config = self.choix)
         style = wx.ICON_WARNING
         try:
@@ -963,10 +979,10 @@ class DLG_implantation(wx.Dialog):
 
     def OnFermer(self,event):
         # enregistre les valeurs de l'utilisateur, puis ferme
-        self.OnEnter(None)
+        self.OnCtrlAction(None)
         self.Destroy()
 
-    def OnEnter(self,event):
+    def OnCtrlAction(self,event):
         #action evènement Enter sur le contrôle combo, correspond à un changement de choix
         #le dictionnaire choix contiendra tous les choix utiles saisis ou dérivés
         self.choix = self.ctrlConfig.GetValues()

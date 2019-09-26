@@ -162,7 +162,7 @@ class DLG_identification(wx.Dialog):
         self.SetSizerAndFit(topbox)
 
     def OnTest(self,event):
-        self.OnEnter(None)
+        self.OnCtrlAction(None)
         lstOptions = []
         if self.parent and 'OPTIONSCONFIG' in self.parent.dictAppli:
             for option in self.parent.dictAppli['OPTIONSCONFIG']:
@@ -180,7 +180,7 @@ class DLG_identification(wx.Dialog):
             except: mess = "Désolé "
             wx.MessageBox(mess,style=style)
 
-    def OnBtnChoixConfig(self,event):
+    def OnBtnAction(self,event):
         # sur clic du bouton pour élargir le choix de la combo
         sc = DLG_saisieConfig(self)
         if sc.ok :
@@ -206,7 +206,10 @@ class DLG_identification(wx.Dialog):
         cfg.SetDict(dic['ident'], groupe='IDENT')
         self.Destroy()
 
-    def OnEnter(self,event):
+    def OnBtnChoixConfig(self,event):
+        wx.MessageBox('Choix config')
+
+    def OnCtrlAction(self,event):
         #action evènement Enter sur le contrôle combo, correspond à un changement de choix
         self.choix = self.ctrlConfig.GetValues()
         cfg = xucfg.ParamUser()

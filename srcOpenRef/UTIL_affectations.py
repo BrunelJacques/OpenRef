@@ -70,6 +70,62 @@ def VerifSelection(parent,dlg,infos=True):
         parent.infos = 'Dossier: %s, %s, %s'%(noclient,cloture,nomexploitation)
     return True
 
+class EcranSaisie():
+    # affichage d'une ligne en vue de modif, toutes les colonnes ne sont pas reprises
+    def __init__(self,parent,ctrlolv,mode,selection,ixsel,cdCateg,nmCateg,pos,minSize,dicOptions,table,wherecle):
+        lstCodes = ctrlolv.lstCodesColonnes[2:]
+        dictMatrice = {}
+        dictDonnees = {}
+        donnees, lstNoms, lstHelp = [],[],[]
+        for code in lstCodes:
+            ixolv = ctrlolv.lstCodesColonnes.index(code)
+            donnees.append(selection.donnees[ixolv])
+            lstNoms.append(ctrlolv.lstNomsColonnes[ixolv])
+            ixtbl = ctrlolv.lstTblChamps.index(ctrlolv.lstNomsColonnes[ixolv])
+            lstHelp.append(ctrlolv.lstTblHelp[ixtbl])
+
+        # Lancement de l'écran
+        (dictMatrice[(cdCateg,nmCateg)],dictDonnees['params']) \
+            = xusp.ComposeMatrice('Compte','SoldeFin',lstNoms, lstHelp=lstHelp,record=donnees,dicOptions=dicOptions)
+        dlg = xusp.DLG_monoLigne(parent,dldMatrice=dictMatrice,ddDonnees=dictDonnees,gestionProperty=False,
+                                           pos=pos,minSize=minSize)
+        ret = dlg.ShowModal()
+        if ret == 5101:
+            # Retour par validation
+            valeurs = dlg.pnl.GetValeurs()
+            # mise à jour de l'olv d'origine
+            for code in ctrlolv.lstCodesColonnes:
+                if code in lstCodes:
+                    for categorie, dicDonnees in dlg.ddDonnees.items():
+                        if code in dicDonnees:
+                            ix = ctrlolv.lstCodesColonnes.index(code)
+                            valorigine = selection.donnees[ix]
+                            if valorigine != valeurs[categorie][code]:
+                                if isinstance(valorigine,(str,datetime.date)):
+                                    action = "selection.__setattr__('%s','%s')"%(
+                                                ctrlolv.lstCodesColonnes[ix],str(valeurs[categorie][code]))
+                                elif isinstance(valorigine, (int, float)):
+                                    action = "selection.__setattr__('%s',%d)" % (
+                                                ctrlolv.lstCodesColonnes[ix], float(valeurs[categorie][code]))
+                                else: wx.MessageBox("%s, type non géré pour modifs: %s"%(code,type(valorigine)))
+                                eval(action)
+            ctrlolv.MAJ(ixsel)
+            # mise à jour table de base de donnee
+            lstModifs = []
+            for categorie, dicdonnees in valeurs.items():
+                for code,valeur in dicdonnees.items():
+                    if valeur != None:
+                        nom = lstNoms[lstCodes.index(code)]
+                        lstModifs.append((nom,valeur))
+
+            if len(lstModifs)>0 and mode == 'modif':
+                ret = parent.DBsql.ReqMAJ(table,lstModifs,wherecle,mess='MAJ affectations.%s.Ecran'%table)
+                if ret != 'ok':
+                    wx.MessageBox(ret)
+        parent.ctrlolv.SetFocus()
+        parent.ctrlolv.SelectObject(parent.ctrlolv.donnees[ixsel])
+        dlg.Destroy()
+
 class Balance():
     def __init__(self,parent):
         self.title = '[UTIL_affectations].Balance'
@@ -156,78 +212,6 @@ class Balance():
         ret = self.dlgolv.ShowModal()
         return ret
 
-    def EcranCompte(self,ctrlolv,mode):
-        # affichage d'une ligne en vue de modif, toutes les colonnes ne sont pas reprises
-        all = ctrlolv.GetObjects()
-        selection = ctrlolv.Selection()[0]
-        ixsel = all.index(selection)
-        lstCodes = ctrlolv.lstCodesColonnes[2:]
-        dictMatrice = {}
-        dictDonnees = {}
-        donnees, lstNoms, lstHelp = [],[],[]
-        for code in lstCodes:
-            ixolv = ctrlolv.lstCodesColonnes.index(code)
-            donnees.append(selection.donnees[ixolv])
-            lstNoms.append(ctrlolv.lstNomsColonnes[ixolv])
-            ixtbl = ctrlolv.lstTblChamps.index(ctrlolv.lstNomsColonnes[ixolv])
-            lstHelp.append(ctrlolv.lstTblHelp[ixtbl])
-
-        # Spécificités écran
-        table = '_Balances'
-        IDenr = ctrlolv.recordset[ixsel][ctrlolv.lstTblChamps.index('IDligne')]
-        wherecle = "%s = %d" %(str(IDenr,IDenr))
-        dicOptions = {'affectation':{
-                        'genre': 'enum',
-                                                'btnLabel': "...",
-                        'btnHelp': "Cliquez pour ajouter des affectations à la liste",
-                        'btnAction': 'OnNvlAffectation',},
-                    'soldefin': {
-                        'ctrlAction': 'OnYva',}}
-        (dictMatrice[('params','DétailLigne')],dictDonnees['params']) \
-            = xusp.ComposeMatrice('Compte','SoldeFin',lstNoms, lstHelp=lstHelp,record=donnees,dicOptions=dicOptions)
-        pos = (300,0)
-        minSize = (400,1000)
-
-        # Lancement de l'écran
-        dlg = xusp.DLG_monoLigne(self,dldMatrice=dictMatrice,ddDonnees=dictDonnees,gestionProperty=False,
-                                           pos=pos,minSize=minSize)
-        ret = dlg.ShowModal()
-        if ret == 5101:
-            # Retour par validation
-            valeurs = dlg.pnl.GetValeurs()
-            # mise à jour de l'olv d'origine
-            for code in ctrlolv.lstCodesColonnes:
-                if code in lstCodes:
-                    for categorie, dicDonnees in dlg.ddDonnees.items():
-                        if code in dicDonnees:
-                            ix = ctrlolv.lstCodesColonnes.index(code)
-                            valorigine = selection.donnees[ix]
-                            if valorigine != valeurs[categorie][code]:
-                                if isinstance(valorigine,(str,datetime.date)):
-                                    action = "selection.__setattr__('%s','%s')"%(
-                                                ctrlolv.lstCodesColonnes[ix],str(valeurs[categorie][code]))
-                                elif isinstance(valorigine, (int, float)):
-                                    action = "selection.__setattr__('%s',%d)" % (
-                                                ctrlolv.lstCodesColonnes[ix], float(valeurs[categorie][code]))
-                                else: wx.MessageBox("%s, type non géré pour modifs: %s"%(code,type(valorigine)))
-                                eval(action)
-            ctrlolv.MAJ(ixsel)
-            # mise à jour table de base de donnee
-            lstModifs = []
-            for categorie, dicdonnees in valeurs.items():
-                for code,valeur in dicdonnees.items():
-                    if valeur != None:
-                        nom = lstNoms[lstCodes.index(code)]
-                        lstModifs.append((nom,valeur))
-
-            if len(lstModifs)>0 and mode == 'modif':
-                ret = self.DBsql.ReqMAJ(table,lstModifs,wherecle,mess='MAJ affectations.%s.Ecran'%table)
-                if ret != 'ok':
-                    wx.MessageBox(ret)
-        self.ctrlolv.SetFocus()
-        self.ctrlolv.SelectObject(self.ctrlolv.donnees[ixsel])
-        dlg.Destroy()
-
     def OnChildBtnAction(self,event):
         print('Bonjour Enter sur le bouton : ',event.EventObject.nameBtn)
         print( event.EventObject.labelBtn,)
@@ -239,9 +223,29 @@ class Balance():
         print('Action prévue : ',event.EventObject.actionCtrl)
 
     def OnModif(self):
+        ctrlolv = self.ctrlolv
+        all = ctrlolv.GetObjects()
+        selection = ctrlolv.Selection()[0]
+        ixsel = all.index(selection)
         if not VerifSelection(self,self.dlgolv,infos=False):
             return
-        self.EcranCompte(self.ctrlolv,'modif')
+        # Spécificités écran saisie
+        table = '_Balances'
+        IDenr = "IDligne"
+        ID = ctrlolv.recordset[ixsel][ctrlolv.lstTblChamps.index(IDenr)]
+        wherecle = "%s = %d" %(IDenr,ID)
+        dicOptions = {'affectation':{
+                        'genre': 'enum',
+                                                'btnLabel': "...",
+                        'btnHelp': "Cliquez pour ajouter des affectations à la liste",
+                        'btnAction': 'OnNvlAffectation',},
+                    'soldefin': {
+                        'ctrlAction': 'OnYva',}}
+        cdCateg = 'params'
+        nmCateg = 'DétailLigne'
+        pos = (300,0)
+        minSize = (400,1000)
+        EcranSaisie(self,self.ctrlolv,'modif',selection,ixsel,cdCateg,nmCateg,pos,minSize,dicOptions,table,wherecle)
 
     def OnEclater(self):
         if VerifSelection(self,self.dlgolv):
@@ -288,7 +292,11 @@ class Affectations():
             self.lancement = "Dossiers année: %s"%(self.annee)
             wx.MessageBox("Analyse : Aucun paramètre de lancement ne concerne un dossier")
             return
-        self.retour = self.EcranDossiers()
+        if len(self.lstDossiers)==0:
+            self.retour = "Aucun Dossier demandé n'a été importé"
+            wx.MessageBox(self.retour)
+        else:
+            self.retour = self.EcranDossiers()
 
     def EcranDossiers(self):
         # appel des dossiers pour affichage
@@ -375,7 +383,6 @@ class Affectations():
                                  dicOnClick=dicOnClick)
         self.ctrlolv = self.dlgdossiers.ctrlOlv
         self.ctrlolv.recordset = recordset
-        self.ctrlolv.Bind(wx.EVT_ACTIVATE,self.OnSelection)
 
         if len(lstDonnees) > 0:
             # selection de la première ligne
@@ -387,6 +394,7 @@ class Affectations():
     def EcranIdent(self,ctrlolv,mode):
         # affichage d'une ligne en vue de modif, toutes les colonnes ne sont pas reprises
         # appel d'un dossier pour affichage table ident
+        self.IDdossier = ctrlolv.Selection()[0].id
         req = """
                 SELECT *
                 FROM _Ident 
@@ -467,9 +475,6 @@ class Affectations():
         self.ctrlolv.SetFocus()
         self.ctrlolv.SelectObject(self.ctrlolv.donnees[ixsel])
         dlg.Destroy()
-
-    def OnSelection(self,event):
-        self.IDdossier = self.ctrlolv.Selection()[0].id
 
     def OnIdent(self):
         if VerifSelection(self,self.dlgdossiers):
@@ -690,7 +695,7 @@ if __name__ == '__main__':
     app = wx.App(0)
     import os
     os.chdir("..")
-    #fn = Affectations(annee='2018',client='009418',agc='prov')
+    #fn = Affectations(annee='2018',client='041842',agc='ANY')
     fn = Affectations(annee=2018,groupe='testAlpes',agc='ANY')
     ret = fn.retour
     print('Retour appli: ',ret)
