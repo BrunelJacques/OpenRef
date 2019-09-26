@@ -175,7 +175,7 @@ class Balance():
         (dictMatrice[('params','DétailLigne')],dictDonnees['params'])=xusp.ComposeMatrice('Compte','SoldeFin',lstNoms,
                                                                                     lstHelp=lstHelp,record=donnees)
 
-        dlg = xusp.DLG_monoLigne(None,dldMatrice=dictMatrice,ddDonnees=dictDonnees,gestionProperty=True,
+        dlg = xusp.DLG_monoLigne(None,dldMatrice=dictMatrice,ddDonnees=dictDonnees,gestionProperty=False,
                                            pos=(300,0),minSize=(400,1000))
         ret = dlg.ShowModal()
         if ret == 5101:
@@ -194,7 +194,7 @@ class Balance():
                                                 ctrlolv.lstCodesColonnes[ix],str(valeurs[categorie][code]))
                                 elif isinstance(valorigine, (int, float)):
                                     action = "selection.__setattr__('%s',%d)" % (
-                                                ctrlolv.lstCodesColonnes[ix], valeurs[categorie][code])
+                                                ctrlolv.lstCodesColonnes[ix], float(valeurs[categorie][code]))
                                 else: wx.MessageBox("%s, type non géré pour modifs: %s"%(code,type(valorigine)))
                                 eval(action)
             ctrlolv.MAJ(ixsel)
@@ -295,14 +295,14 @@ class Affectations():
         if (not retour == "ok"):
             wx.MessageBox("Erreur : %s"%retour)
             return 'ko'
-        lstNomsColonnes = ["ID","agc","noClient","clôture","nomExploitation","nbreMois","fiscal","ventes",
-                           "% affecté","nbElemCar","elemCar","rendement","filières","productions"]
+        lstNomsColonnes = ["ID","agc","Noclient","Clôture","nomExploitation","nbreMois","fiscal","ventes",
+                           "%affecté","nbElem","Element","Vtes/Elem","filières","productions"]
         lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstNomsColonnes]
 
         lstValDefColonnes = [0,"","",datetime.date(1900,1,1),"",0,"",0.0,
                            0.0,0,"",0.0,"",""]
-        lstLargeurColonnes = [0,40,50,70,120,40,40,70,
-                           40,40,50,70,180,180]
+        lstLargeurColonnes = [0,-1,-1,70,120,-1,-1,-1,
+                           -1,-1,50,-1,180,180]
         lstDonnees = []
         for IDdossier,IDagc,exploitation,cloture,nomExploitation,nbreMois,fiscal,ventes,caNonAff,nbElemCar,elemCar,filieres,\
             productions in recordset:
@@ -355,7 +355,7 @@ class Affectations():
         self.ctrlolv.recordset = recordset
         self.ctrlolv.Bind(wx.EVT_ACTIVATE,self.OnSelection)
 
-        if len(lstDonnees)>0:
+        if len(lstDonnees) > 0:
             # selection de la première ligne
             self.dlgdossiers.ctrlOlv.SelectObject(self.dlgdossiers.ctrlOlv.donnees[0])
             self.IDdossier = self.ctrlolv.Selection()[0].id

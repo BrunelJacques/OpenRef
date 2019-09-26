@@ -17,8 +17,6 @@ import unicodedata
 import xpy.outils.xformat as xfmt
 from xpy.outils.ObjectListView import ColumnDefn
 
-
-
 def DDstrdate2wxdate(date,iso=True):
     if not isinstance(date, str) : date = str(date)
     if len(date) < 10: return None
@@ -121,13 +119,14 @@ def SupprimeAccents(texte):
     code = ''.join(car.lower() for car in code if car not in " %)(.[]',;/\n")
     return code
 
-#**********************************************************************************
-#                   GESTION des CONTROLES UNITES : Grilles ou composition en panel
-#**********************************************************************************
-
 def DefColonnes(lstNoms,lstCodes,lstValDef,lstLargeur):
-    # Composition d'une liste de définition de colonnes d'un OLV
+    # Composition d'une liste de définition de colonnes d'un OLV; remarque faux ami: 'nom, code' == 'label, name'
     ix=0
+    for lst in (lstCodes,lstValDef,lstLargeur):
+        # complète les listes entrées si nécessaire
+        if lst == None : lst = []
+        if len(lst)< len(lstNoms):
+            lst.extend(['']*(len(lstNoms)-len(lst)))
     lstColonnes = []
     for colonne in lstNoms:
         if isinstance(lstValDef[ix],(str,wx.DateTime)):
@@ -141,12 +140,16 @@ def DefColonnes(lstNoms,lstCodes,lstValDef,lstLargeur):
                 stringConverter = xfmt.FmtInt
         elif isinstance(lstValDef[ix], int):
             stringConverter = xfmt.FmtInt
-        #elif isinstance(lstValDef[ix], datetime.date):
-        #    stringConverter = xfmt.FmtDate
+        elif isinstance(lstValDef[ix], (datetime.date,wx.DateTime)):
+            stringConverter = xfmt.FmtDate
         else: stringConverter = None
-        lstColonnes.append(ColumnDefn(title=colonne,align=posit,width=lstLargeur[ix],valueGetter=lstCodes[ix], valueSetter=lstValDef[ix],
-                                      stringConverter=stringConverter))
-        ix +=1
+        if lstLargeur[ix] in ('',None,'None',-1):
+            lstLargeur[ix] = -1
+            isSpaceFilling = True
+        else: isSpaceFilling = False
+        lstColonnes.append(ColumnDefn(title=colonne,align=posit,width=lstLargeur[ix],valueGetter=lstCodes[ix],valueSetter=lstValDef[ix],
+                                      isSpaceFilling=isSpaceFilling,stringConverter=stringConverter))
+        ix += 1
     return lstColonnes
 
 def ExtractList(lstin, champdeb=None, champfin=None):
@@ -215,6 +218,9 @@ def ComposeMatrice(champdeb=None, champfin=None, lstChamps=[], lstTypes=[], lstH
             dicdonnees[code] = record[ix]
     return ldmatrice, dicdonnees
 
+#**********************************************************************************
+#                   GESTION des CONTROLES: Grilles ou composition en panel
+#**********************************************************************************
 
 class BTN_reinitialisation(wx.BitmapButton):
     # à parfaire
@@ -441,9 +447,9 @@ class PNL_ctrl(wx.Panel):
             self.avecBouton = True
         else: self.avecBouton = False
 
-        self.MaxSize = (2000, 35)
+        self.MaxSize = (2000, 30)
         self.txt = wx.StaticText(self, wx.ID_ANY, label + " :")
-        self.txt.MinSize = (150, 65)
+        self.txt.MinSize = (110, 25)
 
         # seul le PropertyGrid gère le multichoice, pas le comboBox
         if genre == 'multichoice': genre = 'combo'
@@ -509,7 +515,7 @@ class PNL_ctrl(wx.Panel):
 
     def BoxSizer(self):
         topbox = wx.BoxSizer(wx.HORIZONTAL)
-        topbox.Add(self.txt,0, wx.LEFT|wx.TOP|wx.ALIGN_TOP, 4)
+        topbox.Add(self.txt,0, wx.LEFT|wx.EXPAND|wx.ALIGN_TOP, 4)
         topbox.Add(self.ctrl, 1, wx.ALL | wx.EXPAND, 4)
         if self.avecBouton:
             topbox.Add(self.btn, 0, wx.ALL|wx.EXPAND, 4)
@@ -548,7 +554,6 @@ class PNL_listCtrl(wx.Panel):
 
         wx.Panel.__init__(self, parent, wx.ID_ANY, *args, **kwds)
 
-
         #********************** Objet principal *******************************
         self.ctrl = wx.ListCtrl(self, wx.ID_ANY, style=wx.LC_REPORT|wx.LC_SINGLE_SEL)
         #**********************************************************************
@@ -577,8 +582,8 @@ class PNL_listCtrl(wx.Panel):
     def InitMatrice(self, ltColonnes=[]):
         # Compose la grille de saisie des paramètres selon la liste colonnes
         for (name, label, format) in ltColonnes:
-                format = eval("wx.LIST_FORMAT_%s" % format.upper())
-                self.ctrl.AppendColumn( label, format, width=100)
+            format = eval("wx.LIST_FORMAT_%s" % format.upper())
+            self.ctrl.AppendColumn( label, format, width=100)
         return 'fin matrice'
 
     def SetValeurs(self, llItems=[], ltColonnes=[]):
@@ -586,10 +591,8 @@ class PNL_listCtrl(wx.Panel):
         self.ctrl.DeleteAllItems()
         for items in llItems:
             self.ctrl.Append(items)
-        i=0
-        for colonne in ltColonnes:
+        for i in range(len(ltColonnes)):
             self.ctrl.SetColumnWidth(i,wx.LIST_AUTOSIZE_USEHEADER)
-            i+=1
 
     def OnAjouter(self, event):
         # Action du clic sur l'icone sauvegarde renvoie au parent
@@ -644,7 +647,7 @@ class BoxPanel(wx.Panel):
                     for cle in self.champsItem:
                         if not cle in ligne:
                             ligne[cle]=None
-                    self.ssbox.Add(panel,1,wx.ALL|wx.EXPAND,4)
+                    self.ssbox.Add(panel,1,wx.ALL|wx.EXPAND,0)
                     codename = self.code + '.' + ligne['name']
                     panel.ctrl.genreCtrl = ligne['genre']
                     panel.ctrl.nameCtrl = codename
@@ -748,59 +751,10 @@ class TopBoxPanel(wx.Panel):
                 box.SetValues(dic)
         return
 
-class DLG_vide(wx.Dialog):
-    def __init__(self,parent, *args, **kwds):
-        self.parent = parent
-        listArbo=os.path.abspath(__file__).split("\\")
-        titre = listArbo[-1:][0] + "/" + self.__class__.__name__
-        wx.Dialog.__init__(self,parent,*args, title=titre, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER, **kwds)
-        self.SetBackgroundColour(wx.WHITE)
-        self.marge = 10
-
-        #****************Exemple de Chaînage à faire passer au sizer*****************
-        #self.pnl = PNL_property(self, parent, *args, matrice = matrice, **kwds )
-        #****************************************************************************
-
-    def Bouton(self,parent):
-        self.btnLabel = 'OK'
-        self.btn = wx.Button(self, wx.ID_ANY, self.btnLabel)
-        self.btn.Bind(wx.EVT_BUTTON, parent.OnFermer)
-
-    def Sizer(self,panel,bouton=None):
-        self.pnl = panel
-        if bouton:
-            self.btn = bouton
-        else: self.Bouton(self)
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(self.pnl, 1, wx.EXPAND | wx.ALL, self.marge)
-        sizer.Add(self.btn, 0,  wx.ALIGN_RIGHT | wx.RIGHT,40)
-        sizer.SetSizeHints(self)
-        self.SetSizer(sizer)
-
-    def OnFermer(self, event):
-            if self.parent != None:
-                self.EndModal(wx.OK)
-                #self.parent.OnChildAction(event)
-            else:
-                print("Bonjour l'Action de DLG_vide")
-
-    def OnChildSauvegarde(self, event):
-            if self.parent != None:
-                self.parent.OnChildAction(event)
-            else:
-                print("Bonjour Sauvegarde de DLG_vide")
-
-    def OnChildEnter(self, event):
-            if self.parent != None:
-                self.EndModal(wx.OK)
-                #self.parent.OnChildAction(event)
-            else:
-                print("Bonjour l'Action de DLG_vide")
-
 class DLG_listCtrl(wx.Dialog):
     #Dialog contenant le PNL_listCtrl qui intégre la gestion ajout,
-    # modif par PorpertyGrid ou PanelsCtrl (cf propriété  gestionProperty )...
     """
+    modif par PorpertyGrid ou PanelsCtrl (cf propriété  gestionProperty )...
     dldMatrice contient les lignes de descriptif des champs gérés :
             dict{(code,label): groupe} de liste[champ1, ] de dict{attrib:valeur,}
     dlColonnes contient les listes des champs affichés dans les colonnes de la grille de type ListCtrl:
@@ -854,7 +808,7 @@ class DLG_listCtrl(wx.Dialog):
         self.SetSizer(topbox)
 
     def OnAjouter(self,event):
-        # l'ajout d'une config nécessite d'appeler un écran avec les champs en lignes
+        # l'ajout d'une ligne nécessite d'appeler un écran avec les champs en lignes
         dlgGest = DLG_vide(self,)
         if self.gestionProperty:
             dlgGest.pnl = PNL_property(dlgGest, self, matrice=self.dldMatrice, lblbox='Ajout d\'une ligne')
@@ -865,7 +819,10 @@ class DLG_listCtrl(wx.Dialog):
         if ret == wx.OK:
             #récupération des valeurs saisies
             ddDonnees = dlgGest.pnl.GetValeurs()
-            donnees = copy.deepcopy(ddDonnees)
+            donnees={}
+            for (x,y) in ddDonnees.items():
+                donnees[x] = y
+            #donnees = copy.deepcopy(ddDonnees)
             self.lddDonnees.append(donnees)
             self.lddDonnees, self.ltColonnes, self.llItems = Transpose(self.dldMatrice, self.dlColonnes, self.lddDonnees)
             self.pnl.SetValeurs(self.llItems, self.ltColonnes)
@@ -924,7 +881,58 @@ class DLG_listCtrl(wx.Dialog):
     def OnBtnEsc(self, event):
             self.Destroy()
 
+class DLG_vide(wx.Dialog):
+    # pour la gestion d'une ligne extraite d'un tableau listctrl
+    def __init__(self,parent, *args, **kwds):
+        self.parent = parent
+        listArbo=os.path.abspath(__file__).split("\\")
+        titre = listArbo[-1:][0] + "/" + self.__class__.__name__
+        wx.Dialog.__init__(self,parent,*args, title=titre, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER, **kwds)
+        self.SetBackgroundColour(wx.WHITE)
+        self.marge = 10
+
+        #****************Exemple de Chaînage à faire passer au sizer*****************
+        #self.pnl = PNL_property(self, parent, *args, matrice = matrice, **kwds )
+        #****************************************************************************
+
+    def Bouton(self,parent):
+        self.btnLabel = 'OK'
+        self.btn = wx.Button(self, wx.ID_ANY, self.btnLabel)
+        self.btn.Bind(wx.EVT_BUTTON, parent.OnFermer)
+
+    def Sizer(self,panel,bouton=None):
+        self.pnl = panel
+        if bouton:
+            self.btn = bouton
+        else: self.Bouton(self)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(self.pnl, 1, wx.EXPAND | wx.ALL, self.marge)
+        sizer.Add(self.btn, 0,  wx.ALIGN_RIGHT | wx.RIGHT,40)
+        sizer.SetSizeHints(self)
+        self.SetSizer(sizer)
+
+    def OnFermer(self, event):
+            if self.parent != None:
+                self.EndModal(wx.OK)
+                #self.parent.OnChildAction(event)
+            else:
+                print("Bonjour l'Action de DLG_vide")
+
+    def OnChildSauvegarde(self, event):
+            if self.parent != None:
+                self.parent.OnChildAction(event)
+            else:
+                print("Bonjour Sauvegarde de DLG_vide")
+
+    def OnChildEnter(self, event):
+            if self.parent != None:
+                self.EndModal(wx.OK)
+                #self.parent.OnChildAction(event)
+            else:
+                print("Bonjour l'Action de DLG_vide")
+
 class DLG_monoLigne(wx.Dialog):
+    # écran de saisie d'une ligne façon DLG_vide, mais enrichissement possible de boutons d'actions
     def __init__(self, parent, *args, dldMatrice={}, ddDonnees={}, **kwds):
         self.parent = parent
         self.gestionProperty = kwds.pop('gestionProperty',False)
@@ -1077,8 +1085,9 @@ if __name__ == '__main__':
                                  'bdReseau':False,
                                  'utilisateur' : 'moi-meme',
                                  'config': DDstrdate2wxdate('2020-02-28',iso=True),
-                                 'monTexte': "élève",
-                                 'choix': 12,'multi':[12, 13]
+                                 'localisation': "élevé ailleurs",
+                                 'choix': 12,'multi':[12, 13],
+                                'nombre': 456.45,
                                  },
                    "ident": {'domaine': 'mon domaine'}}
     dictMatrice = {
@@ -1092,29 +1101,31 @@ if __name__ == '__main__':
         ("choix_config", "Choisissez votre configuration"):
             [
                 {'genre': 'Date', 'name': 'config', 'label': 'DateConfiguration','value':DDstrdate2wxdate('27/02/2019',iso=False),
-                 'help': "Le bouton de droite vous permet de créer une nouvelle configuration"},
+                      'help': "Le bouton de droite vous permet de créer une nouvelle configuration"},
                 {'genre': 'MultiChoice', 'name': 'multi', 'label': 'Configurations','labels':['aa','bb','cc'], 'value':['1','2'],
-                 'help': "Le bouton de droite vous permet de créer une nouvelle configuration",
-                 'btnLabel': "...", 'btnHelp': "Cliquez pour gérer les configurations",
-                 'btnAction': 'OnEnter'},
+                         'help': "Le bouton de droite vous permet de créer une nouvelle configuration",
+                         'btnLabel': "...", 'btnHelp': "Cliquez pour gérer les configurations",
+                        'btnAction': 'OnEnter'},
             ],
         ("bd_reseau", "Base de donnée réseau"):
             [
                 {'genre': 'Dir', 'name': 'localisation', 'label': 'Répertoire de localisation',
-                 'value': True,
-                 'help': "Il faudra connaître les identifiants d'accès à cette base"},
+                        'value': True,
+                        'help': "Il faudra connaître les identifiants d'accès à cette base"},
                 {'genre': 'String', 'name': 'serveur', 'label': 'Nom du serveur', 'value': 'monServeur',
-                 'help': "Il s'agit du serveur de réseau porteur de la base de données"},
+                        'help': "Il s'agit du serveur de réseau porteur de la base de données"},
+                {'genre': 'Float', 'name': 'nombre', 'label': 'float', 'value': 40.12,
+                 'help': "test de nombre"},
             ]
         }
 
 # Lancement des tests
-    """
-    frame_4 = DLG_listCtrl(None,dldMatrice=dictMatrice, dlColonnes={'bd_reseau':['serveur'],'ident':['utilisateur']},
+    frame_4 = DLG_listCtrl(None,dldMatrice=dictMatrice, dlColonnes={'bd_reseau':['serveur','choix','localisation','nombre'],'ident':['utilisateur']},
                 lddDonnees=[dictDonnees,{"bd_reseau":{'serveur': 'serveur3'}}])
     frame_4.Init()
     app.SetTopWindow(frame_4)
     frame_4.Show()
+    """
 
     frame_3 = DLG_vide(None,)
     pnl = PNL_property(frame_3,frame_3,matrice=dictMatrice,donnees=dictDonnees)
@@ -1122,22 +1133,22 @@ if __name__ == '__main__':
     app.SetTopWindow(frame_3)
     frame_3.Show()
 
-
     frame_2 = FramePanels(None, )
     frame_2.Position = (500,300)
     frame_2.Show()
+
     frame_1 = xFrame(None, matrice=dictMatrice, donnees=dictDonnees)
     app.SetTopWindow(frame_1)
     frame_1.Position = (50,50)
     frame_1.Show()
     """
-    #frame_5 = DLG_monoLigne(None, matrice=dictMatrice, donnees=dictDonnees)
+    """
+
     frame_5 = DLG_monoLigne(None,dldMatrice=dictMatrice,
-                ddDonnees=dictDonnees,gestionProperty=True,minSize=(400,300))
+                ddDonnees=dictDonnees,gestionProperty=False,minSize=(400,300))
     app.SetTopWindow(frame_5)
     frame_5.Position = (200,20)
     frame_5.Show()
-    """
     """
 
     app.MainLoop()

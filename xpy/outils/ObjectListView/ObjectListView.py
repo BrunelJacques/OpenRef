@@ -373,19 +373,20 @@ class ObjectListView(wx.ListCtrl):
 
         if 'phoenix' in wx.PlatformInfo:
             info.Mask = wx.LIST_MASK_TEXT | wx.LIST_MASK_FORMAT
-            if isinstance(
-                    defn.headerImage,
-                    six.string_types) and self.smallImageList is not None:
-                info.Image = self.smallImageList.GetImageIndex(
-                    defn.headerImage)
-            else:
-                info.Image = defn.headerImage
             if info.Image != -1:
+                if isinstance(
+                        defn.headerImage,
+                        six.string_types) and self.smallImageList is not None:
+                    info.Image = self.smallImageList.GetImageIndex(
+                        defn.headerImage)
+                else:
+                    info.Image = defn.headerImage
                 info.Mask = info.Mask | wx.LIST_MASK_IMAGE
             info.Align = defn.GetAlignment()
             info.Text = defn.title
             info.Width = defn.width
             self.InsertColumn(len(self.columns) - 1, info)
+            #self.AppendColumn( info.Text, info.Align, width=info.Width)
         else:
             info.m_mask = wx.LIST_MASK_TEXT | wx.LIST_MASK_FORMAT
             if isinstance(

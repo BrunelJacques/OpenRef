@@ -82,13 +82,15 @@ def DateStrToWxdate(date,iso=False):
     dateout.SetCountry(5)
     return dateout
 
-def DatetimeToStr(date,iso=False):
+def DatetimeToStr(dte,iso=False):
     # Conversion d'une date datetime ou wx.datetime en chaîne
-    if not isinstance(date, wx.DateTime): return ''
-    if iso:
-        return date.Format('%Y-%m-%d')
-    else:
-        return date.Format('%d/%m/%Y')
+    if isinstance(dte, wx.DateTime):
+        if iso: return dte.Format('%Y-%m-%d')
+        else: return dte.Format('%d/%m/%Y')
+    elif isinstance(dte, datetime.date):
+        if iso: return "%s-%s-%s"%(dte.year,dte.month,dte.day)
+        else: return "%s/%s/%s"%(dte.day,dte.month,dte.year)
+    else: return str(dte)
 
 def FmtDecimal(montant):
     if montant == None or float(montant) == 0.0 :

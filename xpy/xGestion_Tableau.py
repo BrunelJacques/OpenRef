@@ -583,7 +583,7 @@ class DLG_tableau(wx.Dialog):
     # minimum fonctionnel dans dialog tout est dans pnl
     def __init__(self,parent,dicOlv={}, **kwds):
         self.parent = parent
-        largeur = dicOlv.pop("largeur", 900)
+        largeur = dicOlv.pop("largeur", 800)
         hauteur = dicOlv.pop("hauteur", 700)
         listArbo=os.path.abspath(__file__).split("\\")
         titre = listArbo[-1:][0] + "/" + self.__class__.__name__
@@ -603,12 +603,12 @@ if __name__ == '__main__':
     os.chdir("..")
     # matrice OLV
     liste_Colonnes = [
-        ColumnDefn("clé", 'left', 70, "cle",valueSetter=1),
+        ColumnDefn("clé", 'left', 70, "cle",valueSetter=1,isSpaceFilling = True,),
         ColumnDefn("mot d'ici", 'left', 200, "mot",valueSetter=''),
-        ColumnDefn("nombre_", 'right', 80, "nombre",valueSetter=0.0, stringConverter=xpy.outils.xformat.FmtDecimal),
-        ColumnDefn("prix", 'right', 80, "prix",valueSetter=0.0, stringConverter=xpy.outils.xformat.FmtMontant),
-        ColumnDefn("date", 'center', 80, "date",valueSetter=wx.DateTime.FromDMY(1,0,1900), stringConverter=xpy.outils.xformat.FmtDate),
-        ColumnDefn("date SQL", 'center', 80, "datesql", valueSetter='2000-01-01',
+        ColumnDefn("nbre", 'right', -1, "nombre",isSpaceFilling = True, valueSetter=0.0, stringConverter=xpy.outils.xformat.FmtDecimal),
+        ColumnDefn("prix", 'left', 80, "prix",valueSetter=0.0,isSpaceFilling = True, stringConverter=xpy.outils.xformat.FmtMontant),
+        ColumnDefn("date", 'center', 80, "date",valueSetter=wx.DateTime.FromDMY(1,0,1900),isSpaceFilling = True,  stringConverter=xpy.outils.xformat.FmtDate),
+        ColumnDefn("date SQL", 'center', 80, "datesql", valueSetter='2000-01-01',isSpaceFilling = True,
                    stringConverter=xpy.outils.xformat.FmtDate)
     ]
     liste_Donnees = [[18, "Bonjour", -1230.05939,-1230.05939,None,None],
