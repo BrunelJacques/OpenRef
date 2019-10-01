@@ -656,6 +656,7 @@ class BoxPanel(wx.Panel):
                     panel.ctrl.labelCtrl = ligne['label']
                     panel.ctrl.actionCtrl = ligne['ctrlAction']
                     panel.ctrl.valueCtrl = ligne['value']
+                    panel.ctrl.valOrigine = ligne['value']
                     panel.ctrl.valuesCtrl = ligne['values']
                     panel.ctrl.labelsCtrl = ligne['labels']
                     if panel.avecBouton and ligne['genre'].lower() != 'dir' :
@@ -664,9 +665,12 @@ class BoxPanel(wx.Panel):
                         panel.btn.actionBtn = ligne['btnAction']
                         panel.btn.Bind(wx.EVT_BUTTON,self.parent.OnBtnAction)
                     if panel.ctrl.actionCtrl:
-                        panel.ctrl.Bind(wx.EVT_KILL_FOCUS,self.parent.OnCtrlAction)
-                        panel.ctrl.Bind(wx.EVT_COMBOBOX, self.parent.OnCtrlAction)
-                        panel.ctrl.Bind(wx.EVT_CHECKBOX, self.parent.OnCtrlAction)
+                        if panel.ctrl.genreCtrl in ['enum','combo','multichoice']:
+                            #panel.ctrl.Bind(wx.EVT_COMBOBOX_CLOSEUP, self.parent.OnCtrlAction)
+                            #panel.ctrl.Bind(wx.EVT_CHECKBOX, self.parent.OnCtrlAction)
+                            panel.ctrl.Bind(wx.EVT_KILL_FOCUS,self.parent.OnCtrlAction)
+                        else:
+                            panel.ctrl.Bind(wx.EVT_KILL_FOCUS,self.parent.OnCtrlAction)
                     self.lstPanels.append(panel)
         self.SetSizerAndFit(self.ssbox)
 

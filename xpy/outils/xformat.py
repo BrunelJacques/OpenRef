@@ -132,11 +132,19 @@ def FmtMontant(montant):
 
 def FmtSolde(montant):
     if montant == None :
-        return u""
+        return ""
     strMtt = '{:+,.2f} '.format(float(montant))
     strMtt = strMtt.replace(',',' ')+ SYMBOLE
     return strMtt
 
+
+def Nz(param):
+    # fonction Null devient zero
+    valeur = 0.0
+    try:
+        valeur = float(param)
+    except: pass
+    return valeur
 
 if __name__ == '__main__':
     print(FmtDecimal(1230.05189),FmtDecimal(-1230.05189),FmtDecimal(0))

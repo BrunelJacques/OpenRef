@@ -19,7 +19,7 @@ import xpy.xGestion_Tableau as xgt
 import xpy.outils.xformat as xfmt
 
 def ComposeLstDonnees(lstNomsColonnes,record,lstChamps):
-    # Extrait une liste de donnees d'un record selon une sous liste de champs
+    # retourne les données pour colonnes, extraites d'un record défini par une liste de champs
     lstdonnees=[]
     for nom in lstNomsColonnes:
         ix = lstChamps.index(nom)
@@ -70,10 +70,99 @@ def VerifSelection(parent,dlg,infos=True):
         parent.infos = 'Dossier: %s, %s, %s'%(noclient,cloture,nomexploitation)
     return True
 
+def AteliersOuverts(parent,IDdossier,DBsql):
+    lstAteliers = []
+    req = """SELECT mateliers.IDMatelier
+            FROM _ateliers 
+            INNER JOIN mateliers ON _ateliers.IDMatelier = mateliers.IDMatelier
+            WHERE (_ateliers.IDdossier = %d)
+            """%IDdossier
+    retour = DBsql.ExecuterReq(req, mess='Util_affectations.AteliersOuverts')
+    if not retour == "ok":
+        wx.MessageBox("Erreur : %s"%retour)
+    else:
+        recordset = DBsql.ResultatReq()
+        for IDatelier in recordset:
+            lstAteliers.append(IDatelier)
+    return lstAteliers
+
+def ProduitsOuverts(parent,IDdossier,DBsql):
+    lstProduits = []
+    req = """SELECT mproduits.IDMatelier,mproduits.IDMproduit
+            FROM _produits 
+            INNER JOIN mproduits ON _produits.IDMproduit = mproduits.IDMproduit
+            WHERE (_produits.IDdossier = %d)
+            """%IDdossier
+    retour = DBsql.ExecuterReq(req, mess='Util_affectations.ProduitsOuverts')
+    if not retour == "ok":
+        wx.MessageBox("Erreur : %s"%retour)
+    else:
+        recordset = DBsql.ResultatReq()
+        for IDatelier,IDproduit in recordset:
+            lstProduits.append((IDatelier,IDproduit))
+    return lstProduits
+
+def CoutsOuverts(parent,IDdossier,DBsql):
+    lstCouts = []
+    req = """SELECT mCoûts.IDMatelier,mCoûts.IDMcoût
+            FROM _Coûts 
+            INNER JOIN mCoûts ON _Coûts.IDMcoût = mCoûts.IDMcoût
+            WHERE (_Coûts.IDdossier = %d)
+            """%IDdossier
+    retour = DBsql.ExecuterReq(req, mess='Util_affectations.CoutsOuverts')
+    if not retour == "ok":
+        wx.MessageBox("Erreur : %s"%retour)
+    else:
+        recordset = DBsql.ResultatReq()
+        for IDatelier,IDcout in recordset:
+            lstCouts.append((IDatelier,IDcout))
+    return lstCouts
+
+def AffectsActifs(parent,IDdossier,DBsql):
+    # retourne les affectations possibles (première et deuxième parties du nom)
+    lstAffects = ['']
+    for IDatelier in AteliersOuverts(parent,IDdossier,DBsql):
+        lstAffects.append("A.%s"%IDatelier)
+    for IDatelier,IDproduit in ProduitsOuverts(parent,IDdossier,DBsql):
+        lstAffects.append("P.%s.%s"%(IDatelier,IDproduit))
+    for IDatelier,IDproduit in CoutsOuverts(parent,IDdossier,DBsql):
+        lstAffects.append("C.%s.%s"%(IDatelier,IDproduit))
+    lstAffects.append("I.TabFin")
+    return lstAffects
+
+def LstFromModeles(DBsql):
+    # retourne les lignes des tables modèles
+    lstModeles = []
+    req = """
+            SELECT IDMatelier,IDMproduit,NomProduit
+            FROM mProduits
+            ;""" 
+    retour = DBsql.ExecuterReq(req, mess='Util_affectations.mProduits')
+    if not retour == "ok":
+        wx.MessageBox("Erreur : %s"%retour)
+    else:
+        recordset = DBsql.ResultatReq()
+        for IDMatelier,IDMproduit,NomProduit in recordset:
+            lstModeles.append(IDMatelier+'_ Prod_'+IDMproduit+'_'+NomProduit)
+
+    req = """
+            SELECT IDMatelier,IDMcoût,NomCoût
+            FROM mCoûts
+            ;""" 
+    retour = DBsql.ExecuterReq(req, mess='Util_affectations.mCoûts')
+    if not retour == "ok":
+        wx.MessageBox("Erreur : %s"%retour)
+    else:
+        recordset = DBsql.ResultatReq()
+        for IDMatelier,IDMproduit,NomCoût in recordset:
+            lstModeles.append(IDMatelier+'_Coût_'+IDMproduit+'_'+NomCoût)
+    l =  sorted(lstModeles)
+    return l
+
 class EcranSaisie():
     # affichage d'une ligne en vue de modif, toutes les colonnes ne sont pas reprises
-    def __init__(self,parent,ctrlolv,mode,selection,ixsel,cdCateg,nmCateg,pos,minSize,dicOptions,table,wherecle):
-        lstCodes = ctrlolv.lstCodesColonnes[2:]
+    def __init__(self,parent,ctrlolv,selection):
+        lstCodes = ctrlolv.lstCodesColonnes[parent.nbShuntChamps:]
         dictMatrice = {}
         dictDonnees = {}
         donnees, lstNoms, lstHelp = [],[],[]
@@ -85,18 +174,18 @@ class EcranSaisie():
             lstHelp.append(ctrlolv.lstTblHelp[ixtbl])
 
         # Lancement de l'écran
-        (dictMatrice[(cdCateg,nmCateg)],dictDonnees['params']) \
-            = xusp.ComposeMatrice('Compte','SoldeFin',lstNoms, lstHelp=lstHelp,record=donnees,dicOptions=dicOptions)
-        dlg = xusp.DLG_monoLigne(parent,dldMatrice=dictMatrice,ddDonnees=dictDonnees,gestionProperty=False,
-                                           pos=pos,minSize=minSize)
-        ret = dlg.ShowModal()
+        (dictMatrice[(parent.cdCateg,parent.nmCateg)],dictDonnees['params']) \
+            = xusp.ComposeMatrice('Compte','SoldeFin',lstNoms, lstHelp=lstHelp,record=donnees,dicOptions=parent.dicOptions)
+        parent.dlg = xusp.DLG_monoLigne(parent,dldMatrice=dictMatrice,ddDonnees=dictDonnees,gestionProperty=False,
+                                           pos=parent.pos,minSize=parent.minSize)
+        ret = parent.dlg.ShowModal()
         if ret == 5101:
             # Retour par validation
-            valeurs = dlg.pnl.GetValeurs()
+            valeurs = parent.dlg.pnl.GetValeurs()
             # mise à jour de l'olv d'origine
             for code in ctrlolv.lstCodesColonnes:
                 if code in lstCodes:
-                    for categorie, dicDonnees in dlg.ddDonnees.items():
+                    for categorie, dicDonnees in parent.dlg.ddDonnees.items():
                         if code in dicDonnees:
                             ix = ctrlolv.lstCodesColonnes.index(code)
                             valorigine = selection.donnees[ix]
@@ -109,7 +198,7 @@ class EcranSaisie():
                                                 ctrlolv.lstCodesColonnes[ix], float(valeurs[categorie][code]))
                                 else: wx.MessageBox("%s, type non géré pour modifs: %s"%(code,type(valorigine)))
                                 eval(action)
-            ctrlolv.MAJ(ixsel)
+            ctrlolv.MAJ(parent.ixsel)
             # mise à jour table de base de donnee
             lstModifs = []
             for categorie, dicdonnees in valeurs.items():
@@ -117,14 +206,16 @@ class EcranSaisie():
                     if valeur != None:
                         nom = lstNoms[lstCodes.index(code)]
                         lstModifs.append((nom,valeur))
+                        selection.donnees[ctrlolv.lstCodesColonnes.index(code)] = valeur
 
-            if len(lstModifs)>0 and mode == 'modif':
-                ret = parent.DBsql.ReqMAJ(table,lstModifs,wherecle,mess='MAJ affectations.%s.Ecran'%table)
+            if len(lstModifs)>0 and parent.mode == 'modif':
+                ret = parent.DBsql.ReqMAJ(parent.table,lstModifs,
+                                          parent.wherecle,mess='MAJ affectations.%s.Ecran'%parent.table)
                 if ret != 'ok':
                     wx.MessageBox(ret)
         parent.ctrlolv.SetFocus()
-        parent.ctrlolv.SelectObject(parent.ctrlolv.donnees[ixsel])
-        dlg.Destroy()
+        parent.ctrlolv.SelectObject(parent.ctrlolv.donnees[parent.ixsel])
+        parent.dlg.Destroy()
 
 class Balance():
     def __init__(self,parent):
@@ -133,6 +224,7 @@ class Balance():
         self.clic = None
         self.parent = parent
         self.IDdossier = parent.IDdossier
+        self.lastAction = ''
 
         # pointeur de la base principale ( ouverture par défaut de db_prim via xGestionDB)
         self.DBsql = self.parent.DBsql
@@ -183,7 +275,7 @@ class Balance():
                                 }
                 }
 
-        # options d'enrichissement de l'écran
+        # options d'enrichissement de l'écran de saisie
         lstBtns = [('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_fermer.png", wx.BITMAP_TYPE_ANY),
                     "Cliquez ici pour fermer la fenêtre")]
         # params d'actions: idem boutons, ce sont des boutons placés à droite et non en bas
@@ -211,49 +303,277 @@ class Balance():
             self.ctrlolv.SelectObject(self.ctrlolv.donnees[0])
         ret = self.dlgolv.ShowModal()
         return ret
-
-    def OnChildBtnAction(self,event):
-        print('Bonjour Enter sur le bouton : ',event.EventObject.nameBtn)
-        print( event.EventObject.labelBtn,)
-        print('Action prévue : ',event.EventObject.actionBtn)
-
-    def OnChildCtrlAction(self,event):
-        print('Bonjour Enter sur le controle : ',event.EventObject.nameCtrl)
-        print( event.EventObject.labelCtrl,)
-        print('Action prévue : ',event.EventObject.actionCtrl)
-
-    def OnModif(self):
+        
+    def AppelSaisie(self,mode):
+        self.mode = mode
         ctrlolv = self.ctrlolv
         all = ctrlolv.GetObjects()
         selection = ctrlolv.Selection()[0]
-        ixsel = all.index(selection)
+        self.ixsel = all.index(selection)
         if not VerifSelection(self,self.dlgolv,infos=False):
             return
         # Spécificités écran saisie
-        table = '_Balances'
+        self.table = '_Balances'
+        self.nbShuntChamps = 2
         IDenr = "IDligne"
-        ID = ctrlolv.recordset[ixsel][ctrlolv.lstTblChamps.index(IDenr)]
-        wherecle = "%s = %d" %(IDenr,ID)
-        dicOptions = {'affectation':{
+        ID = ctrlolv.recordset[self.ixsel][ctrlolv.lstTblChamps.index(IDenr)]
+        self.wherecle = "%s = %d" %(IDenr,ID)
+        valuesAffect = AffectsActifs(self,self.IDdossier,self.DBsql)
+        self.dicOptions = {'affectation':{
+                        'values': valuesAffect,
                         'genre': 'enum',
-                                                'btnLabel': "...",
+                        'btnLabel': "...",
                         'btnHelp': "Cliquez pour ajouter des affectations à la liste",
-                        'btnAction': 'OnNvlAffectation',},
+                        'btnAction': 'OnAjoutAffect',},
                     'soldefin': {
                         'ctrlAction': 'OnYva',}}
-        cdCateg = 'params'
-        nmCateg = 'DétailLigne'
-        pos = (300,0)
-        minSize = (400,1000)
-        EcranSaisie(self,self.ctrlolv,'modif',selection,ixsel,cdCateg,nmCateg,pos,minSize,dicOptions,table,wherecle)
+        self.cdCateg = 'params'
+        self.nmCateg = 'DétailLigne'
+        self.pos = (300,0)
+        self.minSize = (400,1000)
+        EcranSaisie(self,self.ctrlolv,selection)
+
+    def OnModif(self):
+        self.AppelSaisie('modif')
 
     def OnEclater(self):
-        if VerifSelection(self,self.dlgolv):
-            ret = Balance(self)
+        self.AppelSaisie('copie')
 
     def OnRegrouper(self):
-        if VerifSelection(self,self.dlgolv):
-            ret = Balance(self)
+        self.AppelSaisie('del')
+
+    def OnChildBtnAction(self,event):
+        self.action = 'self.%s(event)' % event.EventObject.actionBtn
+        try:
+            eval(self.action)
+        except Exception as err:
+            wx.MessageBox("Echec sur lancement action sur btn: '%s' \nLe retour d'erreur est : \n%s"%(self.action, err))
+
+    def OnChildCtrlAction(self,event):
+        self.action = 'self.%s(event)' % event.EventObject.actionCtrl
+        try:
+            eval(self.action)
+        except Exception as err:
+            wx.MessageBox("Echec sur lancement action sur ctrl: '%s' \nLe retour d'erreur est : \n%s"%(self.action, err))
+
+    def OnAjoutAffect(self,event):
+        lstChoix = LstFromModeles(self.DBsql)
+        dlgAffect = xusp.DLG_vide(None, )
+        dictDonnees = {
+                       "ident": {'domaine': 'mon domaine'}}
+        dictMatrice = {
+            ("affectations", "Affecter au dossier"):
+                [
+                    {'genre': 'Multichoice', 'name': 'affect', 'label': 'Produits et coûts', 'value': "",
+                     'help': 'Les lignes cochées seront ajoutées au dossier','values':lstChoix},
+                ],}
+        pnl = xusp.PNL_property(dlgAffect, dlgAffect, matrice=dictMatrice, donnees=dictDonnees)
+        dlgAffect.Sizer(pnl)
+        dlgAffect.Show()
+
+        def Close(self):
+            # clic sur le bouton validation
+            # récup des noms de lignes checked
+            tables = []
+            for ligne in self.myOlv.GetCheckedObjects():
+                tables.append(ligne.table)
+            if len(tables) > 0:
+                rep = wx.MessageBox("Suppression de %s tables sans retour possible" % len(tables), style=wx.YES_NO)
+                if rep == wx.YES:
+                        req = """ TABLE %s;"""
+                        ret = self.DBsql.ExecuterReq(req)
+                        if ret == 'ok':
+                            self.DBsql.Commit()
+                        else:
+                            wx.MessageBox("Echec " )
+            dlgAffect.Destroy()
+
+class Produits():
+    def __init__(self, parent):
+        self.title = '[UTIL_affectations].Produits'
+        self.mess = ''
+        self.clic = None
+        self.parent = parent
+        self.IDdossier = parent.IDdossier
+        self.lastAction = ''
+
+        # pointeur de la base principale ( ouverture par défaut de db_prim via xGestionDB)
+        self.DBsql = self.parent.DBsql
+        self.retour = self.EcranProduits()
+
+    def EcranProduits(self):
+        """IDmatelier,IDmproduit,nomProduitDef,nomProduit,
+            moisRecolte,prodPrincipalDef,surfaceProd,unite,\
+            comptes,quantite,unite,ventes,achatAnmx,deltaStock,autreProd,prodPrincipal,\
+            TypesProduit,NoLigne,StockFin,Effectif"""
+        # appel des produits utilisés dans le dossier pour affichage en tableau
+        req = """SELECT _produits.IDMatelier, _produits.IDMproduit, mproduits.NomProduit, _produits.NomProdForcé, 
+                        mproduits.MoisRécolte, mproduits.ProdPrincipal, _produits.SurfaceProd, mproduits.UniteSAU,
+                        _produits.Comptes, _produits.Quantité1, mproduits.UnitéQté1, _produits.Ventes, 
+                        _produits.AchatAnmx, _produits.DeltaStock, _produits.AutreProd, _produits.ProdPrincipal, 
+                        _produits.TypesProduit, _produits.NoLigne,_produits.StockFin, _produits.EffectifMoyen
+                FROM _produits 
+                INNER JOIN mproduits ON (_produits.IDMproduit = mproduits.IDMproduit) 
+                            AND (_produits.IDMatelier = mproduits.IDMatelier)
+                WHERE _produits.IDdossier = %s
+                ;""" % (self.IDdossier)
+        retour = self.DBsql.ExecuterReq(req, mess='Util_affectations.ListeProduits')
+        if retour == "ok":
+            recordset = self.DBsql.ResultatReq()
+            if len(recordset) == 0:
+                retour = "aucun enregistrement disponible"
+        if (not retour == "ok"):
+            wx.MessageBox("Erreur : %s" % retour)
+            return 'ko'
+
+        lstNomsColonnes = ["ix","Atelier","Produit","NomProduit","MoisRecolte","Principal","SurfaceProd","UniteSAU",
+                           "Comptes","Quantité","Unité","Production","Types","NoLigne","StockFin","Effectif"]
+        lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstNomsColonnes]
+
+        lstValDefColonnes = [0,"","","",0,0,0.0,"",
+                           "",0.0,"",0.0,"",0,0.0,0.0]
+        lstLargeurColonnes = [0,60,60,60,60,60,60,60,
+                           280,-1,60,-1,100,60,-1,-1]
+        lstDonnees = []
+        ix=0
+        # composition des données du tableau à partir du recordset
+        for IDmatelier,IDmproduit,nomProduitDef,nomProduit,moisRecolte,prodPrincipalDef,surfaceProd,unite,\
+            comptes,quantite,unite,ventes,achatAnmx,deltaStock,autreProd,prodPrincipal,\
+            TypesProduit,NoLigne,StockFin,Effectif in recordset:
+            product = 0.0
+            # calcul du produit
+            for prod in [ventes,achatAnmx,deltaStock,autreProd]:
+                product += xfmt.Nz(prod)
+            product = round(product,2)
+            if not nomProduit: nomProduit = nomProduitDef
+            if not prodPrincipal: prodPrincipal = prodPrincipalDef
+            lstDonnees.append([ix,IDmatelier,IDmproduit,nomProduit,moisRecolte,prodPrincipal,surfaceProd,unite,
+                               comptes,quantite,unite,product,TypesProduit,NoLigne,StockFin,Effectif])
+            ix += 1
+        # matrice OLV
+        lstColonnes = xusp.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
+        dicOlv = {
+            'lanceur': self,
+            'listeColonnes': lstColonnes,
+            'listeDonnees': lstDonnees,
+            'checkColonne': False,
+            'hauteur': 650,
+            'largeur': 1300,
+            'recherche': True,
+            'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
+            'dictColFooter': {"nomexploitation": {"mode": "nombre", "alignement": wx.ALIGN_CENTER},
+                              }
+        }
+
+        # options d'enrichissement de l'écran de saisie
+        lstBtns = [('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_fermer.png", wx.BITMAP_TYPE_ANY),
+                    "Cliquez ici pour fermer la fenêtre")]
+        # params d'actions: idem boutons, ce sont des boutons placés à droite et non en bas
+        lstActions = [('ajout', wx.ID_APPLY, 'Ajouter', "Cliquez ici pour ajouter une ligne"),
+                      ('modif', wx.ID_APPLY, 'Modifier', "Cliquez ici pour modifier la ligne"),
+                      ('suppr', wx.ID_APPLY, 'Supprimer', "Supprimer la ligne"),
+                      ]
+        # un param par info: texte ou objet window.  Les infos sont  placées en bas à gauche
+        lstInfos = ["BALANCE -", self.parent.infos, " - PRODUITS OUVERTS"]
+        # params des actions ou boutons: name de l'objet, fonction ou texte à passer par eval()
+        dicOnClick = {
+            'ajout': 'self.lanceur.OnAjouter()',
+            'modif': 'self.lanceur.OnModif()',
+            'suppr': 'self.lanceur.OnSupprimer()'}
+        self.dlgolv = xgt.DLG_tableau(self, dicOlv=dicOlv, lstBtns=lstBtns, lstActions=lstActions, lstInfos=lstInfos,
+                                      dicOnClick=dicOnClick)
+
+        # l'objet ctrlolv pourra être appelé, il sert de véhicule à params globaux de l'original
+        lstChamps, lstTypes, lstHelp = dtt.GetChampsTypes('_Produits', tous=True)
+        self.ctrlolv = self.dlgolv.ctrlOlv
+        self.ctrlolv.lstTblHelp = lstHelp
+        self.ctrlolv.lstTblChamps = lstChamps
+        self.ctrlolv.recordset = recordset
+        if len(lstDonnees) > 0:
+            # selection de la première ligne
+            self.ctrlolv.SelectObject(self.ctrlolv.donnees[0])
+        ret = self.dlgolv.ShowModal()
+        return ret
+
+    def AppelSaisie(self, mode):
+        self.mode = mode
+        ctrlolv = self.ctrlolv
+        all = ctrlolv.GetObjects()
+        selection = ctrlolv.Selection()[0]
+        self.ixsel = all.index(selection)
+        if not VerifSelection(self, self.dlgolv, infos=False):
+            return
+        # Spécificités écran saisie
+        self.table = '_Produits'
+        self.nbShuntChamps = 3
+        IDenr1 = "IDatelier"
+        ID1 = ctrlolv.recordset[self.ixsel][ctrlolv.lstTblChamps.index(IDenr1)]
+        IDenr2 = "IDproduit"
+        ID2 = ctrlolv.recordset[self.ixsel][ctrlolv.lstTblChamps.index(IDenr2)]
+        self.wherecle = "(%s = %s) AND (%s = %s)" % (IDenr1, ID1, IDenr2, ID2)
+        self.dicOptions = {}
+        self.cdCateg = 'params'
+        self.nmCateg = 'DétailLigne'
+        self.pos = (350, 100)
+        self.minSize = (400, 800)
+        EcranSaisie(self, self.ctrlolv, selection)
+
+    def OnModif(self):
+        self.AppelSaisie('modif')
+
+    def OnAjouter(self):
+        self.AppelSaisie('ajout')
+
+    def OnSupprimer(self):
+        self.AppelSaisie('del')
+
+    def OnChildBtnAction(self, event):
+        self.action = 'self.%s(event)' % event.EventObject.actionBtn
+        try:
+            eval(self.action)
+        except Exception as err:
+            wx.MessageBox(
+                "Echec sur lancement action sur btn: '%s' \nLe retour d'erreur est : \n%s" % (self.action, err))
+
+    def OnChildCtrlAction(self, event):
+        self.action = 'self.%s(event)' % event.EventObject.actionCtrl
+        try:
+            eval(self.action)
+        except Exception as err:
+            wx.MessageBox(
+                "Echec sur lancement action sur ctrl: '%s' \nLe retour d'erreur est : \n%s" % (self.action, err))
+
+    def OnAjoutAffect(self, event):
+        lstChoix = LstFromModeles(self.DBsql)
+        dlgAffect = xusp.DLG_vide(None, )
+        dictDonnees = {
+            "ident": {'domaine': 'mon domaine'}}
+        dictMatrice = {
+            ("affectations", "Affecter au dossier"):
+                [
+                    {'genre': 'Multichoice', 'name': 'affect', 'label': 'Produits et coûts', 'value': "",
+                     'help': 'Les lignes cochées seront ajoutées au dossier', 'values': lstChoix},
+                ], }
+        pnl = xusp.PNL_property(dlgAffect, dlgAffect, matrice=dictMatrice, donnees=dictDonnees)
+        dlgAffect.Sizer(pnl)
+        dlgAffect.Show()
+
+        def Close(self):
+            # clic sur le bouton validation
+            # récup des noms de lignes checked
+            tables = []
+            for ligne in self.myOlv.GetCheckedObjects():
+                tables.append(ligne.table)
+            if len(tables) > 0:
+                rep = wx.MessageBox("Suppression de %s tables sans retour possible" % len(tables), style=wx.YES_NO)
+                if rep == wx.YES:
+                    req = """ TABLE %s;"""
+                    ret = self.DBsql.ExecuterReq(req)
+                    if ret == 'ok':
+                        self.DBsql.Commit()
+                    else:
+                        wx.MessageBox("Echec ")
+            dlgAffect.Destroy()
 
 class Affectations():
     def __init__(self,annee=None, client=None, groupe=None, filiere=None, agc='ANY'):
@@ -383,6 +703,7 @@ class Affectations():
                                  dicOnClick=dicOnClick)
         self.ctrlolv = self.dlgdossiers.ctrlOlv
         self.ctrlolv.recordset = recordset
+        self.ctrlolv.Bind(wx.EVT_LIST_ITEM_SELECTED,self.OnSelection)
 
         if len(lstDonnees) > 0:
             # selection de la première ligne
@@ -394,7 +715,6 @@ class Affectations():
     def EcranIdent(self,ctrlolv,mode):
         # affichage d'une ligne en vue de modif, toutes les colonnes ne sont pas reprises
         # appel d'un dossier pour affichage table ident
-        self.IDdossier = ctrlolv.Selection()[0].id
         req = """
                 SELECT *
                 FROM _Ident 
@@ -476,6 +796,9 @@ class Affectations():
         self.ctrlolv.SelectObject(self.ctrlolv.donnees[ixsel])
         dlg.Destroy()
 
+    def OnSelection(self,event):
+        self.IDdossier = self.ctrlolv.Selection()[0].id
+
     def OnIdent(self):
         if VerifSelection(self,self.dlgdossiers):
             self.EcranIdent(self.ctrlolv,'modif')
@@ -495,200 +818,10 @@ class Affectations():
 
     def OnProduits(self):
         if VerifSelection(self,self.dlgdossiers):
-            self.IDdossier = self.dlgdossiers.ctrlOlv.Selection()[0].id
-            wx.MessageBox('clic sur produits')
+            Produits(self)
+            self.ctrlolv.SetFocus()
+            self.ctrlolv.SelectObject(self.dlgdossiers.ctrlOlv.donnees[self.ixsel])
 
-    """def Init_dic_produit(self,produit):
-        #prépare un dictionnaire vide pour les champs nombre réels
-        dic = {'IDMproduit':produit}
-        for champ in dtt.GetChamps('_Produits',reel=True):
-            dic[champ] = 0.0
-        dic['IDMatelier'] = self.dicProduits[produit]['idmatelier']
-        dic['Comptes'] = []
-        dic['AutreProduit'] = 0.0
-        dic['CalculAutreProduit'] = []
-        dic['Subventions'] = 0.0
-        dic['CalculSubvention'] = []
-        dic['AutreProd'] = 0.0
-        dic['ProdPrincipal'] = 1
-        dic['TypesProduit'] = ''
-        dic['Production'] = 0.0
-        return dic
-
-    def Init_dic_atelier(self,atelier,IDdossier):
-        #prépare un dictionnaire vide pour les champs nombre réels et texte provisoirement en liste
-        dic = {'IDMatelier':atelier}
-        for champ in dtt.GetChamps('_Ateliers',reel=True):
-            dic[champ] = 0.0
-        for champ in dtt.GetChamps('_Ateliers',texte=True):
-            dic[champ] = []
-        dic['IDMatelier'] = atelier
-        dic['IDdossier'] = IDdossier
-        return dic
-
-    def AffecteAtelier(self, IDdossier,atelier,lstComptesRetenus):
-        # Balaye la balance  pour affecter à l'atelier tout les comptes non affectés aux produits
-        # on récupère les comptes ds balance, on les traite sur le IDplanCompte
-        compteencours = ''
-        for IDdossier, Compte, IDligne, Libelle, MotsClePres,Quantites1, Unite1, Quantites2, Unite2, SoldeDeb, DBmvt, \
-            CRmvt, SoldeFin, IDplanCompte, Affectation in self.balanceCeg:
-            if Compte in lstComptesRetenus and Compte != compteencours: continue
-            if not IDplanCompte : 
-                IDplanCompte = ChercheIDplanCompte(Compte,self.dicPlanComp)
-            if  not (IDplanCompte in self.dicPlanComp) : 
-                IDplanCompte = ChercheIDplanCompte(Compte,self.dicPlanComp)
-            if len(IDplanCompte.strip())==0: continue
-            ok = False            
-            # ce compte sera affecté à l'atelier
-            post = 'cout'
-            # si plusieurs lignes successives d'un même compte (quand plusieurs unités de qté) => compteencours cumule
-            compteencours = Compte
-            lstComptesRetenus.append(Compte)
-            def AppendCompte(lstComptes,compte):
-                if not compte in lstComptes:
-                    lstComptes.append(compte)
-                return
-            # inversion des signes de balance pour retrouver du positif dans les produits ou stock
-            if IDplanCompte[:2] == '74':
-                # subventions seront affectées à l'atelier
-                self.dic_Ateliers[atelier]['Subventions'] += SoldeFin
-                AppendCompte(self.dic_Ateliers[atelier]['CPTSubventions'],Compte)
-                post='Subventions'
-            elif IDplanCompte[:2] in ('70','71','75','33','34','35','36','37'):
-                self.dic_Ateliers[atelier]['AutreProduit'] += SoldeFin
-                AppendCompte(self.dic_Ateliers[atelier]['CPTAutreProduit'],Compte)
-                post='AutreProduit'
-            elif IDplanCompte[:3] in ('307','604'):
-                self.dic_Ateliers[atelier]['AutreProduit'] += SoldeFin
-                AppendCompte(self.dic_Ateliers[atelier]['CPTAutreProduit'],Compte)
-                post = 'AutreProduit'
-
-            #TODO inserer les comptes de charges selon type
-
-            # MAJ _Balances
-            affectation = 'A.' + atelier + "." + post
-            lstCouples = [('IDplanCompte', IDplanCompte), ('Affectation', affectation)]
-            condition = "IDligne = %d" % IDligne
-            self.DBsql.ReqMAJ('_Balances', couples=lstCouples, condition=condition, mess= "GeneredicAtelier MAJ _Balances")
-
-        return
-
-    def GenereDicProduit(self, IDdossier, produit, lstMots, lstComptesRetenus, dicProduit=None):
-        # Balaye la balance  pour affecter à ce produit, création ou MAJ de dicProduit, et MAJ de self.balanceCeg
-        if not dicProduit:
-            dicProduit = self.Init_dic_produit(produit)
-            dicProduit['IDdossier'] = IDdossier
-        lstRadicaux = self.dicProduits[produit]['cptproduit'].split(',')
-        compteencours = ''
-        atelier = dicProduit['IDMatelier']
-        if(not atelier in self.dic_Ateliers) and atelier != 'ANY':
-            dicAtelier = self.Init_dic_atelier(atelier,dicProduit['IDdossier'])
-            self.dic_Ateliers[atelier] = dicAtelier
-        if self.dicProduits[produit]['typesproduit']:
-            for tip in self.dicProduits[produit]['typesproduit'].split(','):
-                if not tip.lower() in dicProduit['TypesProduit'].lower():
-                    dicProduit['TypesProduit'] += (tip + ',')
-        # on récupère les comptes ds balance, on les traite sur le IDplanCompte
-        for IDdossier, Compte, IDligne, Libelle, MotsClePres,Quantites1, Unite1, Quantites2, Unite2, SoldeDeb, DBmvt, \
-            CRmvt, SoldeFin, IDplanCompte, Affectation in self.balanceCeg:
-            if not IDplanCompte : 
-                IDplanCompte = ChercheIDplanCompte(Compte,self.dicPlanComp)
-            if  not (IDplanCompte in self.dicPlanComp) : 
-                IDplanCompte = ChercheIDplanCompte(Compte,self.dicPlanComp)
-            if len(IDplanCompte.strip())==0: continue
-            # test sur liste de mot, on garde ceux qui contiennent un mot clé du produit
-            ok = False
-            if lstMots:
-                # teste la présence du mot clé dans le compte
-                for mot in lstMots:
-                    if mot in MotsClePres.lower():
-                        ok = True
-                        #un mot présent suffit pour matcher
-                        break
-            if not ok: continue
-            # ce compte a matché il sera affecté au produit
-            affectation = ''
-            if Compte in lstComptesRetenus and Compte != compteencours:
-                # le compte à déjà été affecté par un autre produit et ce n'est pas une deuxième ligne d'un même compte
-                continue
-            # si plusieurs lignes successives d'un même compte (quand plusieurs unités de qté) => compteencours cumule
-            compteencours = Compte
-            # teste si le compte rentre dans les radicaux possibles pour le modèle de produit
-            for radical in lstRadicaux:
-                if radical == IDplanCompte[:len(radical)]:
-                    # le compte rentre dans le produit : calcul du produit
-                    lstComptesRetenus.append(Compte)
-                    dicProduit['Comptes'].append(Compte)
-                    dicProduit['Quantité1'] += Quantites1
-                    dicProduit['Quantité2'] += Quantites2
-                    # inversion des signes de balance pour retrouver du positif dans les produits ou stock
-                    if IDplanCompte[:2] == '70':
-                        dicProduit['Ventes'] -= SoldeFin
-                    elif IDplanCompte[:2] == '71':
-                        dicProduit['DeltaStock'] -= SoldeFin
-                    elif IDplanCompte[:2] == '72':
-                        dicProduit['AutreProd'] -= SoldeFin
-                    elif IDplanCompte[:2] == '74':
-                        # les subventions seront affectées à l'atelier même avec mot clé présent niveau produit
-                        self.dic_Ateliers[atelier]['Subventions'] += SoldeFin
-                        self.dic_Ateliers[atelier]['CPTSubventions'].append(Compte)
-                        affectation = 'A.' + atelier + "." + 'Subventions'
-                    elif IDplanCompte[:2] == '75':
-                        dicProduit['AutreProd'] -= SoldeFin
-                    elif IDplanCompte[:2] == '76':
-                        self.dic_Ateliers[atelier]['AutreProduit'] += SoldeFin
-                        self.dic_Ateliers[atelier]['CPTAutreProduit'].append(Compte)
-                        affectation = 'A.' + atelier + "." + 'AutreProduit'
-                    elif IDplanCompte[:3] == '603':
-                        dicProduit['DeltaStock'] -= SoldeFin
-                    elif IDplanCompte[:3] == '604':
-                        dicProduit['AchatAnmx'] -= SoldeFin
-                    # le paramétrage ne doit pas contenir à la fois des ((603 ou 71) et 3) dans les radicaux
-                    elif IDplanCompte[:1] == '3':
-                        dicProduit['DeltaStock'] -= SoldeFin - SoldeDeb
-                        dicProduit['StockFin'] -= SoldeFin
-                    else:
-                        dicProduit['AutreProd'] -= SoldeFin
-                    production = 0.0
-                    for poste in ('Ventes', 'DeltaStock', 'AchatAnmx', 'AutreProd'):
-                        production += dicProduit[poste]
-                    dicProduit['Production'] = production
-                    # MAJ _Balances
-                    # enregistrement du compte std et marque d'affectation
-                    if affectation == '':
-                        affectation = 'P.'+atelier+'.'+produit
-                    lstCouples = [('IDplanCompte', IDplanCompte), ('Affectation', affectation)]
-                    condition = "IDligne = %d" % IDligne
-                    self.DBsql.ReqMAJ('_Balances', couples=lstCouples, condition=condition, mess= "GenereDicProduit MAJ _Balances")
-                    break
-        return dicProduit
-
-    def Genere_Atelier(self,IDMatelier,dicAtelier):
-        # création ou MAJ d'un atelier par son produit et les modèles
-        lstDonnees, lstChamps =[], []
-        lstChampsTable = dtt.GetChamps('_Ateliers')
-        for champ in dicAtelier.keys():
-            if champ in lstChampsTable:
-                lstChamps.append(champ)
-                lstDonnees.append(dicAtelier[champ])
-        orui.TronqueData('_Ateliers',lstChamps,lstDonnees)
-        ok = self.DBsql.ReqInsert('_Ateliers',lstChamps,lstDonnees,mess= 'Genere_Atelier Atelier : %s'%IDMatelier)
-        return ok
-
-    def Genere_Produit(self, dicProduit):
-        # création ou MAJ d'un produits par son produit et les modèles
-        IDMproduit = dicProduit['IDMproduit']
-        lstChampsTable = dtt.GetChamps('_Produits')
-        lstChamps = []
-        lstDonnees = []
-        for champ in dicProduit.keys():
-            if champ in lstChampsTable:
-                lstChamps.append(champ)
-                lstDonnees.append(dicProduit[champ])
-        orui.TronqueData('_Produits',lstChamps,lstDonnees)
-        ok = self.DBsql.ReqInsert('_Produits', lstChamps, lstDonnees, mess='GenereProduits Produit : %s' % IDMproduit)
-        return ok
-    """
 
 #************************   Pour Test ou modèle  *********************************
 if __name__ == '__main__':

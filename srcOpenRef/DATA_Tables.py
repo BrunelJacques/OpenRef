@@ -96,7 +96,7 @@ DB_TABLES = {
         ("CRmvt", 'float', 'DEFAULT NULL', ""),
         ("SoldeFin", 'float', 'DEFAULT NULL', "Cumul des Débits ou des Crédits en valeur négative"),
         ("IDplanCompte", 'varchar(8)', 'DEFAULT NULL', "Permet de rattacher le compte à un plan comptable quiattribuera un type "),
-        ("Affectation", 'varchar(48)', "NOT NULL DEFAULT ' '","P.IDMatelier.IDMproduit, C.IDMatelier.IDMcoût,A.IDMatelier.champ_Ateliers, I.champIdent.NanDebCreSold : désigne où est l''affection et le mode de calcul"),
+        ("Affectation", 'varchar(48)', "NOT NULL DEFAULT ' '","P.IDMatelier.IDMproduit, C.IDMatelier.IDMcoût,A.IDMatelier, I.TabFin : désigne où est l''affection et le mode de calcul"),
         ],
     '_Ateliers': [
         ("IDdossier",  'int(8)', ' NOT NULL', "Agc, exploitation, exercice"),
