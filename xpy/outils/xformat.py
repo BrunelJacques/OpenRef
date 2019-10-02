@@ -93,27 +93,27 @@ def DatetimeToStr(dte,iso=False):
     else: return str(dte)
 
 def FmtDecimal(montant):
-    if montant == None or float(montant) == 0.0 :
+    if montant == None or montant == '' or int(montant) == 0:
         return ""
     strMtt = '{:,.2f} '.format(float(montant))
     strMtt = strMtt.replace(',',' ')
     return strMtt
 
 def FmtInt(montant):
-    if montant == None or int(montant) == 0 :
+    if montant == None or montant == '' or int(montant) == 0:
         return ""
     strMtt = '{:,.0f} '.format(int(montant))
     strMtt = strMtt.replace(',',' ')
     return strMtt
 
 def FmtPercent(montant):
-    if montant == None or int(montant) == 0 :
+    if montant == None or montant == '' or int(montant) == 0:
         return ""
     strMtt = '{:}% '.format(int(montant))
     return strMtt
 
 def FmtDate(date):
-    if date == None or date == wx.DateTime.FromDMY(1,0,1900):
+    if date == None or date == wx.DateTime.FromDMY(1,0,1900) or date == '':
         return ''
     if isinstance(date,str):
         tpldate = date.split('-')
@@ -124,14 +124,14 @@ def FmtDate(date):
     return strdate
 
 def FmtMontant(montant):
-    if montant == None or float(montant) == 0.0:
+    if montant == None or montant == '' or float(montant) == 0.0:
         return ""
     strMtt = '{:,.2f} '.format(float(montant))
     strMtt = strMtt.replace(',',' ')+ SYMBOLE
     return strMtt
 
 def FmtSolde(montant):
-    if montant == None :
+    if montant == None or montant == '':
         return ""
     strMtt = '{:+,.2f} '.format(float(montant))
     strMtt = strMtt.replace(',',' ')+ SYMBOLE

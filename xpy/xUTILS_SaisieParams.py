@@ -152,28 +152,32 @@ def DefColonnes(lstNoms,lstCodes,lstValDef,lstLargeur):
         ix += 1
     return lstColonnes
 
-def ExtractList(lstin, champdeb=None, champfin=None):
+def ExtractList(lstin, champDeb=None, champFin=None):
     # Extraction d'une sous liste à partir du contenu des items début et fin
     lstout = []
-    if champdeb in lstin:
-        ix1 = lstin.index(champdeb)
+    if champDeb in lstin:
+        ix1 = lstin.index(champDeb)
     else:
         ix1 = 0
-    if champfin in lstin:
-        ix2 = lstin.index(champfin)
+    if champFin in lstin:
+        ix2 = lstin.index(champFin)
     else:
         ix2 = ix1
     for ix in range(ix1, ix2 + 1):
         lstout.append(lstin[ix])
     return lstout
 
-def ComposeMatrice(champdeb=None, champfin=None, lstChamps=[], lstTypes=[], lstHelp=[], record=(),dicOptions={}):
+def ComposeMatrice(champDeb=None,champFin=None,lstChamps=[],lstTypes=[],lstHelp=[],record=(),dicOptions={},lstCodes=None):
     # Retourne une matrice (dic[chapitre][champ]) et  donnees (dic[champ][valeur])
-    lstNomsColonnes = ExtractList(lstChamps, champdeb=champdeb, champfin=champfin)
-    lstCodesColonnes = [SupprimeAccents(x) for x in lstNomsColonnes]
+    lstNomsColonnes = ExtractList(lstChamps, champDeb=champDeb, champFin=champFin)
+    if lstCodes:
+        lstCodesColonnes = lstCodes
+    else:
+        lstCodesColonnes = [SupprimeAccents(x) for x in lstNomsColonnes]
     if len(lstTypes) < len(lstChamps) and len(record) == len(lstChamps):
         lstTypes = []
         for valeur in record:
+            if not valeur: valeur = ''
             if isinstance(valeur, int): tip = 'int'
             elif isinstance(valeur, float): tip = 'float'
             elif isinstance(valeur, datetime.date): tip = 'date'
@@ -977,6 +981,9 @@ class DLG_monoLigne(wx.Dialog):
 
     def OnFermer(self, event):
         return self.Close()
+
+    def OnEndModal(self):
+        return self.EndModal(wx.OK)
 
     def OnBtnEsc(self, event):
         self.Destroy()
