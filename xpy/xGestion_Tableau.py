@@ -604,7 +604,7 @@ if __name__ == '__main__':
     # matrice OLV
     liste_Colonnes = [
         ColumnDefn("clé", 'left', 70, "cle",valueSetter=1,isSpaceFilling = True,),
-        ColumnDefn("mot d'ici", 'left', 200, "mot",valueSetter=''),
+        ColumnDefn("mot d'ici", 'left', 200, "mot",valueSetter='',isEditable=False),
         ColumnDefn("nbre", 'right', -1, "nombre",isSpaceFilling = True, valueSetter=0.0, stringConverter=xpy.outils.xformat.FmtDecimal),
         ColumnDefn("prix", 'left', 80, "prix",valueSetter=0.0,isSpaceFilling = True, stringConverter=xpy.outils.xformat.FmtMontant),
         ColumnDefn("date", 'center', 80, "date",valueSetter=wx.DateTime.FromDMY(1,0,1900),isSpaceFilling = True,  stringConverter=xpy.outils.xformat.FmtDate),

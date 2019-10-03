@@ -161,6 +161,8 @@ def ExtractList(lstin, champDeb=None, champFin=None):
         ix1 = 0
     if champFin in lstin:
         ix2 = lstin.index(champFin)
+    elif champFin in ('last','dernier','tous'):
+        ix2 = len(lstin)-1
     else:
         ix2 = ix1
     for ix in range(ix1, ix2 + 1):
@@ -170,6 +172,9 @@ def ExtractList(lstin, champDeb=None, champFin=None):
 def ComposeMatrice(champDeb=None,champFin=None,lstChamps=[],lstTypes=[],lstHelp=[],record=(),dicOptions={},lstCodes=None):
     # Retourne une matrice (dic[chapitre][champ]) et  donnees (dic[champ][valeur])
     lstNomsColonnes = ExtractList(lstChamps, champDeb=champDeb, champFin=champFin)
+    options = {}
+    for key, dic in dicOptions.items():
+        options[SupprimeAccents(key)] = dic
     if lstCodes:
         lstCodesColonnes = lstCodes
     else:
@@ -210,8 +215,8 @@ def ComposeMatrice(champDeb=None,champFin=None,lstChamps=[],lstTypes=[],lstHelp=
             'help': lstHelp[ix]
         }
         # Présence de la définition d'options ou dérogations au standart
-        if code in dicOptions:
-            for key,item in dicOptions[code].items():
+        if code in options:
+            for key,item in options[code].items():
                 dicchamp[key]=item
         ldmatrice.append(dicchamp)
 
@@ -291,6 +296,7 @@ class CTRL_property(wxpg.PropertyGrid):
                     if 'name' in ligne and 'genre' in ligne:
                         if not 'label' in ligne : ligne['name'] = None
                         if not 'value' in ligne : ligne['value'] = None
+                        if not 'enable' in ligne : ligne['enable'] = True
                         codeName = code + '.' + ligne['name']
                         genre, name, label, value = Normalise(ligne['genre'],codeName,ligne['label'],ligne['value'])
                         if not 'labels' in ligne: ligne['labels'] = []
@@ -446,7 +452,7 @@ class PNL_ctrl(wx.Panel):
     """ et en option (code) un bouton d'action permettant de contrôler les saisies
         GetValue retourne la valeur choisie dans le ctrl avec action possible par bouton à droite"""
     def __init__(self, parent, *args, genre='string', name=None, label=None, value= None, labels=[], values=[], help=None,
-                 btnLabel=None, btnHelp=None, btnAction='', ctrlAction='', **kwds):
+                 btnLabel=None, btnHelp=None, btnAction='', ctrlAction='', enable=True, **kwds):
         wx.Panel.__init__(self,parent,*args, **kwds)
         self.value = value
         if btnLabel :
@@ -635,7 +641,7 @@ class BoxPanel(wx.Panel):
         self.parent = parent
         self.code = code
         self.lstPanels=[]
-        self.champsItem = ('name', 'label', 'ctrlAction', 'btnLabel', 'btnAction', 'value', 'labels', 'values')
+        self.champsItem = ('name', 'label', 'ctrlAction', 'btnLabel', 'btnAction', 'value', 'labels', 'values','enable')
         self.dictDonnees = dictDonnees
         self.ssbox = wx.BoxSizer(wx.VERTICAL)
         self.InitMatrice(lignes)
@@ -663,6 +669,9 @@ class BoxPanel(wx.Panel):
                     panel.ctrl.valOrigine = ligne['value']
                     panel.ctrl.valuesCtrl = ligne['values']
                     panel.ctrl.labelsCtrl = ligne['labels']
+                    if ligne['enable'] == False:
+                        panel.ctrl.Enable(False)
+                        panel.txt.Enable(False)
                     if panel.avecBouton and ligne['genre'].lower() != 'dir' :
                         panel.btn.nameBtn = codename
                         panel.btn.labelBtn = ligne['btnLabel']
@@ -670,9 +679,8 @@ class BoxPanel(wx.Panel):
                         panel.btn.Bind(wx.EVT_BUTTON,self.parent.OnBtnAction)
                     if panel.ctrl.actionCtrl:
                         if panel.ctrl.genreCtrl in ['enum','combo','multichoice']:
-                            #panel.ctrl.Bind(wx.EVT_COMBOBOX_CLOSEUP, self.parent.OnCtrlAction)
-                            #panel.ctrl.Bind(wx.EVT_CHECKBOX, self.parent.OnCtrlAction)
-                            panel.ctrl.Bind(wx.EVT_KILL_FOCUS,self.parent.OnCtrlAction)
+                            panel.ctrl.Bind(wx.EVT_COMBOBOX, self.parent.OnCtrlAction)
+                            panel.ctrl.Bind(wx.EVT_CHECKBOX, self.parent.OnCtrlAction)
                         else:
                             panel.ctrl.Bind(wx.EVT_KILL_FOCUS,self.parent.OnCtrlAction)
                     self.lstPanels.append(panel)
@@ -943,6 +951,7 @@ class DLG_monoLigne(wx.Dialog):
     # écran de saisie d'une ligne façon DLG_vide, mais enrichissement possible de boutons d'actions
     def __init__(self, parent, *args, dldMatrice={}, ddDonnees={}, **kwds):
         self.gestionProperty = kwds.pop('gestionProperty',False)
+        lblbox = kwds.pop('lblbox','Gestion d\'une ligne')
         self.marge = kwds.pop('marge',10)
         self.minSize = kwds.pop('minSize',(800, 500))
         self.couleur = kwds.pop('couleur',wx.WHITE)
@@ -950,6 +959,7 @@ class DLG_monoLigne(wx.Dialog):
         titre = listArbo[-1:][0] + "/" + self.__class__.__name__
         super().__init__(None, wx.ID_ANY, *args, title=titre, style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
                          **kwds)
+        self.pos = kwds.pop('pos',(50, 50))
         self.parent = parent
         self.SetBackgroundColour(self.couleur)
         self.parent = parent
@@ -962,9 +972,9 @@ class DLG_monoLigne(wx.Dialog):
         self.btn.Bind(wx.EVT_BUTTON, self.OnFermer)
         self.btnEsc = BTN_esc(self, action=self.OnBtnEsc)
         if self.gestionProperty:
-            self.pnl = PNL_property(self, self, matrice=self.dldMatrice, lblbox='Modif d\'une ligne')
+            self.pnl = PNL_property(self, self, matrice=self.dldMatrice, lblbox=lblbox)
         else:
-            self.pnl = TopBoxPanel(self, self, matrice=self.dldMatrice, lblbox='Modif d\'une ligne')
+            self.pnl = TopBoxPanel(self, self, matrice=self.dldMatrice, lblbox=lblbox)
         self.pnl.MinSize = self.minSize
         self.Sizer()
         self.pnl.SetValeurs(self.ddDonnees)
@@ -1117,7 +1127,7 @@ if __name__ == '__main__':
         ("ident", "Votre session"):
             [
                 {'genre': 'String', 'name': 'domaine', 'label': 'Votre organisation', 'value': "NomDuPC",
-                                 'help': 'Ce préfixe à votre nom permet de vous identifier'},
+                                 'help': 'Ce préfixe à votre nom permet de vous identifier','enable':False},
                 {'genre': 'String', 'name': 'utilisateur', 'label': 'Votre identifiant', 'value': "NomSession",
                                  'help': 'Confirmez le nom de sesssion de l\'utilisateur'},
             ],

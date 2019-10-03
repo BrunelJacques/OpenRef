@@ -57,11 +57,13 @@ def LargeursDefaut(lstNomsColonnes,lstChamps,lstTypes):
         lstLargDef[0]=0
     return lstLargDef
 
-def VerifSelection(parent,dlg,infos=True):
+def VerifSelection(parent,dlg,infos=True,mode='modif'):
     # contrôle la selection d'une ligne, puis marque le no dossier et eventuellement texte infos à afficher
-    if len(dlg.ctrlOlv.Selection())==0:
+    if len(dlg.ctrlOlv.Selection())==0 and mode != 'ajout':
         wx.MessageBox("Action Impossible\n\nVous n'avez pas selectionné une ligne!","Préalable requis")
         return False
+    if len(dlg.ctrlOlv.Selection()) == 0:
+        dlg.ctrlOlv.SelectObject(dlg.ctrlOlv.GetObjects()[0])
     parent.ixsel = parent.ctrlolv.donnees.index(parent.ctrlolv.Selection()[0])
     if infos:
         noclient = dlg.ctrlOlv.Selection()[0].noclient
@@ -159,49 +161,86 @@ def LstFromModeles(DBsql):
     l =  sorted(lstModeles)
     return l
 
+
+def CleWhere(cletable):
+    # tranforme cletable liste de tuples(champ,valeur), en clause sql where
+    clewhere = ''
+    for cle, val in cletable:
+        if isinstance(val, (datetime.date, str)):
+            valsql = "'%s'" % str(val)
+        else:
+            valsql = str(val)
+        clewhere += '(%s = %s) AND ' % (cle, valsql)
+    clewhere = clewhere[:-4]
+    return clewhere
+
+
 class EcranSaisie():
     # affichage d'une ligne de table en vue de modif, toutes les champs ne sont pas gérés dans parent
-    def __init__(self,parent,ctrlolv,selection):
+    def __init__(self,parent,ctrlolv,selection,**kwds):
         #liste des champs à gérer
+        cdCateg = kwds.pop('cdCateg','params')
+        nmCateg = kwds.pop('nmCateg', 'Gestion ligne')
+        champDeb = kwds.pop('champDeb', None)
+        champFin = kwds.pop('champFin', 'last')
+        table = kwds.pop('table', 'aDefinir')
+        mode = kwds.pop('mode', 'consult')
+        lblbox = kwds.pop('lblbox', mode[:1].upper()+mode[1:]+" d'une ligne de %s"%table)
+        kwds['lblbox'] = lblbox
+        kwds['gestionProperty'] = False
         lstCodes = parent.lstEcrCodes
         dictMatrice = {}
         dictDonnees = {}
-        # Reprise des valeurs completes de la table
-        req = """SELECT *
-                FROM %s
-                WHERE %s;"""%(parent.table,parent.wherecle)
-        retour = parent.DBsql.ExecuterReq(req, mess='Util_affectations.EcranSaisie : %s'%parent.table)
-        if retour == "ok":
-            recordset = parent.DBsql.ResultatReq()
-            if len(recordset) == 0:
-                retour = "aucun enregistrement disponible"
-        if (not retour == "ok"):
-            wx.MessageBox("Erreur : %s"%retour)
-            return 'ko'
-
+        record = None
+        clewhere = CleWhere(parent.cletable)
+        if mode in ('modif','copie','consult'):
+            # Reprise de toutes les valeurs completes de la table
+            req = """SELECT *
+                    FROM %s
+                    WHERE %s;"""%(table,clewhere)
+            retour = parent.DBsql.ExecuterReq(req, mess='Util_affectations.EcranSaisie : %s'%table)
+            if (not retour == "ok"):
+                wx.MessageBox("Erreur : %s"%retour)
+            else:
+                recordset = parent.DBsql.ResultatReq()
+                if len(recordset) > 0:
+                    record = [x for x in recordset[0]]
+                    for code in lstCodes:
+                        if code in ctrlolv.lstTblCodes:
+                            ixtbl = ctrlolv.lstTblCodes.index(code)
+                            if code in ctrlolv.lstCodesColonnes:
+                                # cas ou un traitement du parent peut avoir changé la record[ixtbl] native
+                                valolv = selection.donnees[ctrlolv.lstCodesColonnes.index(code)]
+                                if valolv != record[ixtbl]:
+                                    record[ixtbl] = valolv
+        if not record:
+            record =  [x for x in ctrlolv.lstTblValdef]
+            for code in ctrlolv.lstTblCodes:
+                if code in ctrlolv.lstCodesColonnes:
+                    ixcol = ctrlolv.lstCodesColonnes.index(code)
+                    ixtbl = ctrlolv.lstTblCodes.index(code)
+                    record[ixtbl]= selection.donnees[ixcol]
         # initialisation des variables de la table affichées à l'écran
         donnees, lstNoms, lstValdef, lstHelp = [],[],[],[]
         for code in lstCodes:
             if code in ctrlolv.lstTblCodes:
                 ixtbl = ctrlolv.lstTblCodes.index(code)
-                valeur = recordset[0][ixtbl]
+                valeur = record[ixtbl]
                 if not valeur: valeur = ctrlolv.lstTblValdef[ixtbl]
-                if code in ctrlolv.lstCodesColonnes:
-                    # cas ou un traitement du parent peut avoir changé la valeur native
-                    valolv = selection.donnees[ctrlolv.lstCodesColonnes.index(code)]
-                    if valolv != valeur : valeur = valolv
+                if (mode in ('copie','ajout')) and isinstance(ctrlolv.lstTblValdef[ixtbl], (int, float))\
+                        and code[:2] != 'id':
+                    # raz des valeurs numériques copiées, si ce ne sont pas des 'id'
+                    valeur = ctrlolv.lstTblValdef[ixtbl]
                 donnees.append(valeur)
                 lstNoms.append(ctrlolv.lstTblChamps[ixtbl])
                 lstValdef.append(ctrlolv.lstTblValdef[ixtbl])
                 lstHelp.append(ctrlolv.lstTblHelp[ixtbl])
 
         # Lancement de l'écran
-        param= parent.paramMatrice
-        (dictMatrice[(param['cdCateg'],param['nmCateg'])],dictDonnees[param['cdCateg']]) \
-            = xusp.ComposeMatrice(param['champDeb'],param['champFin'],lstNoms, lstHelp=lstHelp,record=donnees,
+        (dictMatrice[(cdCateg,nmCateg)],dictDonnees[cdCateg]) \
+            = xusp.ComposeMatrice(champDeb,champFin,lstNoms, lstHelp=lstHelp,record=donnees,
                                   dicOptions=parent.dicOptions,lstCodes=lstCodes)
-        parent.dlg = xusp.DLG_monoLigne(parent,dldMatrice=dictMatrice,ddDonnees=dictDonnees,gestionProperty=False,
-                                           pos=param['pos'],minSize=param['minSize'])
+        parent.dlg = xusp.DLG_monoLigne(parent,dldMatrice=dictMatrice,ddDonnees=dictDonnees,**kwds)
         retdlg = parent.dlg.ShowModal()
         if retdlg == 5101:
             # Retour par validation
@@ -211,7 +250,7 @@ class EcranSaisie():
                 for categorie, dicDonnees in parent.dlg.ddDonnees.items():
                     if code in dicDonnees and code in ctrlolv.lstCodesColonnes:
                         # pour chaque colonne de la selection de l'olv
-                        valorigine = recordset[0][ctrlolv.lstTblCodes.index(code)]
+                        valorigine = record[ctrlolv.lstTblCodes.index(code)]
                         if (not valorigine):
                             valorigine = valeurs[categorie][code]
                             flag = True
@@ -239,17 +278,22 @@ class EcranSaisie():
                     lstModifs.append((nom,valeur))
 
             if len(lstModifs)>0 and parent.mode == 'modif':
-                ret = parent.DBsql.ReqMAJ(parent.table,lstModifs,
-                                          parent.wherecle,mess='MAJ affectations.%s.Ecran'%parent.table)
+                ret = parent.DBsql.ReqMAJ(table,lstModifs,clewhere,mess='MAJ affectations.%s.Ecran'%table)
                 if ret != 'ok':
                     wx.MessageBox(ret)
             if len(lstModifs) > 0 and parent.mode == 'copie':
-                lstMaj,lstIns = parent.Copier(lstModifs,recordset[0])
-                ret = parent.DBsql.ReqMAJ(parent.table,lstMaj,parent.wherecle,mess='MAJ affectations.%s.Ecran'%parent.table)
+                lstMaj,lstIns = parent.Copier(lstModifs,record)
+                ret = parent.DBsql.ReqMAJ(table,lstMaj,clewhere,mess='MAJ affectations.%s.Ecran'%table)
                 if ret != 'ok': wx.MessageBox(ret)
                 insChamps = [x for x,y in lstIns]
                 insDonnees = [y for x,y in lstIns]
-                ret = parent.DBsql.ReqInsert(parent.table, insChamps,insDonnees,mess='Insert affectations.%s.Ecran' % parent.table)
+                ret = parent.DBsql.ReqInsert(table, insChamps,insDonnees,mess='Insert affectations.%s.Ecran' % table)
+                if ret != 'ok': wx.MessageBox(ret)
+
+            if len(lstModifs) > 0 and parent.mode == 'ajout':
+                insChamps = [x for x,y in lstModifs]
+                insDonnees = [y for x,y in lstModifs]
+                ret = parent.DBsql.ReqInsert(table, insChamps, insDonnees, mess='Insert affectations.%s.Ecran' % table)
                 if ret != 'ok': wx.MessageBox(ret)
         parent.ctrlolv.SetFocus()
         parent.ctrlolv.SelectObject(parent.ctrlolv.donnees[parent.ixsel])
@@ -265,7 +309,6 @@ class Balance():
         self.clic = None
         self.parent = parent
         self.IDdossier = parent.IDdossier
-        self.lastAction = ''
 
         # pointeur de la base principale ( ouverture par défaut de db_prim via xGestionDB)
         self.DBsql = self.parent.DBsql
@@ -320,9 +363,10 @@ class Balance():
         lstBtns = [('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_fermer.png", wx.BITMAP_TYPE_ANY),
                     "Cliquez ici pour fermer la fenêtre")]
         # params d'actions: idem boutons, ce sont des boutons placés à droite et non en bas
-        lstActions = [('modif',wx.ID_APPLY,'Modifier',"Cliquez ici pour modifier la ligne"),
-                      ('eclater',wx.ID_APPLY,'Eclater',"Cliquez ici pour subdiviser le compte"),
-                      ('regrouper', wx.ID_APPLY, 'Supprimer', "Supprimer la ligne et reporter le solde dessus"),
+        lstActions = [('ajout',wx.ID_APPLY,'Ajouter',"Cliquez ici pour ajouter une ligne"),
+                    ('modif',wx.ID_APPLY,'Modifier',"Cliquez ici pour modifier la ligne"),
+                    ('eclater',wx.ID_APPLY,'Eclater',"Cliquez ici pour subdiviser le compte"),
+                    ('supprimer', wx.ID_APPLY, 'Supprimer', "Supprimer la ligne et reporter le solde dessus"),
                       ]
         # un param par info: texte ou objet window.  Les infos sont  placées en bas à gauche
         self.trace = self.parent.trace + "- BALANCE"
@@ -330,9 +374,10 @@ class Balance():
         lstInfos = [self.infos,self.trace]
         # params des actions ou boutons: name de l'objet, fonction ou texte à passer par eval()
         dicOnClick = {
+                      'ajout' : 'self.lanceur.OnAjout()',
                       'modif' : 'self.lanceur.OnModif()',
                       'eclater' : 'self.lanceur.OnEclater()',
-                      'regrouper' : 'self.lanceur.OnRegrouper()'}
+                      'supprimer' : 'self.lanceur.OnSupprimer()'}
         self.dlgolv = xgt.DLG_tableau(self,dicOlv=dicOlv,lstBtns= lstBtns,lstActions=lstActions,lstInfos=lstInfos,
                                  dicOnClick=dicOnClick)
 
@@ -350,51 +395,64 @@ class Balance():
         return ret
         
     def AppelSaisie(self,mode):
+        if not VerifSelection(self,self.dlgolv,infos=False,mode=mode):
+            return
         self.mode = mode
         ctrlolv = self.ctrlolv
         all = ctrlolv.GetObjects()
         selection = ctrlolv.Selection()[0]
         self.ixsel = all.index(selection)
-        if not VerifSelection(self,self.dlgolv,infos=False):
-            return
         # Spécificités écran saisie
         IDenr = "IDligne"
         ID = ctrlolv.recordset[self.ixsel][ctrlolv.lstTblChamps.index(IDenr)]
-        self.wherecle = "%s = %d" %(IDenr,ID)
+        self.cletable = [(IDenr,ID),]
+        if mode == 'suppr':
+            return selection
         valuesAffect = AffectsActifs(self,self.IDdossier,self.DBsql)
-        self.dicOptions = {'affectation':{
-                        'values': valuesAffect,
-                        'genre': 'enum',
-                        'btnLabel': "...",
-                        'btnHelp': "Cliquez pour ajouter des affectations à la liste",
-                        'btnAction': 'OnAjoutAffect',},
-                    'soldefin': {
-                        'ctrlAction': 'OnYva',}}
-        champdeb = 'Compte'
+        self.dicOptions = {
+                'affectation':{
+                    'values': valuesAffect,
+                    'genre': 'enum',
+                    'btnLabel': "...",
+                    'btnHelp': "Cliquez pour ajouter des affectations à la liste",
+                    'btnAction': 'OnAjoutAffect',},
+                'IDdossier': {'enable': False},
+                'soldefin': {'enable': False},
+                'soldedeb': {'ctrlAction': 'CalculSolde',},
+                'crmvt': {'ctrlAction': 'CalculSolde',},
+                'dbmvt': {'ctrlAction': 'CalculSolde',}}
+        champdeb = 'IDdossier'
         champfin = 'SoldeFin'
         codedeb = self.ctrlolv.lstCodesColonnes[self.ctrlolv.lstNomsColonnes.index(champdeb)]
         codefin = self.ctrlolv.lstCodesColonnes[self.ctrlolv.lstNomsColonnes.index(champfin)]
         self.lstEcrCodes = xusp.ExtractList(self.ctrlolv.lstCodesColonnes,codedeb,codefin)
-        self.paramMatrice = {'cdCateg':'compte',"nmCateg":'DétailLigne','champDeb':champdeb,'champFin':champfin}
-        self.paramMatrice['pos'] = (300, 0)
-        self.paramMatrice['minSize'] = (400, 1000)
 
-        EcranSaisie(self,self.ctrlolv,selection)
+        dicParamSaisie = {'cdCateg':'compte',"nmCateg":'DétailLigne','champDeb':champdeb,'champFin':champfin}
+        dicParamSaisie['pos'] = (300, 100)
+        dicParamSaisie['minSize'] = (500, 500)
+        dicParamSaisie['table'] = self.table
+        dicParamSaisie['mode'] = mode
+        self.ecranSaisie = EcranSaisie(self,self.ctrlolv,selection,**dicParamSaisie)
+
+    def OnAjout(self):
+        self.AppelSaisie('ajout')
+        self.Reinit()
 
     def OnModif(self):
         self.AppelSaisie('modif')
 
     def OnEclater(self):
         self.AppelSaisie('copie')
+        self.Reinit()
 
     def Copier(self,lstModifs,recOrigine):
-        lstIns, lstMaj = [('IDdossier',self.IDdossier)],[]
+        lstIns, lstMaj = [],[]
         for champ,valeur in lstModifs:
             ix = self.ctrlolv.lstTblChamps.index(champ)
             valorigine = recOrigine[ix]
             valdef = self.ctrlolv.lstTblValdef[ix]
             if not valorigine: valorigine = valdef
-            if isinstance(valdef,(int,float)):
+            if isinstance(valdef,(int,float)) and champ[:2].lower() != 'id':
                 valeur = float(valeur)
                 valreste = valorigine - valeur
                 if valreste < 0.0 : valreste = 0.0
@@ -405,22 +463,49 @@ class Balance():
                 lstIns.append((champ,valeur))
         return lstMaj,lstIns
 
-    def OnRegrouper(self):
-        self.AppelSaisie('del')
+    def OnSupprimer(self):
+        selection = self.AppelSaisie('suppr')
+        clewhere = CleWhere(self.cletable)
+        # Suppression
+        designation = "Ligne : %s %s %s" %tuple([selection.donnees[x] for x in [1, 2, 3]])
+        if wx.YES == wx.MessageBox("Confirmez-vous la suppresion de la selection?\n\n%s"%designation,style=wx.YES_NO):
+            ret = self.DBsql.ReqDEL(self.table, clewhere, mess='DEL affectations.%s.Ecran' % self.table)
+            if ret != 'ok': wx.MessageBox(ret,style=wx.ICON_WARNING)
+            del self.ctrlolv.donnees[self.ixsel]
+            self.ctrlolv.MAJ(self.ixsel)
+
+    def Reinit(self):
+        self.dlgolv.Close()
+        del self.ctrlolv
+        self.EcranBalance()
 
     def OnChildBtnAction(self,event):
         self.action = 'self.%s(event)' % event.EventObject.actionBtn
         try:
             eval(self.action)
         except Exception as err:
-            wx.MessageBox("Echec sur lancement action sur btn: '%s' \nLe retour d'erreur est : \n%s"%(self.action, err))
+            wx.MessageBox("Echec sur lancement action sur btn: '%s' \nLe retour d'erreur est : \n%s"%(self.action, err),style=wx.ICON_WARNING)
 
     def OnChildCtrlAction(self,event):
         self.action = 'self.%s(event)' % event.EventObject.actionCtrl
         try:
             eval(self.action)
+            event.Skip()
         except Exception as err:
-            wx.MessageBox("Echec sur lancement action sur ctrl: '%s' \nLe retour d'erreur est : \n%s"%(self.action, err))
+            wx.MessageBox("Echec sur lancement action sur ctrl: '%s' \nLe retour d'erreur est : \n%s"%(self.action, err),style=wx.ICON_WARNING)
+
+    def CalculSolde(self,event):
+        valeurs = self.dlg.pnl.GetValeurs()
+        for categorie, dicDonnees in valeurs.items():
+            if 'soldedeb' in  dicDonnees:
+                soldedeb = dicDonnees['soldedeb']
+                cdCateg = categorie
+            if 'dbmvt' in  dicDonnees: dbmvt = dicDonnees['dbmvt']
+            if 'crmvt' in  dicDonnees: crmvt = dicDonnees['crmvt']
+        soldefin= str(round(xfmt.Nz(soldedeb) - xfmt.Nz(crmvt) + xfmt.Nz(dbmvt),2))
+        ddDonnees = {cdCateg:{'soldefin':soldefin}}
+        ret = self.dlg.pnl.SetValeurs(ddDonnees)
+        event.Skip()
 
     def OnAjoutAffect(self,event):
         Produits(self)
@@ -433,7 +518,6 @@ class Produits():
         self.clic = None
         self.parent = parent
         self.IDdossier = parent.IDdossier
-        self.lastAction = ''
 
         # pointeur de la base principale ( ouverture par défaut de db_prim via xGestionDB)
         self.DBsql = self.parent.DBsql
@@ -505,7 +589,7 @@ class Produits():
                               }
         }
 
-        # options d'enrichissement de l'écran de saisie
+        # options d'enrichissement de l'écran DLG
         lstBtns = [('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_fermer.png", wx.BITMAP_TYPE_ANY),
                     "Cliquez ici pour fermer la fenêtre")]
         # params d'actions: idem boutons, ce sont des boutons placés à droite et non en bas
@@ -552,17 +636,23 @@ class Produits():
         ID1 = ctrlolv.recordset[self.ixsel][self.lstCodesRequete.index(IDenr1)]
         IDenr2 = "idmproduit"
         ID2 = ctrlolv.recordset[self.ixsel][self.lstCodesRequete.index(IDenr2)]
-        self.wherecle = "(IDdossier = %d) AND (%s = '%s') AND (%s = '%s')" % (self.IDdossier, IDenr1, ID1, IDenr2, ID2)
-        self.dicOptions = {}
-        champdeb = 'NomProdForcé'
+        self.cletable = [('IDdossier',self.IDdossier),(IDenr1, ID1),(IDenr2, ID2)]
+        self.dicOptions = {'idmatelier':{
+                                        'enable': False,}}
+        if mode == 'ajout':
+            champdeb = 'IDMatelier'
+        else:
+            champdeb = 'NomProdForcé'
         champfin = 'NoLigne'
         codedeb = self.ctrlolv.lstTblCodes[self.ctrlolv.lstTblChamps.index(champdeb)]
         codefin = self.ctrlolv.lstTblCodes[self.ctrlolv.lstTblChamps.index(champfin)]
         self.lstEcrCodes = xusp.ExtractList(self.ctrlolv.lstTblCodes,codedeb,codefin)
-        self.paramMatrice = {'cdCateg':'produit',"nmCateg":'_Produit','champDeb':champdeb,'champFin':champfin}
-        self.paramMatrice['pos'] = (350, 100)
-        self.paramMatrice['minSize'] = (300, 400)
-        retour = EcranSaisie(self, self.ctrlolv, selection)
+        dicParamSaisie = {'cdCateg':'produit',"nmCateg":'_Produit','champDeb':champdeb,'champFin':champfin}
+        dicParamSaisie['pos'] = (350, 20)
+        dicParamSaisie['minSize'] = (350, 600)
+        dicParamSaisie['table'] = self.table
+        dicParamSaisie['mode'] = mode
+        self.ecranSaisie = EcranSaisie(self,self.ctrlolv,selection,**dicParamSaisie)
 
 
     def OnModif(self):
@@ -771,7 +861,7 @@ class Affectations():
         ixsel = all.index(selection)
 
         dlg = xusp.DLG_monoLigne(None,dldMatrice=dictMatrice,ddDonnees=dictDonnees,gestionProperty=True,
-                                           pos=(300,0),minSize=(400,1000))
+                                           pos=(300,10),minSize=(400,700))
         ret = dlg.ShowModal()
         if ret == 5101:
             # Retour par validation

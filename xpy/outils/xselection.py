@@ -213,6 +213,9 @@ class ListCtrl(wx.ListCtrl, CheckListCtrlMixin):
 
 if __name__ == "__main__":
     app = wx.App(0)
+    import os
+    os.chdir("..")
+
     # wx.InitAllImageHandlers()
     liste_labelsColonnes = [(u"COL1", "left", 50, "col1"), (u"COL2", "left", 200, "col2"), ]
     listeValeurs = [(1, "ligne1-col2"), (2, "ligne2-col2"), ]

@@ -93,23 +93,27 @@ def DatetimeToStr(dte,iso=False):
     else: return str(dte)
 
 def FmtDecimal(montant):
-    if montant == None or montant == '' or int(montant) == 0:
+    if isinstance(montant,str): montant.replace(',','.')
+    if montant == None or montant == '' or float(montant) == 0:
         return ""
     strMtt = '{:,.2f} '.format(float(montant))
     strMtt = strMtt.replace(',',' ')
     return strMtt
 
 def FmtInt(montant):
-    if montant == None or montant == '' or int(montant) == 0:
+    if isinstance(montant,str):
+        montant.replace(',','.')
+    if montant == None or montant == '' or float(montant) == 0:
         return ""
-    strMtt = '{:,.0f} '.format(int(montant))
+    strMtt = '{:,.0f} '.format(int(float(montant)))
     strMtt = strMtt.replace(',',' ')
     return strMtt
 
 def FmtPercent(montant):
-    if montant == None or montant == '' or int(montant) == 0:
+    if isinstance(montant,str):montant.replace(',','.')
+    if montant == None or montant == '' or float(montant) == 0:
         return ""
-    strMtt = '{:}% '.format(int(montant))
+    strMtt = '{:}% '.format(int(float(montant)))
     return strMtt
 
 def FmtDate(date):
@@ -124,6 +128,7 @@ def FmtDate(date):
     return strdate
 
 def FmtMontant(montant):
+    if isinstance(montant,str): montant.replace(',','.')
     if montant == None or montant == '' or float(montant) == 0.0:
         return ""
     strMtt = '{:,.2f} '.format(float(montant))
@@ -131,6 +136,7 @@ def FmtMontant(montant):
     return strMtt
 
 def FmtSolde(montant):
+    if isinstance(montant,str):montant.replace(',','.')
     if montant == None or montant == '':
         return ""
     strMtt = '{:+,.2f} '.format(float(montant))
