@@ -132,6 +132,25 @@ def AffectsActifs(parent,IDdossier,DBsql):
     lstAffects.append("I.TabFin")
     return lstAffects
 
+def PlanComptes(classe,DBsql):
+    # retourne les comptes officiels de la classe précisée
+    lstComptes = []
+    req = """SELECT IDplanCompte, NomCompte
+            FROM cplancomptes
+            WHERE (cplancomptes.IDplanCompte) Like '%s%%';
+            """%classe
+    retour = DBsql.ExecuterReq(req, mess='Util_affectations.PlanComptes')
+    if not retour == "ok":
+        wx.MessageBox("Erreur : %s"%retour)
+    else:
+        recordset = DBsql.ResultatReq()
+        for IDplanCompte,NomCompte in recordset:
+            sep = '_' * (7 - len(IDplanCompte))
+            lstComptes.append('%s%s %s'%(IDplanCompte,sep,NomCompte))
+    if len(lstComptes) == 0 and classe != '':
+        lstComptes= PlanComptes('',DBsql)
+    return lstComptes
+
 def LstFromModeles(DBsql):
     # retourne les lignes des tables modèles
     lstModeles = []
@@ -193,7 +212,7 @@ class EcranSaisie():
         dictDonnees = {}
         record = None
         clewhere = CleWhere(parent.cletable)
-        if mode in ('modif','copie','consult'):
+        if mode in ('modif','copie','eclat','consult'):
             # Reprise de toutes les valeurs completes de la table
             req = """SELECT *
                     FROM %s
@@ -227,7 +246,7 @@ class EcranSaisie():
                 ixtbl = ctrlolv.lstTblCodes.index(code)
                 valeur = record[ixtbl]
                 if not valeur: valeur = ctrlolv.lstTblValdef[ixtbl]
-                if (mode in ('copie','ajout')) and isinstance(ctrlolv.lstTblValdef[ixtbl], (int, float))\
+                if (mode in ('copie','eclat','ajout')) and isinstance(ctrlolv.lstTblValdef[ixtbl], (int, float))\
                         and code[:2] != 'id':
                     # raz des valeurs numériques copiées, si ce ne sont pas des 'id'
                     valeur = ctrlolv.lstTblValdef[ixtbl]
@@ -241,64 +260,70 @@ class EcranSaisie():
             = xusp.ComposeMatrice(champDeb,champFin,lstNoms, lstHelp=lstHelp,record=donnees,
                                   dicOptions=parent.dicOptions,lstCodes=lstCodes)
         parent.dlg = xusp.DLG_monoLigne(parent,dldMatrice=dictMatrice,ddDonnees=dictDonnees,**kwds)
-        retdlg = parent.dlg.ShowModal()
-        if retdlg == 5101:
-            # Retour par validation
-            valeurs = parent.dlg.pnl.GetValeurs()
-            # mise à jour de l'olv d'origine
-            for code in lstCodes:
-                for categorie, dicDonnees in parent.dlg.ddDonnees.items():
-                    if code in dicDonnees and code in ctrlolv.lstCodesColonnes:
-                        # pour chaque colonne de la selection de l'olv
-                        valorigine = record[ctrlolv.lstTblCodes.index(code)]
-                        if (not valorigine):
-                            valorigine = valeurs[categorie][code]
-                            flag = True
-                        else : flag = False
-                        if flag or (valorigine != valeurs[categorie][code]):
-                            ix = ctrlolv.lstCodesColonnes.index(code)
-                            selection.donnees[ctrlolv.lstCodesColonnes.index(code)] = valeurs[categorie][code]
-                            if isinstance(valorigine,(str,datetime.date)):
-                                action = "selection.__setattr__('%s','%s')"%(
-                                            ctrlolv.lstCodesColonnes[ix],str(valeurs[categorie][code]))
-                            elif isinstance(valorigine, (int, float)):
-                                if valeurs[categorie][code] in (None,''):
-                                    valeurs[categorie][code]='0'
-                                action = "selection.__setattr__('%s',%d)" % (
-                                            ctrlolv.lstCodesColonnes[ix], float(valeurs[categorie][code]))
-                            else: wx.MessageBox("UTIL_Affectaions.EcranSaisie\n\n%s, type non géré pour modifs: %s"%(code,type(valorigine)))
-                            eval(action)
-            ctrlolv.MAJ(parent.ixsel)
-            # mise à jour table de base de donnee
-            lstModifs = []
-            for categorie, dicdonnees in valeurs.items():
-                for code,valeur in dicdonnees.items():
-                    if valeur in (None,''): valeur = lstValdef[lstCodes.index(code)]
-                    nom = lstNoms[lstCodes.index(code)]
-                    lstModifs.append((nom,valeur))
+        fin = False
+        while not fin:
+            retdlg = parent.dlg.ShowModal()
+            if retdlg == wx.ID_OK:
+                # Retour par bouton Fermer
+                valeurs = parent.dlg.pnl.GetValeurs()
+                fin = parent.Validation(valeurs)
+                if parent.Validation(valeurs):
+                    # mise à jour de l'olv d'origine
+                    for code in lstCodes:
+                        for categorie, dicDonnees in parent.dlg.ddDonnees.items():
+                            if code in dicDonnees and code in ctrlolv.lstCodesColonnes:
+                                # pour chaque colonne de la selection de l'olv
+                                valorigine = record[ctrlolv.lstTblCodes.index(code)]
+                                if (not valorigine):
+                                    valorigine = valeurs[categorie][code]
+                                    flag = True
+                                else : flag = False
+                                if flag or (valorigine != valeurs[categorie][code]):
+                                    ix = ctrlolv.lstCodesColonnes.index(code)
+                                    selection.donnees[ctrlolv.lstCodesColonnes.index(code)] = valeurs[categorie][code]
+                                    if isinstance(valorigine,(str,datetime.date)):
+                                        action = "selection.__setattr__('%s','%s')"%(
+                                                    ctrlolv.lstCodesColonnes[ix],str(valeurs[categorie][code]))
+                                    elif isinstance(valorigine, (int, float)):
+                                        if valeurs[categorie][code] in (None,''):
+                                            valeurs[categorie][code]='0'
+                                        action = "selection.__setattr__('%s',%d)" % (
+                                                    ctrlolv.lstCodesColonnes[ix], float(valeurs[categorie][code]))
+                                    else: wx.MessageBox("UTIL_Affectaions.EcranSaisie\n\n%s, type non géré pour modifs: %s"%(code,type(valorigine)))
+                                    eval(action)
+                    ctrlolv.MAJ(parent.ixsel)
+                    # mise à jour table de base de donnee
+                    lstModifs = []
+                    for categorie, dicdonnees in valeurs.items():
+                        for code,valeur in dicdonnees.items():
+                            if valeur in (None,''): valeur = lstValdef[lstCodes.index(code)]
+                            nom = lstNoms[lstCodes.index(code)]
+                            lstModifs.append((nom,valeur))
 
-            if len(lstModifs)>0 and parent.mode == 'modif':
-                ret = parent.DBsql.ReqMAJ(table,lstModifs,clewhere,mess='MAJ affectations.%s.Ecran'%table)
-                if ret != 'ok':
-                    wx.MessageBox(ret)
-            if len(lstModifs) > 0 and parent.mode == 'copie':
-                lstMaj,lstIns = parent.Copier(lstModifs,record)
-                ret = parent.DBsql.ReqMAJ(table,lstMaj,clewhere,mess='MAJ affectations.%s.Ecran'%table)
-                if ret != 'ok': wx.MessageBox(ret)
-                insChamps = [x for x,y in lstIns]
-                insDonnees = [y for x,y in lstIns]
-                ret = parent.DBsql.ReqInsert(table, insChamps,insDonnees,mess='Insert affectations.%s.Ecran' % table)
-                if ret != 'ok': wx.MessageBox(ret)
+                    if len(lstModifs)>0 and parent.mode == 'modif':
+                        ret = parent.DBsql.ReqMAJ(table,lstModifs,clewhere,mess='MAJ affectations.%s.Ecran'%table)
+                        if ret != 'ok':
+                            wx.MessageBox(ret)
 
-            if len(lstModifs) > 0 and parent.mode == 'ajout':
-                insChamps = [x for x,y in lstModifs]
-                insDonnees = [y for x,y in lstModifs]
-                ret = parent.DBsql.ReqInsert(table, insChamps, insDonnees, mess='Insert affectations.%s.Ecran' % table)
-                if ret != 'ok': wx.MessageBox(ret)
-        parent.ctrlolv.SetFocus()
+                    if len(lstModifs) > 0 and parent.mode in('copie','eclat'):
+                        lstMaj,lstIns = parent.Eclater(lstModifs,record)
+                        if parent.mode == 'eclat':
+                            # la copie est comme éclater mais sans toucher à l'enreg d'origine
+                            ret = parent.DBsql.ReqMAJ(table,lstMaj,clewhere,mess='MAJ affectations.%s.Ecran'%table)
+                            if ret != 'ok': wx.MessageBox(ret)
+                        insChamps = [x for x,y in lstIns]
+                        insDonnees = [y for x,y in lstIns]
+                        ret = parent.DBsql.ReqInsert(table, insChamps,insDonnees,mess='Insert affectations.%s.Ecran' % table)
+                        if ret != 'ok': wx.MessageBox(ret)
+
+                    if len(lstModifs) > 0 and parent.mode == 'ajout':
+                        insChamps = [x for x,y in lstModifs]
+                        insDonnees = [y for x,y in lstModifs]
+                        ret = parent.DBsql.ReqInsert(table, insChamps, insDonnees, mess='Insert affectations.%s.Ecran' % table)
+                        if ret != 'ok': wx.MessageBox(ret)
+            else: fin = True
         parent.ctrlolv.SelectObject(parent.ctrlolv.donnees[parent.ixsel])
         parent.dlg.Destroy()
-        del parent.dlg
 
 class Balance():
     def __init__(self,parent):
@@ -314,7 +339,7 @@ class Balance():
         self.DBsql = self.parent.DBsql
         self.retour = self.EcranBalance()
 
-    def EcranBalance(self):
+    def EcranBalance(self,ixsel=0):
         # appel de la balance du dossier pour affichage
         req = """
                 SELECT *
@@ -365,6 +390,7 @@ class Balance():
         # params d'actions: idem boutons, ce sont des boutons placés à droite et non en bas
         lstActions = [('ajout',wx.ID_APPLY,'Ajouter',"Cliquez ici pour ajouter une ligne"),
                     ('modif',wx.ID_APPLY,'Modifier',"Cliquez ici pour modifier la ligne"),
+                    ('copier',wx.ID_APPLY,'Copier',"Cliquez ici pour copier la ligne"),
                     ('eclater',wx.ID_APPLY,'Eclater',"Cliquez ici pour subdiviser le compte"),
                     ('supprimer', wx.ID_APPLY, 'Supprimer', "Supprimer la ligne et reporter le solde dessus"),
                       ]
@@ -376,6 +402,7 @@ class Balance():
         dicOnClick = {
                       'ajout' : 'self.lanceur.OnAjout()',
                       'modif' : 'self.lanceur.OnModif()',
+                      'copier' : 'self.lanceur.OnCopier()',
                       'eclater' : 'self.lanceur.OnEclater()',
                       'supprimer' : 'self.lanceur.OnSupprimer()'}
         self.dlgolv = xgt.DLG_tableau(self,dicOlv=dicOlv,lstBtns= lstBtns,lstActions=lstActions,lstInfos=lstInfos,
@@ -389,8 +416,8 @@ class Balance():
         self.ctrlolv.lstTblValdef = ValeursDefaut(lstChamps,lstChamps,lstTypes)
         self.ctrlolv.recordset = recordset
         if len(lstDonnees)>0:
-            # selection de la première ligne
-            self.ctrlolv.SelectObject(self.ctrlolv.donnees[0])
+            # selection de la première ligne ou du pointeur précédent
+            self.ctrlolv.SelectObject(self.ctrlolv.donnees[ixsel])
         ret = self.dlgolv.ShowModal()
         return ret
         
@@ -409,13 +436,18 @@ class Balance():
         if mode == 'suppr':
             return selection
         valuesAffect = AffectsActifs(self,self.IDdossier,self.DBsql)
+        classe = selection.compte[1]
+        valuesPlanCompte = PlanComptes(classe,self.DBsql)
         self.dicOptions = {
                 'affectation':{
                     'values': valuesAffect,
                     'genre': 'enum',
                     'btnLabel': "...",
-                    'btnHelp': "Cliquez pour ajouter des affectations à la liste",
+                    'btnHelp': "Cliquez pour ajouter des affectations à la liste des propositions",
                     'btnAction': 'OnAjoutAffect',},
+                'idplancompte':{
+                    'values': valuesPlanCompte,
+                    'genre': 'enum',},
                 'IDdossier': {'enable': False},
                 'soldefin': {'enable': False},
                 'soldedeb': {'ctrlAction': 'CalculSolde',},
@@ -434,6 +466,19 @@ class Balance():
         dicParamSaisie['mode'] = mode
         self.ecranSaisie = EcranSaisie(self,self.ctrlolv,selection,**dicParamSaisie)
 
+    def Validation(self,valeurs):
+        messfinal = "Validation de la saisie\n\nFaut-il forcer l'enregistrement mal saisi?\n"
+        retfinal = True
+        # ensemble des traitements de sortie dans une liste déroulée
+        for item in [self.TronqueCompte(valeurs),]:
+            ret,mess = item
+            messfinal += "\n%s"%mess
+            #une seule erreur provoquera l'affichage de la confirmation nécessaire
+            retfinal *= ret
+        if not retfinal :
+            retfinal = wx.YES == wx.MessageBox(messfinal,style=wx.YES_NO)
+        return retfinal
+
     def OnAjout(self):
         self.AppelSaisie('ajout')
         self.Reinit()
@@ -441,11 +486,16 @@ class Balance():
     def OnModif(self):
         self.AppelSaisie('modif')
 
-    def OnEclater(self):
+    def OnCopier(self):
         self.AppelSaisie('copie')
         self.Reinit()
 
-    def Copier(self,lstModifs,recOrigine):
+    def OnEclater(self):
+        self.AppelSaisie('eclat')
+        self.Reinit()
+
+    def Eclater(self,lstModifs,recOrigine):
+        # le modèle d'origine voit ses nombres diminués du montant de l'éclat
         lstIns, lstMaj = [],[]
         for champ,valeur in lstModifs:
             ix = self.ctrlolv.lstTblChamps.index(champ)
@@ -453,8 +503,8 @@ class Balance():
             valdef = self.ctrlolv.lstTblValdef[ix]
             if not valorigine: valorigine = valdef
             if isinstance(valdef,(int,float)) and champ[:2].lower() != 'id':
-                valeur = float(valeur)
-                valreste = valorigine - valeur
+                valeur = xfmt.Nz(valeur)
+                valreste = xfmt.Nz(valorigine) - valeur
                 if valreste < 0.0 : valreste = 0.0
                 lstMaj.append((champ,valreste))
                 lstIns.append((champ,valeur))
@@ -475,9 +525,10 @@ class Balance():
             self.ctrlolv.MAJ(self.ixsel)
 
     def Reinit(self):
+        ix = self.ixsel
         self.dlgolv.Close()
         del self.ctrlolv
-        self.EcranBalance()
+        self.EcranBalance(ixsel = ix)
 
     def OnChildBtnAction(self,event):
         self.action = 'self.%s(event)' % event.EventObject.actionBtn
@@ -509,6 +560,16 @@ class Balance():
 
     def OnAjoutAffect(self,event):
         Produits(self)
+
+    def TronqueCompte(self,valeurs):
+        mess = ''
+        for categorie, dicDonnees in valeurs.items():
+            if 'idplancompte' in  dicDonnees:
+                decoup = dicDonnees['idplancompte'].split('_')
+                if len(decoup)>0 :
+                    dicDonnees['idplancompte'] = decoup[0]
+                    mess = 'compte tronqué'
+        return True, mess
 
 class Produits():
     def __init__(self, parent):
@@ -654,6 +715,18 @@ class Produits():
         dicParamSaisie['mode'] = mode
         self.ecranSaisie = EcranSaisie(self,self.ctrlolv,selection,**dicParamSaisie)
 
+    def Validation(self,valeurs):
+        messfinal = "Validation de la saisie\n\nFaut-il forcer l'enregistrement mal saisi?\n"
+        retfinal = True
+        # l'ensemble des traitements de sortie sont dans une liste déroulée
+        for item in []:
+            ret,mess = item
+            messfinal += "\n%s"%mess
+            #une seule erreur provoquera l'affichage de la confirmation nécessaire
+            retfinal *= ret
+        if not retfinal :
+            retfinal = wx.YES == wx.MessageBox(messfinal,style=wx.YES_NO)
+        return retfinal
 
     def OnModif(self):
         self.AppelSaisie('modif')

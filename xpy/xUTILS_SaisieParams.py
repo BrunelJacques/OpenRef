@@ -990,13 +990,16 @@ class DLG_monoLigne(wx.Dialog):
         self.SetSizer(topbox)
 
     def OnFermer(self, event):
-        return self.Close()
-
-    def OnEndModal(self):
-        return self.EndModal(wx.OK)
+        if self.parent != None:
+            self.EndModal(wx.ID_OK)
+        else:
+            return self.Close()
 
     def OnBtnEsc(self, event):
-        self.Destroy()
+        if self.parent != None:
+            self.EndModal(0)
+        else:
+            self.Destroy()
 
     def OnChildBtnAction(self, event):
             if self.parent != None:
