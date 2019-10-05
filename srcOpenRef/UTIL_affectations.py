@@ -32,13 +32,14 @@ def ValeursDefaut(lstNomsColonnes,lstChamps,lstTypes):
     for colonne in lstNomsColonnes:
         tip = lstTypes[lstChamps.index(colonne)]
         if tip[:3] == 'int': lstValDef.append(0)
+        elif tip[:10] == 'tinyint(1)': lstValDef.append(True)
         elif tip[:5] == 'float': lstValDef.append(0.0)
         elif tip[:4] == 'date': lstValDef.append(datetime.date(1900,1,1))
         else: lstValDef.append('')
     return lstValDef
 
 def LargeursDefaut(lstNomsColonnes,lstChamps,lstTypes):
-    # Evaluation de la largeur nécessaire des colonnes selon le type de donnee et la longueur du champ 
+    # Evaluation de la largeur nécessaire des colonnes selon le type de donnee et la longueur du champ
     lstLargDef = []
     for colonne in lstNomsColonnes:
         tip = lstTypes[lstChamps.index(colonne)]
@@ -53,7 +54,7 @@ def LargeursDefaut(lstNomsColonnes,lstChamps,lstTypes):
             lstLargDef.append(250)
         else: lstLargDef.append(40)
     if len(lstLargDef)>0:
-        # La première colonne est masquée 
+        # La première colonne est masquée
         lstLargDef[0]=0
     return lstLargDef
 
@@ -72,7 +73,7 @@ def VerifSelection(parent,dlg,infos=True,mode='modif'):
         parent.infos = 'Dossier: %s, %s, %s'%(noclient,cloture,nomexploitation)
     return True
 
-def AteliersOuverts(parent,IDdossier,DBsql):
+def AteliersOuverts(IDdossier,DBsql):
     lstAteliers = []
     req = """SELECT mateliers.IDMatelier
             FROM _ateliers 
@@ -84,11 +85,11 @@ def AteliersOuverts(parent,IDdossier,DBsql):
         wx.MessageBox("Erreur : %s"%retour)
     else:
         recordset = DBsql.ResultatReq()
-        for IDatelier in recordset:
+        for (IDatelier,) in recordset:
             lstAteliers.append(IDatelier)
     return lstAteliers
 
-def ProduitsOuverts(parent,IDdossier,DBsql):
+def ProduitsOuverts(IDdossier,DBsql):
     lstProduits = []
     req = """SELECT mproduits.IDMatelier,mproduits.IDMproduit
             FROM _produits 
@@ -104,7 +105,25 @@ def ProduitsOuverts(parent,IDdossier,DBsql):
             lstProduits.append((IDatelier,IDproduit))
     return lstProduits
 
-def CoutsOuverts(parent,IDdossier,DBsql):
+def ProduitsFermes(dossier,selection,DBsql):
+    lstProduits = []
+    req = """SELECT mProduits.IDMproduit
+            FROM mProduits 
+            LEFT JOIN _Produits ON _Produits.IDMproduit = mProduits.IDMproduit
+            WHERE ( (_Produits.IDdossier = %d OR _Produits.IDdossier IS NULL)
+                    AND mProduits.IDMatelier = '%s'
+                    AND _Produits.IDMatelier is NULL)
+            """%(dossier,selection.idmatelier)
+    retour = DBsql.ExecuterReq(req, mess='Util_affectations.ProduitsFermés')
+    if not retour == "ok":
+        wx.MessageBox("Erreur : %s"%retour)
+    else:
+        recordset = DBsql.ResultatReq()
+        for (IDproduit,) in recordset:
+            lstProduits.append((IDproduit))
+    return lstProduits
+
+def CoutsOuverts(IDdossier,DBsql):
     lstCouts = []
     req = """SELECT mCoûts.IDMatelier,mCoûts.IDMcoût
             FROM _Coûts 
@@ -120,14 +139,14 @@ def CoutsOuverts(parent,IDdossier,DBsql):
             lstCouts.append((IDatelier,IDcout))
     return lstCouts
 
-def AffectsActifs(parent,IDdossier,DBsql):
+def AffectsActifs(IDdossier,DBsql):
     # retourne les affectations possibles (première et deuxième parties du nom)
     lstAffects = ['']
-    for IDatelier in AteliersOuverts(parent,IDdossier,DBsql):
+    for IDatelier in AteliersOuverts(IDdossier,DBsql):
         lstAffects.append("A.%s"%IDatelier)
-    for IDatelier,IDproduit in ProduitsOuverts(parent,IDdossier,DBsql):
+    for IDatelier,IDproduit in ProduitsOuverts(IDdossier,DBsql):
         lstAffects.append("P.%s.%s"%(IDatelier,IDproduit))
-    for IDatelier,IDproduit in CoutsOuverts(parent,IDdossier,DBsql):
+    for IDatelier,IDproduit in CoutsOuverts(IDdossier,DBsql):
         lstAffects.append("C.%s.%s"%(IDatelier,IDproduit))
     lstAffects.append("I.TabFin")
     return lstAffects
@@ -157,7 +176,7 @@ def LstFromModeles(DBsql):
     req = """
             SELECT IDMatelier,IDMproduit,NomProduit
             FROM mProduits
-            ;""" 
+            ;"""
     retour = DBsql.ExecuterReq(req, mess='Util_affectations.mProduits')
     if not retour == "ok":
         wx.MessageBox("Erreur : %s"%retour)
@@ -169,7 +188,7 @@ def LstFromModeles(DBsql):
     req = """
             SELECT IDMatelier,IDMcoût,NomCoût
             FROM mCoûts
-            ;""" 
+            ;"""
     retour = DBsql.ExecuterReq(req, mess='Util_affectations.mCoûts')
     if not retour == "ok":
         wx.MessageBox("Erreur : %s"%retour)
@@ -179,7 +198,6 @@ def LstFromModeles(DBsql):
             lstModeles.append(IDMatelier+'_Coût_'+IDMproduit+'_'+NomCoût)
     l =  sorted(lstModeles)
     return l
-
 
 def CleWhere(cletable):
     # tranforme cletable liste de tuples(champ,valeur), en clause sql where
@@ -193,6 +211,7 @@ def CleWhere(cletable):
     clewhere = clewhere[:-4]
     return clewhere
 
+#----------------------------------------------------------------------
 
 class EcranSaisie():
     # affichage d'une ligne de table en vue de modif, toutes les champs ne sont pas gérés dans parent
@@ -292,7 +311,7 @@ class EcranSaisie():
                                     else: wx.MessageBox("UTIL_Affectaions.EcranSaisie\n\n%s, type non géré pour modifs: %s"%(code,type(valorigine)))
                                     eval(action)
                     ctrlolv.MAJ(parent.ixsel)
-                    # mise à jour table de base de donnee
+                    # constitution des données à mettre à jour dans la base de donnee
                     lstModifs = []
                     for categorie, dicdonnees in valeurs.items():
                         for code,valeur in dicdonnees.items():
@@ -300,6 +319,12 @@ class EcranSaisie():
                             nom = lstNoms[lstCodes.index(code)]
                             lstModifs.append((nom,valeur))
 
+                    # complément des champs clé si non gérés dans l'écran
+                    for (champcle,valcle) in parent.cletable:
+                        if not champcle in [champ for (champ,val) in lstModifs]:
+                            lstModifs.append((champcle,valcle))
+
+                    # mise à jour de la table
                     if len(lstModifs)>0 and parent.mode == 'modif':
                         ret = parent.DBsql.ReqMAJ(table,lstModifs,clewhere,mess='MAJ affectations.%s.Ecran'%table)
                         if ret != 'ok':
@@ -420,7 +445,7 @@ class Balance():
             self.ctrlolv.SelectObject(self.ctrlolv.donnees[ixsel])
         ret = self.dlgolv.ShowModal()
         return ret
-        
+
     def AppelSaisie(self,mode):
         if not VerifSelection(self,self.dlgolv,infos=False,mode=mode):
             return
@@ -435,7 +460,7 @@ class Balance():
         self.cletable = [(IDenr,ID),]
         if mode == 'suppr':
             return selection
-        valuesAffect = AffectsActifs(self,self.IDdossier,self.DBsql)
+        valuesAffect = AffectsActifs(self.IDdossier,self.DBsql)
         classe = selection.compte[1]
         valuesPlanCompte = PlanComptes(classe,self.DBsql)
         self.dicOptions = {
@@ -692,18 +717,62 @@ class Produits():
         self.ixsel = all.index(selection)
         if not VerifSelection(self, self.dlgolv, infos=False):
             return
-        # Spécificités écran saisie
-        IDenr1 = "idmatelier"
-        ID1 = ctrlolv.recordset[self.ixsel][self.lstCodesRequete.index(IDenr1)]
-        IDenr2 = "idmproduit"
-        ID2 = ctrlolv.recordset[self.ixsel][self.lstCodesRequete.index(IDenr2)]
-        self.cletable = [('IDdossier',self.IDdossier),(IDenr1, ID1),(IDenr2, ID2)]
-        self.dicOptions = {'idmatelier':{
-                                        'enable': False,}}
+
+        #*************************************************
+        #         Spécificités écran saisie
+        #*************************************************
+
+        # Champs,valeurs pris dans l'OLV pour un appel SQL de l'enregistrement par WHERE
+        self.cletable = []
+        for champ in ('IDdossier','IDMatelier','IDMproduit'):
+            if champ == 'IDdossier':
+                val = self.IDdossier
+            else:
+                code = ctrlolv.lstTblCodes[ctrlolv.lstTblChamps.index(champ)]
+                ix = ctrlolv.lstCodesColonnes.index(code)
+                val = ctrlolv.recordset[self.ixsel][ix]
+            self.cletable.append((champ,val))
+
+        # correction de la matrice pour l'écran de saisie  % tableau OLV précédent
+        self.dicOptions = {'idmatelier': {'enable': False, },
+                           'comptes': {'enable': False, },
+                           'ventes': {'enable': False, },
+                           'achatanmx': {'enable': False, },
+                           'deltastock': {'enable': False, },
+                           'autreprod': {'enable': False, },
+                           'stockfin': {'enable': False, },
+                           }
         if mode == 'ajout':
-            champdeb = 'IDMatelier'
+            #raz des champs à ne pas proposer par défaut
+            for code in xusp.ExtractList(self.ctrlolv.lstTblCodes,'nomprodforce','noligne'):
+                if code in self.ctrlolv.lstCodesColonnes:
+                    ixcol = self.ctrlolv.lstCodesColonnes.index(code)
+                    ixtbl = self.ctrlolv.lstTblCodes.index(code)
+                    selection.donnees[ixcol] = self.ctrlolv.lstTblValdef[ixtbl]
+            #préalimentation des valeurs à proposer
+            valuesproduit = ProduitsFermes(self.IDdossier,selection,self.DBsql)
+            if len(valuesproduit) > 0:
+                valueproduit = valuesproduit[0]
+            else: valueproduit = ''
+            """
+            'btnLabel': "...",
+            'btnHelp': "Cliquez pour  ouvrir un nouvel atelier",
+            'btnAction': 'OnNvlAtelier',
+            """
+            self.dicOptions['idmatelier'] = {'enable': True,
+                                            'value':selection.idmatelier,
+                                            'values': AteliersOuverts(self.IDdossier,self.DBsql),
+                                            'genre': 'enum',
+                                            'ctrlAction': 'OnChoixAtelier',
+                                             }
+            self.dicOptions['idmproduit'] = {'enable': True,
+                                            'value' : valueproduit,
+                                            'values': valuesproduit,
+                                            'genre': 'enum',}
         else:
-            champdeb = 'NomProdForcé'
+            self.dicOptions['idmproduit'] = {'enable': False, }
+        # détermination des champs de la table à afficher à l'écran
+        champdeb = 'IDMatelier'
         champfin = 'NoLigne'
         codedeb = self.ctrlolv.lstTblCodes[self.ctrlolv.lstTblChamps.index(champdeb)]
         codefin = self.ctrlolv.lstTblCodes[self.ctrlolv.lstTblChamps.index(champfin)]
@@ -713,9 +782,11 @@ class Produits():
         dicParamSaisie['minSize'] = (350, 600)
         dicParamSaisie['table'] = self.table
         dicParamSaisie['mode'] = mode
+        # lancement de l'écran
         self.ecranSaisie = EcranSaisie(self,self.ctrlolv,selection,**dicParamSaisie)
 
     def Validation(self,valeurs):
+        # test de sortie d'écran
         messfinal = "Validation de la saisie\n\nFaut-il forcer l'enregistrement mal saisi?\n"
         retfinal = True
         # l'ensemble des traitements de sortie sont dans une liste déroulée
@@ -737,7 +808,32 @@ class Produits():
     def OnSupprimer(self):
         self.AppelSaisie('del')
 
+    def OnChoixAtelier(self,event):
+        # un atelier différent à été choisi, il faut réactualiser les produits possibles
+        valeurs = self.dlg.pnl.GetValeurs()
+        code = 'idmatelier'
+        for categorie, dicDonnees in valeurs.items():
+            if code in  dicDonnees:
+                idmatelier = dicDonnees[code]
+                break
+        selection = self.ctrlolv.Selection()[0]
+        ixcol = self.ctrlolv.lstCodesColonnes.index(code)
+        selection.donnees[ixcol] = idmatelier
+        ixcol = self.ctrlolv.lstCodesColonnes.index('idmproduit')
+        selection.donnees[ixcol] = ''
+        selection.idmatelier = idmatelier
+        selection.idmproduit = ''
+
+        # réinitialisation de l'écran de saisie
+        self.dlg.OnFermer(None)
+        self.ctrlolv.SelectObject(self.ctrlolv.donnees[self.ixsel])
+        self.dlg.Destroy()
+        event.Skip()
+        del self.dlg
+        self.AppelSaisie('ajout')
+
     def OnChildBtnAction(self, event):
+        # relais des actions sur les boutons du bas d'écran
         self.action = 'self.%s(event)' % event.EventObject.actionBtn
         try:
             eval(self.action)
@@ -746,6 +842,7 @@ class Produits():
                 "Echec sur lancement action sur btn: '%s' \nLe retour d'erreur est : \n%s" % (self.action, err))
 
     def OnChildCtrlAction(self, event):
+        # relais des actions sur les boutons de droite
         self.action = 'self.%s(event)' % event.EventObject.actionCtrl
         try:
             eval(self.action)

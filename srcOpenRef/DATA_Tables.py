@@ -191,7 +191,7 @@ DB_TABLES = {
         ("StockFin",  'float', ' DEFAULT NULL', "Somme des quantités saisies dans les Comptes 3 de la liste des comptes"),
         ("ProdPrincipal",  'tinyint(1)', ' DEFAULT NULL', "Oui si le produit n'est pas accessoire"),
         ("TypesProduit",  'varchar(128)', ' DEFAULT NULL', "Liste des types de produits auquel il se rattache par sa nature"),
-        ("NoLigne",  'int(2)', ' DEFAULT NULL', ''),
+        ("NoLigne",  'int(2)', ' DEFAULT NULL', 'Ordre de tri des produits dans les tableaux de bord'),
     ]}
 
 def GetChamps(table,tous = True,reel=False,deci=False,dte=False,texte=False):

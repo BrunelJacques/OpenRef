@@ -183,7 +183,8 @@ def ComposeMatrice(champDeb=None,champFin=None,lstChamps=[],lstTypes=[],lstHelp=
         lstTypes = []
         for valeur in record:
             if not valeur: valeur = ''
-            if isinstance(valeur, int): tip = 'int'
+            if isinstance(valeur, bool): tip = 'bool'
+            elif isinstance(valeur, int): tip = 'int'
             elif isinstance(valeur, float): tip = 'float'
             elif isinstance(valeur, datetime.date): tip = 'date'
             else: tip = 'str'
