@@ -6,6 +6,7 @@
 #  2019/04/18
 # note l'appel des fonctions 2.7 passent par le chargement de la bibliothèque future (vue comme past)
 # ce module reprend les fonctions de xUTILS_Tableau sans y faire appel
+# matrice OLV
 
 import wx
 import os
@@ -598,52 +599,53 @@ class DLG_tableau(wx.Dialog):
         self.EndModal(wx.OK)
 
 # -- pour tests -----------------------------------------------------------------------------------------------------
+liste_Colonnes = [
+    ColumnDefn("clé", 'left', 70, "cle",valueSetter=1,isSpaceFilling = True,),
+    ColumnDefn("mot d'ici", 'left', 200, "mot",valueSetter='',isEditable=False),
+    ColumnDefn("nbre", 'right', -1, "nombre",isSpaceFilling = True, valueSetter=0.0, stringConverter=xpy.outils.xformat.FmtDecimal),
+    ColumnDefn("prix", 'left', 80, "prix",valueSetter=0.0,isSpaceFilling = True, stringConverter=xpy.outils.xformat.FmtMontant),
+    ColumnDefn("date", 'center', 80, "date",valueSetter=wx.DateTime.FromDMY(1,0,1900),isSpaceFilling = True,  stringConverter=xpy.outils.xformat.FmtDate),
+    ColumnDefn("date SQL", 'center', 80, "datesql", valueSetter='2000-01-01',isSpaceFilling = True,
+               stringConverter=xpy.outils.xformat.FmtDate)
+]
+liste_Donnees = [[18, "Bonjour", -1230.05939,-1230.05939,None,None],
+                 [19, "Bonsoir", 57.5, 208.99,wx.DateTime.FromDMY(15,11,2018),'2019-03-29'],
+                 [1, "Jonbour", 0 , 209,wx.DateTime.FromDMY(6,11,2018),'2019-03-01'],
+                 [29, "Salut", 57.082, 209,wx.DateTime.FromDMY(28,1,2019),'2019-11-23'],
+                 [None, "Salutation", 57.08, 0,wx.DateTime.FromDMY(1,7,1997),'2019-10-24'],
+                 [2, "Python", 1557.08, 29,wx.DateTime.FromDMY(7,1,1997),'2000-12-25'],
+                 [3, "Java", 57.08, 219,wx.DateTime.FromDMY(1,0,1900),''],
+                 [98, "langage C", 10000, 209,wx.DateTime.FromDMY(1,0,1900),''],
+                 ]
+dicOlv = {'listeColonnes':liste_Colonnes,
+                'listeDonnees':liste_Donnees,
+                'hauteur':650,
+                'largeur':850,
+                'recherche':True,
+                'msgIfEmpty':"Aucune donnée ne correspond à votre recherche",
+                'dictColFooter':{"nombre" : {"mode" : "total",  "alignement" : wx.ALIGN_RIGHT},
+                                 "mot" : {"mode" : "nombre",  "alignement" : wx.ALIGN_CENTER},
+                                 "prix": {"mode": "total", "alignement": wx.ALIGN_RIGHT},}
+        }
+# params d'actions: idem boutons, ce sont des boutons placés à droite et non en bas
+lstActions = [('Action1',wx.ID_COPY,'Choix un',"Cliquez pour l'action 1"),
+              ('Action2',wx.ID_CUT,'Choix deux',"Cliquez pour l'action 2")]
+# params des actions ou boutons: name de l'objet, fonction ou texte à passer par eval()
+dicOnClick = {'Action1': lambda evt: wx.MessageBox('ceci active la fonction action1'),
+              'BtnPrec' : 'self.parent.Close()'}
+
 if __name__ == '__main__':
     app = wx.App(0)
     os.chdir("..")
-    # matrice OLV
-    liste_Colonnes = [
-        ColumnDefn("clé", 'left', 70, "cle",valueSetter=1,isSpaceFilling = True,),
-        ColumnDefn("mot d'ici", 'left', 200, "mot",valueSetter='',isEditable=False),
-        ColumnDefn("nbre", 'right', -1, "nombre",isSpaceFilling = True, valueSetter=0.0, stringConverter=xpy.outils.xformat.FmtDecimal),
-        ColumnDefn("prix", 'left', 80, "prix",valueSetter=0.0,isSpaceFilling = True, stringConverter=xpy.outils.xformat.FmtMontant),
-        ColumnDefn("date", 'center', 80, "date",valueSetter=wx.DateTime.FromDMY(1,0,1900),isSpaceFilling = True,  stringConverter=xpy.outils.xformat.FmtDate),
-        ColumnDefn("date SQL", 'center', 80, "datesql", valueSetter='2000-01-01',isSpaceFilling = True,
-                   stringConverter=xpy.outils.xformat.FmtDate)
-    ]
-    liste_Donnees = [[18, "Bonjour", -1230.05939,-1230.05939,None,None],
-                     [19, "Bonsoir", 57.5, 208.99,wx.DateTime.FromDMY(15,11,2018),'2019-03-29'],
-                     [1, "Jonbour", 0 , 209,wx.DateTime.FromDMY(6,11,2018),'2019-03-01'],
-                     [29, "Salut", 57.082, 209,wx.DateTime.FromDMY(28,1,2019),'2019-11-23'],
-                     [None, "Salutation", 57.08, 0,wx.DateTime.FromDMY(1,7,1997),'2019-10-24'],
-                     [2, "Python", 1557.08, 29,wx.DateTime.FromDMY(7,1,1997),'2000-12-25'],
-                     [3, "Java", 57.08, 219,wx.DateTime.FromDMY(1,0,1900),''],
-                     [98, "langage C", 10000, 209,wx.DateTime.FromDMY(1,0,1900),''],
-                     ]
-    dicOlv = {'listeColonnes':liste_Colonnes,
-                    'listeDonnees':liste_Donnees,
-                    'hauteur':650,
-                    'largeur':850,
-                    'recherche':True,
-                    'msgIfEmpty':"Aucune donnée ne correspond à votre recherche",
-                    'dictColFooter':{"nombre" : {"mode" : "total",  "alignement" : wx.ALIGN_RIGHT},
-                                     "mot" : {"mode" : "nombre",  "alignement" : wx.ALIGN_CENTER},
-                                     "prix": {"mode": "total", "alignement": wx.ALIGN_RIGHT},}
-    }
-
-    # options d'enrichissement de l'écran
-    # params d'un bouton : name, ID, Image ou label, tooltip
-    lstBtns = [ ('BtnPrec',wx.ID_FORWARD,   wx.ArtProvider.GetBitmap(wx.ART_GO_BACK, wx.ART_OTHER, (42, 22)),
-                                            "Cliquez ici pour retourner à l'écran précédent"),
-                ('BtnPrec2',wx.ID_PREVIEW_NEXT,"Ecran\nprécédent","Retour à l'écran précédent next"),
-                ('BtnOK',wx.ID_OK,wx.Bitmap("xpy/Images/100x30/Bouton_fermer.png", wx.BITMAP_TYPE_ANY),"Cliquez ici pour fermer la fenêtre")]
-    # params d'actions: idem boutons, ce sont des boutons placés à droite et non en bas
-    lstActions = [('Action1',wx.ID_COPY,'Choix un',"Cliquez pour l'action 1"),
-                  ('Action2',wx.ID_CUT,'Choix deux',"Cliquez pour l'action 2")]
+    lstBtns = [('BtnPrec', wx.ID_FORWARD, wx.ArtProvider.GetBitmap(wx.ART_GO_BACK, wx.ART_OTHER, (42, 22)),
+                "Cliquez ici pour retourner à l'écran précédent"),
+               ('BtnPrec2', wx.ID_PREVIEW_NEXT, "Ecran\nprécédent", "Retour à l'écran précédent next"),
+               ('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_fermer.png", wx.BITMAP_TYPE_ANY),
+                "Cliquez ici pour fermer la fenêtre")
+               ]
     # un param par info: texte ou objet window.  Les infos sont  placées en bas à gauche
-    lstInfos = ['Première',"Voici",wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)),"Autre\nInfo"]
-    # params des actions ou boutons: name de l'objet, fonction ou texte à passer par eval()
-    dicOnClick = {'Action1': lambda evt: wx.MessageBox('ceci active la fonction action1'),'BtnPrec' : 'self.parent.Close()'}
+    lstInfos = ['Première', "Voici", wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)),
+                "Autre\nInfo"]
 
     exempleframe = DLG_tableau(None,dicOlv=dicOlv,lstBtns= lstBtns,lstActions=lstActions,lstInfos=lstInfos,dicOnClick=dicOnClick)
     app.SetTopWindow(exempleframe)

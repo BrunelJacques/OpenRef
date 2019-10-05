@@ -949,7 +949,7 @@ class DLG_vide(wx.Dialog):
                 print("Bonjour CtrlAction de DLG_vide")
 
 class DLG_monoLigne(wx.Dialog):
-    # écran de saisie d'une ligne façon DLG_vide, mais enrichissement possible de boutons d'actions
+    # variante DLG_vide, avec relais possible d'évènements Boutons ou Controles gérés dans matrice
     def __init__(self, parent, *args, dldMatrice={}, ddDonnees={}, **kwds):
         self.gestionProperty = kwds.pop('gestionProperty',False)
         lblbox = kwds.pop('lblbox','Gestion d\'une ligne')

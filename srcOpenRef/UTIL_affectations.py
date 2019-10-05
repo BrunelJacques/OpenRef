@@ -16,6 +16,7 @@ import srcOpenRef.DATA_Tables as dtt
 import xpy.xGestionDB as xdb
 import xpy.xUTILS_SaisieParams as xusp
 import xpy.xGestion_Tableau as xgt
+import xpy.xGestion_Ligne as xgl
 import xpy.outils.xformat as xfmt
 
 def ComposeLstDonnees(lstNomsColonnes,record,lstChamps):
@@ -380,7 +381,6 @@ class Balance():
             wx.MessageBox("Erreur : %s"%retour)
             return 'ko'
         lstChamps, lstTypes, lstHelp = dtt.GetChampsTypes(self.table,tous=True)
-
         lstNomsColonnes =   xusp.ExtractList(lstChamps,champDeb='IDdossier',champFin='Compte')\
                             + xusp.ExtractList(lstChamps,champDeb='IDplanCompte',champFin='Affectation')\
                             + xusp.ExtractList(lstChamps,champDeb='Libellé',champFin='SoldeFin')
@@ -447,23 +447,24 @@ class Balance():
         return ret
 
     def AppelSaisie(self,mode):
-        if not VerifSelection(self,self.dlgolv,infos=False,mode=mode):
-            return
-        self.mode = mode
+        # personnalisation de la grille de saisie
         ctrlolv = self.ctrlolv
-        all = ctrlolv.GetObjects()
+        champdeb = 'IDdossier'
+        champfin = 'SoldeFin'
+        kwds = {'pos': (300, 100)}
+        kwds['minSize'] = (500, 500)
+        codedeb = ctrlolv.lstCodesColonnes[ctrlolv.lstNomsColonnes.index(champdeb)]
+        codefin = ctrlolv.lstCodesColonnes[ctrlolv.lstNomsColonnes.index(champfin)]
+        lstEcrCodes = xusp.ExtractList(ctrlolv.lstCodesColonnes,codedeb,codefin)
+        all = ctrlolv.innerList
         selection = ctrlolv.Selection()[0]
         self.ixsel = all.index(selection)
-        # Spécificités écran saisie
-        IDenr = "IDligne"
-        ID = ctrlolv.recordset[self.ixsel][ctrlolv.lstTblChamps.index(IDenr)]
-        self.cletable = [(IDenr,ID),]
         if mode == 'suppr':
             return selection
         valuesAffect = AffectsActifs(self.IDdossier,self.DBsql)
         classe = selection.compte[1]
         valuesPlanCompte = PlanComptes(classe,self.DBsql)
-        self.dicOptions = {
+        dicOptions = {
                 'affectation':{
                     'values': valuesAffect,
                     'genre': 'enum',
@@ -478,18 +479,12 @@ class Balance():
                 'soldedeb': {'ctrlAction': 'CalculSolde',},
                 'crmvt': {'ctrlAction': 'CalculSolde',},
                 'dbmvt': {'ctrlAction': 'CalculSolde',}}
-        champdeb = 'IDdossier'
-        champfin = 'SoldeFin'
-        codedeb = self.ctrlolv.lstCodesColonnes[self.ctrlolv.lstNomsColonnes.index(champdeb)]
-        codefin = self.ctrlolv.lstCodesColonnes[self.ctrlolv.lstNomsColonnes.index(champfin)]
-        self.lstEcrCodes = xusp.ExtractList(self.ctrlolv.lstCodesColonnes,codedeb,codefin)
 
-        dicParamSaisie = {'cdCateg':'compte',"nmCateg":'DétailLigne','champDeb':champdeb,'champFin':champfin}
-        dicParamSaisie['pos'] = (300, 100)
-        dicParamSaisie['minSize'] = (500, 500)
-        dicParamSaisie['table'] = self.table
-        dicParamSaisie['mode'] = mode
-        self.ecranSaisie = EcranSaisie(self,self.ctrlolv,selection,**dicParamSaisie)
+        self.saisie = xgl.Gestion_ligne(self, self.DBsql, self.table, dtt, mode, ctrlolv,**kwds)
+        if self.saisie.ok:
+            self.saisie.SetBlocGrille(lstEcrCodes,dicOptions,'Gestion des produits ouverts')
+            self.saisie.InitDlg()
+        del self.saisie
 
     def Validation(self,valeurs):
         messfinal = "Validation de la saisie\n\nFaut-il forcer l'enregistrement mal saisi?\n"
@@ -571,7 +566,7 @@ class Balance():
             wx.MessageBox("Echec sur lancement action sur ctrl: '%s' \nLe retour d'erreur est : \n%s"%(self.action, err),style=wx.ICON_WARNING)
 
     def CalculSolde(self,event):
-        valeurs = self.dlg.pnl.GetValeurs()
+        valeurs = self.saisie.dlg.pnl.GetValeurs()
         for categorie, dicDonnees in valeurs.items():
             if 'soldedeb' in  dicDonnees:
                 soldedeb = dicDonnees['soldedeb']
@@ -580,7 +575,7 @@ class Balance():
             if 'crmvt' in  dicDonnees: crmvt = dicDonnees['crmvt']
         soldefin= str(round(xfmt.Nz(soldedeb) - xfmt.Nz(crmvt) + xfmt.Nz(dbmvt),2))
         ddDonnees = {cdCateg:{'soldefin':soldefin}}
-        ret = self.dlg.pnl.SetValeurs(ddDonnees)
+        ret = self.saisie.dlg.pnl.SetValeurs(ddDonnees)
         event.Skip()
 
     def OnAjoutAffect(self,event):
@@ -712,7 +707,7 @@ class Produits():
     def AppelSaisie(self, mode):
         self.mode = mode
         ctrlolv = self.ctrlolv
-        all = ctrlolv.GetObjects()
+        all = ctrlolv.innerList
         selection = ctrlolv.Selection()[0]
         self.ixsel = all.index(selection)
         if not VerifSelection(self, self.dlgolv, infos=False):
