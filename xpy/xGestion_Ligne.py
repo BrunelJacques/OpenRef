@@ -711,6 +711,7 @@ class BoxPanel(wx.Panel):
                 panel.SetValue(dictDonnees[champ])
         return
 
+
     def GetOneValue(self,name = ''):
         value = None
         self.dictDonnees = self.GetValues()
@@ -725,14 +726,12 @@ class BoxPanel(wx.Panel):
                     panel.SetValue(value)
         return
 
-    def SetOneValues(self,name = '', values=None):
-        ctrl = None
-        if values:
-            for panel in self.lstPanels:
-                if panel.ctrl.nameCtrl == name:
-                    ctrl = panel.ctrl
-                    if panel.ctrl.genreCtrl.lower() in ['enum', 'combo']:
-                        panel.SetValues(values)
+    def SetOneValues(self,dicvalues=None):
+        for panel in self.lstPanels:
+            [code, champ] = panel.ctrl.nameCtrl.split('.')
+            if champ in dicvalues:
+                if panel.ctrl.genreCtrl.lower() in ['enum', 'combo']:
+                    panel.SetValues(dicvalues[champ])
         return
 
 class TopBoxPanel(wx.Panel):
@@ -772,6 +771,13 @@ class TopBoxPanel(wx.Panel):
             if box.code in ddDonnees:
                 dic = ddDonnees[box.code]
                 box.SetValues(dic)
+        return
+
+    def SetOneValues(self, ddDonnees):
+        for box in self.lstBoxes:
+            if box.code in ddDonnees:
+                dic = ddDonnees[box.code]
+                box.SetOneValues(dic)
         return
 
 class DLG_ligne(wx.Dialog):
@@ -872,8 +878,6 @@ class Gestion_ligne(object):
         self.altkwds = ['gestionProperty','lblbox','marge','minSize','couleur','pos']
         self.altval = [self.gestionProperty,self.lblbox,self.marge,self.minSize,self.couleur,self.pos]
 
-        self.clewhere = None
-
         #liste associées aux champs à gérer
         lstChamps, lstTypes, lstHelp = datatable.GetChampsTypes(table, tous=True)
         self.lstTblHelp = lstHelp
@@ -885,14 +889,10 @@ class Gestion_ligne(object):
         self.lstOlvNoms = ctrlolv.lstNomsColonnes
         self.lstOlvValeur = [x for x in self.selection.donnees]
 
-        # listes pour la grille de l'écran
-        self.dictMatrice = {}
-        self.dictDonnees = {}
-        self.lstEcrCodes = []
-
         # récup de la clé de l'enregistrement pointé dans OLV
         codescommuns = [code  for code in self.lstTblCodes if code in self.lstOlvCodes]
-        Tplcle = lambda x : (self.lstTblChamps[self.lstTblCodes.index(x)],self.lstOlvValeur[self.lstOlvCodes.index(x)])
+        Tplcle = lambda x : (self.lstTblChamps[self.lstTblCodes.index(x)],
+                             self.lstOlvValeur[self.lstOlvCodes.index(x)])
         self.lstcle = [Tplcle(code) for code in codescommuns]
         def CleWhere(cletable):
             # tranforme cletable liste de tuples(champ,valeur), en clause sql where
@@ -906,6 +906,23 @@ class Gestion_ligne(object):
             clewhere = clewhere[:-4]
             return clewhere
         self.clewhere = CleWhere(self.lstcle)
+
+        # gestion de la suppression d'une ligne
+        if mode == 'suppr':
+            # Suppression
+            designation = "Ligne : %s %s %s" % tuple([self.selection.donnees[x] for x in [1, 2, 3]])
+            if wx.YES == wx.MessageBox("Confirmez-vous la suppresion de la selection?\n\n%s" % designation,
+                                       style=wx.YES_NO):
+                ret = self.DBsql.ReqDEL(self.table, self.clewhere, mess='DEL affectations.%s.Ecran' % self.table)
+                if ret != 'ok': wx.MessageBox(ret, style=wx.ICON_WARNING)
+                del self.ctrlolv.donnees[self.ixsel]
+                if not self.ixsel > 0: self.ixsel = 0
+                self.ctrlolv.MAJ(self.ixsel-1)
+
+        # listes pour la grille de l'écran
+        self.dictMatrice = {}
+        self.dictDonnees = {}
+        self.lstEcrCodes = []
 
         # préalimentation des valeurs
         if self.DBsql and mode in ('modif','copie','eclat','consult'):
@@ -927,6 +944,7 @@ class Gestion_ligne(object):
                             valolv = self.lstOlvValeur[self.lstOlvCodes.index(code)]
                             if valolv != self.lstTblValeurs[ixtbl]:
                                 self.lstTblValeurs[ixtbl] = valolv
+
         # cas de l'ajout ou de l'échec de la reprise
         if self.lstTblValeurs == []:
             self.lstTblValeurs =  [x for x in self.lstTblValdef]
@@ -973,7 +991,7 @@ class Gestion_ligne(object):
             (self.dictMatrice[(cdCateg,nmCateg)],self.dictDonnees[cdCateg]) = (matrice,donnees)
 
     def InitDlg(self):
-        # envoi de l'écran
+        # envoi de l'écran avec transmission des propriétés heritées
         for mot,val in zip(self.altkwds,self.altval):
             if val: self.kwds[mot] = val
         self.dlg = DLG_ligne(self.parent,dldMatrice=self.dictMatrice,ddDonnees=self.dictDonnees,**self.kwds)
@@ -990,9 +1008,9 @@ class Gestion_ligne(object):
                     wx.MessageBox("Erreur Gestion_ligne\n\nAppel fonction 'Validation' :\n%s"%err)
                 if fin:
                     self.Final(valeurs)
+                del valeurs
             else: fin = True
         self.ctrlolv.SelectObject(self.ctrlolv.innerList[self.ixsel])
-        self.dlg.Destroy()
 
     def Final(self,valeurs):
         # mise à jour de l'olv d'origine
@@ -1026,16 +1044,17 @@ class Gestion_ligne(object):
         lstModifs = []
         for categorie, dicdonnees in valeurs.items():
             for code, valeur in dicdonnees.items():
-                if valeur in (None, ''): valeur = self.lstTblValdef[self.lstTblCodes.index(code)]
-                nom = self.lstTblChamps[self.lstTblCodes.index(code)]
-                lstModifs.append((nom, valeur))
+                if code in self.lstTblCodes:
+                    if valeur in (None, ''): valeur = self.lstTblValdef[self.lstTblCodes.index(code)]
+                    nom = self.lstTblChamps[self.lstTblCodes.index(code)]
+                    lstModifs.append((nom, valeur))
 
         # complément des champs clé si non gérés dans l'écran
         for (champcle, valcle) in self.lstcle:
             if not champcle in [champ for (champ, val) in lstModifs]:
                 lstModifs.append((champcle, valcle))
 
-        # mise à jour de la self.table
+        # mise à jour de la table
         if len(lstModifs) > 0 and self.mode == 'modif':
             ret = self.DBsql.ReqMAJ(self.table, lstModifs, self.clewhere, mess='MAJ affectations.%s.Ecran' % self.table)
             if ret != 'ok':
@@ -1057,6 +1076,25 @@ class Gestion_ligne(object):
             insDonnees = [y for x, y in lstModifs]
             ret = self.DBsql.ReqInsert(self.table, insChamps, insDonnees, mess='Insert affectations.%s.Ecran' % self.table)
             if ret != 'ok': wx.MessageBox(ret)
+
+    def Eclater(self,lstModifs,recOrigine):
+        # le modèle d'origine voit ses nombres diminués du montant de l'éclat
+        lstIns, lstMaj = [],[]
+        for champ,valeur in lstModifs:
+            ix = self.ctrlolv.lstTblChamps.index(champ)
+            valorigine = recOrigine[ix]
+            valdef = self.ctrlolv.lstTblValdef[ix]
+            if not valorigine: valorigine = valdef
+            if isinstance(valdef,(int,float)) and champ[:2].lower() != 'id':
+                valeur = xfmt.Nz(valeur)
+                valreste = xfmt.Nz(valorigine) - valeur
+                if valreste < 0.0 : valreste = 0.0
+                lstMaj.append((champ,valreste))
+                lstIns.append((champ,valeur))
+            else:
+                lstMaj.append((champ,valorigine))
+                lstIns.append((champ,valeur))
+        return lstMaj,lstIns
 
 
 if __name__ == '__main__':
@@ -1113,6 +1151,7 @@ if __name__ == '__main__':
         del dlg
 
     dicOnClick = {'Action1': lambda evt: actiontest(frame_test),
+                  'Action2': 'self.parent.Validation()',
                   'BtnPrec': 'self.parent.Close()'}
 
     frame_test = xgt.DLG_tableau(None,dicOlv=xgt.dicOlv,lstBtns={},lstActions=xgt.lstActions,lstInfos={},

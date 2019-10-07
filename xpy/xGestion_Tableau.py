@@ -11,7 +11,7 @@
 import wx
 import os
 import xpy.outils.xformat
-from xpy.outils.ObjectListView import FastObjectListView, BarreRecherche, ColumnDefn, Filter, Footer, CTRL_Outils, OLVEvent
+from xpy.outils.ObjectListView import FastObjectListView, ColumnDefn, Filter, Footer, CTRL_Outils, OLVEvent
 from xpy.outils.xconst import *
 
 # ------------------------------------------------------------------------------------------------------------------
@@ -174,16 +174,11 @@ class ListView(FastObjectListView):
 
     def MAJ(self, ID=None):
         self.selectionID = ID
-        self.selectionTrack = None
         self.InitModel()
         self.InitObjectListView()
-        # Sélection d'un item
-        if self.selectionTrack != None:
-            self.SelectObject(self.selectionTrack, deselectOthers=True, ensureVisible=True)
-        self.selectionID = None
-        self.selectionTrack = None
-        if ID == None:
-            self.DefileDernier()
+        # Rappel de la sélection d'un item
+        if self.selectionID != None:
+            self.SelectObject(self.innerList[ID], deselectOthers=True, ensureVisible=True)
 
     def Selection(self):
         return self.GetSelectedObjects()
@@ -420,8 +415,7 @@ class PanelListView(wx.Panel):
 
     def MAJ(self):
         self.ctrl_listview.MAJ()
-        if self.ctrl_footer:
-            self.ctrl_footer.MAJ()
+        self.ctrl_footer.MAJ()
 
     def GetListview(self):
         return self.ctrl_listview
@@ -598,6 +592,12 @@ class DLG_tableau(wx.Dialog):
     def Close(self):
         self.EndModal(wx.OK)
 
+    def Validation(self,param=None):
+        # pour test avec appel de xGestion_Ligne
+        #print('value: ', self.pnl.ctrloutils.barreRecherche.GetValue())
+        self.pnl.ctrlOlv.MAJ()
+        return True
+
 # -- pour tests -----------------------------------------------------------------------------------------------------
 liste_Colonnes = [
     ColumnDefn("clé", 'left', 70, "cle",valueSetter=1,isSpaceFilling = True,),
@@ -632,7 +632,8 @@ lstActions = [('Action1',wx.ID_COPY,'Choix un',"Cliquez pour l'action 1"),
               ('Action2',wx.ID_CUT,'Choix deux',"Cliquez pour l'action 2")]
 # params des actions ou boutons: name de l'objet, fonction ou texte à passer par eval()
 dicOnClick = {'Action1': lambda evt: wx.MessageBox('ceci active la fonction action1'),
-              'BtnPrec' : 'self.parent.Close()'}
+                'Action2': 'self.parent.Validation()',
+                'BtnPrec' : 'self.parent.Close()'}
 
 if __name__ == '__main__':
     app = wx.App(0)
