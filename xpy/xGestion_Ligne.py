@@ -698,13 +698,13 @@ class BoxPanel(wx.Panel):
                     self.lstPanels.append(panel)
         self.SetSizerAndFit(self.ssbox)
 
-    def GetValues(self):
+    def GetValeurs(self):
         for panel in self.lstPanels:
             [code, champ] = panel.ctrl.nameCtrl.split('.')
             self.dictDonnees[champ] = panel.GetValue()
         return self.dictDonnees
 
-    def SetValues(self,dictDonnees):
+    def SetValeurs(self,dictDonnees):
         for panel in self.lstPanels:
             [code, champ] = panel.ctrl.nameCtrl.split('.')
             if champ in dictDonnees:
@@ -762,7 +762,7 @@ class TopBoxPanel(wx.Panel):
     def GetValeurs(self):
         ddDonnees = {}
         for box in self.lstBoxes:
-            dic = box.GetValues()
+            dic = box.GetValeurs()
             ddDonnees[box.code] = dic
         return ddDonnees
 
@@ -770,7 +770,7 @@ class TopBoxPanel(wx.Panel):
         for box in self.lstBoxes:
             if box.code in ddDonnees:
                 dic = ddDonnees[box.code]
-                box.SetValues(dic)
+                box.SetValeurs(dic)
         return
 
     def SetOneValues(self, ddDonnees):
@@ -779,6 +779,20 @@ class TopBoxPanel(wx.Panel):
                 dic = ddDonnees[box.code]
                 box.SetOneValues(dic)
         return
+
+    def SetOneValue(self, ddDonnees):
+        for box in self.lstBoxes:
+            if box.code in ddDonnees:
+                dic = ddDonnees[box.code]
+                box.SetOneValue(dic)
+        return
+
+    def GetOneValue(self,name = ''):
+        value = None
+        for categ,dictDonnees in self.ddDonnees.items():
+            if name in dictDonnees:
+                value = dictDonnees[name]
+        return value
 
 class DLG_ligne(wx.Dialog):
     # variante DLG_vide, avec relais possible d'évènements Boutons ou Controles gérés dans matrice
@@ -898,11 +912,12 @@ class Gestion_ligne(object):
             # tranforme cletable liste de tuples(champ,valeur), en clause sql where
             clewhere = ''
             for cle, val in cletable:
-                if isinstance(val, (datetime.date, str)):
-                    valsql = "'%s'" % str(val)
-                else:
-                    valsql = str(val)
-                clewhere += '(%s = %s) AND ' % (cle, valsql)
+                if val:
+                    if isinstance(val, (datetime.date, str)):
+                        valsql = "'%s'" % str(val)
+                    else:
+                        valsql = str(val)
+                    clewhere += '(%s = %s) AND ' % (cle, valsql)
             clewhere = clewhere[:-4]
             return clewhere
         self.clewhere = CleWhere(self.lstcle)
@@ -1095,7 +1110,6 @@ class Gestion_ligne(object):
                 lstMaj.append((champ,valorigine))
                 lstIns.append((champ,valeur))
         return lstMaj,lstIns
-
 
 if __name__ == '__main__':
     app = wx.App(0)

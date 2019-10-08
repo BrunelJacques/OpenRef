@@ -124,32 +124,34 @@ def ProduitsFermes(dossier,idmatelier,DBsql):
             lstProduits.append((IDproduit))
     return lstProduits
 
-def CoutsOuverts(IDdossier,DBsql):
+def CoutsPossibles(IDdossier,DBsql):
     lstCouts = []
-    req = """SELECT mCoûts.IDMatelier,mCoûts.IDMcoût
-            FROM _Coûts 
-            INNER JOIN mCoûts ON _Coûts.IDMcoût = mCoûts.IDMcoût
-            WHERE (_Coûts.IDdossier = %d)
-            """%IDdossier
-    retour = DBsql.ExecuterReq(req, mess='Util_affectations.CoutsOuverts')
+    req = """SELECT mcoûts.IDMatelier, mcoûts.IDMcoût
+            FROM mcoûts 
+                 LEFT JOIN _ateliers ON mcoûts.IDMatelier = _ateliers.IDMatelier
+            WHERE ((_ateliers.IDdossier) = %d) 
+                    OR ((mcoûts.IDMatelier)="ANY")
+            ;"""%IDdossier
+    retour = DBsql.ExecuterReq(req, mess='Util_affectations.CoutsPossibles')
     if not retour == "ok":
         wx.MessageBox("Erreur : %s"%retour)
     else:
         recordset = DBsql.ResultatReq()
         for IDatelier,IDcout in recordset:
+            if IDatelier == 'ANY': IDatelier = '*'
             lstCouts.append((IDatelier,IDcout))
     return lstCouts
 
 def AffectsActifs(IDdossier,DBsql):
-    # retourne les affectations possibles (première et deuxième parties du nom)
+    # retourne les affectations possibles pour les marges ( le poste est demandé à la sortie pour les ateliers)
     lstAffects = ['']
     for IDatelier in AteliersOuverts(IDdossier,DBsql):
-        lstAffects.append("A.%s"%IDatelier)
+        lstAffects.append("A.%s._"%IDatelier)
     for IDatelier,IDproduit in ProduitsOuverts(IDdossier,DBsql):
         lstAffects.append("P.%s.%s"%(IDatelier,IDproduit))
-    for IDatelier,IDproduit in CoutsOuverts(IDdossier,DBsql):
-        lstAffects.append("C.%s.%s"%(IDatelier,IDproduit))
-    lstAffects.append("I.TabFin")
+    for IDatelier,IDcout in CoutsPossibles(IDdossier,DBsql):
+        lstAffects.append("C.%s.%s"%(IDatelier,IDcout))
+    lstAffects.append("I.TabFin._")
     return lstAffects
 
 def PlanComptes(classe,DBsql):
@@ -435,13 +437,16 @@ class Balance():
 
     def FinSaisie(self):
         #prise en compte de l'affectation dans les produits, ateliers ou coûts
-        valeurs = self.saisie.dlg.pnl.GetValeurs()
-        for categorie, dicDonnees in valeurs.items():
-            if 'affectation' in  dicDonnees:
-                affectation = dicDonnees['affectation']
-                cdCateg = categorie
+        affectation = self.saisie.dlg.pnl.GetOneValue('affectation')
         oldaffect = self.saisie.lstOlvValeur[self.ctrlolv.lstCodesColonnes.index('affectation')]
-        wx.MessageBox('Passer de %s à %s'%(oldaffect,affectation))
+        #mise à jour des produits couts ateliers suite aux modifs
+        if affectation != oldaffect:
+            ret = orut.Affectation(self.IDdossier,oldaffect,self.DBsql)
+            ret += orut.Affectation(self.IDdossier,affectation,self.DBsql)
+            if ret != 'okok':
+                ret = ret.replace('ok',' - ')
+                wx.MessageBox("Erreur UTIL_affectation.Balance.FinSaisie\n\nAffectation: '%s' vers '%s'\n%s"
+                              %(oldaffect,affectation,ret))
 
 class Produits():
     def __init__(self, parent,visu=True):
@@ -670,19 +675,15 @@ class Produits():
 
     def OnChoixAtelier(self,event):
         # un atelier différent à été choisi, il faut réactualiser les produits possibles
-        valeurs = self.saisie.dlg.pnl.GetValeurs()
-        code = 'idmatelier'
-        for categorie, dicDonnees in valeurs.items():
-            if code in  dicDonnees:
-                idmatelier = dicDonnees[code]
-                break
-        # la selection est celle d' l'OLV parent qui doit être rafraichie avec la nvle donnée
         selection = self.ctrlolv.Selection()[0]
-        ixcol = self.ctrlolv.lstCodesColonnes.index(code)
+        # la selection est celle d' l'OLV parent qui doit être rafraichie avec la nvle donnée
+        idmatelier = self.saisie.dlg.pnl.GetOneValue('idmatelier')
+        ixcol = self.ctrlolv.lstCodesColonnes.index('idmatelier')
         selection.donnees[ixcol] = idmatelier
+        selection.idmatelier = idmatelier
+        # raz du produit qui ne correspond plus
         ixcol = self.ctrlolv.lstCodesColonnes.index('idmproduit')
         selection.donnees[ixcol] = ''
-        selection.idmatelier = idmatelier
         selection.idmproduit = ''
         # réinitialisation de l'écran de saisie par envoi d'une setOneValues pour les items d'une combo
         valuesProduits = ProduitsFermes(self.IDdossier,idmatelier,self.DBsql)

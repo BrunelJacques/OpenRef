@@ -18,7 +18,9 @@ import srcOpenRef.DATA_Tables as dtt
 
 def TronqueData(table,lstChamps,lstDonnees):
     # vérifie la longueur des données texte pour éviter les plantages lors d'insertions SQL
-    champs_table = dtt.GetChamps(table, tous=True)
+    if table:
+        champs_table = dtt.GetChamps(table, tous=True)
+    else: champs_table = lstChamps
     ixd = 0
     for champ in lstChamps:
         ix = champs_table.index(champ)
@@ -50,6 +52,7 @@ def TronqueData(table,lstChamps,lstDonnees):
     return
 
 def ListesToDict(listecles, listevaleurs):
+    # génère un dictionnaire à partir de deuxlistes clés et valeurs
     dic = {}
     try:
         for ix in range(len(listecles)):
@@ -58,6 +61,7 @@ def ListesToDict(listecles, listevaleurs):
     return dic
 
 def DictToLists(dic):
+    #eclate un dictionnaire en deux listes clés et valeurs
     listecles = []
     listevaleurs = []
     try:

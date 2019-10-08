@@ -12,15 +12,217 @@ import wx
 import srcOpenRef.UTIL_analyses as orua
 import srcOpenRef.UTIL_import as orui
 import xpy.xGestionDB as xdb
+import xpy.xGestion_Ligne as xgl
 import unicodedata
 import srcOpenRef.DATA_Tables as dtt
 
 CHAMPS_TABLES = {
     '_Balances':['IDdossier','Compte','IDligne','Libellé','MotsCléPrés','Quantités1','Unité1','Quantités2','Unité2',
                  'SoldeDeb','DBmvt','CRmvt','SoldeFin','IDplanCompte','Affectation'],
-    'produits':[ 'IDMatelier', 'IDMproduit', 'NomProduit', 'MoisRécolte', 'ProdPrincipal', 'UniteSAU', 'coefHa', 'CptProduit', 'Priorité', 'MotsCles', 'TypesProduit'],
+    'produits':[ 'IDMatelier', 'IDMproduit', 'NomProduit', 'MoisRécolte', 'ProdPrincipal', 'UniteSAU', 'coefHa', 'CptProduit',
+                 'Priorité', 'MotsCles', 'TypesProduit','UnitéQté1','UnitéQté2'],
     'couts': ['IDMatelier','IDMcoût','UnitéQté','CptCoût','MotsCles','TypesCoût']
     }
+
+def SupprimeAccents(texte):
+    # met en minuscule sans accents et sans caractères spéciaux le none est blanc
+    if not texte: texte = ''
+    if not isinstance(texte,str): texte = ''
+    code = ''.join(c for c in unicodedata.normalize('NFD', texte) if unicodedata.category(c) != 'Mn')
+    #code = str(unicodedata.normalize('NFD', texte).encode('ascii', 'ignore'))
+    code = code.lower()
+    code = ''.join(car.lower() for car in code if car not in " %)(.[]',;/\n")
+    return code.strip()
+
+def Affectation(iddossier,affectation,DBsql):
+    # l'affectation d'une ligne de la balance va être imputée dans les tables de synthèse
+    genre,atelier,option = None,None,None
+    mess = 'ok'
+    if affectation :
+        if len(affectation.strip()) > 0 :
+            elements = affectation.split('.')
+            if len(elements) > 0: genre = SupprimeAccents(elements[0]).upper()
+            if len(elements) > 1: atelier = SupprimeAccents(elements[1]).upper()
+            if len(elements) > 2: option = elements[2]
+    # impasse sur les remises à blanc
+    if not genre: return 'ok'
+    # autre liminaires
+    if not isinstance(iddossier,int): "le IDdossier %s n'est pas valable"%str(iddossier)
+    if not genre in ('P','C','A','I'): return "L'affectation '%s', ne commence pas par 'P','C','A','I'"%affectation
+    if genre == 'P':
+        mess = AffectProduit(iddossier,atelier,option,DBsql)
+    if genre == 'A':
+        mess = AffectAtelier(iddossier,atelier,option,DBsql)
+    return mess
+
+def AffectAtelier(iddossier, atelier,poste,DBsql):
+
+    dicAtelier = Get_Atelier(iddossier,atelier,DBsql)
+
+    # récupère les comptes à affectés à cet atelier ou a un produit de cet atelier( 74 ou 76 vont dans l'atelier)
+    affectation = '//%.%s.//%'%(atelier)
+    req = """SELECT _balances.IDdossier, _balances.Compte, _balances.IDplanCompte, Sum(_balances.Quantités1), 
+                _balances.Unité1, Sum(_balances.Quantités2), _balances.Unité2, Sum(_balances.SoldeDeb), Sum(_balances.SoldeFin)
+            FROM _balances
+            WHERE ((_balances.IDdossier = %d) 
+                AND((_balances.Affectation) LIKE '%s') 
+                AND ((Left(IDplanCompte,1)) In ('3','6','7')))
+            GROUP BY _balances.IDdossier, _balances.Compte, _balances.IDplanCompte, _balances.Unité1, _balances.Unité2
+        ;""" % (iddossier,affectation)
+    ret = DBsql.ExecuterReq(req, mess='UTIL_traitements.AffectAtelier')
+    if ret == "ok":
+        recordset = DBsql.ResultatReq()
+    else : return ret
+    dicAtelier = {}
+    for cle in ('AutreProduit','Subvention','Comm','Conditionnement','AutresAppros','AutresServices','AmosSpecif') :
+        dicAtelier[cle] = 0.0
+        dicAtelier['CPT%s'%cle.replace('Autres','')] = ''
+    for iddossier, compte, idplancompte, quantites1, unite1, quantites2, unite2, soldedeb, soldefin in recordset:
+        dicAtelier = VentileValeurAtelier(dicAtelier,idplancompte,quantites1,unite1,quantites2,unite2,soldedeb,soldefin)
+    ret = Set_Atelier(dicAtelier,DBsql)
+    return ret
+
+def VentileValeurAtelier(dicAtelier,IDplanCompte,SoldeFin):
+    # ventilation des valeurs du compte dans le atelier auquel il se rattache
+    # inversion des signes de balance pour retrouver du positif dans les ateliers ou stock
+    if IDplanCompte[:2] == '70':
+        dicAtelier['Comptes'].append(IDplanCompte)
+        dicAtelier['Ventes'] -= SoldeFin
+    elif IDplanCompte[:2] == '71':
+        dicAtelier['DeltaStock'] -= SoldeFin
+    elif IDplanCompte[:2] == '72':
+        dicAtelier['AutreProd'] -= SoldeFin
+    elif IDplanCompte[:2] == '75':
+        dicAtelier['AutreProd'] -= SoldeFin
+    elif IDplanCompte[:3] == '603':
+        dicAtelier['DeltaStock'] -= SoldeFin
+    elif IDplanCompte[:3] == '604':
+        dicAtelier['AchatAnmx'] -= SoldeFin
+    # le paramétrage ne doit pas contenir à la fois des ((603 ou 71) et 3) dans les radicaux
+    elif IDplanCompte[:1] == '3':
+        dicAtelier['DeltaStock'] -= SoldeFin
+        dicAtelier['StockFin'] -= SoldeFin
+    else:
+        dicAtelier['AutreProd'] -= SoldeFin
+    return dicAtelier
+
+def AffectProduit(iddossier, atelier, produit,DBsql):
+
+    dicProduit = Get_Produit(iddossier,atelier,produit,DBsql)
+
+    # récupère les comptes à affecter à ce produit
+    affectation = 'P.%s.%s'%(atelier,produit)
+    req = """SELECT _balances.IDdossier, _balances.Compte, _balances.IDplanCompte, Sum(_balances.Quantités1), 
+                _balances.Unité1, Sum(_balances.Quantités2), _balances.Unité2, Sum(_balances.SoldeDeb), Sum(_balances.SoldeFin)
+            FROM _balances
+            WHERE ((_balances.IDdossier = %d) 
+                AND((_balances.Affectation) = '%s') 
+                AND ((Left(IDplanCompte,1)) In ('3','6','7')))
+            GROUP BY _balances.IDdossier, _balances.Compte, _balances.IDplanCompte, _balances.Unité1, _balances.Unité2
+        ;""" % (iddossier,affectation)
+    ret = DBsql.ExecuterReq(req, mess='UTIL_traitements.AffectPoduit')
+    if ret == "ok":
+        recordset = DBsql.ResultatReq()
+    else : return ret
+    dicProduit['Comptes'] = ''
+    for cle in ('Quantité1','Quantité2','Ventes','AchatAnms','DeltaStock','AutreProd','StockFin') :
+        dicProduit[cle] = 0.0
+    for iddossier, compte, idplancompte, quantites1, unite1, quantites2, unite2, soldedeb, soldefin in recordset:
+        dicProduit = VentileValeurProduit(dicProduit,idplancompte,quantites1,unite1,quantites2,unite2,soldedeb,soldefin)
+    ret = Set_Produit(dicProduit,DBsql)
+    return ret
+
+def Get_Produit(iddossier,atelier,produit,DBsql,init=True):
+    # constitue un dictionnaire des modèles de produits à générer
+    lstChamps = dtt.GetChamps('_Produits')
+    lstChamps.extend(['UnitéQté1','UnitéQté2'])
+
+    req = """SELECT _Produits.*,mProduits.'UnitéQté1',mProduits.'UnitéQté2'
+            FROM _Produits
+            INNER JOIN mProduits ON(_produits.IDMproduit = mProduits.IDMproduit) 
+                                    AND(_produits.IDMatelier = mProduits.IDMatelier)
+            WHERE (IDdossier = '%d') AND (IDMproduit) = '%s') AND (IDMatelier  = '%s') 
+            ; """ % (iddossier,atelier,produit)
+    retour = DBsql.ExecuterReq(req, mess='accès UTIL_traitement.GetProduit')
+    dic = {}
+    if retour == "ok":
+        recordset = DBsql.ResultatReq()
+        if len(recordset)>0:
+            dic = orua.ListsToDic(lstChamps, recordset,1)
+        else:
+            dic={}
+            if init :
+                Set_ProduitVide(iddossier,atelier,produit,DBsql)
+                dic = Get_Produit(iddossier,atelier,produit,DBsql,init=False)
+    return dic
+
+def Set_ProduitVide(iddossier,atelier,produit,DBsql):
+    lstChamps, lstTypes, lstHelp = dtt.GetChampsTypes('_Produits', tous=True)
+    lstTblChamps = lstChamps
+    lstTblValdef = xgl.ValeursDefaut(lstChamps, lstChamps, lstTypes)
+    lstTblValdef[lstTblChamps.index('IDdossier')] = iddossier
+    lstTblValdef[lstTblChamps.index('IDMatelier')] = atelier
+    lstTblValdef[lstTblChamps.index('IDMproduit')] = produit
+    ret = DBsql.ReqInsert('_Produits', lstChamps, lstTblValdef, mess='Insert UTIL_traitement.Set_ProduitVide')
+    if ret != 'ok': wx.MessageBox(ret)
+    return
+
+def Set_Produit(dicProduit,DBsql):
+    # création ou MAJ d'un produits par son produit et les modèles
+    IDMproduit = dicProduit['IDMproduit']
+    lstTblChamps = dtt.GetChamps('_Produits', tous=True)
+    lstChamps = [x for x in lstTblChamps if x in dicProduit]
+    lstDonnees = [dicProduit[x] for x in lstChamps]
+    orui.TronqueData(None,lstChamps,lstDonnees)
+    ok = DBsql.ReqInsert('_Produits', lstChamps, lstDonnees, mess='Set_Produits Produit : %s' % IDMproduit)
+    return ok
+
+def Set_Atelier(dicAtelier,DBsql):
+    # création ou MAJ d'un atelier par son produit et les modèles
+    lstDonnees, lstChamps =[], []
+    lstChampsTable = dtt.GetChamps('_Ateliers')
+    for champ in dicAtelier.keys():
+        if champ in lstChampsTable:
+            lstChamps.append(champ)
+            lstDonnees.append(dicAtelier[champ])
+    orui.TronqueData('_Ateliers',lstChamps,lstDonnees)
+    ok = DBsql.ReqInsert('_Ateliers',lstChamps,lstDonnees,mess= 'Set_Atelier Atelier'%dicAtelier['IDMatelier'])
+    return ok
+
+def VentileValeurProduit(dicProduit,IDplanCompte,Quantites1,Unite1,Quantites2,Unite2,SoldeDeb,SoldeFin):
+    # ventilation des valeurs du compte dans le produit auquel il se rattache
+    dicProduit['Comptes'].append(IDplanCompte)
+    uniteRetenue = SupprimeAccents(dicProduit['UnitéQté1'])
+    uniteBalance = SupprimeAccents(Unite1)
+    if uniteBalance == uniteRetenue or len(uniteRetenue) == 0 or len(uniteBalance == 0):
+        dicProduit['Quantité1'] += Quantites1
+    uniteRetenue = SupprimeAccents(dicProduit['UnitéQté2'])
+    uniteBalance = SupprimeAccents(Unite2)
+    if uniteBalance == uniteRetenue or len(uniteRetenue) == 0 or len(uniteBalance == 0):
+        dicProduit['Quantité2'] += Quantites2
+
+    # inversion des signes de balance pour retrouver du positif dans les produits ou stock
+    if IDplanCompte[:2] == '70':
+        dicProduit['Ventes'] -= SoldeFin
+    elif IDplanCompte[:2] == '71':
+        dicProduit['DeltaStock'] -= SoldeFin
+    elif IDplanCompte[:2] == '72':
+        dicProduit['AutreProd'] -= SoldeFin
+    elif IDplanCompte[:2] == '75':
+        dicProduit['AutreProd'] -= SoldeFin
+    elif IDplanCompte[:3] == '603':
+        dicProduit['DeltaStock'] -= SoldeFin
+    elif IDplanCompte[:3] == '604':
+        dicProduit['AchatAnmx'] -= SoldeFin
+    # le paramétrage ne doit pas contenir à la fois des ((603 ou 71) et 3) dans les radicaux
+    elif IDplanCompte[:1] == '3':
+        dicProduit['DeltaStock'] -= SoldeFin - SoldeDeb
+        dicProduit['StockFin'] -= SoldeFin
+    else:
+        dicProduit['AutreProd'] -= SoldeFin
+
+    # les 74subventions et 76ProdFin seront affectés à l'atelier même avec mot clé de genre produit
+    return dicProduit
 
 def ChercheIDplanCompte(compte, dicPlanComp):
     # récupération de la clé du plan comptable standard
@@ -54,7 +256,7 @@ def Decoupe(texte):
     return lstMots
 
 def PrechargePlanCompte(DBsql):
-    # constitue un dictionnaire des modèles de produits à générer
+    # constitue un dictionnaire des modèles de comptes à générer
     lstChamps = dtt.GetChamps('cPlanComptes')
     req = """SELECT *
             FROM cPlanComptes;"""
@@ -73,15 +275,13 @@ def PrechargeProduits(agc, DBsql):
     # constitue un dictionnaire des modèles de produits à générer
     lstChamps = CHAMPS_TABLES['produits']
     if agc:
-        req = """SELECT mProduits.IDMatelier, mProduits.IDMproduit, mProduits.NomProduit, mProduits.MoisRécolte, mProduits.ProdPrincipal, mProduits.UniteSAU,
-                        mProduits.coefHa, mProduits.CptProduit, mProduits.Priorité, mProduits.MotsCles, mProduits.TypesProduit
+        where = "WHERE (((mAteliers.IDagc) In ('ANY','%s'))) OR (((mAteliers.IDagc) Is Null))"% agc
+    else: where = ''
+    req = """SELECT mProduits.IDMatelier, mProduits.IDMproduit, mProduits.NomProduit, mProduits.MoisRécolte,
+                    mProduits.ProdPrincipal, mProduits.UniteSAU, mProduits.coefHa, mProduits.CptProduit, mProduits.Priorité, 
+                    mProduits.MotsCles, mProduits.TypesProduit,mProduits.UnitéQté1,mProduits.UnitéQté2
             FROM mProduits LEFT JOIN mAteliers ON mProduits.IDMatelier = mAteliers.IDMatelier
-            WHERE (((mAteliers.IDagc) In ('ANY','%s'))) OR (((mAteliers.IDagc) Is Null));
-            """ %agc
-    else:
-        req = """SELECT mProduits.IDMatelier, mProduits.IDMproduit, mProduits.NomProduit, mProduits.MoisRécolte, mProduits.ProdPrincipal, mProduits.UniteSAU, 
-                        mProduits.coefHa, mProduits.CptProduit, mProduits.Priorité, mProduits.MotsCles, mProduits.TypesProduit
-                FROM mProduits LEFT JOIN mAteliers ON mProduits.IDMatelier = mAteliers.IDMatelier;"""
+            %s; """ % where
     retour = DBsql.ExecuterReq(req, mess='accès OpenRef précharge Produits')
     dic = {}
     if retour == "ok":
@@ -193,6 +393,7 @@ def GetTuplesCles(mots):
     return lstTuples
 
 def GetProduitsAny(dicProduits):
+    # extrait les produits utilisables par toutes les structures agc
     dicProduitsAny = {}
     for produit, dic in dicProduits.items():
         if dic['idmatelier'].upper() == 'ANY':
@@ -200,6 +401,7 @@ def GetProduitsAny(dicProduits):
     return dicProduitsAny
 
 class Traitements():
+    # pour chaque dossier, le traitement génére des ateliers, produits et couts en affectant les comptes
     def __init__(self,annee=None, client=None, groupe=None, filiere=None, agc=None):
         self.title = '[UTIL_traitements].Traitements'
         self.mess = ''
@@ -437,6 +639,8 @@ class Traitements():
         for champ in dtt.GetChamps('_Produits',reel=True):
             dic[champ] = 0.0
         dic['IDMatelier'] = self.dicProduits[produit]['idmatelier']
+        dic['UnitéQté1'] = self.dicProduits[produit]['unitéqté1']
+        dic['UnitéQté2'] = self.dicProduits[produit]['unitéqté2']
         dic['Comptes'] = []
         dic['AutreProduit'] = 0.0
         dic['CalculAutreProduit'] = []
@@ -472,11 +676,14 @@ class Traitements():
                 IDplanCompte = ChercheIDplanCompte(Compte,self.dicPlanComp)
             if len(IDplanCompte.strip())==0: continue
             ok = False            
+
+
             # ce compte sera affecté à l'atelier
             post = 'cout'
             # si plusieurs lignes successives d'un même compte (quand plusieurs unités de qté) => compteencours cumule
             compteencours = Compte
             lstComptesRetenus.append(Compte)
+
             def AppendCompte(lstComptes,compte):
                 if not compte in lstComptes:
                     lstComptes.append(compte)
@@ -497,6 +704,7 @@ class Traitements():
                 post = 'AutreProduit'
 
             #TODO inserer les comptes de charges selon type
+
 
             # MAJ _Balances
             affectation = 'A.' + atelier + "." + post
@@ -547,41 +755,21 @@ class Traitements():
             # si plusieurs lignes successives d'un même compte (quand plusieurs unités de qté) => compteencours cumule
             compteencours = Compte
             # teste si le compte rentre dans les radicaux possibles pour le modèle de produit
-            for radical in lstRadicaux:
+            for radical in lstRadicaux :
                 if radical == IDplanCompte[:len(radical)]:
                     # le compte rentre dans le produit : calcul du produit
-                    lstComptesRetenus.append(Compte)
-                    dicProduit['Comptes'].append(Compte)
-                    dicProduit['Quantité1'] += Quantites1
-                    dicProduit['Quantité2'] += Quantites2
-                    # inversion des signes de balance pour retrouver du positif dans les produits ou stock
-                    if IDplanCompte[:2] == '70':
-                        dicProduit['Ventes'] -= SoldeFin
-                    elif IDplanCompte[:2] == '71':
-                        dicProduit['DeltaStock'] -= SoldeFin
-                    elif IDplanCompte[:2] == '72':
-                        dicProduit['AutreProd'] -= SoldeFin
-                    elif IDplanCompte[:2] == '74':
-                        # les subventions seront affectées à l'atelier même avec mot clé présent niveau produit
+                    if IDplanCompte[:2] == '74':
+                        # les subventions et ProdFin seront affectés à l'atelier même avec mot clé de genre produit
+                        lstComptesRetenus.append(IDplanCompte)
                         self.dic_Ateliers[atelier]['Subventions'] += SoldeFin
                         self.dic_Ateliers[atelier]['CPTSubventions'].append(Compte)
                         affectation = 'A.' + atelier + "." + 'Subventions'
-                    elif IDplanCompte[:2] == '75':
-                        dicProduit['AutreProd'] -= SoldeFin
                     elif IDplanCompte[:2] == '76':
                         self.dic_Ateliers[atelier]['AutreProduit'] += SoldeFin
                         self.dic_Ateliers[atelier]['CPTAutreProduit'].append(Compte)
                         affectation = 'A.' + atelier + "." + 'AutreProduit'
-                    elif IDplanCompte[:3] == '603':
-                        dicProduit['DeltaStock'] -= SoldeFin
-                    elif IDplanCompte[:3] == '604':
-                        dicProduit['AchatAnmx'] -= SoldeFin
-                    # le paramétrage ne doit pas contenir à la fois des ((603 ou 71) et 3) dans les radicaux
-                    elif IDplanCompte[:1] == '3':
-                        dicProduit['DeltaStock'] -= SoldeFin - SoldeDeb
-                        dicProduit['StockFin'] -= SoldeFin
-                    else:
-                        dicProduit['AutreProd'] -= SoldeFin
+
+                    dicProduit = VentileValeurProduit(dicProduit,radical,Quantites1,Quantites2,SoldeDeb,SoldeFin)
                     production = 0.0
                     for poste in ('Ventes', 'DeltaStock', 'AchatAnmx', 'AutreProd'):
                         production += dicProduit[poste]
@@ -595,32 +783,6 @@ class Traitements():
                     self.DBsql.ReqMAJ('_Balances', couples=lstCouples, condition=condition, mess= "GenereDicProduit MAJ _Balances")
                     break
         return dicProduit
-
-    def Genere_Atelier(self,IDMatelier,dicAtelier):
-        # création ou MAJ d'un atelier par son produit et les modèles
-        lstDonnees, lstChamps =[], []
-        lstChampsTable = dtt.GetChamps('_Ateliers')
-        for champ in dicAtelier.keys():
-            if champ in lstChampsTable:
-                lstChamps.append(champ)
-                lstDonnees.append(dicAtelier[champ])
-        orui.TronqueData('_Ateliers',lstChamps,lstDonnees)
-        ok = self.DBsql.ReqInsert('_Ateliers',lstChamps,lstDonnees,mess= 'Genere_Atelier Atelier : %s'%IDMatelier)
-        return ok
-
-    def Genere_Produit(self, dicProduit):
-        # création ou MAJ d'un produits par son produit et les modèles
-        IDMproduit = dicProduit['IDMproduit']
-        lstChampsTable = dtt.GetChamps('_Produits')
-        lstChamps = []
-        lstDonnees = []
-        for champ in dicProduit.keys():
-            if champ in lstChampsTable:
-                lstChamps.append(champ)
-                lstDonnees.append(dicProduit[champ])
-        orui.TronqueData('_Produits',lstChamps,lstDonnees)
-        ok = self.DBsql.ReqInsert('_Produits', lstChamps, lstDonnees, mess='GenereProduits Produit : %s' % IDMproduit)
-        return ok
 
     def TraiteClient(self,tplIdent):
         # traitement effectué sur un dossier  pointé
@@ -751,17 +913,17 @@ class Traitements():
             if atelier in lstAteliersValid: continue
             if not atelier in lstAteliersCrees:
                 dicAtelier = self.dic_Ateliers[atelier]
-                ret = self.Genere_Atelier(atelier,dicAtelier)
+                ret = self.Set_Atelier(dicAtelier,self.DBsql)
                 if ret != 'ok': ok = ret
                 lstAteliersCrees.append(atelier)
-            ret = self.Genere_Produit(dicProduit)
+            ret = Set_Produit(dicProduit,self.DBsql)
             if ret != 'ok': ok += '; '+ret
         return ok
 
 #************************   Pour Test ou modèle  *********************************
 if __name__ == '__main__':
     app = wx.App(0)
-    fn = Traitements(annee='2018',client='009418',agc='prov')
+    fn = Traitements(annee='2018',client='041058',agc='ANY')
     #fn = Traitements(annee='2018',groupe='LOT1',agc='prov')
     print('Retour: ',fn)
 
