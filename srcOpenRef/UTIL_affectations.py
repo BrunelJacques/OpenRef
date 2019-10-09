@@ -93,9 +93,9 @@ def AteliersOuverts(IDdossier,DBsql):
 
 def ProduitsOuverts(IDdossier,DBsql):
     lstProduits = []
-    req = """SELECT mproduits.IDMatelier,mproduits.IDMproduit
+    req = """SELECT mProduits.IDMatelier,mProduits.IDMproduit
             FROM _Produits 
-            INNER JOIN mproduits ON _Produits.IDMproduit = mproduits.IDMproduit
+            INNER JOIN mProduits ON _Produits.IDMproduit = mProduits.IDMproduit
             WHERE (_Produits.IDdossier = %d)
             """%IDdossier
     retour = DBsql.ExecuterReq(req, mess='Util_affectations.ProduitsOuverts')
@@ -502,14 +502,14 @@ class Produits():
         comptes,quantite,unite,ventes,achatAnmx,deltaStock,autreProd,prodPrincipal,TypesProduit,NoLigne,StockFin,Effectif"
         self.lstCodesRequete = [xusp.SupprimeAccents(x) for x in champsRequete.split(',')]
         # appel des produits utilisés dans le dossier pour affichage en tableau
-        req = """SELECT _Produits.IDdossier,_Produits.IDMatelier, _Produits.IDMproduit, mproduits.NomProduit, _Produits.NomProdForcé, 
-                        mproduits.MoisRécolte, mproduits.ProdPrincipal, _Produits.SurfaceProd, mproduits.UniteSAU,
-                        _Produits.Comptes, _Produits.Quantité1, mproduits.UnitéQté1, _Produits.Ventes, 
+        req = """SELECT _Produits.IDdossier,_Produits.IDMatelier, _Produits.IDMproduit, mProduits.NomProduit, _Produits.NomProdForcé, 
+                        mProduits.MoisRécolte, mProduits.ProdPrincipal, _Produits.SurfaceProd, mProduits.UniteSAU,
+                        _Produits.Comptes, _Produits.Quantité1, mProduits.UnitéQté1, _Produits.Ventes, 
                         _Produits.AchatAnmx, _Produits.DeltaStock, _Produits.AutreProd, _Produits.ProdPrincipal, 
                         _Produits.TypesProduit, _Produits.NoLigne,_Produits.StockFin, _Produits.EffectifMoyen
                 FROM _Produits 
-                INNER JOIN mproduits ON (_Produits.IDMproduit = mproduits.IDMproduit) 
-                            AND (_Produits.IDMatelier = mproduits.IDMatelier)
+                INNER JOIN mProduits ON (_Produits.IDMproduit = mProduits.IDMproduit) 
+                            AND (_Produits.IDMatelier = mProduits.IDMatelier)
                 WHERE _Produits.IDdossier = %s
                 ;""" % (self.IDdossier)
         retour = self.DBsql.ExecuterReq(req, mess='Util_affectations.ListeProduits')
