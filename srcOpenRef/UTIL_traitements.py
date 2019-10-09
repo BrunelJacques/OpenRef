@@ -82,13 +82,13 @@ def AffectAtelier(iddossier, atelier, DBsql):
 
     # récupère les comptes à affectés à cet atelier ou a un produit cout de cet atelier
     likeaffect = '%%.%s.%%'%(atelier)
-    req = """SELECT _balances.IDdossier, _balances.IDplanCompte, Sum(_balances.SoldeFin),_balances.Affectation, cPlanComptes.Type
-            FROM _balances
-            LEFT JOIN cPlanComptes ON _balances.IDplanCompte = cPlanComptes.IDplanCompte
-            WHERE ((_balances.IDdossier = %d) 
-                AND((_balances.Affectation) LIKE '%s') 
-                AND ((Left(_balances.IDplanCompte,1)) In ('6','7')))
-            GROUP BY _balances.IDdossier, _balances.IDplanCompte, _balances.Unité1, _balances.Affectation
+    req = """SELECT _Balances.IDdossier, _Balances.IDplanCompte, Sum(_Balances.SoldeFin),_Balances.Affectation, cPlanComptes.Type
+            FROM _Balances
+            LEFT JOIN cPlanComptes ON _Balances.IDplanCompte = cPlanComptes.IDplanCompte
+            WHERE ((_Balances.IDdossier = %d) 
+                AND((_Balances.Affectation) LIKE '%s') 
+                AND ((Left(_Balances.IDplanCompte,1)) In ('6','7')))
+            GROUP BY _Balances.IDdossier, _Balances.IDplanCompte, _Balances.Unité1, _Balances.Affectation
         ;""" % (iddossier,likeaffect)
     ret = DBsql.ExecuterReq(req, mess='UTIL_traitements.AffectAtelier')
     if ret == "ok":
@@ -112,13 +112,13 @@ def AffectProduit(iddossier, atelier, produit,DBsql):
 
     # récupère les comptes à affecter à ce produit
     affectation = 'P.%s.%s'%(atelier,produit)
-    req = """SELECT _balances.IDdossier, _balances.Compte, _balances.IDplanCompte, Sum(_balances.Quantités1), 
-                _balances.Unité1, Sum(_balances.Quantités2), _balances.Unité2, Sum(_balances.SoldeDeb), Sum(_balances.SoldeFin)
-            FROM _balances
-            WHERE ((_balances.IDdossier = %d) 
-                AND(_balances.Affectation = '%s') 
+    req = """SELECT _Balances.IDdossier, _Balances.Compte, _Balances.IDplanCompte, Sum(_Balances.Quantités1), 
+                _Balances.Unité1, Sum(_Balances.Quantités2), _Balances.Unité2, Sum(_Balances.SoldeDeb), Sum(_Balances.SoldeFin)
+            FROM _Balances
+            WHERE ((_Balances.IDdossier = %d) 
+                AND(_Balances.Affectation = '%s') 
                 AND (Left(IDplanCompte,1) In ('3','6','7')))
-            GROUP BY _balances.IDdossier, _balances.Compte, _balances.IDplanCompte, _balances.Unité1, _balances.Unité2
+            GROUP BY _Balances.IDdossier, _Balances.Compte, _Balances.IDplanCompte, _Balances.Unité1, _Balances.Unité2
         ;""" % (iddossier,affectation)
     ret = DBsql.ExecuterReq(req, mess='UTIL_traitements.AffectPoduit')
     if ret == "ok":
@@ -138,13 +138,13 @@ def AffectCout(iddossier, atelier, cout,DBsql):
 
     # récupère les comptes à affecter à ce cout
     affectation = 'C.%s.%s'%(atelier,cout)
-    req = """SELECT _balances.IDdossier, _balances.Compte, _balances.IDplanCompte, Sum(_balances.Quantités1), 
-                _balances.Unité1, Sum(_balances.Quantités2), _balances.Unité2, Sum(_balances.SoldeFin)
-            FROM _balances
-            WHERE ((_balances.IDdossier = %d) 
-                AND(_balances.Affectation = '%s') 
+    req = """SELECT _Balances.IDdossier, _Balances.Compte, _Balances.IDplanCompte, Sum(_Balances.Quantités1), 
+                _Balances.Unité1, Sum(_Balances.Quantités2), _Balances.Unité2, Sum(_Balances.SoldeFin)
+            FROM _Balances
+            WHERE ((_Balances.IDdossier = %d) 
+                AND(_Balances.Affectation = '%s') 
                 AND (Left(IDplanCompte,1) In ('6')))
-            GROUP BY _balances.IDdossier, _balances.Compte, _balances.IDplanCompte, _balances.Unité1, _balances.Unité2
+            GROUP BY _Balances.IDdossier, _Balances.Compte, _Balances.IDplanCompte, _Balances.Unité1, _Balances.Unité2
         ;""" % (iddossier,affectation)
     ret = DBsql.ExecuterReq(req, mess='UTIL_traitements.AffectPoduit')
     if ret == "ok":
@@ -869,7 +869,7 @@ class Traitements():
         self.champsBalance = self.champsBalance.replace("IDplanCompte","_Balances.IDplanCompte")
         req = """SELECT %s,cPlanComptes.Type
             FROM _Balances 
-                LEFT JOIN cPlanComptes ON _balances.IDplanCompte = cPlanComptes.IDplanCompte
+                LEFT JOIN cPlanComptes ON _Balances.IDplanCompte = cPlanComptes.IDplanCompte
             WHERE  (Left(_Balances.IDplanCompte,1) in ('3','6','7'))
                     AND (IDdossier = %s)
                     AND (Affectation in ('',' '));
