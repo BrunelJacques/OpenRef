@@ -127,11 +127,11 @@ def ProduitsFermes(dossier,idmatelier,DBsql):
 
 def CoutsPossibles(IDdossier,DBsql):
     lstCouts = []
-    req = """SELECT mcoûts.IDMatelier, mcoûts.IDMcoût
-            FROM mcoûts 
-                 LEFT JOIN _Ateliers ON mcoûts.IDMatelier = _Ateliers.IDMatelier
+    req = """SELECT mCoûts.IDMatelier, mCoûts.IDMcoût
+            FROM mCoûts 
+                 LEFT JOIN _Ateliers ON mCoûts.IDMatelier = _Ateliers.IDMatelier
             WHERE ((_Ateliers.IDdossier) = %d) 
-                    OR ((mcoûts.IDMatelier)="ANY")
+                    OR ((mCoûts.IDMatelier)="ANY")
             ;"""%IDdossier
     retour = DBsql.ExecuterReq(req, mess='Util_affectations.CoutsPossibles')
     if not retour == "ok":
