@@ -162,8 +162,8 @@ def PlanComptes(classe,DBsql):
     # retourne les comptes officiels de la classe précisée
     lstComptes = []
     req = """SELECT IDplanCompte, NomCompte
-            FROM _cPlanComptes
-            WHERE (_cPlanComptes.IDplanCompte) Like '%s%%';
+            FROM cPlanComptes
+            WHERE (cPlanComptes.IDplanCompte) Like '%s%%';
             """%classe
     retour = DBsql.ExecuterReq(req, mess='Util_affectations.PlanComptes')
     if not retour == "ok":

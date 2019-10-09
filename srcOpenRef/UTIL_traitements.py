@@ -353,8 +353,8 @@ def Get_Cout(iddossier,atelier,cout,DBsql,init=True):
 
     req = """SELECT _Coûts.*,mCoûts.UnitéQté
             FROM _Coûts
-            INNER JOIN mCoûts ON(_coûts.IDMcoût = mCoûts.IDMcoût) 
-                              AND(_coûts.IDMatelier = mCoûts.IDMatelier)
+            INNER JOIN mCoûts ON(_Coûts.IDMcoût = mCoûts.IDMcoût) 
+                              AND(_Coûts.IDMatelier = mCoûts.IDMatelier)
             WHERE   (_Coûts.IDdossier = %d) 
                     AND (_Coûts.IDMatelier  = '%s') 
                     AND (_Coûts.IDMcoût = '%s') 
