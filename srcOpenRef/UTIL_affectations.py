@@ -77,10 +77,10 @@ def VerifSelection(parent,dlg,infos=True,mode='modif'):
 
 def AteliersOuverts(IDdossier,DBsql):
     lstAteliers = []
-    req = """SELECT mateliers.IDMatelier
-            FROM _ateliers 
-            INNER JOIN mateliers ON _ateliers.IDMatelier = mateliers.IDMatelier
-            WHERE (_ateliers.IDdossier = %d)
+    req = """SELECT mAteliers.IDMatelier
+            FROM _Ateliers 
+            INNER JOIN mAteliers ON _Ateliers.IDMatelier = mAteliers.IDMatelier
+            WHERE (_Ateliers.IDdossier = %d)
             """%IDdossier
     retour = DBsql.ExecuterReq(req, mess='Util_affectations.AteliersOuverts')
     if not retour == "ok":
@@ -94,9 +94,9 @@ def AteliersOuverts(IDdossier,DBsql):
 def ProduitsOuverts(IDdossier,DBsql):
     lstProduits = []
     req = """SELECT mproduits.IDMatelier,mproduits.IDMproduit
-            FROM _produits 
-            INNER JOIN mproduits ON _produits.IDMproduit = mproduits.IDMproduit
-            WHERE (_produits.IDdossier = %d)
+            FROM _Produits 
+            INNER JOIN mproduits ON _Produits.IDMproduit = mproduits.IDMproduit
+            WHERE (_Produits.IDdossier = %d)
             """%IDdossier
     retour = DBsql.ExecuterReq(req, mess='Util_affectations.ProduitsOuverts')
     if not retour == "ok":
@@ -129,8 +129,8 @@ def CoutsPossibles(IDdossier,DBsql):
     lstCouts = []
     req = """SELECT mcoûts.IDMatelier, mcoûts.IDMcoût
             FROM mcoûts 
-                 LEFT JOIN _ateliers ON mcoûts.IDMatelier = _ateliers.IDMatelier
-            WHERE ((_ateliers.IDdossier) = %d) 
+                 LEFT JOIN _Ateliers ON mcoûts.IDMatelier = _Ateliers.IDMatelier
+            WHERE ((_Ateliers.IDdossier) = %d) 
                     OR ((mcoûts.IDMatelier)="ANY")
             ;"""%IDdossier
     retour = DBsql.ExecuterReq(req, mess='Util_affectations.CoutsPossibles')
@@ -162,8 +162,8 @@ def PlanComptes(classe,DBsql):
     # retourne les comptes officiels de la classe précisée
     lstComptes = []
     req = """SELECT IDplanCompte, NomCompte
-            FROM cplancomptes
-            WHERE (cplancomptes.IDplanCompte) Like '%s%%';
+            FROM _cPlanComptes
+            WHERE (_cPlanComptes.IDplanCompte) Like '%s%%';
             """%classe
     retour = DBsql.ExecuterReq(req, mess='Util_affectations.PlanComptes')
     if not retour == "ok":
@@ -502,15 +502,15 @@ class Produits():
         comptes,quantite,unite,ventes,achatAnmx,deltaStock,autreProd,prodPrincipal,TypesProduit,NoLigne,StockFin,Effectif"
         self.lstCodesRequete = [xusp.SupprimeAccents(x) for x in champsRequete.split(',')]
         # appel des produits utilisés dans le dossier pour affichage en tableau
-        req = """SELECT _produits.IDdossier,_produits.IDMatelier, _produits.IDMproduit, mproduits.NomProduit, _produits.NomProdForcé, 
-                        mproduits.MoisRécolte, mproduits.ProdPrincipal, _produits.SurfaceProd, mproduits.UniteSAU,
-                        _produits.Comptes, _produits.Quantité1, mproduits.UnitéQté1, _produits.Ventes, 
-                        _produits.AchatAnmx, _produits.DeltaStock, _produits.AutreProd, _produits.ProdPrincipal, 
-                        _produits.TypesProduit, _produits.NoLigne,_produits.StockFin, _produits.EffectifMoyen
-                FROM _produits 
-                INNER JOIN mproduits ON (_produits.IDMproduit = mproduits.IDMproduit) 
-                            AND (_produits.IDMatelier = mproduits.IDMatelier)
-                WHERE _produits.IDdossier = %s
+        req = """SELECT _Produits.IDdossier,_Produits.IDMatelier, _Produits.IDMproduit, mproduits.NomProduit, _Produits.NomProdForcé, 
+                        mproduits.MoisRécolte, mproduits.ProdPrincipal, _Produits.SurfaceProd, mproduits.UniteSAU,
+                        _Produits.Comptes, _Produits.Quantité1, mproduits.UnitéQté1, _Produits.Ventes, 
+                        _Produits.AchatAnmx, _Produits.DeltaStock, _Produits.AutreProd, _Produits.ProdPrincipal, 
+                        _Produits.TypesProduit, _Produits.NoLigne,_Produits.StockFin, _Produits.EffectifMoyen
+                FROM _Produits 
+                INNER JOIN mproduits ON (_Produits.IDMproduit = mproduits.IDMproduit) 
+                            AND (_Produits.IDMatelier = mproduits.IDMatelier)
+                WHERE _Produits.IDdossier = %s
                 ;""" % (self.IDdossier)
         retour = self.DBsql.ExecuterReq(req, mess='Util_affectations.ListeProduits')
         if retour == "ok":
