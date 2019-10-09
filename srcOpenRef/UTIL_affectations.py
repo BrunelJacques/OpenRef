@@ -18,6 +18,7 @@ import xpy.xUTILS_SaisieParams as xusp
 import xpy.xGestion_Tableau as xgt
 import xpy.xGestion_Ligne as xgl
 import xpy.outils.xformat as xfmt
+import xpy.outils.xselection as xsel
 
 def ComposeLstDonnees(lstNomsColonnes,record,lstChamps):
     # retourne les données pour colonnes, extraites d'un record défini par une liste de champs
@@ -145,11 +146,14 @@ def CoutsPossibles(IDdossier,DBsql):
 def AffectsActifs(IDdossier,DBsql):
     # retourne les affectations possibles pour les marges ( le poste est demandé à la sortie pour les ateliers)
     lstAffects = ['']
-    for IDatelier in AteliersOuverts(IDdossier,DBsql):
+    ateliersOuverts = AteliersOuverts(IDdossier,DBsql)
+    for IDatelier in ateliersOuverts:
         lstAffects.append("A.%s._"%IDatelier)
     for IDatelier,IDproduit in ProduitsOuverts(IDdossier,DBsql):
         lstAffects.append("P.%s.%s"%(IDatelier,IDproduit))
     for IDatelier,IDcout in CoutsPossibles(IDdossier,DBsql):
+        if IDatelier == '*' and len(ateliersOuverts) == 1:
+            IDatelier = ateliersOuverts[0]
         lstAffects.append("C.%s.%s"%(IDatelier,IDcout))
     lstAffects.append("I.TabFin._")
     return lstAffects
@@ -342,13 +346,14 @@ class Balance():
         self.ixsel = all.index(selection)
 
         # personnalisation des actions
-        valuesAffect = AffectsActifs(self.IDdossier,self.DBsql)
+        self.valuesAffect = AffectsActifs(self.IDdossier,self.DBsql)
         classe = selection.compte[1]
         valuesPlanCompte = PlanComptes(classe,self.DBsql)
         dicOptions = {
                 'affectation':{
-                    'values': valuesAffect,
-                    'genre': 'enum',
+                    'values': self.valuesAffect,
+                    'genre': 'combo',
+                    'ctrlAction': 'OnModifAffect',
                     'btnLabel': "...",
                     'btnHelp': "Cliquez pour ouvrir un nouveau prouit à ce dossier",
                     'btnAction': 'OnAjoutAffect',},
@@ -383,6 +388,7 @@ class Balance():
             event.Skip()
         except Exception as err:
             wx.MessageBox("Echec sur lancement action sur ctrl: '%s' \nLe retour d'erreur est : \n%s"%(self.action, err),style=wx.ICON_WARNING)
+        print()
 
     def CalculSolde(self,event):
         valeurs = self.saisie.dlg.pnl.GetValeurs()
@@ -397,15 +403,44 @@ class Balance():
         ret = self.saisie.dlg.pnl.SetValeurs(ddDonnees)
         event.Skip()
 
+    def OnModifAffect(self,event):
+        affect = self.saisie.dlg.pnl.GetOneValue('affectation')
+        if '*' in affect:
+            cout = affect.split('.')[2]
+            lstAteliers = []
+            for ligne in self.valuesAffect:
+                tplligne = ligne.split('.')
+                if len(tplligne) == 3:
+                    if tplligne[0] == 'A':
+                        donnees = (tplligne[1],)
+                        if not donnees in lstAteliers:
+                            lstAteliers.append(donnees)
+            lstColonnes =[("Atelier", "left", -1, "col1")]
+            dlgsel = xsel.DLG_selection(None,lstColonnes=lstColonnes,lstValeurs=lstAteliers,
+                                        title="Choix de l'atelier à imputer '%s'"%cout,minsize=(250,350))
+            ret = dlgsel.ShowModal()
+            if ret == wx.ID_OK:
+                # Réinit des values de ctrl affetation
+                atelier = lstAteliers[dlgsel.GetSelections()][0]
+                for item in self.valuesAffect:
+                    ix = self.valuesAffect.index(item)
+                    self.valuesAffect[ix] = item.replace('*',atelier)
+                affect = affect.replace('*', atelier)
+                self.saisie.dlg.pnl.SetOneValues('affectation',self.valuesAffect)
+                self.saisie.dlg.pnl.SetOneValue('affectation',affect)
+            dlgsel.Destroy()
+        event.Skip()
+
     def OnAjoutAffect(self,event):
+        # action du bouton d'affectation
         produits = Produits(self,visu=False)
         produits.AppelSaisie('ajout')
         # réinitialisation de l'écran de saisie
-        valuesAffect = AffectsActifs(self.IDdossier,self.DBsql)
+        self.valuesAffect = AffectsActifs(self.IDdossier,self.DBsql)
         for (cdcateg,nmcateg),lstlignes in self.saisie.dictMatrice.items():
             for dicligne in lstlignes:
                 if dicligne['name'] == 'affectation':
-                    ddDonnees={cdcateg:{'affectation':valuesAffect}}
+                    ddDonnees={cdcateg:{'affectation':self.valuesAffect}}
                     break
         self.saisie.dlg.pnl.SetOneValues(ddDonnees)
         self.saisie.dlg.pnl.Refresh()

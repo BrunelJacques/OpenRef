@@ -20,35 +20,36 @@ def TronqueData(table,lstChamps,lstDonnees):
     # vérifie la longueur des données texte pour éviter les plantages lors d'insertions SQL
     if table:
         champs_table = dtt.GetChamps(table, tous=True)
-    else: champs_table = lstChamps
-    ixd = 0
-    for champ in lstChamps:
-        ix = champs_table.index(champ)
-        nature = dtt.DB_TABLES[table][ix][1]
-        if nature[:3].lower() == 'var':
-            lg = int(nature.replace(')','(').split('(')[1])
-            def Secateur(donnee):
-                # la donnée peut être liste ou str
-                for i in range(len(donnee)):
-                    donnee = donnee[:-1]
-                    if len(str(donnee)) <= lg - 4: break
-                if isinstance(donnee, str):
-                    donnee += "..."
-                if isinstance(donnee, list):
-                    donnee.append("...")
-                return donnee
-            if isinstance(lstDonnees[0], (tuple, list)):
-                # cas d'une série de plusieurs lignes à inserer en une fois
-                for donnees in lstDonnees:
-                    if donnees[ixd]:
-                        if len(donnees[ixd]) > lg:
-                            donnees[ixd] = Secateur(donnees[ixd])
-            else:
-                # une seule ligne à insérer, mais la donnée peut être une liste
-                if lstDonnees[ixd]:
-                    if len(str(lstDonnees[ixd])) > lg:
-                        lstDonnees[ixd] = Secateur(lstDonnees[ixd])
-        ixd += 1
+        ixd = 0
+        for champ in lstChamps:
+            ix = champs_table.index(champ)
+            nature = dtt.DB_TABLES[table][ix][1]
+            if nature[:3].lower() == 'var':
+                lg = int(nature.replace(')','(').split('(')[1])
+                def Secateur(donnee):
+                    # la donnée peut être liste ou str
+                    for i in range(len(donnee)):
+                        donnee = donnee[:-1]
+                        if len(str(donnee)) <= lg - 4: break
+                    if isinstance(donnee, str):
+                        donnee += "..."
+                    if isinstance(donnee, list):
+                        donnee.append("...")
+                    return donnee
+                if isinstance(lstDonnees[0], (tuple, list)):
+                    # cas d'une série de plusieurs lignes à inserer en une fois
+                    for donnees in lstDonnees:
+                        if donnees[ixd]:
+                            if len(donnees[ixd]) > lg:
+                                donnees[ixd] = Secateur(donnees[ixd])
+                else:
+                    # une seule ligne à insérer, mais la donnée peut être une liste
+                    if lstDonnees[ixd]:
+                        if len(str(lstDonnees[ixd])) > lg:
+                            lstDonnees[ixd] = Secateur(lstDonnees[ixd])
+            ixd += 1
+    else:
+        print("UTIL_import.TronqueData : Table non renseignée troncature impossible")
     return
 
 def ListesToDict(listecles, listevaleurs):
@@ -91,10 +92,6 @@ class ImportComptas(object):
         self.mono, self.topwin = False, False
         self.filieres = ''
         try:
-            """
-            # enrichissement du titre pour débug
-            nameclass = self.parent.__class__.__name__
-            title = nameclass + ': ' + title"""
             self.topWindow = wx.GetApp().GetTopWindow()
             if self.topWindow:
                 self.topwin = True

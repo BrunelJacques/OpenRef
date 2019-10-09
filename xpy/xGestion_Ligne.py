@@ -488,7 +488,10 @@ class PNL_ctrl(wx.Panel):
             commande = 'debut'
             # construction des contrôles selon leur genre
             if lgenre in ['enum','combo','multichoice']:
-                self.ctrl = wx.ComboBox(self, wx.ID_ANY)
+                if lgenre == 'combo':
+                    self.ctrl = wx.ComboBox(self, wx.ID_ANY,style=wx.CB_READONLY)
+                else:
+                    self.ctrl = wx.ComboBox(self, wx.ID_ANY,style = wx.TE_PROCESS_ENTER)
                 if labels:
                     commande = 'Set in combo'
                     self.ctrl.Set(labels)
@@ -690,7 +693,7 @@ class BoxPanel(wx.Panel):
                         panel.btn.actionBtn = ligne['btnAction']
                         panel.btn.Bind(wx.EVT_BUTTON,self.parent.OnBtnAction)
                     if panel.ctrl.actionCtrl:
-                        if panel.ctrl.genreCtrl in ['enum','combo','multichoice']:
+                        if panel.ctrl.genreCtrl in ['combo','multichoice']:
                             panel.ctrl.Bind(wx.EVT_COMBOBOX, self.parent.OnCtrlAction)
                             panel.ctrl.Bind(wx.EVT_CHECKBOX, self.parent.OnCtrlAction)
                         else:
@@ -704,6 +707,15 @@ class BoxPanel(wx.Panel):
             self.dictDonnees[champ] = panel.GetValue()
         return self.dictDonnees
 
+
+    def GetOneValue(self,code = ''):
+        value = None
+        for panel in self.lstPanels:
+            [categ, name] = panel.ctrl.nameCtrl.split('.')
+            if name == code:
+                value = panel.GetValue()
+        return value
+
     def SetValeurs(self,dictDonnees):
         for panel in self.lstPanels:
             [code, champ] = panel.ctrl.nameCtrl.split('.')
@@ -711,27 +723,18 @@ class BoxPanel(wx.Panel):
                 panel.SetValue(dictDonnees[champ])
         return
 
-
-    def GetOneValue(self,name = ''):
-        value = None
-        self.dictDonnees = self.GetValues()
-        if name in self.dictDonnees:
-            value = self.dictDonnees[name]
-        return value
-
-    def SetOneValue(self,name = '', value=None):
-        ctrl = None
+    def SetOneValue(self,code='', value=None):
         for panel in self.lstPanels:
-            if panel.ctrl.nameCtrl == name:
-                    panel.SetValue(value)
+            name = panel.ctrl.nameCtrl.split('.')[1]
+            if  name == code:
+                panel.SetValue(value)
         return
 
-    def SetOneValues(self,dicvalues=None):
+    def SetOneValues(self,code='', values=None):
         for panel in self.lstPanels:
-            [code, champ] = panel.ctrl.nameCtrl.split('.')
-            if champ in dicvalues:
-                if panel.ctrl.genreCtrl.lower() in ['enum', 'combo']:
-                    panel.SetValues(dicvalues[champ])
+            name = panel.ctrl.nameCtrl.split('.')[1]
+            if  name == code:
+                panel.SetValues(values)
         return
 
 class TopBoxPanel(wx.Panel):
@@ -767,31 +770,26 @@ class TopBoxPanel(wx.Panel):
         return ddDonnees
 
     def SetValeurs(self, ddDonnees):
+        self.ddDonnees = ddDonnees
         for box in self.lstBoxes:
             if box.code in ddDonnees:
                 dic = ddDonnees[box.code]
                 box.SetValeurs(dic)
         return
 
-    def SetOneValues(self, ddDonnees):
+    def SetOneValues(self, code,values):
         for box in self.lstBoxes:
-            if box.code in ddDonnees:
-                dic = ddDonnees[box.code]
-                box.SetOneValues(dic)
+            box.SetOneValues(code,values)
         return
 
-    def SetOneValue(self, ddDonnees):
+    def SetOneValue(self, code,valeur):
         for box in self.lstBoxes:
-            if box.code in ddDonnees:
-                dic = ddDonnees[box.code]
-                box.SetOneValue(dic)
+            box.SetOneValue(code,valeur)
         return
 
-    def GetOneValue(self,name = ''):
-        value = None
-        for categ,dictDonnees in self.ddDonnees.items():
-            if name in dictDonnees:
-                value = dictDonnees[name]
+    def GetOneValue(self,code = ''):
+        for box in self.lstBoxes:
+            value = box.GetOneValue(code)
         return value
 
 class DLG_ligne(wx.Dialog):

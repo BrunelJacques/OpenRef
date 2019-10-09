@@ -323,7 +323,9 @@ class DB():
         if isinstance(valeur,(int,float)):
             val = "%s, " %str(valeur)
         elif isinstance(valeur, (tuple, list,dict)):
-            val = "'%s', "%str(valeur)[1:-1]
+            val = str(valeur)[1:-1]
+            val = val.replace("'","")
+            val = "'%s', "%val
         else: val = "'%s', "%str(valeur)
         couple = " %s = %s"%(champ,val)
         return couple
@@ -361,6 +363,8 @@ class DB():
         elif (len(lstChamps) > 0) and (len(lstChamps) == len(lstDonnees)):
             update = self.ListesMAJ(lstChamps,lstDonnees)
         req = "UPDATE %s SET  %s WHERE %s ;" % (nomTable, update, condition)
+        if req[:14] == 'UPDATE _Produi':
+            print()
         # Enregistrement
         try:
             self.cursor.execute(req,)
