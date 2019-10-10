@@ -911,11 +911,13 @@ class Gestion_ligne(object):
             clewhere = ''
             for cle, val in cletable:
                 if val:
-                    if isinstance(val, (datetime.date, str)):
+                    # les float ou decimal ne sont pas sensés être dans les clés primaires car pb des arrondis
+                    if isinstance(val, (datetime.date, str, bool)):
                         valsql = "'%s'" % str(val)
-                    else:
+                        clewhere += '(%s = %s) AND ' % (cle, valsql)
+                    elif isinstance(val,int):
                         valsql = str(val)
-                    clewhere += '(%s = %s) AND ' % (cle, valsql)
+                        clewhere += '(%s = %s) AND ' % (cle, valsql)
             clewhere = clewhere[:-4]
             return clewhere
         self.clewhere = CleWhere(self.lstcle)

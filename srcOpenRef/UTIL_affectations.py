@@ -91,6 +91,23 @@ def AteliersOuverts(IDdossier,DBsql):
             lstAteliers.append(IDatelier)
     return lstAteliers
 
+def AteliersFermes(dossier,DBsql):
+    lstAteliers = []
+    req = """SELECT mAteliers.IDMatelier
+            FROM mAteliers 
+            LEFT JOIN _Ateliers ON _Ateliers.IDMatelier = mAteliers.IDMatelier
+            WHERE (((_Ateliers.IDMatelier) Is Null)) OR (((_Ateliers.IDdossier) <> %d))
+            GROUP BY mAteliers.IDMatelier;
+            """%(dossier)
+    retour = DBsql.ExecuterReq(req, mess='Util_affectations.AteliersFermés')
+    if not retour == "ok":
+        wx.MessageBox("Erreur : %s"%retour)
+    else:
+        recordset = DBsql.ResultatReq()
+        for (IDatelier,) in recordset:
+            lstAteliers.append((IDatelier))
+    return lstAteliers
+
 def ProduitsOuverts(IDdossier,DBsql):
     lstProduits = []
     req = """SELECT mProduits.IDMatelier,mProduits.IDMproduit
@@ -483,6 +500,250 @@ class Balance():
                 wx.MessageBox("Erreur UTIL_affectation.Balance.FinSaisie\n\nAffectation: '%s' vers '%s'\n%s"
                               %(oldaffect,affectation,ret))
 
+class Ateliers():
+    def __init__(self, parent,visu=True):
+        self.title = '[UTIL_affectations].Ateliers'
+        self.table = '_Ateliers'
+        self.visu = visu
+        self.mess = ''
+        self.clic = None
+        self.parent = parent
+        self.IDdossier = parent.IDdossier
+
+        # pointeur de la base principale ( ouverture par défaut de db_prim via xGestionDB)
+        self.DBsql = self.parent.DBsql
+        self.retour = self.EcranAteliers()
+
+    def EcranAteliers(self,ixsel=0):
+        champsRequete = dtt.GetChamps('_Ateliers')
+        champsRequete.extend(['NomAtelier','UnitéCapacité'])
+        self.lstCodesRequete = [xusp.SupprimeAccents(x) for x in champsRequete]
+        champsSelect =  [ '_Ateliers.%s'%x for x in dtt.GetChamps('_Ateliers')]
+        champsSelect.extend(['mAteliers.NomAtelier','mAteliers.UnitéCapacité'])
+        champsSelect = str(champsSelect)[1:-1]
+        champsSelect = champsSelect.replace("'","")
+        # appel des ateliers utilisés dans le dossier pour affichage en tableau
+        req = """SELECT %s
+                FROM _Ateliers 
+                INNER JOIN mAteliers ON (_Ateliers.IDMatelier = mAteliers.IDMatelier) 
+                WHERE _Ateliers.IDdossier = %s
+                ;""" % (champsSelect,self.IDdossier)
+        retour = self.DBsql.ExecuterReq(req, mess='Util_affectations.ListeAteliers')
+        if retour == "ok":
+            recordset = self.DBsql.ResultatReq()
+            if len(recordset) == 0:
+                retour = "aucun enregistrement disponible"
+        if (not retour == "ok"):
+            wx.MessageBox("Erreur : %s" % retour)
+            return 'ko'
+
+        lstNomsColonnes = ['ix','Dossier','Atelier','Désignation','Capacité','UnitéCapacité','ProduitsDivers','Subventions',
+                           'Distribution','Conditionnement','ApprosDivers','ServicesDivers','AmosSpécif']
+        # la listes ChampsColonnes permet de faire le lien avec la table d'origine en modification
+        lstChampsColonnes = ['ix','IDdossier','IDMatelier','Désignation','Capacité','UnitéCapacité','AutreProduit','Subventions',
+                             'Comm','Conditionnement','AutresAppros','AutresServices','AmosSpécif',]
+        lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstChampsColonnes]
+
+        lstValDefColonnes = [0,0,"","",0.0,"",0.0,0.0,
+                            0.0,0.0,0.0,0.0,0.0]
+        lstLargeurColonnes = [0,0] + [-1] * 11
+        lstDonnees = []
+        ix=0
+        # composition des données du tableau à partir du recordset
+        for record in recordset:
+            ligne = []
+            # ajustement des valeurs
+            designation = record[champsRequete.index('NomPersonnalisé')]
+            if not designation or  designation == '':
+                designation = record[champsRequete.index('NomAtelier')]
+            # constitution des lignes de données
+            for champ in lstChampsColonnes:
+                if champ in champsRequete:
+                    val = record[champsRequete.index(champ)]
+                else:
+                    if champ == 'ix': val = ix
+                    elif champ == 'Désignation': val = designation
+                    else: print(champ)
+                ligne.append(val)
+            lstDonnees.append(ligne)
+            ix += 1
+        # matrice OLV
+        lstColonnes = xusp.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
+        dicOlv = {
+            'lanceur': self,
+            'listeColonnes': lstColonnes,
+            'listeDonnees': lstDonnees,
+            'checkColonne': False,
+            'hauteur': 650,
+            'largeur': 1300,
+            'recherche': True,
+            'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
+            'dictColFooter': {"designation": {"mode": "nombre", "alignement": wx.ALIGN_CENTER},
+                              }
+        }
+
+        # options d'enrichissement de l'écran DLG
+        lstBtns = [('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_fermer.png", wx.BITMAP_TYPE_ANY),
+                    "Cliquez ici pour fermer la fenêtre")]
+        # params d'actions: idem boutons, ce sont des boutons placés à droite et non en bas
+        lstActions = [('ajout', wx.ID_APPLY, 'Ouvrir', "Ouvrir un nouveau atelier dans le dossier"),
+                      ('modif', wx.ID_APPLY, 'Modifier', "Modifier les propriétés du atelier pour le dossier"),
+                      ('suppr', wx.ID_APPLY, 'Supprimer', "Supprimer le atelier dans le dossier"),
+                      ]
+        # un param par info: texte ou objet window.  Les infos sont  placées en bas à gauche
+        self.trace = self.parent.trace + " - ATELIERS OUVERTS"
+        self.infos = self.parent.infos
+        lstInfos = [self.infos, self.trace]
+        # params des actions ou boutons: name de l'objet, fonction ou texte à passer par eval()
+        dicOnClick = {
+            'ajout': 'self.lanceur.OnAjouter()',
+            'modif': 'self.lanceur.OnModif()',
+            'suppr': 'self.lanceur.OnSupprimer()'}
+        self.dlgolv = xgt.DLG_tableau(self, dicOlv=dicOlv, lstBtns=lstBtns, lstActions=lstActions, lstInfos=lstInfos,
+                                      dicOnClick=dicOnClick)
+
+
+        # rappel des propriétés de la table
+        self.lstTblChamps, lstTypes, lstHelp = dtt.GetChampsTypes(self.table, tous=True)
+
+        # l'objet ctrlolv pourra être appelé, il sert de véhicule à params globaux de l'original
+        self.ctrlolv = self.dlgolv.ctrlOlv
+        self.ctrlolv.lstTblHelp = lstHelp
+        self.ctrlolv.lstTblChamps = self.lstTblChamps
+        self.ctrlolv.lstTblCodes = [xusp.SupprimeAccents(x) for x in self.lstTblChamps]
+        self.ctrlolv.lstTblValdef = ValeursDefaut(self.lstTblChamps,self.lstTblChamps,lstTypes)
+        self.ctrlolv.recordset = recordset
+        if len(lstDonnees) > 0:
+            # selection de la première ligne
+            self.ctrlolv.SelectObject(self.ctrlolv.donnees[0])
+        ret = wx.ID_OK
+        if len(lstDonnees)>0:
+            # selection de la première ligne ou du pointeur précédent
+            self.ctrlolv.SelectObject(self.ctrlolv.donnees[ixsel])
+        if self.visu:
+            ret = self.dlgolv.ShowModal()
+        return ret
+
+    def OnModif(self):
+        self.AppelSaisie('modif')
+
+    def OnAjouter(self):
+        self.AppelSaisie('ajout')
+        self.Reinit()
+
+    def OnSupprimer(self):
+        self.AppelSaisie('suppr')
+
+    def Reinit(self):
+        ix = self.ixsel
+        self.dlgolv.Close()
+        del self.ctrlolv
+        self.EcranAteliers(ixsel = ix)
+
+    def AppelSaisie(self, mode):
+        ctrlolv = self.ctrlolv
+
+        # personnalisation de la grille de saisie : champs à visualiser, position
+        champdeb = 'IDMatelier'
+        champfin = 'Validation'
+        lstEcrChamps = xusp.ExtractList(self.lstTblChamps,champdeb,champfin)
+        lstEcrCodes = [xgl.SupprimeAccents(x) for x in lstEcrChamps]
+
+        kwds = {'pos': (350, 20)}
+        kwds['minSize'] = (350, 600)
+        all = ctrlolv.innerList
+        selection = ctrlolv.Selection()[0]
+        self.ixsel = all.index(selection)
+
+        # personnalisation des actions
+        dicOptions = {'idmatelier': {'enable': False,},}
+        # disable de tous les champs de synthèse
+        for ix in range(self.lstTblChamps.index('AutreProduit'),self.lstTblChamps.index('CPTAmosSpécif')+1):
+            code = xusp.SupprimeAccents(self.lstTblChamps[ix])
+            if code[:3]=='cpt':
+                dicOptions[code] = {
+                    'enable': False,
+                    'btnLabel': "...",
+                    'btnHelp': "Cliquez pour gérer l'affectation des comptes",
+                    'btnAction': 'OnComptes',}
+            else:
+                dicOptions[code] = {'enable': False,}
+
+        if mode == 'ajout':
+            lstAteliers = AteliersFermes(self.IDdossier, self.DBsql)
+            dicOptions['idmatelier']={'genre':'enum',
+                                      'values': lstAteliers,
+                                      'enable':True,
+                                      'help': "Choisissez un atelier à ouvrir",
+                                      }
+
+        # lancement de l'écran de saisie
+        self.saisie = xgl.Gestion_ligne(self, self.DBsql, self.table, dtt, mode, ctrlolv,**kwds)
+        if self.saisie.ok and mode != 'suppr':
+            self.saisie.SetBlocGrille(lstEcrCodes,dicOptions,'Gestion des ateliers ouverts')
+            if mode == 'ajout':
+                # RAZ de toutes les données
+                self.saisie.dictDonnees = {}
+            self.saisie.InitDlg()
+        del self.saisie
+
+    def Validation(self,valeurs):
+        # test de sortie d'écran
+        messfinal = "Validation de la saisie\n\nFaut-il forcer l'enregistrement mal saisi?\n"
+        retfinal = True
+        # l'ensemble des traitements de sortie sont dans une liste déroulée à programmer ici
+        for item in [self.VerifCleUnique(valeurs),]:
+            ret,mess = item
+            messfinal += "\n%s"%mess
+            #une seule erreur provoquera l'affichage de la confirmation nécessaire
+            retfinal *= ret
+        if not retfinal :
+            retfinal = wx.YES == wx.MessageBox(messfinal,style=wx.YES_NO)
+        return retfinal
+
+    def VerifCleUnique(self,valeurs):
+        mess = ''
+        for categorie, dicDonnees in valeurs.items():
+            idmatelier = dicDonnees['idmatelier']
+        unique = True
+        if len(idmatelier)  == 0:
+            # les champs sont-ils renseignés (ont des longueurs non nulles)
+            unique = False
+            mess += "Il faut choisir obligatoirement un atelier dans les possibles"
+        if not self.saisie.mode in ['modif','consult']:
+            # on continue en vérifiant si la clé n'est pas dans l'OLV d'origine
+            lstOlvDonnees=self.ctrlolv.donnees
+            lstOlvCodes = self.ctrlolv.lstCodesColonnes
+            ixdos,ixatel = lstOlvCodes.index('iddossier'),lstOlvCodes.index('idmatelier'),
+            for ligne in lstOlvDonnees:
+                valeurs = ligne.donnees
+                if (self.IDdossier,idmatelier) == (valeurs[ixdos],valeurs[ixatel]):
+                    unique = False
+                    mess += "L'atelier %s, est déjà ouvert dans le dossier!"%(idmatelier)
+        return unique, mess
+
+    def OnComptes(self,event):
+        wx.MessageBox('En projet une liste de comptes à cocher!!\n pour une saisie en rafale des affectations...')
+        event.Skip()
+
+    def OnChildBtnAction(self, event):
+        # relais des actions sur les boutons du bas d'écran
+        self.action = 'self.%s(event)' % event.EventObject.actionBtn
+        try:
+            eval(self.action)
+        except Exception as err:
+            wx.MessageBox(
+                "Echec sur lancement action sur btn: '%s' \nLe retour d'erreur est : \n%s" % (self.action, err))
+
+    def OnChildCtrlAction(self, event):
+        # relais des actions sur les boutons de droite
+        self.action = 'self.%s(event)' % event.EventObject.actionCtrl
+        try:
+            eval(self.action)
+        except Exception as err:
+            wx.MessageBox(
+                "Echec sur lancement action sur ctrl: '%s' \nLe retour d'erreur est : \n%s" % (self.action, err))
+
 class Produits():
     def __init__(self, parent,visu=True):
         self.title = '[UTIL_affectations].Produits'
@@ -498,8 +759,8 @@ class Produits():
         self.retour = self.EcranProduits()
 
     def EcranProduits(self,ixsel=0):
-        champsRequete = "IDdossier,IDmatelier,IDmproduit,nomProduitDef,nomProduit,moisRecolte,prodPrincipalDef,surfaceProd,unite,\
-        comptes,quantite,unite,ventes,achatAnmx,deltaStock,autreProd,prodPrincipal,TypesProduit,NoLigne,StockFin,Effectif"
+        champsRequete = "IDdossier,IDmatelier,IDmproduit,nomProduitDef,nomProduit,moisRecolte,prodPrincipalDef,surfaceProd,uniteSau,\
+        comptes,quantite,uniteQte,ventes,achatAnmx,deltaStock,autreProd,prodPrincipal,TypesProduit,NoLigne,StockFin,Effectif"
         self.lstCodesRequete = [xusp.SupprimeAccents(x) for x in champsRequete.split(',')]
         # appel des produits utilisés dans le dossier pour affichage en tableau
         req = """SELECT _Produits.IDdossier,_Produits.IDMatelier, _Produits.IDMproduit, mProduits.NomProduit, _Produits.NomProdForcé, 
@@ -521,11 +782,13 @@ class Produits():
             wx.MessageBox("Erreur : %s" % retour)
             return 'ko'
 
-        lstNomsColonnes = ["ix","IDdossier","Atelier","Produit","NomProduit","MoisRecolte","Principal","SurfaceProd","UniteSAU",
-                           "Comptes","Quantité","Unité","Production","Types","NoLigne","StockFin","Effectif"]
+        lstNomsColonnes = ["ix","IDdossier","Atelier","Produit","Désignation","MoisRecolte","Principal",
+                           "SurfaceProd","UniteSAU","Comptes","Quantité","Unité","Production","Types",
+                           "NoLigne","StockFin","Effectif"]
         # la listes ChampsColonnes permet de faire le lien avec la table d'origine en modification
-        lstChampsColonnes = ["ix","IDdossier", "IDMatelier", "IDMproduit", "nomProdCompos", "MoisRecolte", "ProdPrincipal","SurfaceProd", "UniteSau",
-                            "Comptes", "Quantite1", "UniteQte1", "Product", "TypesProduit", "NoLigne", "StockFin","EffectifMoyen"]
+        lstChampsColonnes = ["ix","IDdossier", "IDMatelier", "IDMproduit", "nomProdCompos", "MoisRécolte", "ProdPrincipal",
+                             "SurfaceProd","UnitéSau","Comptes", "Quantité1", "UnitéQté1", "Product", "TypesProduit",
+                             "NoLigne", "StockFin","EffectifMoyen"]
         lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstChampsColonnes]
 
         lstValDefColonnes = [0,0,"","","",0,0,0.0,"",
@@ -535,8 +798,8 @@ class Produits():
         lstDonnees = []
         ix=0
         # composition des données du tableau à partir du recordset
-        for IDdossier,IDmatelier,IDmproduit,nomProduitDef,nomProduit,moisRecolte,prodPrincipalDef,surfaceProd,unite,\
-            comptes,quantite,unite,ventes,achatAnmx,deltaStock,autreProd,prodPrincipal,\
+        for IDdossier,IDmatelier,IDmproduit,nomProduitDef,nomProduit,moisRecolte,prodPrincipalDef,surfaceProd,uniteSau,\
+            comptes,quantite,uniteQte,ventes,achatAnmx,deltaStock,autreProd,prodPrincipal,\
             TypesProduit,NoLigne,StockFin,Effectif in recordset:
             product = 0.0
             # calcul du produit
@@ -545,8 +808,8 @@ class Produits():
             product = round(product,2)
             if not nomProduit: nomProduit = nomProduitDef
             if not prodPrincipal: prodPrincipal = prodPrincipalDef
-            lstDonnees.append([ix,IDdossier,IDmatelier,IDmproduit,nomProduit,moisRecolte,prodPrincipal,surfaceProd,unite,
-                               comptes,quantite,unite,product,TypesProduit,NoLigne,StockFin,Effectif])
+            lstDonnees.append([ix,IDdossier,IDmatelier,IDmproduit,nomProduit,moisRecolte,prodPrincipal,surfaceProd,uniteSau,
+                               comptes,quantite,uniteQte,product,TypesProduit,NoLigne,StockFin,Effectif])
             ix += 1
         # matrice OLV
         lstColonnes = xusp.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
@@ -559,7 +822,7 @@ class Produits():
             'largeur': 1300,
             'recherche': True,
             'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
-            'dictColFooter': {"nomexploitation": {"mode": "nombre", "alignement": wx.ALIGN_CENTER},
+            'dictColFooter': {"idmproduit": {"mode": "nombre", "alignement": wx.ALIGN_CENTER},
                               }
         }
 
@@ -695,8 +958,7 @@ class Produits():
             # les champs sont-ils renseignés (ont des longueurs non nulles)
             unique = False
             mess += "Il faut choisir obligatoirement un atelier et un produit dans les possibles"
-
-        if unique:
+        if not self.saisie.mode in ['modif','consult']:
             # on continue en vérifiant si la clé n'est pas dans l'OLV d'origine
             lstOlvDonnees=self.ctrlolv.donnees
             lstOlvCodes = self.ctrlolv.lstCodesColonnes
@@ -989,8 +1251,9 @@ class Affectations():
 
     def OnAteliers(self):
         if VerifSelection(self,self.dlgdossiers):
-            self.IDdossier = self.dlgdossiers.ctrlOlv.Selection()[0].id
-            wx.MessageBox('clic sur ateliers')
+            Ateliers(self)
+            self.ctrlolv.SetFocus()
+            self.ctrlolv.SelectObject(self.dlgdossiers.ctrlOlv.donnees[self.ixsel])
 
     def OnProduits(self):
         if VerifSelection(self,self.dlgdossiers):

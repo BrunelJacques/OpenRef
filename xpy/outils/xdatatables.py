@@ -18,11 +18,11 @@ DB_TABLES =   {
                     ], # Utilisateurs
             }
 
-def GetChamps(table,tous = True,reel=False,deci=False,dte=False,texte=False):
+def GetChamps(dbtable,tous = True,reel=False,deci=False,dte=False,texte=False):
     lstChamps = []
     # les params d'un type précisé désactivent le param tous
     if reel or deci or dte or texte : tous=False
-    for ligne in DB_TABLES[table]:
+    for ligne in dbtable:
         champ = ligne[0]
         genre = ligne[1][:3]
         if tous or (reel and genre == 'flo')\
@@ -32,13 +32,13 @@ def GetChamps(table,tous = True,reel=False,deci=False,dte=False,texte=False):
             lstChamps.append(champ)
     return lstChamps
 
-def GetChampsTypes(table,tous = True,reel=False,deci=False,dte=False,texte=False):
+def GetChampsTypes(dbtable,tous = True,reel=False,deci=False,dte=False,texte=False):
     lstChamps = []
     lstTypes = []
     lstHelp = []
     # les params d'un type précisé désactivent le param tous
     if reel or deci or dte or texte : tous=False
-    for ligne in DB_TABLES[table]:
+    for ligne in dbtable:
         champ = ligne[0]
         genre = ligne[1][:3]
         tip = ligne[1]

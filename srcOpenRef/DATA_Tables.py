@@ -34,7 +34,7 @@ DB_TABLES = {
                    ("NomCompte",'varchar(128)','DEFAULT NULL COMMENT', "Désignation longue"),
                    ("Type",'varchar(128)','DEFAULT NULL COMMENT', "Liste des TypesProduit ou TypesCoût qui alimenteront la zone équivalente dans les produits")
         ],
-    'mAtelier' : [
+    'mAteliers' : [
         ("IDMatelier",  'varchar(16)', ' NOT NULL', "Sert de clé externe"),
         ("NomAtelier",  'varchar(40)', ' DEFAULT NULL', "Nom du modèle d'atelier"),
         ("UnitéCapacité",  'varchar(8)', ' DEFAULT NULL', "Libellé de l'unité utilisée pour mesurer la capacité"),
@@ -42,7 +42,7 @@ DB_TABLES = {
         ("TypesProduit",  'varchar(128)', ' DEFAULT NULL', "Liste des types de produits auxquels par défaut se rattachent les produits de l'atelier"),
         ("IDsecteur",  'varchar(8)', ' DEFAULT NULL', "La définition de secteurs d'activité permet de filtrer ou regrouper les ateliers"),
         ],
-    'mCoût' : [
+    'mCoûts' : [
         ("IDMatelier",  'varchar(16)', ' NOT NULL', "Rattachement à un modèle d'atelier"),
         ("IDMcoût",  'varchar(16)', ' NOT NULL', "Sert de clé externe (associé avec IDMatelier)"),
         ("NomCoût",  'varchar(64)', ' DEFAULT NULL', "Nom du modèle de coût"),
@@ -54,7 +54,7 @@ DB_TABLES = {
         ("MotsCles",  'varchar(200)', ' DEFAULT NULL', "Liste de mots clés ou tuple pour automate de génération"),
         ("TypesCoût",  'varchar(128)', ' DEFAULT NULL', "Liste des types de coûts auquel il se rattache naturellement"),
         ],
-    'mProduit' : [
+    'mProduits' : [
         ("IDMatelier",  'varchar(16)', ' NOT NULL', "Rattachement à un atelier"),
         ("IDMproduit",  'varchar(16)', ' NOT NULL', "Sert de clé externe (associé avec IDMatelier)"),
         ("NomProduit",  'varchar(64)', ' DEFAULT NULL', "Nom du modèle de produit"),

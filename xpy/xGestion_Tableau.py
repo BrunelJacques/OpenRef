@@ -589,6 +589,7 @@ class DLG_tableau(wx.Dialog):
         self.ctrlOlv = self.pnl.ctrlOlv
         self.CenterOnScreen()
         self.Layout()
+
     def Close(self):
         self.EndModal(wx.OK)
 
