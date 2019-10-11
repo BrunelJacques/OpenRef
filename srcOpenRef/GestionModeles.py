@@ -166,7 +166,7 @@ class EcranOlv(object):
         ix = self.ixsel
         self.dlgolv.Close()
         del self.ctrlolv
-        self.EcranAteliers(ixsel = ix)
+        self.InitEcran(ixsel = ix)
 
     def AppelSaisie(self, mode):
         ctrlolv = self.ctrlolv
@@ -197,7 +197,9 @@ class EcranOlv(object):
             self.saisie.InitDlg()
         del self.saisie
 
-
+    def Validation(self,valeurs):
+        return True
+    
 class Lancement():
     def __init__(self,parent,table):
 
