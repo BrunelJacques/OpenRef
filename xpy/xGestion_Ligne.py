@@ -866,7 +866,10 @@ class DLG_ligne(wx.Dialog):
 
 class Gestion_ligne(object):
     # gestion de la ligne d'une table appelée dans un OLV en vue de modif, insert, copy ou supprim
-    def __init__(self,parent,DBsql,table,datatable,mode='consult',ctrlolv=None,**kwds):
+    def __init__(self,parent,DBsql,table,datatable,mode='consult',ctrlolv=None,lstcle=None,**kwds):
+        #lstcle est la liste des [(champ, valeur),()] des parties de clé qui ne sont pas dans l'enregistrement d'origine
+        # indispensable en ajout car pas de sélection préalable contenant les éléments de clé primaire
+        self.lstcle = lstcle
         self.kwds = kwds
         self.parent = parent
         self.DBsql = DBsql
@@ -877,8 +880,12 @@ class Gestion_ligne(object):
             return
         else : self.ok = True
         self.ctrlolv = ctrlolv
-        self.selection = ctrlolv.Selection()[0]
-        self.ixsel = ctrlolv.innerList.index(self.selection)
+        if not mode == 'ajout':
+            self.selection = ctrlolv.Selection()[0]
+            self.ixsel = ctrlolv.innerList.index(self.selection)
+        else:
+            self.selection = None
+            self.ixsel = None
 
         # enrichissement de kwds transmis soit déjà dans kwds ou posés après init par self.mot=valeur
         self.gestionProperty = None
@@ -899,28 +906,29 @@ class Gestion_ligne(object):
         self.lstTblValeurs = []
         self.lstOlvCodes = ctrlolv.lstCodesColonnes
         self.lstOlvNoms = ctrlolv.lstNomsColonnes
-        self.lstOlvValeur = [x for x in self.selection.donnees]
-
-        # récup de la clé de l'enregistrement pointé dans OLV
-        codescommuns = [code  for code in self.lstTblCodes if code in self.lstOlvCodes]
-        Tplcle = lambda x : (self.lstTblChamps[self.lstTblCodes.index(x)],
-                             self.lstOlvValeur[self.lstOlvCodes.index(x)])
-        self.lstcle = [Tplcle(code) for code in codescommuns]
-        def CleWhere(cletable):
-            # tranforme cletable liste de tuples(champ,valeur), en clause sql where
-            clewhere = ''
-            for cle, val in cletable:
-                if val:
-                    # les float ou decimal ne sont pas sensés être dans les clés primaires car pb des arrondis
-                    if isinstance(val, (datetime.date, str, bool)):
-                        valsql = "'%s'" % str(val)
-                        clewhere += '(%s = %s) AND ' % (cle, valsql)
-                    elif isinstance(val,int):
-                        valsql = str(val)
-                        clewhere += '(%s = %s) AND ' % (cle, valsql)
-            clewhere = clewhere[:-4]
-            return clewhere
-        self.clewhere = CleWhere(self.lstcle)
+        if self.selection:
+            self.lstOlvValeur = [x for x in self.selection.donnees]
+            # récup de la clé de l'enregistrement pointé dans OLV
+            codescommuns = [code  for code in self.lstTblCodes if code in self.lstOlvCodes]
+            Tplcle = lambda x : (self.lstTblChamps[self.lstTblCodes.index(x)],
+                                 self.lstOlvValeur[self.lstOlvCodes.index(x)])
+            self.lstcle = [Tplcle(code) for code in codescommuns]
+            def CleWhere(cletable):
+                # tranforme cletable liste de tuples(champ,valeur), en clause sql where
+                clewhere = ''
+                for cle, val in cletable:
+                    if val:
+                        # les float ou decimal ne sont pas sensés être dans les clés primaires car pb des arrondis
+                        if isinstance(val, (datetime.date, str, bool)):
+                            valsql = "'%s'" % str(val)
+                            clewhere += '(%s = %s) AND ' % (cle, valsql)
+                        elif isinstance(val,int):
+                            valsql = str(val)
+                            clewhere += '(%s = %s) AND ' % (cle, valsql)
+                clewhere = clewhere[:-4]
+                return clewhere
+            self.clewhere = CleWhere(self.lstcle)
+        else: self.lstOlvValeur = []
 
         # gestion de la suppression d'une ligne
         if mode == 'suppr':
@@ -968,14 +976,15 @@ class Gestion_ligne(object):
                 if code in self.lstOlvCodes:
                     ixcol = self.lstOlvCodes.index(code)
                     ixtbl = self.lstTblCodes.index(code)
-                    self.lstTblValeurs[ixtbl]= self.lstOlvValeur[ixcol]
+                    if len(self.lstOlvValeur) >= ixcol:
+                        self.lstTblValeurs[ixtbl]= self.lstOlvValeur[ixcol]
 
     def VerifSelection(self,ctrlolv,mode):
         # contrôle la selection d'une ligne, puis marque le no dossier et eventuellement texte infos à afficher
         if len(ctrlolv.Selection()) == 0 and mode != 'ajout':
             wx.MessageBox("Action Impossible\n\nVous n'avez pas selectionné une ligne!", "Préalable requis")
             return False
-        if len(ctrlolv.Selection()) == 0:
+        if len(ctrlolv.Selection()) == 0 and len(ctrlolv.innerList) > 0 :
             ctrlolv.SelectObject(ctrlolv.innerList[0])
         return True
 
@@ -1025,36 +1034,10 @@ class Gestion_ligne(object):
                     self.Final(valeurs)
                 del valeurs
             else: fin = True
-        self.ctrlolv.SelectObject(self.ctrlolv.innerList[self.ixsel])
+        if self.ixsel:
+            self.ctrlolv.SelectObject(self.ctrlolv.innerList[self.ixsel])
 
     def Final(self,valeurs):
-        # mise à jour de l'olv d'origine
-        for code in self.lstEcrCodes:
-            for categorie, dicDonnees in valeurs.items():
-                if code in dicDonnees and code in self.lstOlvCodes:
-                    # pour chaque colonne de la selection de l'olv
-                    valorigine = self.lstOlvValeur[self.lstOlvCodes.index(code)]
-                    if (not valorigine):
-                        valorigine = valeurs[categorie][code]
-                        flag = True
-                    else:
-                        flag = False
-                    if flag or (valorigine != valeurs[categorie][code]):
-                        ix = self.lstOlvCodes.index(code)
-                        self.selection.donnees[ix] = valeurs[categorie][code]
-                        if isinstance(valorigine, (str, datetime.date)):
-                            action = "self.selection.__setattr__('%s','%s')" % (
-                                self.lstOlvCodes[ix], str(valeurs[categorie][code]))
-                        elif isinstance(valorigine, (int, float)):
-                            if valeurs[categorie][code] in (None, ''):
-                                valeurs[categorie][code] = '0'
-                            action = "self.selection.__setattr__('%s',%d)" % (
-                                self.lstOlvCodes[ix], float(valeurs[categorie][code]))
-                        else:
-                            action = 'pass'
-                            wx.MessageBox("UTIL_Affectaions.EcranSaisie\n\n%s, type non géré pour modifs: %s" % (
-                            code, type(valorigine)))
-                        eval(action)
         # constitution des données à mettre à jour dans la base de donnee
         lstModifs = []
         for categorie, dicdonnees in valeurs.items():
@@ -1063,30 +1046,57 @@ class Gestion_ligne(object):
                     if valeur in (None, ''): valeur = self.lstTblValdef[self.lstTblCodes.index(code)]
                     nom = self.lstTblChamps[self.lstTblCodes.index(code)]
                     lstModifs.append((nom, valeur))
-
         # complément des champs clé si non gérés dans l'écran
         for (champcle, valcle) in self.lstcle:
             if not champcle in [champ for (champ, val) in lstModifs]:
                 lstModifs.append((champcle, valcle))
 
-        # mise à jour de la table
-        if len(lstModifs) > 0 and self.mode == 'modif':
-            ret = self.DBsql.ReqMAJ(self.table, lstModifs, self.clewhere, mess='MAJ affectations.%s.Ecran' % self.table)
-            if ret != 'ok':
-                wx.MessageBox(ret)
+        if not self.mode == 'ajout':
+            # mise à jour de l'olv d'origine
+            for code in self.lstEcrCodes:
+                for categorie, dicDonnees in valeurs.items():
+                    if code in dicDonnees and code in self.lstOlvCodes:
+                        # pour chaque colonne de la selection de l'olv
+                        valorigine = self.lstOlvValeur[self.lstOlvCodes.index(code)]
+                        if (not valorigine):
+                            valorigine = valeurs[categorie][code]
+                            flag = True
+                        else:
+                            flag = False
+                        if flag or (valorigine != valeurs[categorie][code]):
+                            ix = self.lstOlvCodes.index(code)
+                            self.selection.donnees[ix] = valeurs[categorie][code]
+                            if isinstance(valorigine, (str, datetime.date)):
+                                action = "self.selection.__setattr__('%s','%s')" % (
+                                    self.lstOlvCodes[ix], str(valeurs[categorie][code]))
+                            elif isinstance(valorigine, (int, float)):
+                                if valeurs[categorie][code] in (None, ''):
+                                    valeurs[categorie][code] = '0'
+                                action = "self.selection.__setattr__('%s',%d)" % (
+                                    self.lstOlvCodes[ix], float(valeurs[categorie][code]))
+                            else:
+                                action = 'pass'
+                                wx.MessageBox("UTIL_Affectaions.EcranSaisie\n\n%s, type non géré pour modifs: %s" % (
+                                code, type(valorigine)))
+                            eval(action)
+            # mise à jour de la table
+            if len(lstModifs) > 0 and self.mode == 'modif':
+                ret = self.DBsql.ReqMAJ(self.table, lstModifs, self.clewhere, mess='MAJ affectations.%s.Ecran' % self.table)
+                if ret != 'ok':
+                    wx.MessageBox(ret)
 
-        if len(lstModifs) > 0 and self.mode in ('copie', 'eclat'):
-            lstMaj, lstIns = self.Eclater(lstModifs, self.lstTblValeurs)
-            if self.mode == 'eclat':
-                # la copie est comme éclater mais sans toucher à l'enreg d'origine
-                ret = self.DBsql.ReqMAJ(self.table, lstMaj, self.clewhere, mess='MAJ affectations.%s.Ecran' % self.table)
+            if len(lstModifs) > 0 and self.mode in ('copie', 'eclat'):
+                lstMaj, lstIns = self.Eclater(lstModifs, self.lstTblValeurs)
+                if self.mode == 'eclat':
+                    # la copie est comme éclater mais sans toucher à l'enreg d'origine
+                    ret = self.DBsql.ReqMAJ(self.table, lstMaj, self.clewhere, mess='MAJ affectations.%s.Ecran' % self.table)
+                    if ret != 'ok': wx.MessageBox(ret)
+                insChamps = [x for x, y in lstIns]
+                insDonnees = [y for x, y in lstIns]
+                ret = self.DBsql.ReqInsert(self.table, insChamps, insDonnees, mess='Insert affectations.%s.Ecran' % self.table)
                 if ret != 'ok': wx.MessageBox(ret)
-            insChamps = [x for x, y in lstIns]
-            insDonnees = [y for x, y in lstIns]
-            ret = self.DBsql.ReqInsert(self.table, insChamps, insDonnees, mess='Insert affectations.%s.Ecran' % self.table)
-            if ret != 'ok': wx.MessageBox(ret)
 
-        if len(lstModifs) > 0 and self.mode == 'ajout':
+        if self.mode == 'ajout':
             insChamps = [x for x, y in lstModifs]
             insDonnees = [y for x, y in lstModifs]
             ret = self.DBsql.ReqInsert(self.table, insChamps, insDonnees, mess='Insert affectations.%s.Ecran' % self.table)

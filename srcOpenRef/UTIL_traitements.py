@@ -1144,7 +1144,7 @@ class Traitements():
 #************************   Pour Test ou modèle  *********************************
 if __name__ == '__main__':
     app = wx.App(0)
-    fn = Traitements(annee='2018',client='041058',agc='ANY')
+    fn = Traitements(annee='2018',client='004301',agc='ANY')
     #fn = Traitements(annee='2018',groupe='LOT1',agc='prov')
     print('Retour: ',fn)
 

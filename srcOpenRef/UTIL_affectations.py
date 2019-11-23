@@ -44,7 +44,9 @@ def LargeursDefaut(lstNomsColonnes,lstChamps,lstTypes):
     # Evaluation de la largeur nécessaire des colonnes selon le type de donnee et la longueur du champ
     lstLargDef = []
     for colonne in lstNomsColonnes:
-        tip = lstTypes[lstChamps.index(colonne)]
+        if colonne in lstChamps:
+            tip = lstTypes[lstChamps.index(colonne)]
+        else: tip = 'int'
         if tip[:3] == 'int': lstLargDef.append(40)
         elif tip[:5] == 'float': lstLargDef.append(60)
         elif tip[:4] == 'date': lstLargDef.append(60)
@@ -532,7 +534,7 @@ class Ateliers():
         if retour == "ok":
             recordset = self.DBsql.ResultatReq()
             if len(recordset) == 0:
-                retour = "aucun enregistrement disponible"
+                wx.MessageBox("Remarque: %s" %"aucun atelier n'est encore affecté")
         if (not retour == "ok"):
             wx.MessageBox("Erreur : %s" % retour)
             return 'ko'
@@ -546,7 +548,8 @@ class Ateliers():
 
         lstValDefColonnes = [0,0,"","",0.0,"",0.0,0.0,
                             0.0,0.0,0.0,0.0,0.0]
-        lstLargeurColonnes = [0,0] + [-1] * 11
+        lstChamps, lstTypes, lstHelp = dtt.GetChampsTypes(self.table,tous=True)
+        lstLargeurColonnes = LargeursDefaut(lstChampsColonnes,lstChamps,lstTypes)
         lstDonnees = []
         ix=0
         # composition des données du tableau à partir du recordset
@@ -586,7 +589,7 @@ class Ateliers():
         lstBtns = [('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_fermer.png", wx.BITMAP_TYPE_ANY),
                     "Cliquez ici pour fermer la fenêtre")]
         # params d'actions: idem boutons, ce sont des boutons placés à droite et non en bas
-        lstActions = [('ajout', wx.ID_APPLY, 'Ouvrir', "Ouvrir un nouveau atelier dans le dossier"),
+        lstActions = [('ajout', wx.ID_APPLY, 'Ajouter', "Ajouter un nouvel atelier dans le dossier"),
                       ('modif', wx.ID_APPLY, 'Modifier', "Modifier les propriétés du atelier pour le dossier"),
                       ('suppr', wx.ID_APPLY, 'Supprimer', "Supprimer le atelier dans le dossier"),
                       ]
@@ -652,8 +655,10 @@ class Ateliers():
         kwds = {'pos': (350, 20)}
         kwds['minSize'] = (350, 600)
         all = ctrlolv.innerList
-        selection = ctrlolv.Selection()[0]
-        self.ixsel = all.index(selection)
+        selection = ctrlolv.Selection()
+        if len(selection)>0:
+            self.ixsel = all.index(selection[0])
+        else: self.ixsel = 0
 
         # personnalisation des actions
         dicOptions = {'idmatelier': {'enable': False,},}
@@ -678,7 +683,8 @@ class Ateliers():
                                       }
 
         # lancement de l'écran de saisie
-        self.saisie = xgl.Gestion_ligne(self, self.DBsql, self.table, dtt, mode, ctrlolv,**kwds)
+        lstcle = [('IDdossier',self.IDdossier)]
+        self.saisie = xgl.Gestion_ligne(self, self.DBsql, self.table, dtt, mode, ctrlolv,lstcle,**kwds)
         if self.saisie.ok and mode != 'suppr':
             self.saisie.SetBlocGrille(lstEcrCodes,dicOptions,'Gestion des ateliers ouverts')
             if mode == 'ajout':
@@ -777,7 +783,7 @@ class Produits():
         if retour == "ok":
             recordset = self.DBsql.ResultatReq()
             if len(recordset) == 0:
-                retour = "aucun enregistrement disponible"
+                wx.MessageBox("Remarque: %s" %"aucun produit n'est encore affecté")
         if (not retour == "ok"):
             wx.MessageBox("Erreur : %s" % retour)
             return 'ko'
@@ -830,7 +836,7 @@ class Produits():
         lstBtns = [('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_fermer.png", wx.BITMAP_TYPE_ANY),
                     "Cliquez ici pour fermer la fenêtre")]
         # params d'actions: idem boutons, ce sont des boutons placés à droite et non en bas
-        lstActions = [('ajout', wx.ID_APPLY, 'Ouvrir', "Ouvrir un nouveau produit dans le dossier"),
+        lstActions = [('ajout', wx.ID_APPLY, 'Ajouter', "Ajouter un nouveau produit dans le dossier"),
                       ('modif', wx.ID_APPLY, 'Modifier', "Modifier les propriétés du produit pour le dossier"),
                       ('suppr', wx.ID_APPLY, 'Supprimer', "Supprimer le produit dans le dossier"),
                       ]
@@ -894,8 +900,10 @@ class Produits():
         kwds = {'pos': (350, 20)}
         kwds['minSize'] = (350, 600)
         all = ctrlolv.innerList
-        selection = ctrlolv.Selection()[0]
-        self.ixsel = all.index(selection)
+        selection = ctrlolv.Selection()
+        if len(selection)>0:
+            self.ixsel = all.index(selection[0])
+        else: self.ixsel = 0
 
         # personnalisation des actions
         dicOptions = {'idmatelier': {'enable': False, },
@@ -908,8 +916,14 @@ class Produits():
                     'stockfin': {'enable': False, },
                     }
         if mode == 'ajout':
-            idmatelier = selection.idmatelier
             lstAteliers = AteliersOuverts(self.IDdossier,self.DBsql)
+            if len(lstAteliers) == 0:
+                wx.MessageBox("Aucun atelier ouvert!/nL'affectation d'un produit doit se faire sur un atelier ouvert.")
+                return
+            if len(selection)>0:
+                idmatelier = selection[0].idmatelier
+            else:
+                idmatelier = lstAteliers[0]
             lstProduits = ProduitsFermes(self.IDdossier, idmatelier, self.DBsql)
 
             dicOptions['idmatelier']={'genre':'enum',
@@ -925,7 +939,8 @@ class Produits():
                                     }
 
         # lancement de l'écran de saisie
-        self.saisie = xgl.Gestion_ligne(self, self.DBsql, self.table, dtt, mode, ctrlolv,**kwds)
+        lstcle = [('IDdossier',self.IDdossier)]
+        self.saisie = xgl.Gestion_ligne(self, self.DBsql, self.table, dtt, mode, ctrlolv,lstcle,**kwds)
         if self.saisie.ok and mode != 'suppr':
             self.saisie.SetBlocGrille(lstEcrCodes,dicOptions,'Gestion des produits ouverts')
             if mode == 'ajout':

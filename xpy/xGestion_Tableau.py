@@ -177,7 +177,7 @@ class ListView(FastObjectListView):
         self.InitModel()
         self.InitObjectListView()
         # Rappel de la sélection d'un item
-        if self.selectionID != None:
+        if self.selectionID != None and len(self.innerList) > 0:
             self.SelectObject(self.innerList[ID], deselectOthers=True, ensureVisible=True)
 
     def Selection(self):
