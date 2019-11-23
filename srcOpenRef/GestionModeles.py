@@ -202,7 +202,6 @@ class EcranOlv(object):
     
 class Lancement():
     def __init__(self,parent,table):
-
         ecran = EcranOlv(self,nomtable=table,dbtable=dtt.DB_TABLES[table],title='[GestionModeles].Lancement')
         ecran.InitEcran()
 

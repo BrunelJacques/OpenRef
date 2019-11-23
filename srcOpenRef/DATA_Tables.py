@@ -22,7 +22,7 @@ DB_TABLES = {
         ("NomGroupe",  'mediumtext', '  ', "Désignation longue ou commentaire pluri lignes"),
         ("Membres",  'mediumtext', '  ', "liste des ID des exploitations retenues dans le groupe"),
         ],
-    'cType' : [
+    'cTypes' : [
         ("IDtype",  'varchar(8)', ' NOT NULL', "Identifiant unique"),
         ("NomType",  'varchar(128)', ' DEFAULT NULL', "Nom du type de coût ou de produit"),
         ("Produits",  'tinyint(1)', ' DEFAULT NULL', "Usage pour les produits ou ateliers"),
