@@ -242,7 +242,8 @@ def VentileValeurAtelier(dic_Atelier,IDplanCompte,SoldeFin,affectation,Type):
 
 def VentileValeurProduit(dicProduit,IDplanCompte,Quantites1,Unite1,Quantites2,Unite2,SoldeDeb,SoldeFin):
     # ventilation des valeurs du compte dans le produit auquel il se rattache
-    dicProduit['Comptes'].append(IDplanCompte)
+    if not IDplanCompte in dicProduit['Comptes']:
+        dicProduit['Comptes'].append(IDplanCompte)
     uniteRetenue = SupprimeAccents(dicProduit['UnitéQté1'])
     uniteBalance = SupprimeAccents(Unite1)
     if uniteBalance == uniteRetenue or len(uniteRetenue) == 0 or (len(uniteBalance) == 0):
@@ -277,7 +278,8 @@ def VentileValeurProduit(dicProduit,IDplanCompte,Quantites1,Unite1,Quantites2,Un
 
 def VentileValeurCout(dicCout,IDplanCompte,Quantites1,Unite1,Quantites2,Unite2,SoldeFin):
     # ventilation des valeurs du compte dans le cout auquel il se rattache
-    dicCout['Comptes'].append(IDplanCompte)
+    if not IDplanCompte in dicCout['Comptes']:
+        dicCout['Comptes'].append(IDplanCompte)
     uniteRetenue = SupprimeAccents(dicCout['UnitéQté'])
     uniteBalance = SupprimeAccents(Unite1)
     if uniteBalance == uniteRetenue or len(uniteRetenue) == 0 or (len(uniteBalance) == 0):

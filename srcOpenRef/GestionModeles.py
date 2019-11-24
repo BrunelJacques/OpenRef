@@ -31,6 +31,28 @@ def ValeursDefaut(lstNomsColonnes,lstChamps,lstTypes):
         else: lstValDef.append('')
     return lstValDef
 
+def LargeursDefaut(lstNomsColonnes,lstChamps,lstTypes):
+    # Evaluation de la largeur nécessaire des colonnes selon le type de donnee et la longueur du champ
+    lstLargDef = []
+    for colonne in lstNomsColonnes:
+        if colonne in lstChamps:
+            tip = lstTypes[lstChamps.index(colonne)]
+        else: tip = 'int'
+        if tip[:3] == 'int': lstLargDef.append(40)
+        elif tip[:5] == 'float': lstLargDef.append(60)
+        elif tip[:4] == 'date': lstLargDef.append(60)
+        elif tip[:7] == 'varchar':
+            lg = int(tip[8:-1])*7
+            if lg > 150: lg = 150
+            lstLargDef.append(lg)
+        elif 'blob' in tip:
+            lstLargDef.append(250)
+        else: lstLargDef.append(40)
+    if len(lstLargDef)>0:
+        # La première colonne est masquée
+        lstLargDef[0]=0
+    return lstLargDef
+
 class EcranOlv(object):
     def __init__(self, parent,nomtable='',dbtable=None,title=None):
         self.table = nomtable
@@ -44,6 +66,7 @@ class EcranOlv(object):
         if dbtable:
             self.lstTblChamps, self.lstTblTypes, self.lstTblHelp = xdtt.GetChampsTypes(dbtable, tous=True)
             self.lstTblValdef = ValeursDefaut(self.lstTblChamps, self.lstTblChamps, self.lstTblTypes)
+            self.lstLargeurColonnes = LargeursDefaut(self.lstTblChamps, self.lstTblChamps, self.lstTblTypes)
         else:
             self.lstTblChamps = ['*']
             self.lstTblValdef = []
@@ -66,7 +89,7 @@ class EcranOlv(object):
             wx.MessageBox("Erreur : %s" % retour)
             return 'ko'
         if retour == 'ok':
-            retour = self.InitMatrice(champs)
+            retour = self.InitMatrice(champs,largeurs=self.lstLargeurColonnes)
         return retour
 
     def InitMatrice(self,noms=[],champsCol=[],valdef=[],largeurs=[],hauteur=650,largeur=1300,footer=None):
