@@ -935,7 +935,7 @@ class Traitements():
             self.DBsql.ReqMAJ('_Balances', couples=lstCouples, condition=condition, mess= "GeneredicAtelier MAJ _Balances")
         return
 
-    def GenereDicProduit(self, IDdossier, produit, lstMots, lstComptesRetenus, dicProduit=None):
+    def GenereDicProduit(self,IDdossier,produit,lstMots,lstComptesRetenus,dicProduit=None,force=False):
         # Balaye la balance  pour affecter à ce produit, création ou MAJ de dicProduit, et MAJ de self.balanceCeg
         if not dicProduit:
             dicProduit = self.Init_dic_produit(produit)
@@ -958,17 +958,19 @@ class Traitements():
             if  not (IDplanCompte in self.dicPlanComp) : 
                 IDplanCompte = ChercheIDplanCompte(Compte,self.dicPlanComp)
             if len(IDplanCompte.strip())==0: continue
-            # test sur liste de mot, on garde ceux qui contiennent un mot clé du produit
-            ok = False
-            if lstMots:
-                # teste la présence du mot clé dans le compte
-                for mot in lstMots:
-                    if mot in MotsClePres.lower():
-                        ok = True
-                        #un mot présent suffit pour matcher
-                        break
-            if not ok: continue
-            # ce compte a matché il sera affecté au produit
+            if not force:
+                # test sur liste de mot, on garde ceux qui contiennent un mot clé du produit
+                ok = False
+                if lstMots:
+                    # teste la présence du mot clé dans le compte
+                    for mot in lstMots:
+                        if mot in MotsClePres.lower():
+                            ok = True
+                            #un mot présent suffit pour matcher
+                            break
+                if not ok: continue
+
+            # ce compte a matché ou est forcé il sera affecté au produit si le radical correspond
             affectation = ''
             if Compte in lstComptesRetenus and Compte != compteencours:
                 # le compte à déjà été affecté par un autre produit et ce n'est pas une deuxième ligne d'un même compte
@@ -1083,22 +1085,25 @@ class Traitements():
         lstDicProduits = []
         lstIxDicProduits = []
 
-        # Un premier passage pour n'affecter que les comptes ayant le mot clé dans le libellé
+        # Un premier passage pour n'affecter que les comptes ayant le mot clé dans leur libellé
         for produit, trouve in lstProduits:
             dicProduit = self.GenereDicProduit(IDdossier,produit,self.dicProduits[produit]['lstmots'],lstComptesRetenus)
             lstDicProduits.append(dicProduit)
 
+        # le produit leader prendra les comptes indécis, il est déterminé par les mots clés présents dans les filières du dossier
         produitLeader = ''
         atelierLeader = ''
         production = 0.0
+
         # on détermine le produitLeader par le plus gros CA
-        for dicProduit in lstDicProduits:
-            # Création d'un index pour pointer les dicProduits
-            lstIxDicProduits.append(dicProduit['IDMproduit'])
-            if (dicProduit['Production'] > production) and (dicProduit['IDMatelier'] != 'ANY'):
-                production = dicProduit['Production']
-                produitLeader = dicProduit['IDMproduit']
-                atelierLeader = dicProduit['IDMatelier']
+        if produitLeader != '':
+            for dicProduit in lstDicProduits:
+                # Création d'un index pour pointer les dicProduits
+                lstIxDicProduits.append(dicProduit['IDMproduit'])
+                if (dicProduit['Production'] > production) and (dicProduit['IDMatelier'] != 'ANY'):
+                    production = dicProduit['Production']
+                    produitLeader = dicProduit['IDMproduit']
+                    atelierLeader = dicProduit['IDMatelier']
 
         # il y a des produit calculés
         if produitLeader != '':
@@ -1106,12 +1111,12 @@ class Traitements():
             dicProduitLeader = lstDicProduits[lstIxDicProduits.index(produitLeader)]
             # on récupère les comptes ds balance qui restent
             lstDicProduits[lstIxDicProduits.index(produitLeader)] = self.GenereDicProduit(IDdossier,produitLeader,None,
-                                                                                          lstComptesRetenus,dicProduitLeader)
+                                                                                          lstComptesRetenus,dicProduitLeader,force=True)
 
             #Les produits de l'atelier ANY peuvent être rattachés à l'atelier du produit
             dicProduitsAny = GetProduitsAny(self.dicProduits)
             for produit, dic in dicProduitsAny.items():
-                dicProduit = self.GenereDicProduit(IDdossier,produit,None,lstComptesRetenus)
+                dicProduit = self.GenereDicProduit(IDdossier,produit,None,lstComptesRetenus,force=True)
                 dicProduit['IDMatelier'] = dicProduitLeader['IDMatelier']
                 lstDicProduits.append(dicProduit)
                 lstIxDicProduits.append(produit)
@@ -1119,8 +1124,9 @@ class Traitements():
         # s'il reste des comptes non affectés on teste si les produits non leader peuvent contenir ces no de compte
         for dicProduit in lstDicProduits:
             produit =  dicProduit['IDMproduit']
-            if (produit != produitLeader) and (len(produitLeader)>0):
-                lstDicProduits[lstIxDicProduits.index(produit)] = self.GenereDicProduit(IDdossier,produit,None,lstComptesRetenus,dicProduit)
+            if (produit != produitLeader) :
+                lstDicProduits[lstDicProduits.index(dicProduit)] = self.GenereDicProduit(IDdossier,produit,None,lstComptesRetenus,
+                                                                                         dicProduit,force=True)
 
         # s'il reste des comptes non affectés on les rattache à l'atelier principal
         if atelierLeader != '':
