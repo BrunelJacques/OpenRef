@@ -806,8 +806,8 @@ class Produits():
 
         lstValDefColonnes = [0,0,"","","",0,0,0.0,"",
                            "",0.0,"",0.0,"",0,0.0,0.0]
-        lstLargeurColonnes = [0,0,60,60,60,60,60,60,60,
-                           280,-1,60,-1,100,60,-1,-1]
+        lstChamps, lstTypes, lstHelp = dtt.GetChampsTypes(self.table,tous=True)
+        lstLargeurColonnes = LargeursDefaut(lstChampsColonnes,lstChamps,lstTypes)
         lstDonnees = []
         ix=0
         # composition des données du tableau à partir du recordset
@@ -1110,8 +1110,8 @@ class Affectations():
 
         lstValDefColonnes = [0,"","",datetime.date(1900,1,1),"",0,0,"",0.0,
                            0.0,0,"",0.0,"",""]
-        lstLargeurColonnes = [0,40,40,70,120,40,40,40,40,
-                           40,40,50,40,180,180]
+        lstLargeurColonnes = [0,40,50,70,120,30,40,40,80,
+                           60,40,50,40,180,240]
         lstDonnees = []
         for IDdossier,IDagc,exploitation,cloture,nomExploitation,valide,nbreMois,fiscal,ventes,caNonAff,nbElemCar,elemCar,filieres,\
             productions in recordset:
@@ -1236,7 +1236,6 @@ class Affectations():
                                 elif isinstance(valorigine, (int, float)):
                                     action = "selection.__setattr__('%s',%d)" % (
                                                 ctrlolv.lstCodesColonnes[ix], valeurs[categorie][code])
-                                else: wx.MessageBox("%s, type non géré pour modifs: %s"%(code,type(valorigine)))
                                 try:
                                     eval(action)
                                 except: pass

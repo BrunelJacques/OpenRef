@@ -983,9 +983,10 @@ class Traitements():
             for radical in lstRadicaux :
                 if radical == IDplanCompte[:len(radical)]:
                     # le compte rentre dans le produit : calcul du produit
+                    if Compte not in lstComptesRetenus:
+                        lstComptesRetenus.append(Compte)
                     if IDplanCompte[:2] == '74':
                         # les subventions et ProdFin seront affectés à l'atelier même avec mot clé de genre produit
-                        lstComptesRetenus.append(IDplanCompte)
                         self.dic_Ateliers[atelier]['Subventions'] += SoldeFin
                         self.dic_Ateliers[atelier]['CPTSubventions'].append(Compte)
                         affectation = 'A.' + atelier + "." + 'Subventions'
@@ -1044,14 +1045,12 @@ class Traitements():
             # d'abord sur les libelles des comptes de vente
             for mot in lstVentes:
                 Matche(mot,lstProduits)
-            if lstProduits == []:
-                #puis recherche dans les productions
-                for mot in lstProduction:
-                    Matche(mot,lstProduits)
-            if lstProduits == []:
-                #puis recherche dans les filières
-                for mot in lstFilieres:
-                    Matche(mot,lstProduits)
+            #puis recherche dans les productions
+            for mot in lstProduction:
+                Matche(mot,lstProduits)
+            #puis recherche dans les filières
+            for mot in lstFilieres:
+                Matche(mot,lstProduits)
             return lstProduits
         lstProduits = ChercheProduits()
         lstMotsDossier = lstVentes + lstProduction +lstFilieres
