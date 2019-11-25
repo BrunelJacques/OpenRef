@@ -20,6 +20,12 @@ import xpy.xGestion_Ligne as xgl
 import xpy.outils.xformat as xfmt
 import xpy.outils.xselection as xsel
 
+def Tronque35(txt):
+    # tronque les  premiers caractères d'une chaîne
+    try:
+        return txt[35:]
+    except: return txt
+
 def ComposeLstDonnees(lstNomsColonnes,record,lstChamps):
     # retourne les données pour colonnes, extraites d'un record défini par une liste de champs
     lstdonnees=[]
@@ -572,6 +578,7 @@ class Ateliers():
             ix += 1
         # matrice OLV
         lstColonnes = xusp.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
+
         dicOlv = {
             'lanceur': self,
             'listeColonnes': lstColonnes,
@@ -1101,10 +1108,10 @@ class Affectations():
                            "%affecté","nbElem","Element","Vtes/Elem","filières","productions"]
         lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstNomsColonnes]
 
-        lstValDefColonnes = [0,"","",datetime.date(1900,1,1),"",0,"",0.0,
+        lstValDefColonnes = [0,"","",datetime.date(1900,1,1),"",0,0,"",0.0,
                            0.0,0,"",0.0,"",""]
-        lstLargeurColonnes = [0,-1,-1,70,120,-1,-1,-1,
-                           -1,-1,50,-1,180,180]
+        lstLargeurColonnes = [0,40,40,70,120,40,40,40,40,
+                           40,40,50,40,180,180]
         lstDonnees = []
         for IDdossier,IDagc,exploitation,cloture,nomExploitation,valide,nbreMois,fiscal,ventes,caNonAff,nbElemCar,elemCar,filieres,\
             productions in recordset:
@@ -1122,6 +1129,9 @@ class Affectations():
             self.topWindow.SetStatusText(messBasEcran)
         # matrice OLV
         lstColonnes = xusp.DefColonnes(lstNomsColonnes,lstCodesColonnes,lstValDefColonnes,lstLargeurColonnes)
+        # forcer l'alignement à droite des production pour éviter le titre
+        colonneprod = lstColonnes[-1]
+        colonneprod.stringConverter = Tronque35
         dicOlv = {
                 'lanceur': self,
                 'listeColonnes': lstColonnes,

@@ -103,6 +103,9 @@ def FmtDecimal(montant):
 def FmtInt(montant):
     if isinstance(montant,str):
         montant.replace(',','.')
+    try:
+        x=float(montant)
+    except: return ""
     if montant == None or montant == '' or float(montant) == 0:
         return ""
     strMtt = '{:,.0f} '.format(int(float(montant)))
@@ -142,7 +145,6 @@ def FmtSolde(montant):
     strMtt = '{:+,.2f} '.format(float(montant))
     strMtt = strMtt.replace(',',' ')+ SYMBOLE
     return strMtt
-
 
 def Nz(param):
     # fonction Null devient zero
