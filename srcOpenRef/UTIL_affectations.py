@@ -1076,9 +1076,9 @@ class Affectations():
         for agc,client,cloture in self.lstDossiers:
             lstClients.append(client)
 
-        # IDdossier,agc,exploitation,cloture,nomExploitation,nbreMois,fiscal,ventes,caNonAff,nbElemCar,elemCar,filieres,productions
+        # IDdossier,agc,exploitation,cloture,nomExploitation,valide,nbreMois,fiscal,ventes,caNonAff,nbElemCar,elemCar,filieres,productions
         req = """
-                SELECT _Ident.IDdossier, _Ident.IDagc, _Ident.IDexploitation, _Ident.Clôture, _Ident.NomExploitation, 
+                SELECT _Ident.IDdossier, _Ident.IDagc, _Ident.IDexploitation, _Ident.Clôture, _Ident.NomExploitation, _Ident.Validé,
                 _Ident.NbreMois, _Ident.Fiscal,Sum(_Balances.SoldeFin), Sum(((_Balances.affectation="") * _Balances.SoldeFin)),
                 _Ident.NbElemCar,_Ident.ElemCar, _Ident.Filières, _Ident.Productions
                 FROM _Ident 
@@ -1086,7 +1086,7 @@ class Affectations():
                 WHERE (((Left(_Ident.Clôture,4)) = '%s')
                         AND (_Balances.Compte Like '70%%'))
                         AND (_Ident.IDexploitation In (%s))
-                GROUP BY _Ident.IDdossier, IDagc, IDexploitation,Clôture, NomExploitation,
+                GROUP BY _Ident.IDdossier, IDagc, IDexploitation,Clôture, NomExploitation,Validé,
                         NbElemCar, ElemCar,Filières, NbreMois, Fiscal, Productions
                 ;"""%(str(self.annee),str(lstClients)[1:-1])
         retour = self.DBsql.ExecuterReq(req, mess='Util_affectations.EcranDossiers')
@@ -1097,7 +1097,7 @@ class Affectations():
         if (not retour == "ok"):
             wx.MessageBox("Erreur : %s"%retour)
             return 'ko'
-        lstNomsColonnes = ["ID","agc","Noclient","Clôture","nomExploitation","nbreMois","fiscal","ventes",
+        lstNomsColonnes = ["ID","agc","Noclient","Clôture","nomExploitation","validé","nbreMois","fiscal","ventes",
                            "%affecté","nbElem","Element","Vtes/Elem","filières","productions"]
         lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstNomsColonnes]
 
@@ -1106,7 +1106,7 @@ class Affectations():
         lstLargeurColonnes = [0,-1,-1,70,120,-1,-1,-1,
                            -1,-1,50,-1,180,180]
         lstDonnees = []
-        for IDdossier,IDagc,exploitation,cloture,nomExploitation,nbreMois,fiscal,ventes,caNonAff,nbElemCar,elemCar,filieres,\
+        for IDdossier,IDagc,exploitation,cloture,nomExploitation,valide,nbreMois,fiscal,ventes,caNonAff,nbElemCar,elemCar,filieres,\
             productions in recordset:
             affecT = round(100*(ventes-caNonAff)/ventes)
             if not nbElemCar : nbElemCar = 0.0
@@ -1114,7 +1114,7 @@ class Affectations():
                 rendement = -ventes / nbElemCar
             else: rendement = 0.0
             dtcloture = xfmt.DateSqlToDatetime(cloture)
-            lstDonnees.append([IDdossier,IDagc,exploitation,dtcloture,nomExploitation,nbreMois,fiscal,-ventes,affecT,
+            lstDonnees.append([IDdossier,IDagc,exploitation,dtcloture,nomExploitation,valide,nbreMois,fiscal,-ventes,affecT,
                                nbElemCar,elemCar,rendement,filieres,productions])
 
         messBasEcran = "Nbre de dossiers présents: %d "%len(lstDonnees)
