@@ -325,15 +325,26 @@ class Chain(object):
         self.olv.RepopulateList()
     """
 
-    def __init__(self, *filters):
+    def __init__(self,filterAndNotOr,*filters):
         #Create a filter that performs all the given filters. The order of the filters is important.
         self.filters = filters
+        self.filterAndNotOr = filterAndNotOr
 
     def __call__(self, modelObjects):
-        #Return the model objects that match all of our filters
-        for filter in self.filters:
-            modelObjects = filter(modelObjects)
-        return modelObjects
+        if self.filterAndNotOr:
+            #Return the model objects that match all of our filters
+            for filter in self.filters:
+                modelObjects = filter(modelObjects)
+            return modelObjects
+        else:
+            #Return la fusion des sous ensembles filtrés
+            modelcumul = []
+            for filter in self.filters:
+                model = filter(modelObjects)
+                for ligne in model:
+                    if not ligne in modelcumul:
+                        modelcumul.append(ligne)
+            return modelcumul
 
 if __name__ == '__main__':
     app = wx.App(0)

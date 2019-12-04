@@ -2356,8 +2356,9 @@ class ObjectListView(wx.ListCtrl):
             filtre = Filter.Predicate(fn)
             if filtre:
                 listeFiltres.append(filtre)
-
-        self.SetFilter(Filter.Chain(*listeFiltres))
+        if 'filtrerAndNotOr' in self.__dict__:
+            self.SetFilter(Filter.Chain(self.filtrerAndNotOr,*listeFiltres))
+        else: self.SetFilter(Filter.Chain(True,*listeFiltres))
         self.RepopulateList()
         self.Refresh()
         #self.OnCheck(None)
