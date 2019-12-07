@@ -38,7 +38,7 @@ def GetChampsTypes(dbtable,tous = True,reel=False,deci=False,dte=False,texte=Fal
     lstHelp = []
     # les params d'un type précisé désactivent le param tous
     if reel or deci or dte or texte : tous=False
-    for ligne in dbtable:
+    for ligne in DB_TABLES[dbtable]:
         champ = ligne[0]
         genre = ligne[1][:3]
         tip = ligne[1]

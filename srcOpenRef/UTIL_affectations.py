@@ -264,13 +264,14 @@ class Balance():
             wx.MessageBox("Erreur : %s"%retour)
             return 'ko'
         lstChamps, lstTypes, lstHelp = dtt.GetChampsTypes(self.table,tous=True)
-        lstNomsColonnes =   xusp.ExtractList(lstChamps,champDeb='IDdossier',champFin='Compte')\
+        lstNomsColonnes =   xusp.ExtractList(lstChamps,champDeb='IDdossier',champFin='IDligne')\
                             + xusp.ExtractList(lstChamps,champDeb='IDplanCompte',champFin='Affectation')\
                             + xusp.ExtractList(lstChamps,champDeb='Libellé',champFin='SoldeFin')
         lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstNomsColonnes]
         lstValDefColonnes = ValeursDefaut(lstNomsColonnes,lstChamps,lstTypes)
         lstLargeurColonnes = LargeursDefaut(lstNomsColonnes,lstChamps,lstTypes)
-
+        # mask de la colonne numéro de ligne
+        lstLargeurColonnes[2] = 0
         # composition des données du tableau à partir du recordset
         lstDonnees = []
         for record in recordset:
@@ -283,7 +284,7 @@ class Balance():
                 'lanceur': self,
                 'listeColonnes': lstColonnes,
                 'listeDonnees': lstDonnees,
-                'checkColonne': False,
+                'checkColonne': True,
                 'hauteur': 650,
                 'largeur': 1300,
                 'recherche': True,
@@ -301,18 +302,21 @@ class Balance():
                     ('copier',wx.ID_APPLY,'Copier',"Cliquez ici pour copier la ligne"),
                     ('eclater',wx.ID_APPLY,'Eclater',"Cliquez ici pour subdiviser le compte"),
                     ('supprimer', wx.ID_APPLY, 'Supprimer', "Supprimer la ligne et reporter le solde dessus"),
-                      ]
+                    ('affecter', wx.ID_APPLY, 'Affectation\nlignes\ncochées', "Gérer l'affectation des lignes cochées"),
+                    ]
         # un param par info: texte ou objet window.  Les infos sont  placées en bas à gauche
         self.trace = self.parent.trace + "- BALANCE"
         self.infos = self.parent.infos
         lstInfos = [self.infos,self.trace]
         # params des actions ou boutons: name de l'objet, fonction ou texte à passer par eval()
         dicOnClick = {
-                      'ajout' : 'self.lanceur.OnAjout()',
-                      'modif' : 'self.lanceur.OnModif()',
-                      'copier' : 'self.lanceur.OnCopier()',
-                      'eclater' : 'self.lanceur.OnEclater()',
-                      'supprimer' : 'self.lanceur.OnSupprimer()'}
+                    'ajout' : 'self.lanceur.OnAjout()',
+                    'modif' : 'self.lanceur.OnModif()',
+                    'copier' : 'self.lanceur.OnCopier()',
+                    'eclater' : 'self.lanceur.OnEclater()',
+                    'supprimer' : 'self.lanceur.OnSupprimer()',
+                    'affecter': 'self.lanceur.OnAffecter()',
+                    }
         self.dlgolv = xgt.DLG_tableau(self,dicOlv=dicOlv,lstBtns= lstBtns,lstActions=lstActions,lstInfos=lstInfos,
                                  dicOnClick=dicOnClick)
 
@@ -343,6 +347,135 @@ class Balance():
     def OnEclater(self):
         self.AppelSaisie('eclat')
         self.Reinit()
+
+    def OnAffecter(self):
+        #Conservation de la ligne sélectionnée
+        all = self.ctrlolv.innerList
+        selection = self.ctrlolv.Selection()
+        if len(selection)>0:
+            self.ixsel = all.index(selection[0])
+        else: self.ixsel = 0
+        #Vérification de présence de lignes checkées
+        if len(self.ctrlolv.GetCheckedObjects()) == 0:
+            wx.MessageBox("Aucune ligne cochée\n\nIl faut cocher des lignes pour pouvoir y appliquer un traitement")
+            return
+        self.valuesAffect = AffectsActifs(self.IDdossier,self.DBsql)
+        dictMatrice = {('cat0', 'categorie0'): [
+            {'genre': 'combo', 'name': 'affectation', 'label': 'Affectation', 'help': 'aide pour saisir',
+             'values': self.valuesAffect,
+             'ctrlAction': 'OnAffecterSaisi',
+             'btnLabel': "...",
+             'btnHelp': "Cliquez pour ouvrir un nouveau produit à ce dossier",
+             'btnAction': 'OnAjoutAffect', }]}
+        kwds = {'pos': (300, 100), 'minSize': (400, 100), 'lblbox': 'Modification des lignes cochées'}
+        self.dlg = xgl.DLG_ligne(self, dldMatrice=dictMatrice, ddDonnees={}, **kwds)
+        retdlg = self.dlg.ShowModal()
+        if retdlg == wx.ID_OK:
+            # Retour par bouton Fermer, récup de la valeur à modifier
+            valeurs = self.dlg.pnl.GetValeurs()
+            lstModifs = []
+            for categorie, dicdonnees in valeurs.items():
+                for code, valeur in dicdonnees.items():
+                    if valeur in (None, ' '): valeur = ''
+                    affectation = valeur
+                    nom = self.ctrlolv.lstTblChamps[self.ctrlolv.lstTblCodes.index(code)]
+                    lstModifs.append((nom, valeur))
+            del valeurs
+            # Modif de chaque ligne checkée de la balance
+            for ligne in self.ctrlolv.GetCheckedObjects():
+                print(ligne)
+                clewhere = "IDdossier = %s AND Compte = '%s' AND IDligne = %s "%(ligne.donnees[0],ligne.donnees[1],ligne.donnees[2])
+                print(clewhere)
+                ret = self.DBsql.ReqMAJ('_Balances', lstModifs, clewhere, mess='MAJ UTIL_affectations.OnAffecter')
+                if ret != 'ok':
+                    wx.MessageBox(ret)
+                ligne.affectation = affectation
+
+        if self.ixsel:
+            self.ctrlolv.SelectObject(self.ctrlolv.innerList[self.ixsel])
+        #self.Reinit()
+
+    def zzFinal(self,valeurs):
+        # constitution des données à mettre à jour dans la base de donnee
+        lstModifs = []
+        for categorie, dicdonnees in valeurs.items():
+            for code, valeur in dicdonnees.items():
+                    if valeur in (None, ' '): valeur = ''
+                    nom = self.ctrlolv.lstTblChamps[self.ctrlolv.lstTblCodes.index(code)]
+                    lstModifs.append((nom, valeur))
+        # mise à jour de l'olv d'origine
+        for code in self.ctrlolv.lstEcrCodes:
+            for categorie, dicDonnees in valeurs.items():
+                if code in dicDonnees and code in self.ctrlolv.lstOlvCodes:
+                    # pour chaque colonne de la selection de l'olv
+                    valorigine = self.ctrlolv.lstOlvValeur[self.ctrlolv.lstOlvCodes.index(code)]
+                    if (not valorigine):
+                        valorigine = valeurs[categorie][code]
+                        flag = True
+                    else:
+                        flag = False
+                    if flag or (valorigine != valeurs[categorie][code]):
+                        ix = self.ctrlolv.lstOlvCodes.index(code)
+                        self.selection.donnees[ix] = valeurs[categorie][code]
+                        if isinstance(valorigine, (str, datetime.date)):
+                            action = "self.selection.__setattr__('%s','%s')" % (
+                                self.ctrlolv.lstOlvCodes[ix], str(valeurs[categorie][code]))
+                        elif isinstance(valorigine, (int, float)):
+                            if valeurs[categorie][code] in (None, ''):
+                                valeurs[categorie][code] = '0'
+                            action = "self.selection.__setattr__('%s',%d)" % (
+                                self.ctrlolv.lstOlvCodes[ix], float(valeurs[categorie][code]))
+                        else:
+                            action = 'pass'
+                            wx.MessageBox("UTIL_Affectaions.EcranSaisie\n\n%s, type non géré pour modifs: %s" % (
+                                code, type(valorigine)))
+                        eval(action)
+        # mise à jour de la table
+        if len(lstModifs) > 0 and self.mode == 'modif':
+            ret = self.DBsql.ReqMAJ(self.table, lstModifs, self.clewhere, mess='MAJ affectations.%s.Ecran' % self.table)
+            if ret != 'ok':
+                wx.MessageBox(ret)
+
+        if len(lstModifs) > 0 and self.mode in ('copie', 'eclat'):
+            lstMaj, lstIns = self.Eclater(lstModifs, self.ctrlolv.lstTblValeurs)
+            if self.mode == 'eclat':
+                # la copie est comme éclater mais sans toucher à l'enreg d'origine
+                ret = self.DBsql.ReqMAJ(self.table, lstMaj, self.clewhere,
+                                        mess='MAJ affectations.%s.Ecran' % self.table)
+                if ret != 'ok': wx.MessageBox(ret)
+            insChamps = [x for x, y in lstIns]
+            insDonnees = [y for x, y in lstIns]
+            ret = self.DBsql.ReqInsert(self.table, insChamps, insDonnees,
+                                       mess='Insert affectations.%s.Ecran' % self.table)
+            if ret != 'ok': wx.MessageBox(ret)
+
+    def OnAffecterSaisi(self,event):
+        affect = self.dlg.pnl.GetOneValue('affectation')
+        if '*' in affect:
+            cout = affect.split('.')[2]
+            lstAteliers = []
+            for ligne in self.valuesAffect:
+                tplligne = ligne.split('.')
+                if len(tplligne) == 3:
+                    if tplligne[0] == 'A':
+                        donnees = (tplligne[1],)
+                        if not donnees in lstAteliers:
+                            lstAteliers.append(donnees)
+            lstColonnes =[("Atelier", "left", -1, "col1")]
+            dlgsel = xsel.DLG_selection(None,lstColonnes=lstColonnes,lstValeurs=lstAteliers,
+                                        title="Choix de l'atelier à imputer '%s'"%cout,minsize=(250,350))
+            ret = dlgsel.ShowModal()
+            if ret == wx.ID_OK:
+                # Réinit des values de ctrl affetation
+                atelier = lstAteliers[dlgsel.GetSelections()][0]
+                for item in self.valuesAffect:
+                    ix = self.valuesAffect.index(item)
+                    self.valuesAffect[ix] = item.replace('*',atelier)
+                affect = affect.replace('*', atelier)
+                self.dlg.pnl.SetOneValues('affectation',self.valuesAffect)
+                self.dlg.pnl.SetOneValue('affectation',affect)
+            dlgsel.Destroy()
+        event.Skip()
 
     def OnSupprimer(self):
         self.AppelSaisie('suppr')
@@ -478,7 +611,7 @@ class Balance():
         for item in [self.TronqueCompte(valeurs),]:
             ret,mess = item
             messfinal += "\n%s"%mess
-            #une seule erreur provoquera l'affichage de la confirmation nécessaire
+            #une seule erreur provoquera l'affichage de la confirmation nécessaire (*= produit par zéro)
             retfinal *= ret
         if not retfinal :
             retfinal = wx.YES == wx.MessageBox(messfinal,style=wx.YES_NO)

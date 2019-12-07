@@ -865,20 +865,25 @@ class DLG_ligne(wx.Dialog):
                 print("Bonjour l'Action de DLG_monoLigne")
 
 class Gestion_ligne(object):
-    # gestion de la ligne d'une table appelée dans un OLV en vue de modif, insert, copy ou supprim
+    # gestion de la ligne d'une table appelée dans un OLV en vue de modif, ajout, copy ou supprim
     def __init__(self,parent,DBsql,table,datatable,mode='consult',ctrlolv=None,lstcle=None,**kwds):
         #lstcle est la liste des [(champ, valeur),()] des parties de clé qui ne sont pas dans l'enregistrement d'origine
         # indispensable en ajout car pas de sélection préalable contenant les éléments de clé primaire
+        # si ctrlolv est None, on est en ajout
         self.lstcle = lstcle
         self.kwds = kwds
         self.parent = parent
         self.DBsql = DBsql
         self.table = table
         self.mode = mode
-        if not self.VerifSelection(ctrlolv,mode):
-            self.ok = False
-            return
-        else : self.ok = True
+        if ctrlolv:
+            if not self.VerifSelection(ctrlolv,mode):
+                self.ok = False
+                return
+            else : self.ok = True
+        else:
+            mode = 'ajout'
+            self.ok = True
         self.ctrlolv = ctrlolv
         if not mode == 'ajout':
             self.selection = ctrlolv.Selection()[0]
@@ -904,8 +909,10 @@ class Gestion_ligne(object):
         self.lstTblCodes = [SupprimeAccents(x) for x in lstChamps]
         self.lstTblValdef = ValeursDefaut(lstChamps,lstChamps,lstTypes)
         self.lstTblValeurs = []
-        self.lstOlvCodes = ctrlolv.lstCodesColonnes
-        self.lstOlvNoms = ctrlolv.lstNomsColonnes
+        if ctrlolv:
+            self.lstOlvCodes = ctrlolv.lstCodesColonnes
+            self.lstOlvNoms = ctrlolv.lstNomsColonnes
+        else: self.lstOlvCodes = self.lstOlvCodes = []
         if self.selection:
             self.lstOlvValeur = [x for x in self.selection.donnees]
             # récup de la clé de l'enregistrement pointé dans OLV
@@ -1047,9 +1054,10 @@ class Gestion_ligne(object):
                     nom = self.lstTblChamps[self.lstTblCodes.index(code)]
                     lstModifs.append((nom, valeur))
         # complément des champs clé si non gérés dans l'écran
-        for (champcle, valcle) in self.lstcle:
-            if not champcle in [champ for (champ, val) in lstModifs]:
-                lstModifs.append((champcle, valcle))
+        if self.lstcle:
+            for (champcle, valcle) in self.lstcle:
+                if not champcle in [champ for (champ, val) in lstModifs]:
+                    lstModifs.append((champcle, valcle))
 
         if not self.mode == 'ajout':
             # mise à jour de l'olv d'origine
@@ -1124,63 +1132,31 @@ class Gestion_ligne(object):
 if __name__ == '__main__':
     app = wx.App(0)
     os.chdir("..")
-    zzdictDonnees = {"bd_reseau": {'serveur': 'my server',
-                                 'bdReseau':False,
-                                 'utilisateur' : 'moi-meme',
-                                 'config': xfmt.DateStrToWxdate('2020-02-28',iso=True),
-                                 'localisation': "élevé ailleurs",
-                                 'choix': 12,'multi':[12, 13],
-                                'nombre': 456.45,
-                                 },
-                   "ident": {'domaine': 'mon domaine'}}
-    zzdictMatrice = {
-        ("ident", "Votre session"):
-            [
-                {'genre': 'String', 'name': 'domaine', 'label': 'Votre organisation', 'value': "NomDuPC",
-                                 'help': 'Ce préfixe à votre nom permet de vous identifier','enable':False},
-                {'genre': 'String', 'name': 'utilisateur', 'label': 'Votre identifiant', 'value': "NomSession",
-                                 'help': 'Confirmez le nom de sesssion de l\'utilisateur'},
-            ],
-        ("choix_config", "Choisissez votre configuration"):
-            [
-                {'genre': 'Date', 'name': 'config', 'label': 'DateConfiguration','value':xfmt.DateStrToWxdate('27/02/2019',iso=False),
-                      'help': "Le bouton de droite vous permet de créer une nouvelle configuration"},
-                {'genre': 'MultiChoice', 'name': 'multi', 'label': 'Configurations','labels':['aa','bb','cc'], 'value':['1','2'],
-                         'help': "Le bouton de droite vous permet de créer une nouvelle configuration",
-                         'btnLabel': "...", 'btnHelp': "Cliquez pour gérer les configurations",
-                        'btnAction': 'OnCtrlAction'},
-            ],
-        ("bd_reseau", "Base de donnée réseau"):
-            [
-                {'genre': 'Dir', 'name': 'localisation', 'label': 'Répertoire de localisation',
-                        'value': True,
-                        'help': "Il faudra connaître les identifiants d'accès à cette base"},
-                {'genre': 'String', 'name': 'serveur', 'label': 'Nom du serveur', 'value': 'monServeur',
-                        'help': "Il s'agit du serveur de réseau porteur de la base de données"},
-                {'genre': 'Float', 'name': 'nombre', 'label': 'float', 'value': 40.12,
-                 'help': "test de nombre"},
-            ]
-        }
 
-# Lancement  test avec un tableau ne correspondant pas à la table affichée
+    # Lancement d'une saisie de ligne par son dictionnaire matrice
+    dictMatrice = {('cat0','categorie0'):[{'genre':'combo','name':'affectation','label':'Affectation','help':'aide pour saisir',
+                   'values':['','choix1','choix2'],'ctrlAction':'OnAffect',
+                   'btnLabel':'...','btnHelp':'aide sur action','btnAction':'OnBouton'},]}
+    #dictDonnees = {('cat0','categorie0'):[{'affectation':''},]}
+    kwds = {'pos':(300,100),'minSize':(500,500),'lblbox':'titre box'}
+    frame_test = DLG_ligne(None, dldMatrice=dictMatrice, ddDonnees={}, **kwds)
 
+    """
+    # Lancement  test avec un tableau ne correspondant pas à la table affichée
     import xpy.outils.xdatatables as datatable
-    import xpy.xGestion_Tableau as xgt
-
     def actiontest(self):
         dlg = Gestion_ligne(frame_test, None, 'utilisateurs', datatable, 'consult', frame_test.ctrlOlv)
         if dlg.ok:
             dlg.SetBlocGrille(['nom','prenom'])
             dlg.InitDlg()
         del dlg
+    frame_test = wx.Frame()
+    sortie = lambda a: wx.MessageBox("Fin sans traitement")
+    frame_test.Validation = sortie
+    frame_test.ctrlOlv = None
+    ok = actiontest(None)
+    """
 
-    dicOnClick = {'Action1': lambda evt: actiontest(frame_test),
-                  'Action2': 'self.parent.Validation()',
-                  'BtnPrec': 'self.parent.Close()'}
-
-    frame_test = xgt.DLG_tableau(None,dicOlv=xgt.dicOlv,lstBtns={},lstActions=xgt.lstActions,lstInfos={},
-                                 dicOnClick=dicOnClick)
     app.SetTopWindow(frame_test)
-    #Gestion_ligne(frame_test,None,'utilisateurs',datatable,'consult',frame_test.ctrlOlv)
     frame_test.Show()
     app.MainLoop()

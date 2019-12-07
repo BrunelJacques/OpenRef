@@ -24,6 +24,21 @@ CHAMPS_TABLES = {
     'couts': ['IDMatelier','IDMcoût','UnitéQté','CptCoût','MotsCles','TypesCoût']
     }
 
+def Nsp(valeur,tip):
+    # fonction Null devient zero
+    tipval = str(type(valeur))
+    if 'int' in tip and not 'int' in tipval: valeur = 0
+    elif 'flo' in tip and not 'flo' in tipval:
+        try : valeur = float(valeur)
+        except: valeur = 0.0
+    elif 'var' in tip and 'list' in tipval:
+        valeur = str(valeur)[1:-1]
+    elif 'var' in tip and not 'str' in tipval:
+        try: valeur = str(valeur)
+        except: valeur = ''
+    if valeur == 'None': valeur = ''
+    return valeur
+
 def ListsToDic(listecles, donnees, poscle=0, cleslower=False):
     #le dictionnaire généré a pour clé les champs dans liste clé en minuscules
     dic = {}
@@ -39,7 +54,7 @@ def ListsToDic(listecles, donnees, poscle=0, cleslower=False):
     else:
         try:
             for ix in range(len(listecles)):
-                dic[SupprimeAccents(listecles[ix])] = donnees[ix]
+                dic[listecles[ix]] = donnees[ix]
         except: pass
     return dic
 
@@ -329,15 +344,17 @@ def Get_Produit(iddossier,atelier,produit,DBsql,init=True):
     req = """SELECT _Produits.*,mProduits.UnitéQté1,mProduits.UnitéQté2
             FROM _Produits
             INNER JOIN mProduits ON(_Produits.IDMproduit = mProduits.IDMproduit) 
-                                AND(_Produits.IDMatelier = mProduits.IDMatelier)
-            WHERE (_Produits.IDdossier = %d) AND (_Produits.IDMatelier  = '%s') AND (_Produits.IDMproduit = '%s')  
-            ; """ % (iddossier,atelier,produit)
+            WHERE   (_Produits.IDdossier = %d) 
+                AND (_Produits.IDMatelier  = '%s') 
+                AND (mProduits.IDMatelier in ('%s','ANY')) 
+                AND (_Produits.IDMproduit = '%s')  
+            ; """ % (iddossier,atelier,atelier,produit)
     retour = DBsql.ExecuterReq(req, mess='accès UTIL_traitement.GetProduit')
     dic = {}
     if retour == "ok":
         recordset = DBsql.ResultatReq()
         if len(recordset)>0:
-            dic = ListsToDic(lstChamps, recordset,1)
+            dic = ListsToDic(lstChamps, recordset[0],1)
         else:
             dic={}
             if init :
@@ -356,11 +373,11 @@ def Get_Cout(iddossier,atelier,cout,DBsql,init=True):
     req = """SELECT _Coûts.*,mCoûts.UnitéQté
             FROM _Coûts
             INNER JOIN mCoûts ON(_Coûts.IDMcoût = mCoûts.IDMcoût) 
-                              AND(_Coûts.IDMatelier = mCoûts.IDMatelier)
             WHERE   (_Coûts.IDdossier = %d) 
                     AND (_Coûts.IDMatelier  = '%s') 
+                    AND (mCoûts.IDMatelier In ('%s', 'ANY') 
                     AND (_Coûts.IDMcoût = '%s') 
-            ; """ % (iddossier,atelier,cout)
+            ; """ % (iddossier,atelier,atelier,cout)
     retour = DBsql.ExecuterReq(req, mess='accès UTIL_traitement.GetCout')
     dic = {}
     if retour == "ok":
@@ -434,11 +451,12 @@ def Set_Atelier(dicAtelier,DBsql):
 def Set_Produit(dicProduit,DBsql):
     # création ou MAJ d'un produits par son produit et les modèles
     IDMproduit = dicProduit['IDMproduit']
-    lstTblChamps = dtt.GetChamps('_Produits', tous=True)
+    lstTblChamps,lstTblTypes,lstTblHelp  = dtt.GetChampsTypes('_Produits', tous=True)
     lstChamps = [x for x in lstTblChamps if x in dicProduit]
-    lstDonnees = [dicProduit[x] for x in lstChamps]
+    lstTypes = [lstTblTypes[lstTblChamps.index(a)] for a in lstChamps]
+    lstDonnees = [Nsp(dicProduit[lstChamps[x]],lstTypes[x]) for x in range(len(lstChamps))]
     orui.TronqueData('_Produits',lstChamps,lstDonnees)
-    ok = DBsql.ReqInsert('_Produits', lstChamps, lstDonnees,affichError=False)
+    ok = DBsql.ReqInsert('_Produits', lstChamps, lstDonnees,affichError=True,)
     if ok != 'ok':
         mess = 'Set_Produits en MAJ Produit : %s' % IDMproduit
         condition = ''
@@ -1017,6 +1035,7 @@ class Traitements():
         #premier accès sur les comptes de vente
         IDdossier, lstVentes,lstFilieres,lstProduction = self.GetMotsCleDossier(tplIdent)
         #les pointeurs d'affectation non validés doivent être mis à blanc
+
         if not IDdossier:
             return 'Incomplet'
         self.PurgeNonValide(IDdossier)
