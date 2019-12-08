@@ -88,7 +88,7 @@ def AteliersOuverts(IDdossier,DBsql):
     req = """SELECT mAteliers.IDMatelier
             FROM _Ateliers 
             INNER JOIN mAteliers ON _Ateliers.IDMatelier = mAteliers.IDMatelier
-            WHERE (_Ateliers.IDdossier = %d)
+            WHERE (_Ateliers.IDdossier = %d);
             """%IDdossier
     retour = DBsql.ExecuterReq(req, mess='Util_affectations.AteliersOuverts')
     if not retour == "ok":
@@ -244,7 +244,7 @@ class Balance():
         self.IDdossier = parent.IDdossier
 
         # pointeur de la base principale ( ouverture par défaut de db_prim via xGestionDB)
-        self.DBsql = self.parent.DBsql
+        self.DBsql = xdb.DB()
         self.retour = self.EcranBalance()
 
     # Gestion de l'OLV
@@ -366,7 +366,7 @@ class Balance():
              'ctrlAction': 'OnAffecterSaisi',
              'btnLabel': "...",
              'btnHelp': "Cliquez pour ouvrir un nouveau produit à ce dossier",
-             'btnAction': 'OnAjoutAffect', }]}
+             'btnAction': 'OnAffecterAjout', }]}
         kwds = {'pos': (300, 100), 'minSize': (400, 100), 'lblbox': 'Modification des lignes cochées'}
         self.dlg = xgl.DLG_ligne(self, dldMatrice=dictMatrice, ddDonnees={}, **kwds)
         retdlg = self.dlg.ShowModal()
@@ -377,77 +377,24 @@ class Balance():
             for categorie, dicdonnees in valeurs.items():
                 for code, valeur in dicdonnees.items():
                     if valeur in (None, ' '): valeur = ''
-                    affectation = valeur
-                    nom = self.ctrlolv.lstTblChamps[self.ctrlolv.lstTblCodes.index(code)]
-                    lstModifs.append((nom, valeur))
+                    if code == 'affectation':
+                        nom = self.ctrlolv.lstTblChamps[self.ctrlolv.lstTblCodes.index(code)]
+                        lstModifs.append((nom, valeur))
+                        affectation = valeur
             del valeurs
             # Modif de chaque ligne checkée de la balance
             for ligne in self.ctrlolv.GetCheckedObjects():
-                print(ligne)
                 clewhere = "IDdossier = %s AND Compte = '%s' AND IDligne = %s "%(ligne.donnees[0],ligne.donnees[1],ligne.donnees[2])
-                print(clewhere)
                 ret = self.DBsql.ReqMAJ('_Balances', lstModifs, clewhere, mess='MAJ UTIL_affectations.OnAffecter')
                 if ret != 'ok':
                     wx.MessageBox(ret)
                 ligne.affectation = affectation
+                # le passage éphémère en selected permet la mise à jour de l'affichage
+                self.ctrlolv.SelectObject(ligne)
 
         if self.ixsel:
             self.ctrlolv.SelectObject(self.ctrlolv.innerList[self.ixsel])
         #self.Reinit()
-
-    def zzFinal(self,valeurs):
-        # constitution des données à mettre à jour dans la base de donnee
-        lstModifs = []
-        for categorie, dicdonnees in valeurs.items():
-            for code, valeur in dicdonnees.items():
-                    if valeur in (None, ' '): valeur = ''
-                    nom = self.ctrlolv.lstTblChamps[self.ctrlolv.lstTblCodes.index(code)]
-                    lstModifs.append((nom, valeur))
-        # mise à jour de l'olv d'origine
-        for code in self.ctrlolv.lstEcrCodes:
-            for categorie, dicDonnees in valeurs.items():
-                if code in dicDonnees and code in self.ctrlolv.lstOlvCodes:
-                    # pour chaque colonne de la selection de l'olv
-                    valorigine = self.ctrlolv.lstOlvValeur[self.ctrlolv.lstOlvCodes.index(code)]
-                    if (not valorigine):
-                        valorigine = valeurs[categorie][code]
-                        flag = True
-                    else:
-                        flag = False
-                    if flag or (valorigine != valeurs[categorie][code]):
-                        ix = self.ctrlolv.lstOlvCodes.index(code)
-                        self.selection.donnees[ix] = valeurs[categorie][code]
-                        if isinstance(valorigine, (str, datetime.date)):
-                            action = "self.selection.__setattr__('%s','%s')" % (
-                                self.ctrlolv.lstOlvCodes[ix], str(valeurs[categorie][code]))
-                        elif isinstance(valorigine, (int, float)):
-                            if valeurs[categorie][code] in (None, ''):
-                                valeurs[categorie][code] = '0'
-                            action = "self.selection.__setattr__('%s',%d)" % (
-                                self.ctrlolv.lstOlvCodes[ix], float(valeurs[categorie][code]))
-                        else:
-                            action = 'pass'
-                            wx.MessageBox("UTIL_Affectaions.EcranSaisie\n\n%s, type non géré pour modifs: %s" % (
-                                code, type(valorigine)))
-                        eval(action)
-        # mise à jour de la table
-        if len(lstModifs) > 0 and self.mode == 'modif':
-            ret = self.DBsql.ReqMAJ(self.table, lstModifs, self.clewhere, mess='MAJ affectations.%s.Ecran' % self.table)
-            if ret != 'ok':
-                wx.MessageBox(ret)
-
-        if len(lstModifs) > 0 and self.mode in ('copie', 'eclat'):
-            lstMaj, lstIns = self.Eclater(lstModifs, self.ctrlolv.lstTblValeurs)
-            if self.mode == 'eclat':
-                # la copie est comme éclater mais sans toucher à l'enreg d'origine
-                ret = self.DBsql.ReqMAJ(self.table, lstMaj, self.clewhere,
-                                        mess='MAJ affectations.%s.Ecran' % self.table)
-                if ret != 'ok': wx.MessageBox(ret)
-            insChamps = [x for x, y in lstIns]
-            insDonnees = [y for x, y in lstIns]
-            ret = self.DBsql.ReqInsert(self.table, insChamps, insDonnees,
-                                       mess='Insert affectations.%s.Ecran' % self.table)
-            if ret != 'ok': wx.MessageBox(ret)
 
     def OnAffecterSaisi(self,event):
         affect = self.dlg.pnl.GetOneValue('affectation')
@@ -477,15 +424,24 @@ class Balance():
             dlgsel.Destroy()
         event.Skip()
 
+    def OnAffecterAjout(self,event):
+        # action du bouton d'affecter
+        produits = Produits(self,visu=False)
+        produits.AppelSaisie('ajout')
+        # réinitialisation de l'écran de saisie
+        self.valuesAffect = AffectsActifs(self.IDdossier,self.DBsql)
+        self.dlg.pnl.SetOneValues('affectation',self.valuesAffect)
+        self.dlg.pnl.Refresh()
+        event.Skip()
+
     def OnSupprimer(self):
         self.AppelSaisie('suppr')
         #self.ctrlolv.MAJ()
 
     def Reinit(self):
-        ix = self.ixsel
         self.dlgolv.Close()
         del self.ctrlolv
-        self.EcranBalance(ixsel = ix)
+        self.EcranBalance(ixsel = self.ixsel)
 
     # gestion de la ligne
     def AppelSaisie(self,mode):
@@ -531,6 +487,7 @@ class Balance():
             self.saisie.InitDlg()
             self.FinSaisie()
         del self.saisie
+        self.ctrlolv.SelectObject(self.ctrlolv.donnees[self.ixsel])
 
     def OnChildBtnAction(self,event):
         self.action = 'self.%s(event)' % event.EventObject.actionBtn
@@ -595,12 +552,7 @@ class Balance():
         produits.AppelSaisie('ajout')
         # réinitialisation de l'écran de saisie
         self.valuesAffect = AffectsActifs(self.IDdossier,self.DBsql)
-        for (cdcateg,nmcateg),lstlignes in self.saisie.dictMatrice.items():
-            for dicligne in lstlignes:
-                if dicligne['name'] == 'affectation':
-                    ddDonnees={cdcateg:{'affectation':self.valuesAffect}}
-                    break
-        self.saisie.dlg.pnl.SetOneValues(ddDonnees)
+        self.saisie.dlg.pnl.SetOneValues('affectation',self.valuesAffect)
         self.saisie.dlg.pnl.Refresh()
         event.Skip()
 
@@ -652,7 +604,7 @@ class Ateliers():
         self.IDdossier = parent.IDdossier
 
         # pointeur de la base principale ( ouverture par défaut de db_prim via xGestionDB)
-        self.DBsql = self.parent.DBsql
+        self.DBsql = xdb.DB()
         self.retour = self.EcranAteliers()
 
     def EcranAteliers(self,ixsel=0):
@@ -1139,12 +1091,7 @@ class Produits():
         selection.idmproduit = ''
         # réinitialisation de l'écran de saisie par envoi d'une setOneValues pour les items d'une combo
         valuesProduits = ProduitsFermes(self.IDdossier,idmatelier,self.DBsql)
-        for (cdcateg,nmcateg),lstlignes in self.saisie.dictMatrice.items():
-            for dicligne in lstlignes:
-                if dicligne['name'] == 'idmproduit':
-                    ddDonnees={cdcateg:{'idmproduit':valuesProduits}}
-                    break
-        self.saisie.dlg.pnl.SetOneValues(ddDonnees)
+        self.saisie.dlg.pnl.SetOneValues('idmproduit',valuesProduits)
         self.saisie.dlg.pnl.Refresh()
         event.Skip()
 

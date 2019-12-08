@@ -32,10 +32,14 @@ def Nsp(valeur,tip):
         try : valeur = float(valeur)
         except: valeur = 0.0
     elif 'var' in tip and 'list' in tipval:
-        valeur = str(valeur)[1:-1]
+        val = ''
+        for a in valeur:
+            val += str(a)
+        valeur = val
     elif 'var' in tip and not 'str' in tipval:
         try: valeur = str(valeur)
         except: valeur = ''
+        valeur.replace("'", "")
     if valeur == 'None': valeur = ''
     return valeur
 
@@ -69,6 +73,7 @@ def SupprimeAccents(texte):
     return code.strip()
 
 def Affectation(iddossier,affectation,DBsql):
+    DBsql = xdb.DB()
     # l'affectation d'une ligne de la balance va être imputée dans les tables de synthèse
     genre,atelier,option = None,None,None
     mess = 'ok'
@@ -89,6 +94,7 @@ def Affectation(iddossier,affectation,DBsql):
         mess = AffectCout(iddossier,atelier,option,DBsql)
     if genre == 'A':
         mess = AffectAtelier(iddossier,atelier,DBsql)
+    DBsql.Close()
     return mess
 
 def AffectAtelier(iddossier, atelier, DBsql):
@@ -122,7 +128,7 @@ def AffectAtelier(iddossier, atelier, DBsql):
     return ret
 
 def AffectProduit(iddossier, atelier, produit,DBsql):
-
+    DBsql = xdb.DB()
     dicProduit = Get_Produit(iddossier,atelier,produit,DBsql)
 
     # récupère les comptes à affecter à ce produit
@@ -145,6 +151,7 @@ def AffectProduit(iddossier, atelier, produit,DBsql):
     for iddossier, compte, idplancompte, quantites1, unite1, quantites2, unite2, soldedeb, soldefin in recordset:
         dicProduit = VentileValeurProduit(dicProduit,idplancompte,quantites1,unite1,quantites2,unite2,soldedeb,soldefin)
     ret = Set_Produit(dicProduit,DBsql)
+    DBsql.Close()
     return ret
 
 def AffectCout(iddossier, atelier, cout,DBsql):
@@ -337,6 +344,7 @@ def Get_Atelier(iddossier,atelier,DBsql,init=True):
     return dic
 
 def Get_Produit(iddossier,atelier,produit,DBsql,init=True):
+    DBsql = xdb.DB()
     # constitue un dictionnaire d'un  modèle de produits à générer
     lstChamps = dtt.GetChamps('_Produits')
     lstChamps.extend(['UnitéQté1','UnitéQté2'])
@@ -375,7 +383,7 @@ def Get_Cout(iddossier,atelier,cout,DBsql,init=True):
             INNER JOIN mCoûts ON(_Coûts.IDMcoût = mCoûts.IDMcoût) 
             WHERE   (_Coûts.IDdossier = %d) 
                     AND (_Coûts.IDMatelier  = '%s') 
-                    AND (mCoûts.IDMatelier In ('%s', 'ANY') 
+                    AND (mCoûts.IDMatelier In ('%s', 'ANY'))
                     AND (_Coûts.IDMcoût = '%s') 
             ; """ % (iddossier,atelier,atelier,cout)
     retour = DBsql.ExecuterReq(req, mess='accès UTIL_traitement.GetCout')
@@ -456,7 +464,7 @@ def Set_Produit(dicProduit,DBsql):
     lstTypes = [lstTblTypes[lstTblChamps.index(a)] for a in lstChamps]
     lstDonnees = [Nsp(dicProduit[lstChamps[x]],lstTypes[x]) for x in range(len(lstChamps))]
     orui.TronqueData('_Produits',lstChamps,lstDonnees)
-    ok = DBsql.ReqInsert('_Produits', lstChamps, lstDonnees,affichError=True,)
+    ok = DBsql.ReqInsert('_Produits', lstChamps, lstDonnees,affichError=False,)
     if ok != 'ok':
         mess = 'Set_Produits en MAJ Produit : %s' % IDMproduit
         condition = ''
@@ -475,7 +483,7 @@ def Set_Cout(dicCout,DBsql):
     lstTblChamps = dtt.GetChamps('_Coûts', tous=True)
     lstChamps = [x for x in lstTblChamps if x in dicCout]
     lstDonnees = [dicCout[x] for x in lstChamps]
-    orui.TronqueData(None,lstChamps,lstDonnees)
+    orui.TronqueData('_Coûts',lstChamps,lstDonnees)
     ok = DBsql.ReqInsert('_Coûts', lstChamps, lstDonnees, mess='Set_Couts Coût : %s'%IDMcout,affichError=False)
     if ok != 'ok':
         mess = 'Set_Couts en MAJ Cout : %s'%dicCout['IDMcoût']
@@ -486,7 +494,7 @@ def Set_Cout(dicCout,DBsql):
                 valeur = "'%s'"%valeur
             condition += "%s = %s AND "%(cle,valeur)
         condition = condition[:-4]
-        ok = DBsql.ReqMAJ('_PCoûts',couples=None,condition=condition,lstChamps=lstChamps, lstDonnees=lstDonnees,mess=mess)
+        ok = DBsql.ReqMAJ('_Coûts',couples=None,condition=condition,lstChamps=lstChamps, lstDonnees=lstDonnees,mess=mess)
     return ok
 
 def ChercheIDplanCompte(compte, dicPlanComp):
@@ -1170,7 +1178,7 @@ class Traitements():
 #************************   Pour Test ou modèle  *********************************
 if __name__ == '__main__':
     app = wx.App(0)
-    fn = Traitements(annee='2018',client='004301',agc='ANY')
+    fn = Traitements(annee='2018',client='041058',agc='ANY')
     #fn = Traitements(annee='2018',groupe='LOT1',agc='prov')
     print('Retour: ',fn)
 

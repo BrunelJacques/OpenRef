@@ -123,7 +123,7 @@ class DB():
             if self.typeDB == 'mysql':
                 self.connexion = mysql.connector.connect(host=host, user=user, passwd=passwd, port=int(port))
                 etape = 'Création du curseur, après connexion réussie'
-                self.cursor = self.connexion.cursor()
+                self.cursor = self.connexion.cursor(buffered=True)
                 etape = 'premier accès base pour use %s' %nomFichier
                 self.cursor.execute("SHOW DATABASES;")
                 listeBases = self.cursor.fetchall()
