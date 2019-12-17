@@ -38,7 +38,7 @@ def GetChampsTypes(dbtable,tous = True,reel=False,deci=False,dte=False,texte=Fal
     lstHelp = []
     # les params d'un type précisé désactivent le param tous
     if reel or deci or dte or texte : tous=False
-    for ligne in DB_TABLES[dbtable]:
+    for ligne in dbtable:
         champ = ligne[0]
         genre = ligne[1][:3]
         tip = ligne[1]
@@ -55,7 +55,7 @@ def GetChampsTypes(dbtable,tous = True,reel=False,deci=False,dte=False,texte=Fal
 if __name__ == '__main__':
     import wx
     app = wx.App(0)
-    for table in DB_TABLES.keys():
-        print('Table %s :\t'%str(GetChampsTypes(table,True)))
+    for dbTable in DB_TABLES.keys():
+        print('Table %s :\t'%str(GetChampsTypes(dbTable,True)))
     app.MainLoop()
 

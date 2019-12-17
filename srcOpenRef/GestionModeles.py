@@ -225,16 +225,19 @@ class EcranOlv(object):
     
 class Lancement():
     def __init__(self,parent,table):
-        ecran = EcranOlv(self,nomtable=table,dbtable=dtt.DB_TABLES[table],title='[GestionModeles].Lancement')
-        ecran.InitEcran()
+        if table in dtt.DB_TABLES.keys():
+            ecran = EcranOlv(self,nomtable=table,dbtable=dtt.DB_TABLES[table],title='[GestionModeles].Lancement')
+            ecran.InitEcran()
+        else:
+            wx.MessageBox("GestionModeles.Lancement:\n\nLa table %s n'est pas décrite dans DB_TABLES, pb programmation"%table)
+            return 'ko'
 
 #************************   Pour Test ou modèle  *********************************
 if __name__ == '__main__':
     app = wx.App(0)
     import os
     os.chdir("..")
-    fn = Lancement(table = 'mProduits')
-    ret = fn.retour
+    ret = Lancement(None,table = 'mProduits')
     print('Retour appli: ',ret)
 
     app.MainLoop()
