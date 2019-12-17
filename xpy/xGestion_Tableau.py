@@ -595,7 +595,6 @@ class DLG_tableau(wx.Dialog):
 
     def Validation(self,param=None):
         # pour test avec appel de xGestion_Ligne
-        #print('value: ', self.pnl.ctrloutils.barreRecherche.GetValue())
         self.pnl.ctrlOlv.MAJ()
         return True
 

@@ -326,13 +326,13 @@ class DB():
             val = str(valeur)[1:-1]
             val = val.replace("'","")
             val = "'%s', "%val
-        else: val = "'%s', "%str(valeur)
+        else: val = "\"%s\", "%str(valeur)
         couple = " %s = %s"%(champ,val)
         return couple
 
     def DonneesMAJ(self,donnees):
         # décompacte les données en une liste de couples pour requêtes MAJ
-        donneesCouples = ''
+        donneesCouples = ""
         if isinstance(donnees, (tuple,list)):
             for (champ,valeur) in donnees:
                 couple = self.CoupleMAJ(champ, valeur)

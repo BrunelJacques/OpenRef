@@ -34,6 +34,12 @@ DB_TABLES = {
                    ("NomCompte",'varchar(128)','DEFAULT NULL COMMENT', "Désignation longue"),
                    ("Type",'varchar(128)','DEFAULT NULL COMMENT', "Liste des TypesProduit ou TypesCoût qui alimenteront la zone équivalente dans les produits")
         ],
+    'mInfos' : [
+        ("IDMinfo",  'varchar(10)', ' NOT NULL', "Sert de clé externe"),
+        ("NomInfo",  'varchar(46)', ' DEFAULT NULL', "Nom de l'info complémentaire à collecter"),
+        ("Origine",  'varchar(16)', ' DEFAULT NULL', "Table concernée ou contexte de calcul"),
+        ("Type",  'varchar(5)', ' NOT NULL', "Nature de la variable, BOOL, NUM, TEXTE"),
+        ],
     'mAteliers' : [
         ("IDMatelier",  'varchar(16)', ' NOT NULL', "Sert de clé externe"),
         ("NomAtelier",  'varchar(40)', ' DEFAULT NULL', "Nom du modèle d'atelier"),

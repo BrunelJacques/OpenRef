@@ -926,12 +926,12 @@ class Gestion_ligne(object):
                 for cle, val in cletable:
                     if val:
                         # les float ou decimal ne sont pas sensés être dans les clés primaires car pb des arrondis
-                        if isinstance(val, (datetime.date, str, bool)):
-                            valsql = "'%s'" % str(val)
-                            clewhere += '(%s = %s) AND ' % (cle, valsql)
+                        if isinstance(val, (str, bool)):
+                            valsql = "\"%s\"" % str(val)
+                            clewhere += "(%s = %s) AND " % (cle, valsql)
                         elif isinstance(val,int):
                             valsql = str(val)
-                            clewhere += '(%s = %s) AND ' % (cle, valsql)
+                            clewhere += "(%s = %s) AND " % (cle, valsql)
                 clewhere = clewhere[:-4]
                 return clewhere
             self.clewhere = CleWhere(self.lstcle)
@@ -983,7 +983,7 @@ class Gestion_ligne(object):
                 if code in self.lstOlvCodes:
                     ixcol = self.lstOlvCodes.index(code)
                     ixtbl = self.lstTblCodes.index(code)
-                    if len(self.lstOlvValeur) >= ixcol:
+                    if len(self.lstOlvValeur) >= ixcol and ixcol > 0:
                         self.lstTblValeurs[ixtbl]= self.lstOlvValeur[ixcol]
 
     def VerifSelection(self,ctrlolv,mode):
@@ -1075,12 +1075,12 @@ class Gestion_ligne(object):
                             ix = self.lstOlvCodes.index(code)
                             self.selection.donnees[ix] = valeurs[categorie][code]
                             if isinstance(valorigine, (str, datetime.date)):
-                                action = "self.selection.__setattr__('%s','%s')" % (
+                                action = "self.selection.__setattr__(\"%s\",\"%s\")" % (
                                     self.lstOlvCodes[ix], str(valeurs[categorie][code]))
                             elif isinstance(valorigine, (int, float)):
                                 if valeurs[categorie][code] in (None, ''):
                                     valeurs[categorie][code] = '0'
-                                action = "self.selection.__setattr__('%s',%d)" % (
+                                action = "self.selection.__setattr__(\"%s\",%d)" % (
                                     self.lstOlvCodes[ix], float(valeurs[categorie][code]))
                             else:
                                 action = 'pass'

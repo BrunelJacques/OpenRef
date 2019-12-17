@@ -39,6 +39,10 @@ class MENU():
 
     # Deuxième colonne
     {"code": "&modeles\tCtrl-M", "label": ("Structure donnees"), "items": [
+        {"code": "minfos", "label": ("&Gestion des Infos complémentaires "),
+                         "infobulle": (u"Permet la gestion des 'infos complémentaires' de la fiche identification"),
+                         "image": "Images/16x16/Mecanisme.png",
+                         "action": "On_minfos", "genre": wx.ITEM_NORMAL},
         {"code": "mateliers", "label": ("&Gestion des modèles ateliers"),
                          "infobulle": (u"Permet la gestion de la table modèle 'ateliers'"),
                          "image": "Images/16x16/Mecanisme.png",
@@ -132,6 +136,9 @@ class MENU():
         cfg = gc.DLG_gestionTables(self.parent, style = wx.RESIZE_BORDER )
         cfg.Show()
 
+    def On_minfos(self, event):
+        # appel des gestions de tables modèles et constantes
+        gm.Lancement(self.parent, table='mInfos')
 
     def On_mateliers(self,event):
         #appel des gestions de tables modèles et constantes

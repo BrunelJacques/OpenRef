@@ -15,8 +15,6 @@ import xpy.xGestionDB as xdb
 import xpy.xUTILS_SaisieParams as xusp
 import xpy.xGestion_Tableau as xgt
 import xpy.xGestion_Ligne as xgl
-import xpy.outils.xformat as xfmt
-import xpy.outils.xselection as xsel
 import xpy.outils.xdatatables as xdtt
 
 def ValeursDefaut(lstNomsColonnes,lstChamps,lstTypes):
@@ -60,7 +58,7 @@ class EcranOlv(object):
             listArbo = os.path.abspath(__file__).split("\\")
             title = '%s.%s'%(listArbo[-1:][0], self.__class__.__name__)
         self.title = title
-
+        self.ixsel = 0
         # initialisation des propriétés de la table
         self.lstTblChamps, self.lstTblTypes, self.lstTblHelp = [],[],[]
         if dbtable:
@@ -72,15 +70,15 @@ class EcranOlv(object):
             self.lstTblValdef = []
         self.lstTblCodes = [xusp.SupprimeAccents(x) for x in self.lstTblChamps]
  
-        req = "SELECT * FROM %s;"%(self.table)
-        ret = self.InitSql(req,self.lstTblChamps)
+        self.req = "SELECT * FROM %s;"%(self.table)
+        ret = self.InitSql()
 
-    def InitSql(self,req,champs=[]):
-        self.lstReqChamps = champs
+    def InitSql(self):
+        self.lstReqChamps = self.lstTblChamps
         self.lstReqCodes = [xusp.SupprimeAccents(x) for x in self.lstReqChamps]
         self.DBsql = xdb.DB()
         self.recordset = ()
-        retour = self.DBsql.ExecuterReq(req, mess='GestionModeles.EcranOlv\n\n%s'%req)
+        retour = self.DBsql.ExecuterReq(self.req, mess='GestionModeles.EcranOlv\n\n%s'%self.req)
         if retour == "ok":
             self.recordset = self.DBsql.ResultatReq()
             if len(self.recordset) == 0:
@@ -89,18 +87,17 @@ class EcranOlv(object):
             wx.MessageBox("Erreur : %s" % retour)
             return 'ko'
         if retour == 'ok':
-            retour = self.InitMatrice(champs,largeurs=self.lstLargeurColonnes)
+            retour = self.InitMatrice(largeurs=self.lstLargeurColonnes)
         return retour
 
-    def InitMatrice(self,noms=[],champsCol=[],valdef=[],largeurs=[],hauteur=650,largeur=1300,footer=None):
-        self.lstColNoms = noms
-        if len(noms) == 0: self.lstColNoms = self.lstReqChamps
+    def InitMatrice(self,champsCol=[],valdef=[],largeurs=[],hauteur=650,largeur=1300,footer=None):
+        if len(self.lstTblChamps) == 0: self.lstTblChamps = self.lstReqChamps
         
         # les champs col sont les noms de colonne transposés en valeur éventuelle de champs de requête à mettre à jour
         self.lstColChamps = champsCol
         if len(champsCol) == 0: self.lstColChamps = self.lstReqChamps
 
-        self.lstColCodes = [xusp.SupprimeAccents(x) for x in self.lstColNoms]
+        self.lstColCodes = [xusp.SupprimeAccents(x) for x in self.lstTblChamps]
         self.lstColValDef = valdef
         if len(valdef) < len(self.lstColChamps):
             self.lstColValDef.extend([''* (len(self.lstColChamps)-len(valdef))])
@@ -126,7 +123,7 @@ class EcranOlv(object):
             lstDonnees.append(ligne)
             ix += 1
         # matrice OLV
-        lstColonnes = xusp.DefColonnes(self.lstColNoms, self.lstColCodes, self.lstColValDef, self.lstColLargeurs)
+        lstColonnes = xusp.DefColonnes(self.lstTblChamps, self.lstColCodes, self.lstColValDef, self.lstColLargeurs)
         self.dicOlv = {
             'lanceur': self,
             'listeColonnes': lstColonnes,
@@ -144,9 +141,9 @@ class EcranOlv(object):
         self.lstBtns = [('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_fermer.png", wx.BITMAP_TYPE_ANY),
                     "Cliquez ici pour fermer la fenêtre")]
         # params d'actions: idem boutons, ce sont des boutons placés à droite et non en bas
-        self.lstActions = [('ajout', wx.ID_APPLY, 'Ouvrir', "Ouvrir un nouveau atelier dans le dossier"),
-                      ('modif', wx.ID_APPLY, 'Modifier', "Modifier les propriétés du atelier pour le dossier"),
-                      ('suppr', wx.ID_APPLY, 'Supprimer', "Supprimer le atelier dans le dossier"),
+        self.lstActions = [('ajout', wx.ID_APPLY, 'Ajouter', "Ajouter une nouvelle ligne"),
+                      ('modif', wx.ID_APPLY, 'Modifier', "Modifier les propriétés de la ligne pour le dossier"),
+                      ('suppr', wx.ID_APPLY, 'Supprimer', "Supprimer la ligne dans le dossier"),
                       ]
         # un param par info: texte ou objet window.  Les infos sont  placées en bas à gauche
         self.lstInfos = [self.title]
@@ -156,7 +153,7 @@ class EcranOlv(object):
             'modif': 'self.lanceur.OnModif()',
             'suppr': 'self.lanceur.OnSupprimer()'}
 
-    def InitEcran(self,ixsel=0):
+    def InitEcran(self):
         self.dlgolv = xgt.DLG_tableau(self, dicOlv=self.dicOlv, lstBtns=self.lstBtns, lstActions=self.lstActions,
                                       lstInfos=self.lstInfos,dicOnClick=self.dicOnClick)
         # l'objet ctrlolv pourra être appelé, il sert de véhicule à params globaux de l'original
@@ -166,17 +163,15 @@ class EcranOlv(object):
         self.ctrlolv.lstTblCodes = [xusp.SupprimeAccents(x) for x in self.lstTblChamps]
         self.ctrlolv.lstTblValdef = self.lstTblValdef
         self.ctrlolv.recordset = self.recordset
-        if len(self.lstDonnees) > 0:
-            # selection de la première ligne
-            self.ctrlolv.SelectObject(self.ctrlolv.donnees[0])
-        if len(self.lstDonnees) > 0:
-            # selection de la première ligne ou du pointeur précédent
-            self.ctrlolv.SelectObject(self.ctrlolv.donnees[ixsel])
+        if len(self.lstDonnees) > 0 and len(self.lstDonnees)> self.ixsel:
+            # selection de la ligne
+            self.ctrlolv.SelectObject(self.ctrlolv.donnees[self.ixsel+1])
         ret = self.dlgolv.ShowModal()
         return ret
 
     def OnModif(self):
         self.AppelSaisie('modif')
+        self.Reinit()
 
     def OnAjouter(self):
         self.AppelSaisie('ajout')
@@ -184,18 +179,22 @@ class EcranOlv(object):
 
     def OnSupprimer(self):
         self.AppelSaisie('suppr')
+        self.Reinit()
 
     def Reinit(self):
-        ix = self.ixsel
         self.dlgolv.Close()
         del self.ctrlolv
-        self.InitEcran(ixsel = ix)
+        self.InitSql()
+        self.InitEcran()
 
     def AppelSaisie(self, mode):
         ctrlolv = self.ctrlolv
 
         # personnalisation de la grille de saisie : champs à visualiser, position
-        champdeb = self.lstColChamps[1]
+        if mode == 'ajout':
+            ix = 0
+        else: ix = 1
+        champdeb = self.lstColChamps[ix]
         champfin = self.lstColChamps[-1]
         lstEcrChamps = xusp.ExtractList(self.lstTblChamps,champdeb,champfin)
         lstEcrCodes = [xgl.SupprimeAccents(x) for x in lstEcrChamps]
