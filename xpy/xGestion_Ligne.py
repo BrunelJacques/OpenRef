@@ -693,7 +693,7 @@ class BoxPanel(wx.Panel):
                         panel.btn.actionBtn = ligne['btnAction']
                         panel.btn.Bind(wx.EVT_BUTTON,self.parent.OnBtnAction)
                     if panel.ctrl.actionCtrl:
-                        if panel.ctrl.genreCtrl in ['combo','multichoice']:
+                        if panel.ctrl.genreCtrl in ['combo','multichoice','enum']:
                             panel.ctrl.Bind(wx.EVT_COMBOBOX, self.parent.OnCtrlAction)
                             panel.ctrl.Bind(wx.EVT_CHECKBOX, self.parent.OnCtrlAction)
                         else:
@@ -735,6 +735,14 @@ class BoxPanel(wx.Panel):
             name = panel.ctrl.nameCtrl.split('.')[1]
             if  name == code:
                 panel.SetValues(values)
+        return
+
+    def SetEnable(self,code='', value=True):
+        for panel in self.lstPanels:
+            name = panel.ctrl.nameCtrl.split('.')[1]
+            if  name == code:
+                panel.ctrl.Enable(value)
+                panel.txt.Enable(value)
         return
 
 class TopBoxPanel(wx.Panel):
@@ -791,6 +799,11 @@ class TopBoxPanel(wx.Panel):
         for box in self.lstBoxes:
             value = box.GetOneValue(code)
         return value
+
+    def SetEnable(self, code,valeur):
+        for box in self.lstBoxes:
+            box.SetEnable(code,valeur)
+        return
 
 class DLG_ligne(wx.Dialog):
     # variante DLG_vide, avec relais possible d'évènements Boutons ou Controles gérés dans matrice
@@ -960,7 +973,7 @@ class Gestion_ligne(object):
             req = """SELECT *
                     FROM %s
                     WHERE %s;"""%(table,self.clewhere)
-            retour = self.DBsql.ExecuterReq(req, mess='xGestionLigne.EcranSaisie : %s'%table)
+            retour = self.DBsql.ExecuterReq(req, mess='xGestionLigne._init_ : %s'%table)
             if (not retour == "ok"):
                 wx.MessageBox("Erreur : %s"%retour)
             else:
@@ -1005,7 +1018,7 @@ class Gestion_ligne(object):
                 self.lstEcrCodes.append(code)
                 ixtbl = self.lstTblCodes.index(code)
                 valeur = self.lstTblValeurs[ixtbl]
-                if not valeur: valeur = self.lstTblValdef[ixtbl]
+                if valeur == None : valeur = self.lstTblValdef[ixtbl]
                 if (self.mode in ('copie','eclat','ajout')) and isinstance(self.lstTblValdef[ixtbl], (int, float))\
                         and code[:2] != 'id':
                     # raz des valeurs numériques copiées, si ce ne sont pas des 'id'
@@ -1014,6 +1027,18 @@ class Gestion_ligne(object):
                 lstNoms.append(self.lstTblChamps[ixtbl])
                 lstValdef.append(self.lstTblValdef[ixtbl])
                 lstHelp.append(self.lstTblHelp[ixtbl])
+            elif code not in self.lstEcrCodes:
+                # champs d'une colonne pas dans la table : ne se modifie pas
+                self.lstEcrCodes.append(code)
+                ixtbl = self.lstOlvCodes.index(code)
+                valeur = ""
+                if len(self.lstOlvValeur) >= ixtbl:
+                    valeur = self.lstOlvValeur[ixtbl]
+                donnees.append(valeur)
+                lstNoms.append(self.lstOlvCodes[ixtbl])
+                lstValdef.append(valeur)
+                lstHelp.append("")
+
         if len(lstCodes)>0:
             (matrice,donnees) = ComposeMatrice(lstNoms, lstHelp=lstHelp,record=donnees,
                                       dicOptions=dicOptions,lstCodes=lstCodes)
@@ -1027,6 +1052,7 @@ class Gestion_ligne(object):
             if val: self.kwds[mot] = val
         self.dlg = DLG_ligne(self.parent,dldMatrice=self.dictMatrice,ddDonnees=self.dictDonnees,**self.kwds)
 
+    def ShowDlg(self):
         fin = False
         while not fin:
             retdlg = self.dlg.ShowModal()

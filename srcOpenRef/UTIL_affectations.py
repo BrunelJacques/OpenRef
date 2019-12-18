@@ -40,7 +40,7 @@ def ValeursDefaut(lstNomsColonnes,lstChamps,lstTypes):
     for colonne in lstNomsColonnes:
         tip = lstTypes[lstChamps.index(colonne)]
         if tip[:3] == 'int': lstValDef.append(0)
-        elif tip[:10] == 'tinyint(1)': lstValDef.append(True)
+        elif tip[:10] == 'tinyint(1)': lstValDef.append(False)
         elif tip[:5] == 'float': lstValDef.append(0.0)
         elif tip[:4] == 'date': lstValDef.append(datetime.date(1900,1,1))
         else: lstValDef.append('')
@@ -82,6 +82,22 @@ def VerifSelection(parent,dlg,infos=True,mode='modif'):
         nomexploitation = dlg.ctrlOlv.Selection()[0].nomexploitation
         parent.infos = 'Dossier: %s, %s, %s'%(noclient,cloture,nomexploitation)
     return True
+
+def InfosPossibles(dossier,DBsql):
+    lstInfos = []
+    req = """SELECT mInfos.IDMinfo, Sum(IDdossier = %d)
+            FROM mInfos LEFT JOIN _Infos ON mInfos.IDMinfo = _Infos.IDMinfo
+            GROUP BY mInfos.IDMinfo;
+            """%(dossier)
+    retour = DBsql.ExecuterReq(req, mess='Util_affectations.InfosPossibles')
+    if not retour == "ok":
+        wx.MessageBox("Erreur : %s"%retour)
+    else:
+        recordset = DBsql.ResultatReq()
+        for (IDinfos,present) in recordset:
+            if not present == 1:
+                lstInfos.append((IDinfos))
+    return lstInfos
 
 def AteliersOuverts(IDdossier,DBsql):
     lstAteliers = []
@@ -485,6 +501,7 @@ class Balance():
         if self.saisie.ok and mode != 'suppr':
             self.saisie.SetBlocGrille(lstEcrCodes,dicOptions,'Gestion des produits ouverts')
             self.saisie.InitDlg()
+            self.saisie.ShowDlg()
             self.FinSaisie()
         del self.saisie
         self.ctrlolv.SelectObject(self.ctrlolv.donnees[self.ixsel])
@@ -595,6 +612,7 @@ class Balance():
 
 class Ateliers():
     def __init__(self, parent,visu=True):
+        # Ecran qui va afficher toutes les lignes existantes dans un nouvel OLV
         self.title = '[UTIL_affectations].Ateliers'
         self.table = '_Ateliers'
         self.visu = visu
@@ -783,6 +801,7 @@ class Ateliers():
                 # RAZ de toutes les données
                 self.saisie.dictDonnees = {}
             self.saisie.InitDlg()
+            self.saisie.ShowDlg()
         del self.saisie
 
     def Validation(self,valeurs):
@@ -842,8 +861,281 @@ class Ateliers():
             wx.MessageBox(
                 "Echec sur lancement action sur ctrl: '%s' \nLe retour d'erreur est : \n%s" % (self.action, err))
 
+class Infos():
+    def __init__(self, parent,visu=True):
+        # Ecran qui va afficher toutes les lignes existantes dans un nouvel OLV
+        self.title = '[UTIL_affectations].Infos'
+        self.table = '_Infos'
+        self.visu = visu
+        self.mess = ''
+        self.clic = None
+        self.parent = parent
+        self.IDdossier = parent.IDdossier
+
+        # pointeur de la base principale ( ouverture par défaut de db_prim via xGestionDB)
+        self.DBsql = xdb.DB()
+        self.retour = self.EcranInfos()
+
+    def EcranInfos(self,ixsel=0):
+        champsRequete = dtt.GetChamps('_Infos')
+        champsRequete.extend(['NomInfo','Type'])
+        self.lstCodesRequete = [xusp.SupprimeAccents(x) for x in champsRequete]
+        champsSelect =  [ '_Infos.%s'%x for x in dtt.GetChamps('_Infos')]
+        champsSelect.extend(['mInfos.NomInfo','mInfos.Type'])
+        champsSelect = str(champsSelect)[1:-1]
+        champsSelect = champsSelect.replace("'","")
+        # appel des infos utilisés dans le dossier pour affichage en tableau
+        req = """SELECT %s
+                FROM _Infos 
+                LEFT JOIN mInfos ON (_Infos.IDMinfo = mInfos.IDMinfo) 
+                WHERE _Infos.IDdossier = %s
+                ;""" % (champsSelect,self.IDdossier)
+        retour = self.DBsql.ExecuterReq(req, mess='Util_affectations.ListeInfos')
+        if retour == "ok":
+            recordset = self.DBsql.ResultatReq()
+            if len(recordset) == 0:
+                wx.MessageBox("Remarque: %s" %"aucune info complémentaire n'est encore renseignée")
+        if (not retour == "ok"):
+            wx.MessageBox("Erreur : %s" % retour)
+            return 'ko'
+
+        lstNomsColonnes = ['ix','Dossier','Info','Désignation','Type','Num','Bool','Texte']
+        # la listes ChampsColonnes permet de faire le lien avec la table d'origine en modification
+        self.lstChampsColonnes = ['ix','IDdossier','IDMinfo','Désignation','Type','Numerique','Bool','Texte']
+        lstCodesColonnes = [xusp.SupprimeAccents(x) for x in self.lstChampsColonnes]
+
+        lstValDefColonnes = [0,0,"","","",0.0,0,""]
+        lstChamps, lstTypes, lstHelp = dtt.GetChampsTypes(self.table,tous=True)
+        lstLargeurColonnes = [0,80,100,220,60,60,40,150]
+        lstDonnees = []
+        ix=0
+        # composition des données du tableau à partir du recordset
+        for record in recordset:
+            ligne = []
+            # ajustement des valeurs
+            designation = record[champsRequete.index('NomInfo')]
+            # constitution des lignes de données
+            for champ in self.lstChampsColonnes:
+                if champ in champsRequete:
+                    val = record[champsRequete.index(champ)]
+                else:
+                    if champ == 'ix': val = ix
+                    elif champ == 'Désignation': val = designation
+                ligne.append(val)
+            lstDonnees.append(ligne)
+            ix += 1
+        # matrice OLV
+        lstColonnes = xusp.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
+
+        dicOlv = {
+            'lanceur': self,
+            'listeColonnes': lstColonnes,
+            'listeDonnees': lstDonnees,
+            'checkColonne': False,
+            'hauteur': 650,
+            'largeur': 1300,
+            'recherche': True,
+            'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
+            'dictColFooter': {"designation": {"mode": "nombre", "alignement": wx.ALIGN_CENTER},
+                              }
+        }
+
+        # options d'enrichissement de l'écran DLG
+        lstBtns = [('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_fermer.png", wx.BITMAP_TYPE_ANY),
+                    "Cliquez ici pour fermer la fenêtre")]
+        # params d'actions: idem boutons, ce sont des boutons placés à droite et non en bas
+        lstActions = [('ajout', wx.ID_APPLY, 'Ajouter', "Ajouter une info complémentaire dans le dossier"),
+                      ('modif', wx.ID_APPLY, 'Modifier', "Modifier les propriétés des infos pour le dossier"),
+                      ('suppr', wx.ID_APPLY, 'Supprimer', "Supprimer l'info dans le dossier"),
+                      ]
+        # un param par info: texte ou objet window.  Les infos sont  placées en bas à gauche
+        self.trace = self.parent.trace + " - INFOS COMPLEMENTAIRES"
+        self.infos = self.parent.infos
+        lstInfos = [self.infos, self.trace]
+        # params des actions ou boutons: name de l'objet, fonction ou texte à passer par eval()
+        dicOnClick = {
+            'ajout': 'self.lanceur.OnAjouter()',
+            'modif': 'self.lanceur.OnModif()',
+            'suppr': 'self.lanceur.OnSupprimer()'}
+        self.dlgolv = xgt.DLG_tableau(self, dicOlv=dicOlv, lstBtns=lstBtns, lstActions=lstActions, lstInfos=lstInfos,
+                                      dicOnClick=dicOnClick)
+
+
+        # rappel des propriétés de la table
+        self.lstTblChamps, lstTypes, lstHelp = dtt.GetChampsTypes(self.table, tous=True)
+
+        # l'objet ctrlolv pourra être appelé, il sert de véhicule à params globaux de l'original
+        self.ctrlolv = self.dlgolv.ctrlOlv
+        self.ctrlolv.lstTblHelp = lstHelp
+        self.ctrlolv.lstTblChamps = self.lstTblChamps
+        self.ctrlolv.lstTblCodes = [xusp.SupprimeAccents(x) for x in self.lstTblChamps]
+        self.ctrlolv.lstTblValdef = ValeursDefaut(self.lstTblChamps,self.lstTblChamps,lstTypes)
+        self.ctrlolv.recordset = recordset
+        if len(lstDonnees) > 0:
+            # selection de la première ligne
+            self.ctrlolv.SelectObject(self.ctrlolv.donnees[0])
+        ret = wx.ID_OK
+        if len(lstDonnees)>0:
+            # selection de la première ligne ou du pointeur précédent
+            self.ctrlolv.SelectObject(self.ctrlolv.donnees[ixsel])
+        if self.visu:
+            ret = self.dlgolv.ShowModal()
+        return ret
+
+    def OnModif(self):
+        self.AppelSaisie('modif')
+
+    def OnAjouter(self):
+        self.AppelSaisie('ajout')
+        self.Reinit()
+
+    def OnSupprimer(self):
+        self.AppelSaisie('suppr')
+
+    def Reinit(self):
+        ix = self.ixsel
+        self.dlgolv.Close()
+        del self.ctrlolv
+        self.EcranInfos(ixsel = ix)
+
+    def AppelSaisie(self, mode):
+        ctrlolv = self.ctrlolv
+        # personnalisation de la grille de saisie : champs à visualiser, position
+        champdeb = 'IDMinfo'
+        champfin = 'Texte'
+        lstEcrChamps = xusp.ExtractList(self.lstChampsColonnes,champdeb,champfin)
+        lstEcrCodes = [xgl.SupprimeAccents(x) for x in lstEcrChamps]
+
+        kwds = {'pos': (350, 20)}
+        kwds['minSize'] = (350, 600)
+        all = ctrlolv.innerList
+        selection = ctrlolv.Selection()
+        if len(selection)>0:
+            self.ixsel = all.index(selection[0])
+        else: self.ixsel = 0
+
+        # personnalisation des actions
+        dicOptions = {  'idminfo': {'enable': False,},
+                        'designation': {'enable': False,},
+                        'type':{'enable': False},
+                        'bool': {'genre': 'bool',
+                               'value': False,
+                               },}
+
+        if mode == 'ajout':
+            lstInfos = InfosPossibles(self.IDdossier, self.DBsql)
+            dicOptions['idminfo']={'genre':'enum',
+                                      'values': lstInfos,
+                                      'enable':True,
+                                      'help': "Choisissez un info à ouvrir",
+                                      'ctrlAction': 'OnChoixInfo',
+                                      }
+
+        # lancement de l'écran de saisie
+        lstcle = [('IDdossier',self.IDdossier)]
+        self.saisie = xgl.Gestion_ligne(self, self.DBsql, self.table, dtt, mode, ctrlolv,lstcle,**kwds)
+        if self.saisie.ok and mode != 'suppr':
+            self.saisie.SetBlocGrille(lstEcrCodes,dicOptions,'Gestion des infos ouverts')
+            if mode == 'ajout':
+                # RAZ de toutes les données
+                self.saisie.dictDonnees = {}
+            self.saisie.InitDlg()
+            self.OnChoixInfo(None)
+            self.saisie.ShowDlg()
+        del self.saisie
+
+    def Validation(self,valeurs):
+        # test de sortie d'écran
+        messfinal = "Validation de la saisie\n\nFaut-il forcer l'enregistrement mal saisi?\n"
+        retfinal = True
+        # l'ensemble des traitements de sortie sont dans une liste déroulée à programmer ici
+        for item in [self.VerifCleUnique(valeurs),]:
+            ret,mess = item
+            messfinal += "\n%s"%mess
+            #une seule erreur provoquera l'affichage de la confirmation nécessaire
+            retfinal *= ret
+        if not retfinal :
+            retfinal = wx.YES == wx.MessageBox(messfinal,style=wx.YES_NO)
+        return retfinal
+
+    def VerifCleUnique(self,valeurs):
+        mess = ''
+        for categorie, dicDonnees in valeurs.items():
+            idminfo = dicDonnees['idminfo']
+        unique = True
+        if len(idminfo)  == 0:
+            # les champs sont-ils renseignés (ont des longueurs non nulles)
+            unique = False
+            mess += "Il faut choisir obligatoirement un info dans les possibles"
+        if not self.saisie.mode in ['modif','consult']:
+            # on continue en vérifiant si la clé n'est pas dans l'OLV d'origine
+            lstOlvDonnees=self.ctrlolv.donnees
+            lstOlvCodes = self.ctrlolv.lstCodesColonnes
+            ixdos,ixatel = lstOlvCodes.index('iddossier'),lstOlvCodes.index('idminfo'),
+            for ligne in lstOlvDonnees:
+                valeurs = ligne.donnees
+                if (self.IDdossier,idminfo) == (valeurs[ixdos],valeurs[ixatel]):
+                    unique = False
+                    mess += "L'info %s, est déjà ouvert dans le dossier!"%(idminfo)
+        return unique, mess
+
+    def OnChoixInfo(self,event):
+        # une info différente à été choisie, il faut réactualiser l'affichage des autres zones
+        info = self.saisie.dlg.pnl.GetOneValue('idminfo')
+        req = """SELECT NomInfo,Type
+                 FROM mInfos 
+                 WHERE IDMinfo = '%s'
+                 ;""" % (info)
+        retour = self.DBsql.ExecuterReq(req, mess='Util_affectations.OnChoixInfo')
+        if retour == "ok":
+            recordset = self.DBsql.ResultatReq()
+            if len(recordset) == 0:
+                wx.MessageBox("Remarque: %s" % "le code info choisi n'est pas dans la table mInfos")
+            else:
+                designation,tip = recordset[0]
+                self.saisie.dlg.pnl.SetOneValue('designation',designation)
+                self.saisie.dlg.pnl.SetOneValue('type',tip)
+                if tip.upper() == 'BOOL':
+                    self.saisie.dlg.pnl.SetEnable('bool', True)
+                    self.saisie.dlg.pnl.SetEnable('texte', False)
+                    self.saisie.dlg.pnl.SetEnable('numerique', False)
+                elif tip.upper() in ('DBLE','NUM'):
+                    self.saisie.dlg.pnl.SetEnable('numerique', True)
+                    self.saisie.dlg.pnl.SetEnable('texte', False)
+                    self.saisie.dlg.pnl.SetEnable('bool', False)
+                else:
+                    self.saisie.dlg.pnl.SetEnable('texte', True)
+                    self.saisie.dlg.pnl.SetEnable('bool', False)
+                    self.saisie.dlg.pnl.SetEnable('numerique', False)
+        self.saisie.dlg.pnl.Refresh()
+        if event:
+            event.Skip()
+
+    def OnComptes(self,event):
+        wx.MessageBox('En projet une liste de comptes à cocher!!\n pour une saisie en rafale des affectations...')
+        event.Skip()
+
+    def OnChildBtnAction(self, event):
+        # relais des actions sur les boutons du bas d'écran
+        self.action = 'self.%s(event)' % event.EventObject.actionBtn
+        try:
+            eval(self.action)
+        except Exception as err:
+            wx.MessageBox(
+                "Echec sur lancement action sur btn: '%s' \nLe retour d'erreur est : \n%s" % (self.action, err))
+
+    def OnChildCtrlAction(self, event):
+        # relais des actions sur les boutons de droite
+        self.action = 'self.%s(event)' % event.EventObject.actionCtrl
+        try:
+            eval(self.action)
+        except Exception as err:
+            wx.MessageBox(
+                "Echec sur lancement action sur ctrl: '%s' \nLe retour d'erreur est : \n%s" % (self.action, err))
+
 class Produits():
     def __init__(self, parent,visu=True):
+        # Ecran qui va afficher toutes les lignes existantes dans un nouvel OLV
         self.title = '[UTIL_affectations].Produits'
         self.table = '_Produits'
         self.visu = visu
@@ -1039,6 +1331,8 @@ class Produits():
                 # RAZ de toutes les données
                 self.saisie.dictDonnees = {}
             self.saisie.InitDlg()
+            self.saisie.ShowDlg()
+
         del self.saisie
 
     def Validation(self,valeurs):
@@ -1231,6 +1525,7 @@ class Affectations():
                     "Cliquez ici pour fermer la fenêtre")]
         # params d'actions: idem boutons, ce sont des boutons placés à droite et non en bas
         lstActions = [('ident',wx.ID_APPLY,'Descriptif\ndossier',"Cliquez ici pour gérer l'identification"),
+                      ('infos', wx.ID_APPLY, 'Infos\ncompl.', "Cliquez ici pour gérer les informations complémentaires"),
                       ('balance',wx.ID_APPLY,'Balance\nrésultats',"Cliquez ici pour affecter les comptes"),
                       ('ateliers',wx.ID_APPLY,'Ateliers\ndu dossier',"Cliquez ici pour les ateliers"),
                       ('produits',wx.ID_APPLY,'Produits\ndu dossier',"Cliquez ici pour gérer les produits ouverts dans le dossier"),]
@@ -1238,6 +1533,7 @@ class Affectations():
         lstInfos = [self.lancement,]
         # params des actions ou boutons: name de l'objet, fonction ou texte à passer par eval()
         dicOnClick = {'ident' : 'self.lanceur.OnIdent()',
+                      'infos': 'self.lanceur.OnInfos()',
                       'balance' : 'self.lanceur.OnBalance()',
                       'ateliers' : 'self.lanceur.OnAteliers()',
                       'produits' : 'self.lanceur.OnProduits()'}
@@ -1347,6 +1643,12 @@ class Affectations():
             self.ctrlolv.SetFocus()
             self.ctrlolv.SelectObject(self.dlgdossiers.ctrlOlv.donnees[self.ixsel])
 
+    def OnInfos(self):
+        if VerifSelection(self,self.dlgdossiers):
+            Infos(self)
+            self.ctrlolv.SetFocus()
+            self.ctrlolv.SelectObject(self.dlgdossiers.ctrlOlv.donnees[self.ixsel])
+ 
     def OnBalance(self):
         if VerifSelection(self,self.dlgdossiers):
             Balance(self)

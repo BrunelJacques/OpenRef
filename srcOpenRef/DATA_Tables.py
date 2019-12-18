@@ -181,6 +181,13 @@ DB_TABLES = {
         ("Analytique",  'varchar(32)', ' DEFAULT NULL', "Signature informatique de la méthode analytique qui a permis de récupérer l'information avant sa validation, et de l'intervenant qui a validé l'info"),
         ("Validé",  'tinyint(1)', ' DEFAULT NULL', "Fige les infos pour les automates de traitement qui ignoreront alors le dossier"),
         ],
+    '_Infos': [
+        ("IDdossier", 'int(8)', ' NOT NULL',"Agc, Exploitation, Clôture"),
+        ("IDMinfo", 'varchar(10)', ' NOT NULL',"ID renvoyant à la nature de info complémentaire et son libellé"),
+        ("Numerique", 'float', ' DEFAULT NULL', "Valeur si info est un nombre"),
+        ("Bool", 'tinyint(1)', ' DEFAULT NULL', "Valeur si info est une case à cocher"),
+        ("Texte", 'varchar(127)', ' DEFAULT NULL', "Valeur si info est un texte"),
+        ],
     '_Produits' : [
         ("IDdossier",  'int(8)', ' NOT NULL', "Agc, Exploitation, Clôture"),
         ("IDMatelier",  'varchar(16)', ' NOT NULL', "Code de l'atelier modèle duquel il hérite "),

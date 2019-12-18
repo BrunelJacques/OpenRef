@@ -217,6 +217,7 @@ class EcranOlv(object):
                 # RAZ de toutes les données
                 self.saisie.dictDonnees = {}
             self.saisie.InitDlg()
+            self.saisie.ShowDlg()
         del self.saisie
 
     def Validation(self,valeurs):
