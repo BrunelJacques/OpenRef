@@ -44,6 +44,7 @@ class MainFrame(wx.Frame):
     def xInit(self):
         print("Lancement %s"%self.dictAppli["NOM_APPLICATION"])
 
+        print(self.pathXpy)
         os.chdir(self.pathXpy)
         os.chdir('..')
         pathCourant = os.getcwd()

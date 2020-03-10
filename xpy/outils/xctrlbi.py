@@ -94,7 +94,7 @@ class Dialog(wx.Dialog):
         self.bouton_ok1 = CTRL(self, texte="Ok", cheminImage="Images/32x32/Valider.png")
         self.bouton_ok2 = wx.BitmapButton(self, wx.ID_ANY,
                                           wx.Bitmap(u"Images/BoutonsImages/Ok_L72.png", wx.BITMAP_TYPE_ANY))
-        self.bouton_annuler1 = CTRL(self, texte="Annuler", cheminImage="Images/32x32/Fermer.png")
+        self.bouton_annuler1 = CTRL(self, texte="Annuler", cheminImage="Images/32x32/Annuler.png")
         self.bouton_annuler2 = wx.BitmapButton(self, wx.ID_ANY,
                                                wx.Bitmap(u"Images/BoutonsImages/Annuler_L72.png", wx.BITMAP_TYPE_ANY))
 
@@ -135,7 +135,7 @@ class Dialog(wx.Dialog):
         self.CenterOnScreen()
 
     def OnBoutonTest(self, event):
-        self.bouton_aide1.SetImage("Images/32x32/Fermer.png")
+        self.bouton_aide1.SetImage("Images/32x32/Annuler.png")
         self.bouton_aide1.SetTexte("Coucou")
 
 
@@ -152,7 +152,7 @@ def ModifieFichiers():
          """CTRL_Bouton_image.CTRL(self, texte="Annuler", cheminImage="Images/32x32/Annuler.png")""")
         ,
         ("""wx.BitmapButton(self, -1, wx.Bitmap("Images/BoutonsImages/Fermer_L72.png", wx.BITMAP_TYPE_ANY))""",
-         """CTRL_Bouton_image.CTRL(self, texte="Fermer", cheminImage="Images/32x32/Fermer.png")""")
+         """CTRL_Bouton_image.CTRL(self, texte="Fermer", cheminImage="Images/32x32/Annuler.png")""")
         ,
         (
         """wx.BitmapButton(self, wx.ID_CANCEL, wx.Bitmap("Images/BoutonsImages/Annuler_L72.png", wx.BITMAP_TYPE_ANY))""",
@@ -160,7 +160,7 @@ def ModifieFichiers():
         ,
         (
         """wx.BitmapButton(self, wx.ID_CANCEL, wx.Bitmap("Images/BoutonsImages/Fermer_L72.png", wx.BITMAP_TYPE_ANY))""",
-        """CTRL_Bouton_image.CTRL(self, id=wx.ID_CANCEL, texte="Fermer", cheminImage="Images/32x32/Fermer.png")""")
+        """CTRL_Bouton_image.CTRL(self, id=wx.ID_CANCEL, texte="Fermer", cheminImage="Images/32x32/Annuler.png")""")
         ,
 
         ("""wx.BitmapButton(self, -1, wx.Bitmap("Images/BoutonsImages/Imprimer_L72.png", wx.BITMAP_TYPE_ANY))""",
@@ -185,10 +185,10 @@ def ModifieFichiers():
          """CTRL_Bouton_image.CTRL(self, texte="Options", cheminImage="Images/32x32/Configuration.png")""")
         ,
         ("""wx.BitmapButton(self, -1, wx.Bitmap("Images/BoutonsImages/Options.png", wx.BITMAP_TYPE_ANY))""",
-         """CTRL_Bouton_image.CTRL(self, texte="Options", cheminImage="Images/32x32/Configuration2.png")""")
+         """CTRL_Bouton_image.CTRL(self, texte="Options", cheminImage="Images/32x32/Configuration.png")""")
         ,
         ("""wx.BitmapButton(self, -1, wx.Bitmap("Images/BoutonsImages/Outils.png", wx.BITMAP_TYPE_ANY))""",
-         """CTRL_Bouton_image.CTRL(self, texte="Outils", cheminImage="Images/32x32/Configuration.png")""")
+         """CTRL_Bouton_image.CTRL(self, texte="Outils", cheminImage="Images/32x32/Action.png")""")
 
     ]
 

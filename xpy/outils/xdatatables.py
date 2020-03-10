@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #-----------------------------------------------------------
-# Application :    xref tables génériques
+# Application :    xpy tables génériques, outils pour tables
 # Auteur:          Jacques Brunel
 # Licence:         Licence GNU GPL
 #-----------------------------------------------------------

@@ -13,25 +13,27 @@ import wx.html as html
 
 
 class MyHtml(html.HtmlWindow):
-    def __init__(self, parent, texte="", hauteur=25):
+    def __init__(self, parent, texte="", hauteur=25, fontsize = -1):
         html.HtmlWindow.__init__(self, parent, -1,
                                  style=wx.html.HW_NO_SELECTION | wx.html.HW_SCROLLBAR_NEVER | wx.NO_FULL_REPAINT_ON_RESIZE)
         if "gtk2" in wx.PlatformInfo:
             self.SetStandardFonts()
         self.SetBorders(0)
         self.SetMinSize((-1, hauteur))
-        self.SetPage("<FONT SIZE=-2>%s</FONT>""" % texte)
+        self.SetPage("<FONT SIZE=%d>%s</FONT>""" %(fontsize ,texte))
 
 
 class Bandeau(wx.Panel):
-    def __init__(self, parent, titre="", texte="", hauteurHtml=25, nomImage=None):
+    def __init__(self, parent, titre="", texte="", hauteur=15, nomImage=None):
         wx.Panel.__init__(self, parent, id=-1, style=wx.TAB_TRAVERSAL)
         self.nomImage = nomImage
+        self.hauteur = hauteur
         if self.nomImage != None:
             img = wx.Bitmap(self.nomImage, wx.BITMAP_TYPE_ANY)
             self.image = wx.StaticBitmap(self, -1, img)
         self.ctrl_titre = wx.StaticText(self, -1, titre)
-        self.ctrl_intro = MyHtml(self, texte, hauteurHtml)
+        self.ctrl_intro = wx.StaticText(self, -1, texte)
+        #self.ctrl_intro = MyHtml(self, texte, hauteurHtml+20,-1)
         self.ligne = wx.StaticLine(self, -1)
 
         self.__set_properties()
@@ -39,7 +41,9 @@ class Bandeau(wx.Panel):
 
     def __set_properties(self):
         self.SetBackgroundColour(wx.Colour(255, 255, 255))
-        self.ctrl_titre.SetFont(wx.Font(10, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
+        self.ctrl_titre.SetFont(wx.Font(self.hauteur*0.6, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
+        self.ctrl_intro.SetFont(wx.Font(self.hauteur*0.5, wx.DEFAULT, wx.NORMAL, wx.NORMAL, 0, ""))
+        #Font(pixelSize, family, style, weight, underline=False, faceName="", encoding=FONTENCODING_DEFAULT)
 
     def __do_layout(self):
         grid_sizer_vertical = wx.FlexGridSizer(rows=2, cols=1, vgap=4, hgap=4)

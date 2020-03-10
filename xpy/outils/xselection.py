@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # ------------------------------------------------------------------------
-# Application :    Noethys, gestion multi-activités
-# Site internet :  www.noethys.com
-# Auteur:           Ivan LUCAS
-# Copyright:       (c) 2010-11 Ivan LUCAS
+# Application :    xpy, outils pythons
+
+# Auteur:           Jacques BRUNEL
 # Licence:         Licence GNU GPL
 # ------------------------------------------------------------------------
 

@@ -67,7 +67,7 @@ class PreviewControlBar(wx.PyPreviewControlBar):
         # Fermer
         self.staticbox_fermer_staticbox = wx.StaticBox(self, -1, "Fermer")
         self.bouton_fermer = wx.BitmapButton(self, wx.ID_PREVIEW_CLOSE,
-                                             wx.Bitmap("Images/32x32/Fermer.png", wx.BITMAP_TYPE_ANY))
+                                             wx.Bitmap("Images/32x32/Annuler.png", wx.BITMAP_TYPE_ANY))
 
         self.__set_properties()
         self.__do_layout()
@@ -488,7 +488,7 @@ class FramePreview(wx.Frame):
         self.bouton_suivant = wx.BitmapButton(self.panel, -1, wx.Bitmap("Images/32x32/Suivant.png", wx.BITMAP_TYPE_ANY))
         self.bouton_dernier = wx.BitmapButton(self.panel, -1, wx.Bitmap("Images/32x32/Dernier.png", wx.BITMAP_TYPE_ANY))
 
-        self.bouton_fermer = wx.BitmapButton(self.panel, -1, wx.Bitmap("Images/32x32/Fermer.png", wx.BITMAP_TYPE_ANY))
+        self.bouton_fermer = wx.BitmapButton(self.panel, -1, wx.Bitmap("Images/32x32/Annuler.png", wx.BITMAP_TYPE_ANY))
 
         self.ctrl_zoom = wx.Slider(self.panel, -1, 100, 1, 200, size=(200, -1),
                                    style=wx.SL_HORIZONTAL | wx.SL_AUTOTICKS)
