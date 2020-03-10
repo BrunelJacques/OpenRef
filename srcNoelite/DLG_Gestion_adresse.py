@@ -16,11 +16,107 @@ WLIBELLE = 100
 COLUMNSORT = 0
 
 import wx
-import xpy.outils.xbandeau as xbd
-import xpy.xGestion_Tableau as xgt
-from xpy.outils.ObjectListView import FastObjectListView, ColumnDefn, Filter, CTRL_Outils
-import xpy.xGestionDB as xdb
-import xpy.outils.xformat as xfmt
+import xpy.outils.xbandeau      as xbd
+import xpy.xGestion_Tableau     as xgt
+import xpy.xUTILS_SaisieParams  as xusp
+import xpy.xGestionDB           as xdb
+import xpy.outils.xformat       as xfmt
+from xpy.outils.ObjectListView import ColumnDefn, CTRL_Outils
+
+
+def ComposeLstDonnees(lstNomsColonnes,record,lstChamps):
+    # retourne les données pour colonnes, extraites d'un record défini par une liste de champs
+    lstdonnees=[]
+    for nom in lstNomsColonnes:
+        ix = lstChamps.index(nom)
+        lstdonnees.append(record[ix])
+    return lstdonnees
+
+def ValeursDefaut(lstNomsColonnes,lstChamps,lstTypes):
+    # Détermine des valeurs par défaut selon le type des variables
+    lstValDef = []
+    for colonne in lstNomsColonnes:
+        tip = lstTypes[lstChamps.index(colonne)]
+        if tip[:3] == 'int': lstValDef.append(0)
+        elif tip[:10] == 'tinyint(1)': lstValDef.append(False)
+        elif tip[:5] == 'float': lstValDef.append(0.0)
+        elif tip[:4] == 'date': lstValDef.append(datetime.date(1900,1,1))
+        else: lstValDef.append('')
+    return lstValDef
+
+def LargeursDefaut(lstNomsColonnes,lstChamps,lstTypes):
+    # Evaluation de la largeur nécessaire des colonnes selon le type de donnee et la longueur du champ
+    lstLargDef = []
+    for colonne in lstNomsColonnes:
+        if colonne in lstChamps:
+            tip = lstTypes[lstChamps.index(colonne)]
+        else: tip = 'int'
+        if tip[:3] == 'int': lstLargDef.append(40)
+        elif tip[:5] == 'float': lstLargDef.append(60)
+        elif tip[:4] == 'date': lstLargDef.append(60)
+        elif tip[:7] == 'varchar':
+            lg = int(tip[8:-1])*7
+            if lg > 150: lg = 150
+            lstLargDef.append(lg)
+        elif 'blob' in tip:
+            lstLargDef.append(250)
+        else: lstLargDef.append(40)
+    if len(lstLargDef)>0:
+        # La première colonne est masquée
+        lstLargDef[0]=0
+    return lstLargDef
+
+def GetIndividus():
+    # appel des données à afficher
+    lstChamps = (
+        "individus.IDindividu", "rattachements.IDfamille", "IDcivilite", "nom", "prenom",
+        "date_naiss", "adresse_auto", "rue_resid", "cp_resid", "ville_resid",
+        "tel_domicile", "tel_mobile", "mail")
+    lstTypes = ("INTEGER","INTEGER","INTEGER","VARCHAR(100)","VARCHAR(100)",
+                "DATE","INTEGER","VARCHAR(100)","VARCHAR(6)","VARCHAR(100)",
+                "VARCHAR(10)","VARCHAR(10)","VARCHAR(40)")
+    db = xdb.DB()
+    req = """
+            SELECT %s
+            FROM individus
+            LEFT JOIN rattachements
+            ON rattachements.IDindividu = individus.IDindividu
+            ; """ % (",".join(lstChamps))
+    retour = db.ExecuterReq(req, mess='DLG_Gestion_adresse.GetDonnees' )
+    if retour == "ok":
+        recordset = db.ResultatReq()
+        if len(recordset) == 0:
+            retour = "aucun enregistrement disponible"
+    if (not retour == "ok"):
+        wx.MessageBox("Erreur : %s" % retour)
+        return 'ko'
+    db.Close()
+    lstNomsColonnes = xusp.ExtractList(lstChamps, champDeb='IDdossier', champFin='IDligne') \
+                      + xusp.ExtractList(lstChamps, champDeb='IDplanCompte', champFin='Affectation') \
+                      + xusp.ExtractList(lstChamps, champDeb='Libellé', champFin='SoldeFin')
+    lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstNomsColonnes]
+    lstValDefColonnes = ValeursDefaut(lstNomsColonnes, lstChamps, lstTypes)
+    lstLargeurColonnes = LargeursDefaut(lstNomsColonnes, lstChamps, lstTypes)
+    # mask de la colonne numéro de ligne
+    lstLargeurColonnes[2] = 0
+    # composition des données du tableau à partir du recordset
+    lstDonnees = []
+    for record in recordset:
+        ligne = ComposeLstDonnees(lstNomsColonnes, record, lstChamps)
+        lstDonnees.append(ligne)
+
+    # matrice OLV
+    lstColonnes = xusp.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
+    dicOlv = {
+        'listeColonnes': lstColonnes,
+        'listeDonnees': lstDonnees,
+        'checkColonne': True,
+        'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
+        'dictColFooter': {"nomexploitation": {"mode": "nombre", "alignement": wx.ALIGN_CENTER},
+                          }
+    }
+    return dicOlv
+
 class Dialog(wx.Dialog):
     def __init__(self, titre=TITRE, intro=INTRO):
         wx.Dialog.__init__(self, None, -1, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER|wx.MAXIMIZE_BOX|wx.MINIMIZE_BOX)
@@ -46,32 +142,7 @@ class Dialog(wx.Dialog):
         self.__do_layout()
 
     def __init_olv(self):
-        liste_Colonnes = [
-            ColumnDefn("clé", 'left', 70, "cle", valueSetter=1, isSpaceFilling=True, ),
-            ColumnDefn("mot d'ici", 'left', 200, "mot", valueSetter='', isEditable=False),
-            ColumnDefn("nbre", 'right', -1, "nombre", isSpaceFilling=True, valueSetter=0.0,
-                       stringConverter= xfmt.FmtDecimal),
-            ColumnDefn("prix", 'left', 80, "prix", valueSetter=0.0, isSpaceFilling=True,
-                       stringConverter=xfmt.FmtMontant),
-            ColumnDefn("date", 'center', 80, "date", valueSetter=wx.DateTime.FromDMY(1, 0, 1900), isSpaceFilling=True,
-                       stringConverter=xfmt.FmtDate),
-            ColumnDefn("date SQL", 'center', 80, "datesql", valueSetter='2000-01-01', isSpaceFilling=True,
-                       stringConverter=xfmt.FmtDate)
-        ]
-        liste_Donnees = [[18, "Bonjour", -1230.05939, -1230.05939, None, None],
-                         [19, "Bonsoir", 57.5, 208.99, wx.DateTime.FromDMY(15, 11, 2018), '2019-03-29'],
-                         [1, "Jonbour", 0, 209, wx.DateTime.FromDMY(6, 11, 2018), '2019-03-01'],
-                         [29, "Salut", 57.082, 209, wx.DateTime.FromDMY(28, 1, 2019), '2019-11-23'],
-                         [None, "Salutation", 57.08, 0, wx.DateTime.FromDMY(1, 7, 1997), '2019-10-24'],
-                         [2, "Python", 1557.08, 29, wx.DateTime.FromDMY(7, 1, 1997), '2000-12-25'],
-                         [3, "Java", 57.08, 219, wx.DateTime.FromDMY(1, 0, 1900), ''],
-                         [98, "langage C", 10000, 209, wx.DateTime.FromDMY(1, 0, 1900), ''],
-                         ]
-        dicOlv = {'listeColonnes': liste_Colonnes,
-                  'listeDonnees': liste_Donnees,
-                  'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
-                  'dictColFooter': {"mot": {"mode": "nombre", "alignement": wx.ALIGN_CENTER},}
-                  }
+        dicOlv = GetIndividus()
         pnlOlv = xgt.PanelListView(self,**dicOlv)
         if self.avecFooter:
             self.ctrlOlv = pnlOlv.ctrl_listview
@@ -89,7 +160,7 @@ class Dialog(wx.Dialog):
         # Binds
         self.Bind(wx.EVT_BUTTON, self.OnDblClicOk, self.bouton_ok)
         self.Bind(wx.EVT_BUTTON, self.OnDblClicFermer, self.bouton_fermer)
-        #self.listview.Bind(wx.EVT_LIST_ITEM_ACTIVATED,self.OnDblClic)
+        self.ctrlOlv.Bind(wx.EVT_LIST_ITEM_ACTIVATED,self.OnDblClicOk)
 
     def __do_layout(self):
         gridsizer_base = wx.FlexGridSizer(rows=6, cols=1, vgap=0, hgap=0)
@@ -126,11 +197,8 @@ class Dialog(wx.Dialog):
             dlg.ShowModal()
             dlg.Destroy()
         else:
-            self.EndModal(wx.ID_OK)
-
-    def OnDblClic(self, event):
-        self.choix = self.listview.GetSelectedObject()
-        self.EndModal(wx.ID_OK)
+            print(self.choix)
+            event.Skip()
 
     def GetChoix(self):
         self.choix = self.listview.GetSelectedObject()
