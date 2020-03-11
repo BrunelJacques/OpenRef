@@ -11,7 +11,6 @@
 import wx
 import wx.html as html
 
-
 class MyHtml(html.HtmlWindow):
     def __init__(self, parent, texte="", hauteur=25, fontsize = -1):
         html.HtmlWindow.__init__(self, parent, -1,

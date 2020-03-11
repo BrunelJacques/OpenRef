@@ -17,6 +17,19 @@ import xpy.xUTILS_Config as xucfg
 
 DICT_CONNEXIONS = {}
 
+def NoPunctuation(txt = ''):
+    import re
+    punctuation = u"'!\"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~'"
+    regex = re.compile('[%s]' % re.escape(punctuation))
+    return regex.sub(' ', txt)
+
+def Supprime_accent(texte):
+    liste = [ (u"é", u"e"), (u"è", u"e"), (u"ê", u"e"), (u"ë", u"e"), (u"à", u"a"), (u"û", u"u"), (u"ô", u"o"), (u"ç", u"c"), (u"î", u"i"), (u"ï", u"i"),]
+    for a, b in liste :
+        texte = texte.replace(a, b)
+        texte = texte.replace(a.upper(), b.upper())
+    return texte
+
 class DB():
     # accès à la base de donnees principale
     def __init__(self, IDconnexion = None, config=None, grpConfig='db_prim'):

@@ -139,7 +139,7 @@ def DefColonnes(lstNoms,lstCodes,lstValDef,lstLargeur):
             else:
                 stringConverter = xfmt.FmtInt
         elif isinstance(lstValDef[ix], int):
-            stringConverter = xfmt.FmtInt
+            stringConverter = None
         elif isinstance(lstValDef[ix], (datetime.date,wx.DateTime)):
             stringConverter = xfmt.FmtDate
         else: stringConverter = None

@@ -11,11 +11,9 @@
 
 import wx
 import time
-import os
 
 import PIL.Image as Image
 import PIL.ImageOps as ImageOps
-
 
 def PILtoWx(image):
     """Convert a PIL image to wx image format"""
@@ -24,7 +22,6 @@ def PILtoWx(image):
     imagewx.SetData(image.tobytes('raw', 'RGB'))
     imagewx.SetAlpha(image.convert("RGBA").tobytes()[3::4])
     return imagewx
-
 
 class CTRL(wx.Button):
     def __init__(self, parent, id=-1, texte="", cheminImage=None, tailleImage=(20, 20), margesImage=(4, 0, 0, 0),
@@ -76,7 +73,6 @@ class CTRL(wx.Button):
 
     # -------------------------------------------- DLG de test -----------------------------------------------------
 
-
 class Dialog(wx.Dialog):
     def __init__(self, parent):
         wx.Dialog.__init__(self, parent, -1,
@@ -85,18 +81,18 @@ class Dialog(wx.Dialog):
         t1 = time.time()
 
         self.label_test = wx.StaticText(self, wx.ID_ANY, "Test :")
-        self.ctrl_test = wx.TextCtrl(self, wx.ID_ANY, u"", style=wx.TE_MULTILINE)
+        self.ctrl_test = wx.TextCtrl(self, wx.ID_ANY, "", style=wx.TE_MULTILINE)
 
         self.bouton_aide1 = CTRL(self, texte="Transmettre\npar Email", tailleImage=(32, 32), margesImage=(4, 4, 0, 0),
-                                 margesTexte=(0, 1), cheminImage="Images/32x32/Emails_exp.png")
+                                 margesTexte=(0, 1), cheminImage="xpy/Images/32x32/Emails_exp.png")
         self.bouton_aide2 = wx.BitmapButton(self, wx.ID_ANY,
-                                            wx.Bitmap(u"Images/BoutonsImages/Aide_L72.png", wx.BITMAP_TYPE_ANY))
-        self.bouton_ok1 = CTRL(self, texte="Ok", cheminImage="Images/32x32/Valider.png")
+                                            wx.Bitmap("xpy/Images/32x32/Aide.png", wx.BITMAP_TYPE_ANY))
+        self.bouton_ok1 = CTRL(self, texte="Ok", cheminImage="xpy/Images/32x32/Valider.png")
         self.bouton_ok2 = wx.BitmapButton(self, wx.ID_ANY,
-                                          wx.Bitmap(u"Images/BoutonsImages/Ok_L72.png", wx.BITMAP_TYPE_ANY))
-        self.bouton_annuler1 = CTRL(self, texte="Annuler", cheminImage="Images/32x32/Annuler.png")
+                                          wx.Bitmap("xpy/Images/32x32/Valider.png", wx.BITMAP_TYPE_ANY))
+        self.bouton_annuler1 = CTRL(self, texte="Annuler", cheminImage="xpy/Images/32x32/Annuler.png")
         self.bouton_annuler2 = wx.BitmapButton(self, wx.ID_ANY,
-                                               wx.Bitmap(u"Images/BoutonsImages/Annuler_L72.png", wx.BITMAP_TYPE_ANY))
+                                               wx.Bitmap("xpy/Images/32x32/Annuler.png", wx.BITMAP_TYPE_ANY))
 
         self.__set_properties()
         self.__do_layout()
@@ -135,119 +131,14 @@ class Dialog(wx.Dialog):
         self.CenterOnScreen()
 
     def OnBoutonTest(self, event):
-        self.bouton_aide1.SetImage("Images/32x32/Annuler.png")
-        self.bouton_aide1.SetTexte("Coucou")
+        self.bouton_aide1.SetImage("xpy/Images/32x32/Annuler.png")
+        self.bouton_aide1.SetTexte("Couco")
 
-
-def ModifieFichiers():
-    listeTextes = [
-
-        ("""wx.BitmapButton(self, -1, wx.Bitmap("Images/BoutonsImages/Aide_L72.png", wx.BITMAP_TYPE_ANY))""",
-         """CTRL_Bouton_image.CTRL(self, texte="Aide", cheminImage="Images/32x32/Aide.png")""")
-        ,
-        ("""wx.BitmapButton(self, -1, wx.Bitmap("Images/BoutonsImages/Ok_L72.png", wx.BITMAP_TYPE_ANY))""",
-         """CTRL_Bouton_image.CTRL(self, texte="Ok", cheminImage="Images/32x32/Valider.png")""")
-        ,
-        ("""wx.BitmapButton(self, -1, wx.Bitmap("Images/BoutonsImages/Annuler_L72.png", wx.BITMAP_TYPE_ANY))""",
-         """CTRL_Bouton_image.CTRL(self, texte="Annuler", cheminImage="Images/32x32/Annuler.png")""")
-        ,
-        ("""wx.BitmapButton(self, -1, wx.Bitmap("Images/BoutonsImages/Fermer_L72.png", wx.BITMAP_TYPE_ANY))""",
-         """CTRL_Bouton_image.CTRL(self, texte="Fermer", cheminImage="Images/32x32/Annuler.png")""")
-        ,
-        (
-        """wx.BitmapButton(self, wx.ID_CANCEL, wx.Bitmap("Images/BoutonsImages/Annuler_L72.png", wx.BITMAP_TYPE_ANY))""",
-        """CTRL_Bouton_image.CTRL(self, id=wx.ID_CANCEL, texte="Annuler", cheminImage="Images/32x32/Annuler.png")""")
-        ,
-        (
-        """wx.BitmapButton(self, wx.ID_CANCEL, wx.Bitmap("Images/BoutonsImages/Fermer_L72.png", wx.BITMAP_TYPE_ANY))""",
-        """CTRL_Bouton_image.CTRL(self, id=wx.ID_CANCEL, texte="Fermer", cheminImage="Images/32x32/Annuler.png")""")
-        ,
-
-        ("""wx.BitmapButton(self, -1, wx.Bitmap("Images/BoutonsImages/Imprimer_L72.png", wx.BITMAP_TYPE_ANY))""",
-         """CTRL_Bouton_image.CTRL(self, texte="Imprimer", cheminImage="Images/32x32/Imprimante.png")""")
-        ,
-        ("""wx.BitmapButton(self, -1, wx.Bitmap("Images/BoutonsImages/Apercu_L72.png", wx.BITMAP_TYPE_ANY))""",
-         """CTRL_Bouton_image.CTRL(self, texte="Aperçu", cheminImage="Images/32x32/Apercu.png")""")
-        ,
-
-        ("""wx.BitmapButton(self, -1, wx.Bitmap("Images/BoutonsImages/Envoyer_par_email.png", wx.BITMAP_TYPE_ANY))""",
-         """CTRL_Bouton_image.CTRL(self, texte="Envoyer par Email", cheminImage="Images/32x32/Emails_exp.png")""")
-        ,
-        ("""wx.BitmapButton(self, -1, wx.Bitmap("Images/BoutonsImages/Envoyer_mail.png", wx.BITMAP_TYPE_ANY))""",
-         """CTRL_Bouton_image.CTRL(self, texte="Envoyer l'Email", cheminImage="Images/32x32/Emails_exp.png")""")
-        ,
-
-        ("""wx.BitmapButton(self, -1, wx.Bitmap("Images/BoutonsImages/Rafraichir_liste.png", wx.BITMAP_TYPE_ANY))""",
-         """CTRL_Bouton_image.CTRL(self, texte="Rafraîchir la liste", cheminImage="Images/32x32/Actualiser.png")""")
-        ,
-
-        ("""wx.BitmapButton(self, -1, wx.Bitmap("Images/BoutonsImages/Options_L72.png", wx.BITMAP_TYPE_ANY))""",
-         """CTRL_Bouton_image.CTRL(self, texte="Options", cheminImage="Images/32x32/Configuration.png")""")
-        ,
-        ("""wx.BitmapButton(self, -1, wx.Bitmap("Images/BoutonsImages/Options.png", wx.BITMAP_TYPE_ANY))""",
-         """CTRL_Bouton_image.CTRL(self, texte="Options", cheminImage="Images/32x32/Configuration.png")""")
-        ,
-        ("""wx.BitmapButton(self, -1, wx.Bitmap("Images/BoutonsImages/Outils.png", wx.BITMAP_TYPE_ANY))""",
-         """CTRL_Bouton_image.CTRL(self, texte="Outils", cheminImage="Images/32x32/Action.png")""")
-
-    ]
-
-    # Get fichiers
-    listeFichiers = os.listdir(os.getcwd())
-    indexFichier = 0
-    for nomFichier in listeFichiers:
-        if nomFichier.endswith("py") and nomFichier.startswith(
-                "DATA_") == False and nomFichier != "CTRL_Bouton_image.py":
-            print("%d/%d :  %s..." % (indexFichier, len(listeFichiers), nomFichier))
-
-            # Ouverture des fichiers
-            fichier = open(nomFichier, "r")
-            dirty = False
-
-            listeLignes = []
-            for ligne in fichier:
-
-                # Corrections diverses
-                if "wx.BitmapButton(" in ligne:
-                    if "wx.ID_ANY" in ligne:
-                        ligne = ligne.replace("wx.ID_ANY", "-1")
-                        dirty = True
-                    if """u"Images/BoutonsImages""" in ligne:
-                        ligne = ligne.replace("""(u"Images/BoutonsImages""", """("Images/BoutonsImages""")
-                        dirty = True
-
-                # Remplacement des chaines
-                for texteAncien, texteNouveau in listeTextes:
-                    if texteAncien in ligne:
-                        ligne = ligne.replace(texteAncien, texteNouveau)
-                        dirty = True
-
-                # Ecriture du nouveau fichier
-                listeLignes.append(ligne)
-
-                # Insertion de l'import
-            ##                if "import wx\n" in ligne :
-            ##                    listeLignes.append("import CTRL_Bouton_image\n")
-            ##                    dirty = True
-
-            # Clôture des fichiers
-            fichier.close()
-
-            # Ecriture du nouveau fichier
-            if dirty == True:
-                nouveauFichier = open("New/%s" % nomFichier, "w")
-                for ligne in listeLignes:
-                    nouveauFichier.write(ligne)
-                nouveauFichier.close()
-
-        indexFichier += 1
-
-
-if __name__ == u"__main__":
-    ##    ModifieFichiers()
-
+if __name__ == "__main__":
     app = wx.App(0)
-    # wx.InitAllImageHandlers()
+    import os
+    os.chdir("..")
+    os.chdir("..")
     dialog_1 = Dialog(None)
     app.SetTopWindow(dialog_1)
     dialog_1.ShowModal()

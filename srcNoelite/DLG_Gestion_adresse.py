@@ -10,33 +10,31 @@ NOM_MODULE = "DLG_Gestion_adresse"
 ACTION = "Gestion\nadresse"
 TITRE = "Choisissez un individu !"
 INTRO = "Double clic pour lancer la gestion de l'adresse"
-MINSIZE = (900,550)
+MINSIZE = (1200,650)
 WCODE = 150
 WLIBELLE = 100
-COLUMNSORT = 0
+COLONNETRI = 2
 
 import wx
+import datetime
 import xpy.outils.xbandeau      as xbd
 import xpy.xGestion_Tableau     as xgt
 import xpy.xUTILS_SaisieParams  as xusp
 import xpy.xGestionDB           as xdb
-import xpy.outils.xformat       as xfmt
-from xpy.outils.ObjectListView import ColumnDefn, CTRL_Outils
+from xpy.outils.ObjectListView import CTRL_Outils
 
-
-def ComposeLstDonnees(lstNomsColonnes,record,lstChamps):
+def ComposeLstDonnees(record,lstChamps):
     # retourne les données pour colonnes, extraites d'un record défini par une liste de champs
     lstdonnees=[]
-    for nom in lstNomsColonnes:
-        ix = lstChamps.index(nom)
+    for ix in range(len(lstChamps)):
         lstdonnees.append(record[ix])
     return lstdonnees
 
-def ValeursDefaut(lstNomsColonnes,lstChamps,lstTypes):
+def ValeursDefaut(lstNomsColonnes,lstTypes):
     # Détermine des valeurs par défaut selon le type des variables
-    lstValDef = []
-    for colonne in lstNomsColonnes:
-        tip = lstTypes[lstChamps.index(colonne)]
+    lstValDef = [0,]
+    for ix in range(1,len(lstNomsColonnes)):
+        tip = lstTypes[ix].lower()
         if tip[:3] == 'int': lstValDef.append(0)
         elif tip[:10] == 'tinyint(1)': lstValDef.append(False)
         elif tip[:5] == 'float': lstValDef.append(0.0)
@@ -44,45 +42,37 @@ def ValeursDefaut(lstNomsColonnes,lstChamps,lstTypes):
         else: lstValDef.append('')
     return lstValDef
 
-def LargeursDefaut(lstNomsColonnes,lstChamps,lstTypes):
+def LargeursDefaut(lstNomsColonnes,lstTypes):
     # Evaluation de la largeur nécessaire des colonnes selon le type de donnee et la longueur du champ
-    lstLargDef = []
-    for colonne in lstNomsColonnes:
-        if colonne in lstChamps:
-            tip = lstTypes[lstChamps.index(colonne)]
-        else: tip = 'int'
-        if tip[:3] == 'int': lstLargDef.append(40)
+    lstLargDef = [0,]
+    for ix in range(1, len(lstNomsColonnes)):
+        tip = lstTypes[ix]
+        tip = tip.lower()
+        if tip[:3] == 'int': lstLargDef.append(50)
         elif tip[:5] == 'float': lstLargDef.append(60)
-        elif tip[:4] == 'date': lstLargDef.append(60)
+        elif tip[:4] == 'date': lstLargDef.append(80)
         elif tip[:7] == 'varchar':
-            lg = int(tip[8:-1])*7
-            if lg > 150: lg = 150
+            lg = int(tip[8:-1])*8
+            if lg > 150: lg = -1
             lstLargDef.append(lg)
         elif 'blob' in tip:
             lstLargDef.append(250)
         else: lstLargDef.append(40)
-    if len(lstLargDef)>0:
-        # La première colonne est masquée
-        lstLargDef[0]=0
     return lstLargDef
 
 def GetIndividus():
     # appel des données à afficher
-    lstChamps = (
-        "individus.IDindividu", "rattachements.IDfamille", "IDcivilite", "nom", "prenom",
-        "date_naiss", "adresse_auto", "rue_resid", "cp_resid", "ville_resid",
-        "tel_domicile", "tel_mobile", "mail")
-    lstTypes = ("INTEGER","INTEGER","INTEGER","VARCHAR(100)","VARCHAR(100)",
-                "DATE","INTEGER","VARCHAR(100)","VARCHAR(6)","VARCHAR(100)",
-                "VARCHAR(10)","VARCHAR(10)","VARCHAR(40)")
+    lstChamps = ["0","IDindividu", "nom", "prenom","date_naiss", "adresse_auto",
+                "rue_resid", "cp_resid", "ville_resid","tel_domicile", "tel_mobile", "mail"]
+    lstNomsColonnes = ["null","Individu", "Nom", "Prenom","Naissance","adresse",
+                        "rue", "cp", "ville","teldom", "telmob", "mail"]
+    lstTypes = ["INTEGER","INTEGER","VARCHAR(100)","VARCHAR(100)","DATE","INTEGER",
+                "VARCHAR(100)","VARCHAR(8)","VARCHAR(100)","VARCHAR(11)","VARCHAR(11)","VARCHAR(40)"]
     db = xdb.DB()
-    req = """
-            SELECT %s
+    req = """SELECT %s
             FROM individus
-            LEFT JOIN rattachements
-            ON rattachements.IDindividu = individus.IDindividu
             ; """ % (",".join(lstChamps))
-    retour = db.ExecuterReq(req, mess='DLG_Gestion_adresse.GetDonnees' )
+    retour = db.ExecuterReq(req, mess='%s.GetIndividus'%NOM_MODULE )
     if retour == "ok":
         recordset = db.ResultatReq()
         if len(recordset) == 0:
@@ -91,35 +81,31 @@ def GetIndividus():
         wx.MessageBox("Erreur : %s" % retour)
         return 'ko'
     db.Close()
-    lstNomsColonnes = xusp.ExtractList(lstChamps, champDeb='IDdossier', champFin='IDligne') \
-                      + xusp.ExtractList(lstChamps, champDeb='IDplanCompte', champFin='Affectation') \
-                      + xusp.ExtractList(lstChamps, champDeb='Libellé', champFin='SoldeFin')
     lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstNomsColonnes]
-    lstValDefColonnes = ValeursDefaut(lstNomsColonnes, lstChamps, lstTypes)
-    lstLargeurColonnes = LargeursDefaut(lstNomsColonnes, lstChamps, lstTypes)
-    # mask de la colonne numéro de ligne
-    lstLargeurColonnes[2] = 0
+    lstValDefColonnes = ValeursDefaut(lstNomsColonnes, lstTypes)
+    lstLargeurColonnes = LargeursDefaut(lstNomsColonnes, lstTypes)
     # composition des données du tableau à partir du recordset
     lstDonnees = []
     for record in recordset:
-        ligne = ComposeLstDonnees(lstNomsColonnes, record, lstChamps)
+        ligne = ComposeLstDonnees( record, lstChamps)
         lstDonnees.append(ligne)
 
     # matrice OLV
     lstColonnes = xusp.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
-    dicOlv = {
-        'listeColonnes': lstColonnes,
-        'listeDonnees': lstDonnees,
-        'checkColonne': True,
-        'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
-        'dictColFooter': {"nomexploitation": {"mode": "nombre", "alignement": wx.ALIGN_CENTER},
-                          }
-    }
+    dicOlv =    {
+                'listeColonnes': lstColonnes,
+                'listeDonnees': lstDonnees,
+                'checkColonne': False,
+                'colonneTri': COLONNETRI,
+                'style': wx.LC_SINGLE_SEL|wx.LC_HRULES|wx.LC_VRULES,
+                'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
+                'dictColFooter': {"nom": {"mode": "nombre", "alignement": wx.ALIGN_CENTER},}
+                }
     return dicOlv
 
 class Dialog(wx.Dialog):
     def __init__(self, titre=TITRE, intro=INTRO):
-        wx.Dialog.__init__(self, None, -1, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER|wx.MAXIMIZE_BOX|wx.MINIMIZE_BOX)
+        wx.Dialog.__init__(self, None, -1, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
         self.SetTitle(NOM_MODULE)
         self.choix= None
         self.avecFooter = True
@@ -136,7 +122,7 @@ class Dialog(wx.Dialog):
         self.bouton_fermer = wx.Button(self, id = wx.ID_CANCEL,label=(u"Fermer"))
         self.bouton_fermer.SetBitmap(bmpabort)
 
-
+        # Initialisations
         self.__init_olv()
         self.__set_properties()
         self.__do_layout()
@@ -197,7 +183,7 @@ class Dialog(wx.Dialog):
             dlg.ShowModal()
             dlg.Destroy()
         else:
-            print(self.choix)
+            print(self.choix.individu)
             event.Skip()
 
     def GetChoix(self):

@@ -2360,6 +2360,7 @@ class ObjectListView(wx.ListCtrl):
             self.SetFilter(Filter.Chain(self.filtrerAndNotOr,*listeFiltres))
         else: self.SetFilter(Filter.Chain(True,*listeFiltres))
         self.RepopulateList()
+        self.MAJ_footer()
         self.Refresh()
         #self.OnCheck(None)
 
@@ -2390,12 +2391,22 @@ class ObjectListView(wx.ListCtrl):
                     filtre = "track.%s != None and track.%s.lower() != '%s'.lower()" % (code, code, criteres)
                 if choix == "CONTIENT":
                     filtre = "track.%s != None and '%s'.lower() in track.%s.lower()" % (code, criteres, code)
+                if choix == "COMMENCE":
+                    lg = len(criteres)
+                    filtre = "track.%s != None and '%s'.lower()[:%d] == track.%s.lower()[:%d]" % (code, criteres, lg, code, lg)
                 if choix == "CONTIENTPAS":
                     filtre = "track.%s != None and '%s'.lower() not in track.%s.lower()" % (code, criteres, code)
                 if choix == "VIDE":
                     filtre = "track.%s == '' or track.%s == None" % (code, code)
                 if choix == "PASVIDE":
                     filtre = "track.%s != '' and track.%s != None" % (code, code)
+                if choix == "DANS" :
+                    lst = criteres.split(";")
+                    serie = u"["
+                    for x in lst:
+                        serie += "'%s'"%x.lower().strip() + u","
+                    serie += u"]"
+                    filtre = "track.%s != None and track.%s.lower() in %s" % (code, code, serie)
                 if choix == "SUPEGAL":
                     filtre = "track.%s.lower() >= '%s'.lower()" % (code, criteres)
                 if choix == "INFEGAL":
@@ -2403,7 +2414,12 @@ class ObjectListView(wx.ListCtrl):
 
             # Entier, montant
             if typeDonnee in (int, float):
-                criteres = str(criteres)
+                if choix == "COMPRIS" :
+                    min = str(criteres.split(";")[0])
+                    max = str(criteres.split(";")[1])
+                    filtre = "track.%s >= %s and track.%s <= %s" % (code, min, code, max)
+                else :
+                    criteres = str(criteres)
                 if choix == "EGAL":
                     filtre = "track.%s == %s" % (code, criteres)
                 if choix == "DIFFERENT":
@@ -2477,7 +2493,6 @@ class ObjectListView(wx.ListCtrl):
 ########################################################################
 
 class AbstractVirtualObjectListView(ObjectListView):
-
     """
     This class holds the behaviour that is common to all virtual lists.
 
@@ -2731,205 +2746,6 @@ class VirtualObjectListView(AbstractVirtualObjectListView):
         VirtualObjectListView can't sort anything by themselves, so this is a no-op.
         """
         pass
-
-########################################################################
-
-class BarreRecherche(wx.SearchCtrl):
-    def __init__(self, parent, listview, texteDefaut="Rechercher..."):
-        wx.SearchCtrl.__init__(self, parent, size=(-1, -1), style=wx.TE_PROCESS_ENTER)
-        self.parent = parent
-        self.listview = listview
-        self.rechercheEnCours = False
-
-        # Assigne cette barre de recherche au listview
-        #self.listview.SetBarreRecherche(self)
-
-        self.SetDescriptiveText(texteDefaut)
-        self.ShowSearchButton(True)
-
-        self.nbreColonnes = self.listview.GetColumnCount()
-        self.listview.SetFilter(Filter.TextSearch(self.listview, self.listview.columns[0:self.nbreColonnes]))
-
-        self.SetCancelBitmap(wx.Bitmap("xpy/Images/16x16/Interdit.png", wx.BITMAP_TYPE_PNG))
-        self.SetSearchBitmap(wx.Bitmap("xpy/Images/16x16/Loupe.png", wx.BITMAP_TYPE_PNG))
-
-        self.Bind(wx.EVT_SEARCHCTRL_SEARCH_BTN, self.OnSearch)
-        self.Bind(wx.EVT_SEARCHCTRL_CANCEL_BTN, self.OnCancel)
-        self.Bind(wx.EVT_TEXT_ENTER, self.OnDoSearch)
-        self.Bind(wx.EVT_TEXT, self.OnDoSearch)
-
-    def OnSearch(self, evt):
-        self.Recherche()
-
-    def OnCancel(self, evt):
-        self.SetValue("")
-        self.Recherche()
-
-    def OnDoSearch(self, evt):
-        self.Recherche()
-
-    def Cancel(self):
-        self.OnCancel(None)
-
-    def Recherche(self):
-        txtSearch = self.GetValue()
-        self.ShowCancelButton(len(txtSearch))
-        if len(txtSearch) > 0:
-            self.listview.SetFilter(Filter.TextSearch(self.listview, self.listview.columns[0:self.nbreColonnes]))
-            self.listview.GetFilter().SetText(txtSearch)
-        self.listview.RepopulateList()
-        self.listview.Filtrer(txtSearch)
-
-class CTRL_Outils(wx.Panel):
-    def __init__(self, parent, listview=None, texteDefaut="Rechercher...", afficherCocher=False,
-                 style=wx.NO_BORDER | wx.TAB_TRAVERSAL):
-        wx.Panel.__init__(self, parent, id=-1, style=style)
-        self.listview = listview
-        self.listeFiltres = []
-        # Contrôles
-        self.barreRecherche = BarreRecherche(self, listview=listview, texteDefaut=texteDefaut)
-        self.bouton_filtrage = wx.Button(self, -1, "Filtrage avancé", size=(-1, 20))
-
-        import wx.lib.platebtn as platebtn
-
-        # Bouton Filtrer
-        self.bouton_filtrer = platebtn.PlateButton(self, -1, " Filtrer",
-                                                   wx.Bitmap("xpy/Images/16x16/Filtre.png", wx.BITMAP_TYPE_ANY))
-        self.bouton_filtrer.SetToolTip("Cliquez ici pour filtrer cette liste")
-
-        menu = wx.Menu()
-        item = wx.MenuItem(menu, 10, "Gérer un filtre",
-                           "Cliquez ici pour accéder à la gestion d'un filtre")
-        item.SetBitmap(wx.Bitmap("xpy/Images/16x16/Filtre.png", wx.BITMAP_TYPE_ANY))
-        menu.Append(item)
-        menu.AppendSeparator()
-        item = wx.MenuItem(menu, 11, "Ajouter un autre filtre",
-                           "Cliquez ici pour ajouter un filtre supplémentaire")
-        item.SetBitmap(wx.Bitmap("xpy/Images/16x16/Filtre.png", wx.BITMAP_TYPE_ANY))
-        menu.Append(item)
-        menu.AppendSeparator()
-        item = wx.MenuItem(menu, 12, "Supprimer tous les filtres", "Cliquez ici pour supprimer tous les filtres")
-        item.SetBitmap(wx.Bitmap("xpy/Images/16x16/Filtre_supprimer.png", wx.BITMAP_TYPE_ANY))
-        menu.Append(item)
-        self.bouton_filtrer.SetMenu(menu)
-
-        self.Bind(wx.EVT_BUTTON, self.OnBoutonFiltrer, self.bouton_filtrer)
-
-        # Bouton Cocher
-        if afficherCocher == True:
-            self.bouton_cocher = platebtn.PlateButton(self, -1, " Cocher",
-                                                      wx.Bitmap("xpy/Images/16x16/Cocher.png", wx.BITMAP_TYPE_ANY))
-            self.bouton_cocher.SetToolTip(
-                "Cliquez ici pour cocher ou décocher rapidement tous les éléments de cette liste")
-
-            menu = wx.Menu()
-            item = wx.MenuItem(menu, 20, "Tout cocher", "Cliquez ici pour cocher tous les éléments de la liste")
-            item.SetBitmap(wx.Bitmap("xpy/Images/16x16/Cocher.png", wx.BITMAP_TYPE_ANY))
-            menu.AppendItem(item)
-            item = wx.MenuItem(menu, 21, "Tout décocher", "Cliquez ici pour décocher tous les éléments de la liste")
-            item.SetBitmap(wx.Bitmap("xpy/Images/16x16/Decocher.png", wx.BITMAP_TYPE_ANY))
-            menu.AppendItem(item)
-            item = wx.MenuItem(menu, 22, "Inverser jusqu'à Selection",
-                               "Cliquez ici pour inverser les coches jusqu'à la selection")
-            item.SetBitmap(wx.Bitmap("xpy/Images/16x16/Decocher.png", wx.BITMAP_TYPE_ANY))
-            menu.AppendItem(item)
-            self.bouton_cocher.SetMenu(menu)
-            self.Bind(wx.EVT_BUTTON, self.OnBoutonCocher, self.bouton_cocher)
-
-        self.Bind(wx.EVT_MENU, self.OnMenu)
-        self.Bind(wx.EVT_SIZE, self.OnSize)
-
-        # Layout
-        sizerbase = wx.BoxSizer(wx.HORIZONTAL)
-        sizerbase.Add(self.barreRecherche, 1, wx.ALL | wx.EXPAND, 0)
-        sizerbase.Add(self.bouton_filtrer, 0, wx.LEFT | wx.EXPAND, 5)
-        if afficherCocher == True:
-            sizerbase.Add(self.bouton_cocher, 0, wx.LEFT | wx.EXPAND, 5)
-        self.SetSizer(sizerbase)
-        self.Layout()
-
-    def OnSize(self, event):
-        self.Refresh()
-        event.Skip()
-
-    def MAJ_ctrl_filtrer(self):
-        """ Met à jour l'image du bouton Filtrage """
-        nbreFiltres = len(self.listview.listeFiltresColonnes)
-
-        # Modifie l'image selon le nbre de filtres activés
-        if nbreFiltres == 0:
-            nomImage = "Filtre"
-        elif nbreFiltres < 10:
-            nomImage = "Filtre"
-        else:
-            nomImage = "Filtre"
-        self.bouton_filtrer.SetBitmap(wx.Bitmap("xpy/Images/16x16/%s.png" % nomImage, wx.BITMAP_TYPE_ANY))
-        self.bouton_filtrer.Refresh()
-
-        # Modifie le tip en fonction des filtres activés
-        if nbreFiltres == 0:
-            texte = "Cliquez ici pour filtrer cette liste"
-        else:
-            if nbreFiltres == 1:
-                texte = "Cliquez ici pour filtrer cette liste\n> 1 filtre activé"
-            else:
-                texte = "Cliquez ici pour filtrer cette liste\n> %d filtres activés" % nbreFiltres
-        self.bouton_filtrer.SetToolTip(texte)
-
-    def SetFiltres(self, listeFiltres=[]):
-        self.listview.SetFiltresColonnes(listeFiltres)
-        self.listview.Filtrer()
-        self.MAJ_ctrl_filtrer()
-
-    def ChoixFiltres(self):
-        dlg = Filter.DLG_saisiefiltre(self, listview=self.listview)
-        if dlg.ShowModal() == wx.ID_OK:
-            self.listeFiltres.append(dlg.GetDonnees())
-            self.listview.SetFiltresColonnes(self.listeFiltres)
-            self.listview.Filtrer()
-            self.MAJ_ctrl_filtrer()
-        dlg.Destroy()
-
-    def UnFiltre(self):
-        self.SupprimerFiltres()
-        self.ChoixFiltres()
-
-    def AjoutFiltre(self):
-        self.listview.original = False
-        self.ChoixFiltres()
-
-    def SupprimerFiltres(self):
-        self.listeFiltres = []
-        self.listview.original = True
-        self.listview.SetFiltresColonnes([])
-        self.listview.Filtrer()
-        self.MAJ_ctrl_filtrer()
-
-    def OnBoutonCocher(self, event):
-        self.bouton_cocher.ShowMenu()
-
-    def OnBoutonFiltrer(self, event):
-        self.bouton_filtrer.ShowMenu()
-
-    def OnMenu(self, event):
-        ID = event.GetId()
-        # Accéder à la gestion des filtres
-        if ID == 10:
-            self.UnFiltre()
-        # ajouter un nouveau filtre
-        if ID == 11:
-            self.AjoutFiltre()
-        # Supprimer tous les filtres
-        if ID == 12:
-            self.SupprimerFiltres()
-        # Tout cocher
-        if ID == 20:
-            self.listview.CocheListeTout()
-        # Tout décocher
-        if ID == 21:
-            self.listview.CocheListeRien()
-        if ID == 22:
-            self.listview.CocheJusqua()
 
 ########################################################################
 
@@ -3761,6 +3577,8 @@ class GroupListView(FastObjectListView):
     #    """
     #    pass
 
+#######################################################################
+
 class ListGroup(object):
 
     """
@@ -4386,6 +4204,205 @@ class ColumnDefn(object):
                 state,
                 self.checkStateSetter,
                 True)
+
+#######################################################################
+
+class BarreRecherche(wx.SearchCtrl):
+    def __init__(self, parent, listview, texteDefaut=u"Saisir un radical puis valider..."):
+        wx.SearchCtrl.__init__(self, parent, size=(-1, -1), style=wx.TE_PROCESS_ENTER)
+        self.parent = parent
+        self.listview = listview
+        self.rechercheEnCours = False
+        self.toptime = None
+
+        # Assigne cette barre de recherche au listview
+        #self.listview.SetBarreRecherche(self)
+
+        self.SetDescriptiveText(texteDefaut)
+        self.ShowSearchButton(True)
+
+        self.nbreColonnes = self.listview.GetColumnCount()
+        self.listview.SetFilter(Filter.TextSearch(self.listview, self.listview.columns[0:self.nbreColonnes]))
+
+        self.SetCancelBitmap(wx.Bitmap("xpy/Images/16x16/Interdit.png", wx.BITMAP_TYPE_PNG))
+        self.SetSearchBitmap(wx.Bitmap("xpy/Images/16x16/Loupe.png", wx.BITMAP_TYPE_PNG))
+
+        self.Bind(wx.EVT_SEARCHCTRL_SEARCH_BTN, self.OnSearch)
+        self.Bind(wx.EVT_SEARCHCTRL_CANCEL_BTN, self.OnCancel)
+        self.Bind(wx.EVT_TEXT_ENTER, self.OnSearch)
+        self.Bind(wx.EVT_TEXT, self.OnDoSearch)
+
+    def OnSearch(self, evt):
+        self.Recherche()
+
+    def OnCancel(self, evt):
+        self.SetValue("")
+        self.Recherche()
+
+    def OnDoSearch(self, evt):
+        txtSearch = self.GetValue()
+        if len(txtSearch) > 4 :
+            self.Recherche()
+
+    def Cancel(self):
+        self.OnCancel(None)
+
+    def Recherche(self):
+        txtSearch = self.GetValue()
+        self.ShowCancelButton(len(txtSearch))
+        #self.listview.RepopulateList()
+        self.listview.Filtrer(txtSearch)
+
+class CTRL_Outils(wx.Panel):
+    def __init__(self, parent, listview=None, texteDefaut="Rechercher...", afficherCocher=False,
+                 style=wx.NO_BORDER | wx.TAB_TRAVERSAL):
+        wx.Panel.__init__(self, parent, id=-1, style=style)
+        self.listview = listview
+        self.listeFiltres = []
+        # Contrôles
+        self.barreRecherche = BarreRecherche(self, listview=listview, texteDefaut=texteDefaut)
+        self.bouton_filtrage = wx.Button(self, -1, "Filtrage avancé", size=(-1, 20))
+
+        import wx.lib.platebtn as platebtn
+
+        # Bouton Filtrer
+        self.bouton_filtrer = platebtn.PlateButton(self, -1, " Filtrer",
+                                                   wx.Bitmap("xpy/Images/16x16/Filtre.png", wx.BITMAP_TYPE_ANY))
+        self.bouton_filtrer.SetToolTip("Cliquez ici pour filtrer cette liste")
+
+        menu = wx.Menu()
+        item = wx.MenuItem(menu, 10, "Gérer un filtre",
+                           "Cliquez ici pour accéder à la gestion d'un filtre")
+        item.SetBitmap(wx.Bitmap("xpy/Images/16x16/Filtre.png", wx.BITMAP_TYPE_ANY))
+        menu.Append(item)
+        menu.AppendSeparator()
+        item = wx.MenuItem(menu, 11, "Ajouter un autre filtre",
+                           "Cliquez ici pour ajouter un filtre supplémentaire")
+        item.SetBitmap(wx.Bitmap("xpy/Images/16x16/Filtre.png", wx.BITMAP_TYPE_ANY))
+        menu.Append(item)
+        menu.AppendSeparator()
+        item = wx.MenuItem(menu, 12, "Supprimer tous les filtres", "Cliquez ici pour supprimer tous les filtres")
+        item.SetBitmap(wx.Bitmap("xpy/Images/16x16/Filtre_supprimer.png", wx.BITMAP_TYPE_ANY))
+        menu.Append(item)
+        self.bouton_filtrer.SetMenu(menu)
+
+        self.Bind(wx.EVT_BUTTON, self.OnBoutonFiltrer, self.bouton_filtrer)
+
+        # Bouton Cocher
+        if afficherCocher == True:
+            self.bouton_cocher = platebtn.PlateButton(self, -1, " Cocher",
+                                                      wx.Bitmap("xpy/Images/16x16/Cocher.png", wx.BITMAP_TYPE_ANY))
+            self.bouton_cocher.SetToolTip(
+                "Cliquez ici pour cocher ou décocher rapidement tous les éléments de cette liste")
+
+            menu = wx.Menu()
+            item = wx.MenuItem(menu, 20, "Tout cocher", "Cliquez ici pour cocher tous les éléments de la liste")
+            item.SetBitmap(wx.Bitmap("xpy/Images/16x16/Cocher.png", wx.BITMAP_TYPE_ANY))
+            menu.AppendItem(item)
+            item = wx.MenuItem(menu, 21, "Tout décocher", "Cliquez ici pour décocher tous les éléments de la liste")
+            item.SetBitmap(wx.Bitmap("xpy/Images/16x16/Decocher.png", wx.BITMAP_TYPE_ANY))
+            menu.AppendItem(item)
+            item = wx.MenuItem(menu, 22, "Inverser jusqu'à Selection",
+                               "Cliquez ici pour inverser les coches jusqu'à la selection")
+            item.SetBitmap(wx.Bitmap("xpy/Images/16x16/Decocher.png", wx.BITMAP_TYPE_ANY))
+            menu.AppendItem(item)
+            self.bouton_cocher.SetMenu(menu)
+            self.Bind(wx.EVT_BUTTON, self.OnBoutonCocher, self.bouton_cocher)
+
+        self.Bind(wx.EVT_MENU, self.OnMenu)
+        self.Bind(wx.EVT_SIZE, self.OnSize)
+
+        # Layout
+        sizerbase = wx.BoxSizer(wx.HORIZONTAL)
+        sizerbase.Add(self.barreRecherche, 1, wx.ALL | wx.EXPAND, 0)
+        sizerbase.Add(self.bouton_filtrer, 0, wx.LEFT | wx.EXPAND, 5)
+        if afficherCocher == True:
+            sizerbase.Add(self.bouton_cocher, 0, wx.LEFT | wx.EXPAND, 5)
+        self.SetSizer(sizerbase)
+        self.Layout()
+
+    def OnSize(self, event):
+        self.Refresh()
+        event.Skip()
+
+    def MAJ_ctrl_filtrer(self):
+        """ Met à jour l'image du bouton Filtrage """
+        nbreFiltres = len(self.listview.listeFiltresColonnes)
+
+        # Modifie l'image selon le nbre de filtres activés
+        if nbreFiltres == 0:
+            nomImage = "Filtre"
+        elif nbreFiltres < 10:
+            nomImage = "Filtre"
+        else:
+            nomImage = "Filtre"
+        self.bouton_filtrer.SetBitmap(wx.Bitmap("xpy/Images/16x16/%s.png" % nomImage, wx.BITMAP_TYPE_ANY))
+        self.bouton_filtrer.Refresh()
+
+        # Modifie le tip en fonction des filtres activés
+        if nbreFiltres == 0:
+            texte = "Cliquez ici pour filtrer cette liste"
+        else:
+            if nbreFiltres == 1:
+                texte = "Cliquez ici pour filtrer cette liste\n> 1 filtre activé"
+            else:
+                texte = "Cliquez ici pour filtrer cette liste\n> %d filtres activés" % nbreFiltres
+        self.bouton_filtrer.SetToolTip(texte)
+
+    def SetFiltres(self, listeFiltres=[]):
+        self.listview.SetFiltresColonnes(listeFiltres)
+        self.listview.Filtrer()
+        self.MAJ_ctrl_filtrer()
+
+    def ChoixFiltres(self):
+        dlg = Filter.DLG_saisiefiltre(self, listview=self.listview)
+        if dlg.ShowModal() == wx.ID_OK:
+            self.listeFiltres.append(dlg.GetDonnees())
+            self.listview.SetFiltresColonnes(self.listeFiltres)
+            self.listview.Filtrer()
+            self.MAJ_ctrl_filtrer()
+        dlg.Destroy()
+
+    def UnFiltre(self):
+        self.SupprimerFiltres()
+        self.ChoixFiltres()
+
+    def AjoutFiltre(self):
+        self.listview.original = False
+        self.ChoixFiltres()
+
+    def SupprimerFiltres(self):
+        self.listeFiltres = []
+        self.listview.original = True
+        self.listview.SetFiltresColonnes([])
+        self.listview.Filtrer()
+        self.MAJ_ctrl_filtrer()
+
+    def OnBoutonCocher(self, event):
+        self.bouton_cocher.ShowMenu()
+
+    def OnBoutonFiltrer(self, event):
+        self.bouton_filtrer.ShowMenu()
+
+    def OnMenu(self, event):
+        ID = event.GetId()
+        # Accéder à la gestion des filtres
+        if ID == 10:
+            self.UnFiltre()
+        # ajouter un nouveau filtre
+        if ID == 11:
+            self.AjoutFiltre()
+        # Supprimer tous les filtres
+        if ID == 12:
+            self.SupprimerFiltres()
+        # Tout cocher
+        if ID == 20:
+            self.listview.CocheListeTout()
+        # Tout décocher
+        if ID == 21:
+            self.listview.CocheListeRien()
+        if ID == 22:
+            self.listview.CocheJusqua()
 
 #======================================================================
 

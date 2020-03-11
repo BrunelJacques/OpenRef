@@ -50,8 +50,6 @@ class ListView(FastObjectListView):
         self.ctrl_footer = None
         self.parent = args[0].parent
         self.pnlfooter = kwds.pop("pnlfooter", None)
-        # Récupération des paramètres perso
-        #self.classeAppelante = kwds.pop("classeAppelante", None)
         self.checkColonne = kwds.pop("checkColonne",True)
         self.listeColonnes = kwds.pop("listeColonnes", [])
         self.msgIfEmpty = kwds.pop("msgIfEmpty", "Tableau vide")
@@ -85,14 +83,9 @@ class ListView(FastObjectListView):
         self.listeFiltres = []
 
         # Initialisation du listCtrl
-        #test
-        #self.test = kwds.pop("dictColFooter", True)
         FastObjectListView.__init__(self, *args,**kwds)
         # Binds perso
-        #self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnItemActivated)
-        #self.Bind(wx.EVT_LIST_ITEM_CHECKED, self.OnItemChecked)
         self.Bind(OLVEvent.EVT_ITEM_CHECKED, self.OnItemChecked)
-        #self.Bind(wx.EVT_LIST_ITEM_UNCHECKED, self.OnItemChecked)
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
 
     def SetFooter(self, ctrl=None, dictColFooter={}):
@@ -102,14 +95,11 @@ class ListView(FastObjectListView):
 
     def MAJ_footer(self):
         if self.ctrl_footer != None:
-            self.ctrl_footer.MAJ()
-            dc = self.ctrl_footer.dc
-            dc.Clear()
-            self.ctrl_footer.Paint(dc)
+            self.ctrl_footer.MAJ_totaux()
+            self.ctrl_footer.MAJ_affichage()
 
     def formerTracks(self):
         self.tracks = list()
-
         if self.listeDonnees is None:
             return
 

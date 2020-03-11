@@ -42,10 +42,12 @@ CHOIX_FILTRES = {float:[
                  str:[
                             ('CONTIENT','contient '),
                             ('CONTIENTPAS','ne contient pas '),
+                            ('COMMENCE','commence par '),
                             ('DIFFERENT','différent de '),
                             ('EGAL','égal à '),
                             ('PASVIDE',"pas à blanc "),
                             ('VIDE','est à blanc '),
+                            ('DANS','dans la liste '),
                             ('INFEGAL', 'inférieur ou égal à '),
                             ('SUPEGAL', 'supérieur ou égal à ')],
 }
