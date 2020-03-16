@@ -7,6 +7,7 @@ import sys
 import os
 import wx
 import xpy.xAppli as xAppli
+import srcNoelite.CTRL_Identification as nid
 
 # Variables incontournables pour xpy
 dictAPPLI = {
@@ -34,6 +35,18 @@ class MyFrame(xAppli.MainFrame):
         # Crée un message initial de bas de fenêtre status bar
         self.CreateStatusBar()
         self.SetStatusText("Noelite est lancé!")
+        dlg = nid.Dialog(self)
+        if dlg.echec:
+            self.Destroy()
+            return
+        ret = dlg.ShowModal()
+        self.dicUser = dlg.GetDictUtilisateur()
+        dlg.Destroy()
+        if self.dicUser:
+            etat = True
+        else: etat = False
+        for numMenu in range(1,2):
+            self.menu.EnableTop(numMenu, etat)
         self.Show()
 
 class MyApp(wx.App):

@@ -12,7 +12,9 @@ import os
 import wx
 import mysql.connector
 import win32com.client
+import sqlite3
 import copy
+import datetime
 import xpy.xUTILS_Config as xucfg
 
 DICT_CONNEXIONS = {}
@@ -30,12 +32,28 @@ def Supprime_accent(texte):
         texte = texte.replace(a.upper(), b.upper())
     return texte
 
+
+def DateEngEnDateDD(dateEng):
+    return datetime.date(int(dateEng[:4]), int(dateEng[5:7]), int(dateEng[8:10]))
+
+def DateDDEnDateEng(datedd):
+    if not isinstance(datedd, datetime.date):
+        return '1900-01-01'
+    aaaa = str(datedd.year)
+    mm = ('00'+str(datedd.month))[-2:]
+    jj = ('00'+str(datedd.day))[-2:]
+    return aaaa+'-'+mm+'-'+jj
+
 class DB():
     # accès à la base de donnees principale
-    def __init__(self, IDconnexion = None, config=None, grpConfig='db_prim'):
+    def __init__(self, IDconnexion = None, config=None, grpConfig='db_prim', nomFichier=None):
         self.echec = 1
         self.IDconnexion = IDconnexion
         self.nomBase = 'personne!'
+        if nomFichier:
+            self.isNetwork = False
+            self.OuvertureFichierLocal(nomFichier)
+            return
         if not IDconnexion:
             self.connexion = None
             # appel des params de connexion stockés dans UserProfile
@@ -113,11 +131,7 @@ class DB():
     def Ping(self,serveur):
         if serveur :
             if len(serveur)>2:
-                ret = os.system('ping ' + serveur)
-                if ret == 0 :
-                    wx.MessageBox("Le serveur '%s' à répondu présent par un Ping\ncf la console système"%serveur)
-                else:
-                    wx.MessageBox("Le serveur '%s' ne répond pas à un Ping\ncf la console système"%serveur)
+                wx.MessageBox("Testez l'accès au serveur '%s'\n\nlancez cmd puis 'ping %s'"%(serveur,serveur))
 
     def ConnexionFichierReseau(self,config):
         self.connexion = None
@@ -156,6 +170,18 @@ class DB():
                 wx.MessageBox("La base '%s' n'est pas sur le serveur qui porte les bases :\n\n %s" % (nomFichier, lstBases ), style=wx.ICON_STOP)
                 self.echec = 1
                 self.connexion = None
+
+    def OuvertureFichierLocal(self, nomFichier):
+        """ Version LOCALE avec SQLITE """
+        # Vérifie que le fichier sqlite existe bien
+        if os.path.isfile(nomFichier) == False:
+            wx.MessageBox("Le fichier local '%s' demande n'est pas present sur le disque dur."%nomFichier)
+            self.echec = 1
+            return
+        # Initialisation de la connexion
+        self.nomBase = nomFichier
+        self.typeDB = "sqlite"
+        self.ConnectSQLite()
 
     def ConnexionFichierLocal(self, config):
         self.connexion = None
@@ -203,7 +229,6 @@ class DB():
     def ConnectSQLite(self):
         # Version LOCALE avec SQLITE
         #nécessite : pip install pysqlite
-        import sqlite3
         # Vérifie que le fichier sqlite existe bien
         if os.path.isfile(self.nomBase) == False:
             wx.MessageBox("Le fichier %s demandé n'est pas present sur le disque dur."% self.nomBase, style = wx.ICON_WARNING)
@@ -367,17 +392,27 @@ class DB():
         donneesCouples = donneesCouples[:-2]+' '
         return donneesCouples
 
-    def ReqMAJ(self, nomTable='', couples=None, condition=None,lstChamps=[], lstDonnees=[], mess=None, affichError=True):
+    def ReqMAJ(self, nomTable='',couples=None,nomChampID=None,ID=None,condition=None,lstDonnees=[],lstChamps=[],
+               mess=None, affichError=True, IDestChaine = False):
         """ Permet de mettre à jour des couples présentées en dic ou liste de tuples"""
-        """ si couple est None, on en crée à partir de lstChamps et lstDonnees"""
-        # Préparation des données
+        # si couple est None, on en crée à partir de lstChamps et lstDonnees
         if couples :
             update = self.DonneesMAJ(couples)
         elif (len(lstChamps) > 0) and (len(lstChamps) == len(lstDonnees)):
             update = self.ListesMAJ(lstChamps,lstDonnees)
+        if nomChampID and ID:
+            # un nom de champ avec un ID vient s'ajouter à la condition
+            if IDestChaine == False and (isinstance(ID, int )):
+                condID = " (%s=%d) "%(nomChampID, ID)
+            else:
+                condID = " (%s='%s') "%(nomChampID, ID)
+            if condition:
+                condition += " AND %s "%(condID)
+            else: condition = condID
+        elif (not condition) or (len(condition.strip()==0)):
+            # si pas de nom de champ et d'ID, la condition ne doit pas être vide sinon tout va updater
+            condition = " FALSE "
         req = "UPDATE %s SET  %s WHERE %s ;" % (nomTable, update, condition)
-        if req[:14] == 'UPDATE _Produi':
-            print()
         # Enregistrement
         try:
             self.cursor.execute(req,)

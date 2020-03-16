@@ -25,16 +25,14 @@ MATRICE_IDENT = {
 }
 MATRICE_USER = {
 ("choix_config","Choisissez votre configuration"):[
-    {'name': 'config', 'genre': 'Enum', 'label': 'Configuration active',
+    {'name': 'config', 'genre': 'Enum', 'label': 'Config active',
                         'help': "Le bouton de droite vous permet de créer une nouvelle configuration",
                         'btnLabel':"...", 'btnHelp':"Cliquez pour gérer les configurations",
                         'btnAction' : 'OnBtnChoixConfig'},
     {'name': 'mpUserDB', 'genre': 'Mpass', 'label': 'Mot de Passe Serveur',
                         'help': 'C\'est le mot de passe connu par la base de donnée'},
-    {'name': 'pseudo', 'genre': 'String', 'label': 'Votre Pseudo d\'accès',
-                        'help': 'Par défaut c\'est votre Identifiant qui sera présenté'},
-    {'name': 'mpuser', 'genre': 'Mpass', 'label': 'Mot de Passe Pseudo',
-                        'help': 'C\'est le mot de passe connu par la base de donnée'},
+    {'name': 'pseudo', 'genre': 'String', 'label': 'Votre pseudo appli',
+                        'help': 'Par défaut c\'est votre Identifiant reconnu dans l\'application'},
     ]
 }
 # db_prim et db_second pourront être présentes dans dictAPPLI['OPTIONSCONFIG'] et repris dans xGestionDB

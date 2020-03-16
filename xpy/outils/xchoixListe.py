@@ -10,9 +10,9 @@
 
 import wx, copy
 from xpy.outils.ObjectListView import FastObjectListView, ColumnDefn, Filter, CTRL_Outils
-import xpy.outils.xbandeau as xbd
-import xpy.xGestionDB
-
+import xpy.xGestionDB           as xdb
+import xpy.outils.xbandeau      as xbd
+import xpy.xGestion_Tableau     as xgt
 
 def FormateMontant(montant):
     if montant == None or montant == "": return ""
@@ -81,8 +81,6 @@ class Track(object):
                 commande = "self.%s = donnees[ix]"%(champ)
             exec(commande)
 
-
-
 class DialogLettrage(wx.Dialog):
     # Gestion d'un lettrage à partir de deux dictionnaires
     def __init__(self, parent,dicList1={},lstChamps1=[],dicList2={},lstChamps2=[],lstLettres=[],columnSort=3,
@@ -123,7 +121,7 @@ class DialogLettrage(wx.Dialog):
                 self.lstLibels[i] += u"/%s"%item
             i +=1
         # le code est le dernier mot du libellé de la colonne, sans accent et en minuscule
-        self.lstCodes = [xpy.xGestionDB.Supprime_accent(x.split(u"/")[-1].strip()).lower() for x in self.lstLibels]
+        self.lstCodes = [xdb.Supprime_accent(x.split(u"/")[-1].strip()).lower() for x in self.lstLibels]
         # vérif unicité code
         lstano = [x for x in self.lstCodes if self.lstCodes.count(x)>1]
         if len(lstano)>0:
@@ -152,7 +150,7 @@ class DialogLettrage(wx.Dialog):
                 return
             nbval = len(champs)
             # balayage des deux dictionnaires de données et de leur liste de champs
-            for key,item in dic.iteritems():
+            for key,item in dic.items():
                 donnee=[sens,key,""] + ([""]*(self.nbValeurs-1)) + [0.0,0.0]
                 ixVal = 3
                 for i in range(nbval):
@@ -170,8 +168,8 @@ class DialogLettrage(wx.Dialog):
                 self.lstDonnees.append(donnee)
 
         # Bandeau
-        self.ctrl_bandeau = xbd.Bandeau(self, titre=titre, texte=intro, hauteurHtml=15,
-                                                 nomImage="xpy.Images/22x22/matth.png")
+        self.ctrl_bandeau = xbd.Bandeau(self, titre=titre, texte=intro, hauteur=15,
+                                                 nomImage="xpy/Images/32x32/matth.png")
         # conteneur des données
         self.listview = FastObjectListView(self, id=-1, style=wx.LC_REPORT | wx.SUNKEN_BORDER | wx.LC_SINGLE_SEL | wx.LC_HRULES | wx.LC_VRULES)
         self.listview.SetMinSize((10, 10))
@@ -495,98 +493,100 @@ class DialogCoches(wx.Dialog):
         self.listview.SetCheckState(self.listview.GetSelectedObject(),state)
         self.listview.Refresh()
 
-class Dialog(wx.Dialog):
-    def __init__(self, parent, listeOriginale=[("Choix1","Texte1"),],LargeurCode=150,LargeurLib=100,colSort=0, minSize=(600, 350),
-                 titre=u"Faites un choix !", intro=u"Double Clic sur la réponse souhaitée..."):
-        wx.Dialog.__init__(self, parent, -1, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER|wx.MAXIMIZE_BOX|wx.MINIMIZE_BOX)
-        self.SetTitle("xchoixListe")
+class DialogAffiche(wx.Dialog):
+    def __init__(self, titre="Ici mon titre", intro="et mes explications", lstDonnees=[("a",2),("b",10)],
+                 lstColonnes=["let","nbre"],size=(600,600)):
+        wx.Dialog.__init__(self, None, -1, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
+
+        self.SetMinSize(size)
+
+        self.dicOlv = {
+            'listeColonnes': self.ComposeColonnes(lstColonnes),
+            'listeDonnees': lstDonnees,
+            'checkColonne': False,
+            'colonneTri': 0,
+            'style': wx.LC_SINGLE_SEL | wx.LC_HRULES | wx.LC_VRULES,
+            'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
+            'dictColFooter': {lstColonnes[0]: {"mode": "nombre", "alignement": wx.ALIGN_CENTER}, }
+        }
+        self.SetTitle("xchoixListe.DialogAffiche")
         self.choix= None
-        self.colSort = colSort
-        self.parent = parent
-        self.minSize = minSize
-        self.wCode = LargeurCode
-        self.wLib = LargeurLib
-        self.liste = []
-        ix = 1
-        for item in listeOriginale :
-            if len(item) == 1:
-                self.liste.append((ix,item[0]))
-            else:
-                self.liste.append(item)
-            ix += 1
+        self.avecFooter = True
+        self.barreRecherche = True
 
         # Bandeau
-        self.ctrl_bandeau = xbd.Bandeau(self, titre=titre, texte=intro,  hauteur=15, nomImage="xpy/Images/32x32/Python.png")
-        # conteneur des données
-        self.listview = FastObjectListView(self)
-        # Boutons
-        self.bouton_ok = wx.Button(self, label=u"Valider",)
-        self.bouton_ok.SetBitmap(wx.Bitmap("xpy/Images/32x32/Valider.png"))
-        self.bouton_fermer = wx.Button(self, label=u"Annuler", )
-        self.bouton_fermer.SetBitmap(wx.Bitmap("xpy/Images/32x32/Annuler.png"))
+        self.ctrl_bandeau = xbd.Bandeau(self, titre=titre, texte=intro,  hauteur=18, nomImage="xpy/Images/32x32/Python.png")
 
+        # Boutons
+        bmpabort = wx.Bitmap("xpy/Images/32x32/Quitter.png")
+        self.bouton_fermer = wx.Button(self, id = wx.ID_CANCEL,label=(u"Fermer"))
+        self.bouton_fermer.SetBitmap(bmpabort)
+
+        # Initialisations
+        self.__init_olv()
         self.__set_properties()
         self.__do_layout()
-        # Binds
-        self.Bind(wx.EVT_BUTTON, self.OnDblClicOk, self.bouton_ok)
-        self.Bind(wx.EVT_BUTTON, self.OnDblClicFermer, self.bouton_fermer)
-        self.listview.Bind(wx.EVT_LIST_ITEM_ACTIVATED,self.OnDblClic)
+
+    def __init_olv(self):
+        dicOlv = self.dicOlv
+        pnlOlv = xgt.PanelListView(self,**dicOlv)
+        if self.avecFooter:
+            self.ctrlOlv = pnlOlv.ctrl_listview
+            self.olv = pnlOlv
+        else:
+            self.ctrlOlv = xgt.ListView(self,**dicOlv)
+            self.olv = self.ctrlOlv
+        if self.barreRecherche:
+            self.ctrloutils = CTRL_Outils(self, listview=self.ctrlOlv, afficherCocher=False)
+        self.ctrlOlv.MAJ()
 
     def __set_properties(self):
-        self.SetMinSize(self.minSize)
         self.bouton_fermer.SetToolTip(u"Cliquez ici pour fermer")
-        self.listview.SetToolTip(u"Double Cliquez pour choisir")
-        # Couleur en alternance des lignes
-        self.listview.oddRowsBackColor = "#F0FBED"
-        self.listview.evenRowsBackColor = wx.Colour(255, 255, 255)
-        self.listview.useExpansionColumn = True
-        self.listview.SetColumns([
-            ColumnDefn("Code", "left", self.wCode,  0),
-            ColumnDefn("Libelle (non modifiables)", "left", self.wLib, 1,isSpaceFilling = True),
-            ])
-        self.listview.SetSortColumn(self.listview.columns[self.colSort])
-        self.listview.SetObjects(self.liste)
+        self.Bind(wx.EVT_BUTTON, self.OnDblClicFermer, self.bouton_fermer)
+        self.ctrlOlv.Bind(wx.EVT_LIST_ITEM_ACTIVATED,self.OnDblClicOk)
 
     def __do_layout(self):
         gridsizer_base = wx.FlexGridSizer(rows=6, cols=1, vgap=0, hgap=0)
-
         gridsizer_base.Add(self.ctrl_bandeau, 1, wx.EXPAND, 0)
-        gridsizer_base.Add(self.listview, 5, wx.LEFT|wx.RIGHT|wx.EXPAND, 0)
-        gridsizer_base.Add((5, 5), 0, wx.LEFT|wx.RIGHT|wx.EXPAND, 0)
+
+        sizerolv = wx.BoxSizer(wx.VERTICAL)
+        sizerolv.Add(self.olv, 10, wx.EXPAND, 10)
+        if self.barreRecherche:
+            sizerolv.Add(self.ctrloutils, 0, wx.EXPAND, 10)
+        gridsizer_base.Add(sizerolv, 10, wx.EXPAND, 10)
+        gridsizer_base.Add(wx.StaticLine(self), 0, wx.TOP| wx.EXPAND, 3)
 
         # Boutons
         gridsizer_boutons = wx.FlexGridSizer(rows=1, cols=3, vgap=0, hgap=0)
         gridsizer_boutons.Add((20, 20), 1, wx.ALIGN_BOTTOM, 0)
-        gridsizer_boutons.Add(self.bouton_ok, 1, wx.EXPAND, 0)
         gridsizer_boutons.Add(self.bouton_fermer, 1, wx.EXPAND, 0)
         gridsizer_boutons.AddGrowableCol(0)
-        gridsizer_base.Add(gridsizer_boutons, 1, wx.RIGHT|wx.BOTTOM|wx.EXPAND, 10)
+        gridsizer_base.Add(gridsizer_boutons, 1, wx.RIGHT|wx.TOP|wx.BOTTOM|wx.EXPAND,5)
         self.SetSizer(gridsizer_base)
         gridsizer_base.Fit(self)
         gridsizer_base.AddGrowableRow(1)
         gridsizer_base.AddGrowableCol(0)
         self.Layout()
-        self.CenterOnScreen() 
+        self.CenterOnScreen()
+
+    def ComposeColonnes(self,lstColonnes):
+        lstDefn = []
+        for colonne in lstColonnes:
+            code = xdb.NoPunctuation(colonne)
+            lstDefn.append(ColumnDefn(colonne, "left",-1,code,isSpaceFilling=True))
+        return lstDefn
 
     def OnDblClicFermer(self, event):
         self.EndModal(wx.ID_CANCEL)
 
     def OnDblClicOk(self, event):
-        self.choix = self.listview.GetSelectedObject()
+        self.choix = self.ctrlOlv.GetSelectedObject()
         if self.choix == None:
-            dlg = wx.MessageDialog(self, u"Pas de sélection faite !\nIl faut choisir ou cliquer sur annuler", u"Accord Impossible", wx.OK | wx.ICON_EXCLAMATION)
+            dlg = wx.MessageDialog(self, (u"Pas de sélection faite !\nIl faut choisir ou cliquer sur annuler"), (u"Accord Impossible"), wx.OK | wx.ICON_EXCLAMATION)
             dlg.ShowModal()
             dlg.Destroy()
         else:
-            self.EndModal(wx.ID_OK)
-
-    def OnDblClic(self, event):
-        self.choix = self.listview.GetSelectedObject()
-        self.EndModal(wx.ID_OK)
-
-    def GetChoix(self):
-        self.choix = self.listview.GetSelectedObject()
-        return self.choix
+            event.Skip()
 
 if __name__ == u"__main__":
 
@@ -594,20 +594,20 @@ if __name__ == u"__main__":
     import os
     os.chdir("..")
     os.chdir("..")
-    #dialog_3 = DialogLettrage(None,{12456:[u"choïx 1",15]},[u"libellé1",u"Montant"],{6545:[u"éssai",50,25]},[u"libellé2",u"libellé1","montant"],[(12456,None),])
-    dialog_3 = DialogCoches(None,)
+    """dialog_3 = DialogLettrage(None,{12456:[u"choïx 1",15]},[u"libellé1",u"Montant"],{6545:[u"éssai",50,25]},[u"libellé2",u"libellé1","montant"],[(12456,None),])
     app.SetTopWindow(dialog_3)
     print(dialog_3.ShowModal())
     print(dialog_3.choix)
-    del dialog_3
-    dialog_1 = Dialog(None)
+    del dialog_3"""
+    dialog_1 = DialogAffiche()
     app.SetTopWindow(dialog_1)
     print(dialog_1.ShowModal())
-    print(dialog_1.GetChoix())
+    #print(dialog_1.GetChoix())
     del dialog_1
-    dialog_2 = DialogCoches(None,listeOriginale=["choix1","text1","suite1","choix2","text2","suite2"])
+    """dialog_2 = DialogCoches(None,listeOriginale=["choix1","text1","suite1","choix2","text2","suite2"])
     app.SetTopWindow(dialog_2)
     print(dialog_2.ShowModal())
     print(dialog_2.choix)
-    del dialog_2
+    del dialog_2"""
     app.MainLoop()
+

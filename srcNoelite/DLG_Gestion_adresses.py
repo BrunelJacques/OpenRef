@@ -21,6 +21,8 @@ import xpy.outils.xbandeau      as xbd
 import xpy.xGestion_Tableau     as xgt
 import xpy.xUTILS_SaisieParams  as xusp
 import xpy.xGestionDB           as xdb
+import srcNoelite.DLG_SaisieAdresse   as nsa
+import srcNoelite.UTILS_SaisieAdresse as nusa
 from xpy.outils.ObjectListView import CTRL_Outils
 
 def ComposeLstDonnees(record,lstChamps):
@@ -183,7 +185,16 @@ class Dialog(wx.Dialog):
             dlg.ShowModal()
             dlg.Destroy()
         else:
-            print(self.choix.individu)
+            individu = self.choix.individu
+            dlg2 = nsa.DlgSaisieAdresse(individu, titre=u"Adresse de %d"%individu)
+            dlg2.ShowModal()
+            lstAdresse = dlg2.lstAdresse
+            rue, cp, ville = nusa.LstAdresseToChamps(lstAdresse)
+            dlg2.Destroy()
+            self.choix.rue = rue
+            self.choix.ville = ville
+            self.choix.cp = cp
+            self.ctrlOlv.SelectObject(self.choix)
             event.Skip()
 
     def GetChoix(self):

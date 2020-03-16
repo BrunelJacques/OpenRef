@@ -429,13 +429,13 @@ class CTRL(wx.Panel):
         self.__do_layout()
 
         # Properties
-        self.ctrl_radio_portrait.SetToolTipString("Cliquez ici pour sélectionner une orientation portrait")
-        self.ctrl_image_portrait.SetToolTipString("Cliquez ici pour sélectionner une orientation portrait")
-        self.ctrl_radio_paysage.SetToolTipString("Cliquez ici pour sélectionner une orientation paysage")
-        self.ctrl_image_paysage.SetToolTipString("Cliquez ici pour sélectionner une orientation paysage")
-        self.ctrl_titre.SetToolTipString("Vous pouvez modifier ici le titre du document")
-        self.ctrl_introduction.SetToolTipString("Vous pouvez modifier ici l'introduction du document")
-        self.ctrl_conclusion.SetToolTipString("Vous pouvez modifier ici la conclusion du document")
+        self.ctrl_radio_portrait.SetToolTip("Cliquez ici pour sélectionner une orientation portrait")
+        self.ctrl_image_portrait.SetToolTip("Cliquez ici pour sélectionner une orientation portrait")
+        self.ctrl_radio_paysage.SetToolTip("Cliquez ici pour sélectionner une orientation paysage")
+        self.ctrl_image_paysage.SetToolTip("Cliquez ici pour sélectionner une orientation paysage")
+        self.ctrl_titre.SetToolTip("Vous pouvez modifier ici le titre du document")
+        self.ctrl_introduction.SetToolTip("Vous pouvez modifier ici l'introduction du document")
+        self.ctrl_conclusion.SetToolTip("Vous pouvez modifier ici la conclusion du document")
 
         # Bind
         self.ctrl_image_portrait.Bind(wx.EVT_LEFT_DOWN, self.OnLeftDownPortrait)
@@ -574,8 +574,8 @@ class Dialog(wx.Dialog):
         self.bouton_ok.SetFocus()
 
     def __set_properties(self):
-        self.bouton_ok.SetToolTipString("Cliquez ici pour valider")
-        self.bouton_annuler.SetToolTipString("Cliquez ici pour annuler")
+        self.bouton_ok.SetToolTip("Cliquez ici pour valider")
+        self.bouton_annuler.SetToolTip("Cliquez ici pour annuler")
         self.SetMinSize((550, 550))
 
     def __do_layout(self):

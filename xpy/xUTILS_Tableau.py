@@ -174,14 +174,6 @@ class ListViewTableau(FastObjectListView):
             menuPop.AppendSeparator()
         else:
             menuPop = wx.Menu()
-        # On ne sait pas encore si on va garder celui la ici
-        # # Item Ouverture fiche famille
-        # item = wx.MenuItem(menuPop, 10, "Ouvrir la fiche famille"))
-        # item.SetBitmap(wx.Bitmap("Images/16x16/Famille.png", wx.BITMAP_TYPE_PNG))
-        # menuPop.AppendItem(item)
-        # self.Bind(wx.EVT_MENU, self.OuvrirFicheFamille, id=10)
-        #
-        # menuPop.AppendSeparator()
 
         # Item Tout cocher
         if self.toutCocher:

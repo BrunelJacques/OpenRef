@@ -383,7 +383,6 @@ class PanelListView(wx.Panel):
         listview = ListView(self,**kwargs)
 
         self.ctrl_listview = listview
-        self.ctrl_listview.SetMinSize((10, 10))
         self.ctrl_footer = None
         self.SetFooter(reinit=False)
 

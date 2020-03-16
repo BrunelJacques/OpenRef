@@ -2360,7 +2360,7 @@ class ObjectListView(wx.ListCtrl):
             self.SetFilter(Filter.Chain(self.filtrerAndNotOr,*listeFiltres))
         else: self.SetFilter(Filter.Chain(True,*listeFiltres))
         self.RepopulateList()
-        self.MAJ_footer()
+        #self.MAJ_footer()
         self.Refresh()
         #self.OnCheck(None)
 
@@ -2466,16 +2466,16 @@ class ObjectListView(wx.ListCtrl):
         self.barreRecherche = ctrl
 
     def CocheListeTout(self, event=None):
-        for track in self.donnees:
+        for track in self.innerList:
             self.Check(track)
             self.RefreshObject(track)
-        self.OnCheck(None)
+        #self.OnCheck(None)
 
     def CocheListeRien(self, event=None):
-        for track in self.donnees:
+        for track in self.innerList:
             self.Uncheck(track)
             self.RefreshObject(track)
-        self.OnCheck(None)
+        #self.OnCheck(None)
 
     def CocheJusqua(self, event=None):
         listeObjects = self.innerList  # listview.GetFilteredObjects()
@@ -2488,7 +2488,7 @@ class ObjectListView(wx.ListCtrl):
             if selection != None:
                 if selection == track:
                     break
-        self.OnCheck(None)
+        #self.OnCheck(None)
 
 ########################################################################
 
@@ -4298,14 +4298,14 @@ class CTRL_Outils(wx.Panel):
             menu = wx.Menu()
             item = wx.MenuItem(menu, 20, "Tout cocher", "Cliquez ici pour cocher tous les éléments de la liste")
             item.SetBitmap(wx.Bitmap("xpy/Images/16x16/Cocher.png", wx.BITMAP_TYPE_ANY))
-            menu.AppendItem(item)
+            menu.Append(item)
             item = wx.MenuItem(menu, 21, "Tout décocher", "Cliquez ici pour décocher tous les éléments de la liste")
             item.SetBitmap(wx.Bitmap("xpy/Images/16x16/Decocher.png", wx.BITMAP_TYPE_ANY))
-            menu.AppendItem(item)
+            menu.Append(item)
             item = wx.MenuItem(menu, 22, "Inverser jusqu'à Selection",
                                "Cliquez ici pour inverser les coches jusqu'à la selection")
             item.SetBitmap(wx.Bitmap("xpy/Images/16x16/Decocher.png", wx.BITMAP_TYPE_ANY))
-            menu.AppendItem(item)
+            menu.Append(item)
             self.bouton_cocher.SetMenu(menu)
             self.Bind(wx.EVT_BUTTON, self.OnBoutonCocher, self.bouton_cocher)
 
