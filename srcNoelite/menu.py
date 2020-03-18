@@ -31,6 +31,8 @@ class MENU():
                 {"code": "utilisateurs", "label": (u"Utilisateurs"), "infobulle": (u"Paramétrage des utilisateurs"),
                  "image": "Images/16x16/Personnes.png", "action": "On_utilisateurs"},
                 "-",
+                {"code": "quitter", "label": (u"Quitter"), "infobulle": (u"Fin de travail Noelite"),
+                 "image": "Images/16x16/Quitter.png", "action": "xQuitter"},
                 ]},
         {"code": "&params\tCtrl-P", "label": ("Actions"), "items": [
             {"code": "modifAdresses", "label": ("&Modification des adresses\tCtrl-M"),
