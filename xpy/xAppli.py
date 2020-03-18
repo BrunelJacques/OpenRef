@@ -39,7 +39,9 @@ class MainFrame(wx.Frame):
             sys.path = [self.pathXpy] + sys.path
         # le dictionnaire config contiendra  toutes les configurations de l'utilisateur,
         #       enregistrées dans des fichiers  soit dans profilUser ou dans Data selon xUTILS_Config
-        self.config = {}
+        self.config = None
+        self.dictMenu = None
+
 
     def xInit(self):
         print("Lancement %s"%self.dictAppli["NOM_APPLICATION"])
@@ -83,13 +85,14 @@ class MainFrame(wx.Frame):
 
     def MakeMenuBar(self):
         # Construction de la barre de menu à partir du fichier menu.py présent dans les sources de l'appli
-        self.dictMenu = {}
-        try:
-            import menu
-            self.menuClass = menu.MENU(self)
-            self.dictMenu = menu.MENU.ParamMenu(self)
-        except:
-            wx.MessageBox("Echec de l'ouverture de l'objet : 'MENU.ParamMenu'\ndans %s"%self.pathSrcAppli+"\menu.py", 'Lancement impossible', wx.OK | wx.ICON_STOP)
+        if not self.dictMenu:
+            self.dictMenu = {}
+            try:
+                import menu
+                self.menuClass = menu.MENU(self)
+                self.dictMenu = menu.MENU.ParamMenu(self)
+            except:
+                wx.MessageBox("Echec de l'ouverture de l'objet : 'MENU.ParamMenu'\ndans %s"%self.pathSrcAppli+"\menu.py", 'Lancement impossible', wx.OK | wx.ICON_STOP)
 
         # Création du menu dernière branche
         def CreationItem(menuParent, item):

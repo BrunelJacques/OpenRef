@@ -8,6 +8,8 @@ import os
 import wx
 import xpy.xAppli as xAppli
 import srcNoelite.CTRL_Identification as nid
+import srcNoelite.menu as menu
+
 
 # Variables incontournables pour xpy
 dictAPPLI = {
@@ -25,12 +27,15 @@ class MyFrame(xAppli.MainFrame):
 
         #dictionnaire propre à l'appli
         self.dictAppli = dictAPPLI
+        self.menuClass = menu.MENU(self)
+        self.dictMenu = menu.MENU.ParamMenu(self)
 
         # Intialise et Teste la présence de fichiers dans le répertoire sources
         self.xInit()
         # Crée 'topPanel' et 'topContenu' destroyables
         self.MakeHello(self.dictAppli['NOM_APPLICATION'].upper()+u"\n\nChoisissez votre option dans le menu")
         # Activer le menu décrit dans  PATH_SOURCES/menu.py
+        test = os.getcwd()
         self.MakeMenuBar()
         # Crée un message initial de bas de fenêtre status bar
         self.CreateStatusBar()

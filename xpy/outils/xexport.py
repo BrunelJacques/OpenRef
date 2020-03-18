@@ -275,6 +275,7 @@ def ExportExcel(listview=None, grid=None, titre="Liste", listeColonnes=None, lis
         except:
             pass
         ws1.write(x, y, labelCol)
+        if largeur <=0 : largeur = 1
         ws1.col(y).width = largeur * 42
         y += 1
 
