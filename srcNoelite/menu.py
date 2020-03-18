@@ -19,7 +19,6 @@ class MENU():
 
     def ParamMenu(self):
         """ appelé pour Construire la barre de menus """
-        # The "\t..." syntax defines an accelerator key that also triggers
         menu = [
             # Première colonne
                 {"code": "&params\tCtrl-P", "label": ("Paramètres"), "items": [
@@ -73,7 +72,5 @@ if __name__ == "__main__":
         for dictligne in dictColonne['items']:
             if 'action' in dictligne:
                 if dictligne['action'][:1] != 'x':
-                    #print("action", dictligne['code'])
                     act = "MENU."+dictligne['action']+"(None)"
                     print(act + "\t action >>\t")
-                    #eval(act)

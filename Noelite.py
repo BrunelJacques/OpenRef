@@ -10,7 +10,6 @@ import xpy.xAppli as xAppli
 import srcNoelite.CTRL_Identification as nid
 import srcNoelite.menu as menu
 
-
 # Variables incontournables pour xpy
 dictAPPLI = {
             'NOM_APPLICATION'       : "noelite",

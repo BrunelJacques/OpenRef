@@ -42,7 +42,6 @@ class MainFrame(wx.Frame):
         self.config = None
         self.dictMenu = None
 
-
     def xInit(self):
         print("Lancement %s"%self.dictAppli["NOM_APPLICATION"])
 
