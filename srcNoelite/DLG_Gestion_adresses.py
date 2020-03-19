@@ -187,14 +187,15 @@ class Dialog(wx.Dialog):
         else:
             individu = self.choix.individu
             dlg2 = nsa.DlgSaisieAdresse(individu, titre=u"Adresse de %d"%individu)
-            dlg2.ShowModal()
-            lstAdresse = dlg2.lstAdresse
-            rue, cp, ville = nusa.LstAdresseToChamps(lstAdresse)
-            dlg2.Destroy()
-            self.choix.rue = rue
-            self.choix.ville = ville
-            self.choix.cp = cp
-            self.ctrlOlv.SelectObject(self.choix)
+            ret = dlg2.ShowModal()
+            if ret == wx.ID_OK:
+                lstAdresse = dlg2.lstAdresse
+                rue, cp, ville = nusa.LstAdresseToChamps(lstAdresse)
+                dlg2.Destroy()
+                self.choix.rue = rue
+                self.choix.ville = ville
+                self.choix.cp = cp
+                self.ctrlOlv.SelectObject(self.choix)
             event.Skip()
 
     def GetChoix(self):

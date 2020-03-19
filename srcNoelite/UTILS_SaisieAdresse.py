@@ -195,7 +195,7 @@ def GetOnePays(filtre=""):
         req = """SELECT secteurs.nom
         FROM secteurs
         %s ;"""%condition
-        db.ExecuterReq(req,MsgBox="UTILS_SaisieAdresse.GetOnePays")
+        db.ExecuterReq(req,mess="UTILS_SaisieAdresse.GetOnePays")
         return db.ResultatReq()
 
     listeDonnees = Requete(condition)
@@ -376,8 +376,7 @@ def Validation(adresse):
         ret = VerifieVille(adresse[4],adresse[5],adresse[6])
         if ret != "ok": mess += "\n%s"%ret
     if mess != "ANOMALIES:\n":
-        wx.MessageBox(mess)
-        return wx.ID_ABORT
+        return mess
     return wx.ID_OK
 
 def TransposeAdresse(adresse=[]):

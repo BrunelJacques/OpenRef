@@ -580,13 +580,20 @@ class DialogAffiche(wx.Dialog):
         self.EndModal(wx.ID_CANCEL)
 
     def OnDblClicOk(self, event):
-        self.choix = self.ctrlOlv.GetSelectedObject()
-        if self.choix == None:
+        selection = self.ctrlOlv.GetSelectedObject()
+        if selection == None:
             dlg = wx.MessageDialog(self, (u"Pas de sélection faite !\nIl faut choisir ou cliquer sur annuler"), (u"Accord Impossible"), wx.OK | wx.ICON_EXCLAMATION)
             dlg.ShowModal()
             dlg.Destroy()
         else:
+            self.choix = self.GetChoix()
             event.Skip()
+
+    def GetChoix(self):
+        selection = self.ctrlOlv.GetSelectedObject()
+        return selection.donnees
+
+
 
 if __name__ == u"__main__":
 
@@ -602,7 +609,7 @@ if __name__ == u"__main__":
     dialog_1 = DialogAffiche()
     app.SetTopWindow(dialog_1)
     print(dialog_1.ShowModal())
-    #print(dialog_1.GetChoix())
+    print(dialog_1.GetChoix())
     del dialog_1
     """dialog_2 = DialogCoches(None,listeOriginale=["choix1","text1","suite1","choix2","text2","suite2"])
     app.SetTopWindow(dialog_2)

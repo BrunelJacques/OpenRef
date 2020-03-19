@@ -29,13 +29,13 @@ class CTRL_champ(wx.Panel):
         self.parent = parent
         self.choices = choices
         self.label = wx.StaticText(self, -1, label + u" :", style=wx.ALIGN_RIGHT,size=(140,20))
-        if nom in ("ville"):
+        if nom == "ville":
             self.ctrl = wx.ComboBox(self,-1,value=valdef,choices=choices,style=wx.TE_PROCESS_ENTER)
             self.ctrl.SetSelection(0)
-            if nom == "ville":
-                self.bouton = wx.Button(self, -1, "...", size=(20, 20))
-                self.bouton.SetToolTip(btntip)
-                self.bouton.Bind(wx.EVT_BUTTON, btnonclic)
+            self.ctrl.Bind(wx.EVT_COMBOBOX,self.parent.OnChoixVille)
+            self.bouton = wx.Button(self, -1, "...", size=(20, 20))
+            self.bouton.SetToolTip(btntip)
+            self.bouton.Bind(wx.EVT_BUTTON, btnonclic)
         elif nom in ("forcer"):
             self.ctrl = wx.CheckBox(self, -1)
         else:
@@ -72,7 +72,6 @@ class PnlAdresse(wx.Panel):
         self.lstCpVillesPays = []
         self.oldCp = ""
         self.oldVille = ""
-        self.oldPays = ""
         self.goEvent = True
         lstLignes = [
             ['appart',  u"Appart,Esc,Etage|Service",
@@ -82,7 +81,7 @@ class PnlAdresse(wx.Panel):
             ['bp',      u"BP, CS, TSA, lieu dit",     u"Uniquement pour préciser une distribution spéciale ou un lieu dit"],
             ['cp', u"Code Postal", u"Saisir le début du code postal", u"Obligatoire"],
             ['ville', u"Ville", u"Choix de la ville ou gestion par '...'", u"Obligatoire",["Choisir..."],
-            u"Gestion des villes et des codes postaux",self.OnChoixVille],
+            u"Gestion des villes et des codes postaux",self.OnClicVille],
             ['pays', u"Pays étranger",
                     u"Seulement pour l'étranger, à blanc pour le pays national\nGestion des pays par les villes", u"",],
             ['forcer', u"Forcer la saisie", u"Permet de passer outre les contrôles de sortie, procédure exceptionnelle!", ],
@@ -107,14 +106,33 @@ class PnlAdresse(wx.Panel):
     def MAJ(self):
         self.__do_layout()
 
+    def SetVilles(self):
+        # pose les choices pour ville et pays
+        self.oldVille = self.lstCtrl[self.lstNomsChamps.index("ville")].ctrl.GetValue()
+        self.oldPays = self.lstCtrl[self.lstNomsChamps.index("pays")].ctrl.GetValue()
+        if len(self.lstCpVillesPays)>0:
+            self.lstVilles = []
+            self.lstPays = []
+            for cp,ville,pays in self.lstCpVillesPays:
+                self.lstVilles.append(ville.upper())
+                self.lstPays.append(pays.upper())
+            ville = self.lstVilles[0]
+            if self.oldVille.upper() in self.lstVilles:
+                ville = self.oldVille
+            self.SetChoices("ville",self.lstVilles)
+            self.SetValue("ville",self.lstVilles[self.lstVilles.index(ville)])
+            self.SetValue("pays",self.lstPays[self.lstVilles.index(ville)])
+        else:
+            self.SetValue("ville",u"Gérer la ville")
+
     def GetVillesDuCp(self,filtrecp):
         # Appelle les villes et pays du code postal et prépare les listes des choices
-        lstVilles = usa.GetVilles("cp",filtrecp)
+        self.lstCpVillesPays = usa.GetVilles("cp",filtrecp)
         lstNomsVilles = []
         lstCp = []
         lstCpChoix = []
-        lstPays = []
-        for cp, ville, pays in lstVilles:
+        self.lstPays = []
+        for cp, ville, pays in self.lstCpVillesPays:
             lstNomsVilles.append(ville)
             if cp not in lstCp:
                 lstCp.append(cp)
@@ -126,8 +144,8 @@ class PnlAdresse(wx.Panel):
                 lstCpChoix[lstCp.index(cp)][1]+= u"," + ville
             if ville not in lstNomsVilles:
                 lstNomsVilles.append(ville)
-            if pays not in lstPays:
-                lstPays.append(pays)
+            if pays not in self.lstPays:
+                self.lstPays.append(pays)
         if len(lstCp)>1:
             # le cp saisi est ambigu, plusieurs réponses
             dlg = xcl.Dialog(self,listeOriginale=lstCpChoix,LargeurCode=180,titre=u"Précisez le code postal",
@@ -144,60 +162,35 @@ class PnlAdresse(wx.Panel):
         elif len(lstCp) == 1:
             self.oldCp = lstCp[0]
             self.SetValue("cp", lstCp[0])
-            self.lstCpVillesPays = lstVilles
             return wx.ID_OK
         else:
             wx.MessageBox(u"Code postal inconnu\n\nPassez par la gestion des villes pour le créer")
             return wx.ID_ABORT
 
-    def SetVilles(self):
-        # pose les choices pour ville et pays
-        self.oldVille = self.lstCtrl[self.lstNomsChamps.index("ville")].ctrl.GetSelection()
-        if len(self.lstCpVillesPays)>0:
-            lstNomsVilles = []
-            for cp,ville,pays in self.lstCpVillesPays:
-                if not ville in lstNomsVilles:
-                    lstNomsVilles.append(ville)
-            item = lstNomsVilles[0]
-            if self.oldVille in lstNomsVilles:
-                item = self.oldVille
-            self.SetChoices("ville",lstNomsVilles)
-            self.SetValue("ville",item)
-            lstNomsPays = []
-            for cp,ville,pays in self.lstCpVillesPays:
-                if ville == item and not ville in lstNomsPays:
-                    lstNomsPays.append(pays)
-            self.SetValue("pays",lstNomsPays[0])
-        else:
-            self.SetValue("ville",u"Gérer la ville")
-
     def GetVilleDuNom(self,ville):
         # Appelle les villes correspondant au nom partiellement fourni
-        lstVilles = usa.GetVilles("ville",ville)
+        self.lstCpVillesPays = usa.GetVilles("ville",ville)
         lstChoix = []
-        lstNomsVilles = []
+        self.lstVilles = []
         lstCp = []
-        lstPays = []
-        for cp, ville, pays in lstVilles:
+        self.lstPays = []
+        for cp, ville, pays in self.lstCpVillesPays:
             lstChoix.append((ville, cp +u"\t        " +  pays))
-            if ville not in lstNomsVilles:
-                lstNomsVilles.append(ville)
-            if cp not in lstCp:
-                lstCp.append(cp)
-            if pays not in lstPays:
-                lstPays.append(pays)
+            lstCp.append(cp)
+            self.lstVilles.append(ville)
+            self.lstPays.append(pays)
         if len(lstChoix)>1:
             # la ville  saisie est ambigue ou plusieurs occurences de la ville
-            dlg = xcl.Dialog(self,listeOriginale=lstChoix,LargeurCode=180,titre=u"Précisez la ville",
+            dlg = xcl.DialogAffiche(self,listeOriginale=lstChoix,LargeurCode=180,titre=u"Précisez la ville",
                                           intro=u"Sinon allez choisir la ville par '...'")
             ret = dlg.ShowModal()
             if ret == wx.ID_OK:
-                ville,cppays = dlg.GetChoix()
-                self.oldVille = ville
+                ix = lstChoix.index(dlg.GetChoix())
+                ville = self.lstVilles[ix]
                 self.SetValue("ville",ville)
-                ix = lstNomsVilles.index(ville)
-                self.SetValue("cp", lstVilles[ix][0])
-                self.SetValue("pays", lstVilles[ix][2])
+                self.SetValue("cp", lstCp[ix])
+                self.SetValue("pays", self.lstPays[ix])
+                self.GetVillesDuCp()
             dlg.Destroy()
 
     def SetAdresse(self,adresse=[]):
@@ -208,6 +201,11 @@ class PnlAdresse(wx.Panel):
             return
         for ix in range(7):
             self.lstCtrl[ix].ctrl.SetValue(adresse[ix])
+        cp = self.lstCtrl[self.lstNomsChamps.index("cp")].ctrl.GetValue()
+        self.lstCpVillesPays = usa.GetVilles("cp", cp)
+        self.lstVilles= [vil for cp,vil,pays in self.lstCpVillesPays]
+        self.lstPays= [pays for cp,vil,pays in self.lstCpVillesPays]
+        self.SetChoices("ville", self.lstVilles)
         return
 
     def GetAdresse(self):
@@ -246,17 +244,15 @@ class PnlAdresse(wx.Panel):
         self.lstCtrl[ix].ctrl.SetFocus()
         event.Skip()
 
-    def SetValue(self,champ,valeur):
-        # SetValue de 'valeur' sur le ctrl de la ligne nommée par 'champ'
-        ixChamp = self.lstNomsChamps.index(champ)
-        self.lstCtrl[ixChamp].ctrl.SetValue(valeur)
-
-    def SetChoices(self,champ,lstval,pos=0):
-        # SetChoices de 'valeur' sur le wx.Choice de la ligne nommée par 'champ'
-        ixChamp = self.lstNomsChamps.index(champ)
-        self.lstCtrl[ixChamp].ctrl.Set(lstval)
-
     def OnChoixVille(self,event):
+        ix = self.lstNomsChamps.index("ville")
+        ville = self.lstCtrl[ix].ctrl.GetValue()
+        self.SetValue("pays", self.lstPays[self.lstVilles.index(ville)])
+        self.SetValue("ville",ville)
+        self.lstCtrl[0].ctrl.SetFocus()
+        event.Skip()
+
+    def OnClicVille(self,event):
         dlg = ndv.Dialog(None, modeImportation=True)
         if dlg.ShowModal() == wx.ID_OK:
             cp, ville, pays = dlg.GetVille()
@@ -265,6 +261,21 @@ class PnlAdresse(wx.Panel):
             self.SetValue("pays", pays)
         dlg.Destroy()
         event.Skip()
+
+    def SetValue(self,champ,valeur):
+        # SetValue de 'valeur' sur le ctrl de la ligne nommée par 'champ'
+        ixChamp = self.lstNomsChamps.index(champ)
+        self.lstCtrl[ixChamp].ctrl.SetValue(valeur)
+
+    def SetString(self,champ,valeur):
+        # SetValue de 'valeur' sur le ctrl de la ligne nommée par 'champ'
+        ixChamp = self.lstNomsChamps.index(champ)
+        self.lstCtrl[ixChamp].ctrl.SetValue(valeur)
+
+    def SetChoices(self,champ,lstval,pos=0):
+        # SetChoices de 'valeur' sur le wx.Choice de la ligne nommée par 'champ'
+        ixChamp = self.lstNomsChamps.index(champ)
+        self.lstCtrl[ixChamp].ctrl.Set(lstval)
 
 class DlgSaisieAdresse(wx.Dialog):
     # Gestion de l'adresse dans sa fenêtre
@@ -285,9 +296,16 @@ class DlgSaisieAdresse(wx.Dialog):
         self.lstCtrl = self.panelAdresse.lstCtrl
         self.lstNomsChamps = self.panelAdresse.lstNomsChamps
 
-        self.lstAdresse, self.IDindividuLu = usa.GetDBadresse(self.IDindividu)
+        self.lstAdresse, self.IDindividuLu,(nom,prenom) = usa.GetDBadresse(self.IDindividu,retNom=True)
         if self.IDindividu == self.IDindividuLu:
             self.panelAdresse.SetAdresse(self.lstAdresse)
+        else:
+            mess = "Cette personne avait l'adresse de %s %s\n\nVoulez-vous lui créer une adresse personnelle?"%(prenom,nom)
+            mess += "\nSinon changez l'adresse de l'individu %s"%self.IDindividuLu
+            ret = wx.MessageBox(mess,"Pas d'adresse personnelle",style=wx.YES_NO|wx.CENTER)
+            if ret != wx.YES:
+                self.Destroy()
+
         # Boutons
         self.bouton_remonte = CTRL_Bouton_image(self, texte=u"Remonte\nex adr.", cheminImage="xpy/Images/32x32/Actualiser.png",)
         self.bouton_ok = CTRL_Bouton_image(self, texte=u"Valider", cheminImage="xpy/Images/32x32/Valider.png")
@@ -337,6 +355,8 @@ class DlgSaisieAdresse(wx.Dialog):
         event.Skip()
 
     def OnClicFermer(self, event):
+        # Abandon
+        if event : event.Skip()
         self.EndModal(wx.ID_CANCEL)
 
     def OnClicOk(self, event):
@@ -349,8 +369,8 @@ class DlgSaisieAdresse(wx.Dialog):
         forcer = self.lstCtrl[self.lstNomsChamps.index("forcer")].ctrl.Value
         validee = False
         if not forcer:
-            retour = usa.Validation(self.lstAdresse)
-            if retour == wx.ID_OK:
+            mess = usa.Validation(self.lstAdresse)
+            if mess == wx.ID_OK:
                 validee = True
 
         self.lstCtrl[self.lstNomsChamps.index("forcer")].ctrl.Enable(True)
@@ -375,7 +395,7 @@ class DlgSaisieAdresse(wx.Dialog):
             self.panelAdresse.SetAdresse(self.lstAdresse)
             wx.MessageBox(u"L'adresse vient d'être reformatée !\nValidez à nouveau pour confirmer")
         elif nonmodifiee:
-            wx.MessageBox(u"Pour sortir quand même sans abandonner, vous pouvez cocher la case 'Forcer la saisie'")
+            wx.MessageBox(mess+"\n\nPour sortir quand même sans abandonner, vous pouvez cocher la case 'Forcer la saisie'")
         event.Skip()
 
 if __name__ == u"__main__":
