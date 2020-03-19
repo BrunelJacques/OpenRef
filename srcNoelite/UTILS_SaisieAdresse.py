@@ -52,8 +52,12 @@ def CompacteAdresse(lstAdresse):
 def VerifieVille(codepost="",ville="",pays=""):
     # vérifie la présence des éléments dans les possibles retourne ok ou message
     if not ville or len(ville.strip()) == 0: return "Ville à blanc."
+    filtrecp = codepost
+    if len(codepost)>0:
+        while filtrecp[0] == "0":
+            filtrecp = filtrecp[1:]
 
-    condition = "WHERE nom = '%s' AND cp = '%s'" % (ville, codepost)
+    condition = "WHERE nom = '%s' AND cp = '%s'" % (ville, filtrecp)
     DB = xdb.DB(nomFichier="srcNoelite/Data/Geographie.dat")
     req = """  SELECT IDville, nom, cp     
                 FROM villes 
@@ -67,7 +71,7 @@ def VerifieVille(codepost="",ville="",pays=""):
     # la ville n'est pas en france avec le code postal
     # Importation des corrections de villes et codes postaux
     DB = xdb.DB()
-    condition += " AND pays = '%s'"%pays
+    condition = "WHERE nom = '%s' AND cp = '%s' AND pays = '%s'" % (ville, codepost,pays)
     req = """SELECT IDcorrection, mode, IDville, nom, cp, pays
     FROM corrections_villes %s; """%condition
     DB.ExecuterReq(req, mess="aUTILS_SaisieAdresse.VerifieVille")
@@ -133,7 +137,6 @@ def GetVilles(champFiltre="ville",filtre=""):
     listeVilles = []
     for IDville, nom, cp, pays in listeVillesTmp:
         if not pays: pays = ""
-
         # Traitement des modifs et suppressions
         valide = True
         if IDville in dictModifSuppr :
@@ -149,7 +152,8 @@ def GetVilles(champFiltre="ville",filtre=""):
             if pays == "" and len(cp) < 5:
                 cp = (cp + "00000")[:5]
             listeVilles.append(( "%s"%cp, nom,"%s"%pays))
-
+    if len(listeVilles) == 0:
+        listeVilles.append(("","",""))
     return listeVilles
 
 def GetDepartements():
@@ -369,7 +373,7 @@ def Validation(adresse):
     # controle de cohérence de l'adresse, retourne 'ok' ou message des anomalies
     mess = "ANOMALIES:\n"
     if len(adresse[2].strip())==0 : mess += "\nUne adresse doit comporter à minima une rue."
-    if len(adresse[4].strip())!=5 and len(adresse[6].strip())>0 : mess += "\nLe code postal à 5 caractères en France."
+    if len(adresse[4].strip())!=5 and len(adresse[6].strip())==0 : mess += "\nLe code postal à 5 caractères en France."
     if len(adresse[5].strip())==0 :
         mess += "\nUne adresse doit comporter à minima une ville."
     else:

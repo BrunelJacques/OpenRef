@@ -321,9 +321,12 @@ class ListView(FastObjectListView):
             cp = dlg.GetCp()
             pays = dlg.GetPays()
             DB = xdb.DB()
-            IDcorrection = DB.ReqInsert("corrections_villes", [("mode", "ajout"), ("nom", nom), ("cp", cp), ("pays", pays)])
+            ret = DB.ReqInsert("corrections_villes", lstDonnees=[("mode", "ajout"), ("nom", nom), ("cp", cp), ("pays", pays)],
+                               mess="OL_Villes.Ajouter",)
+            IDcorrection = DB.newID
             DB.Close()
-            self.MAJ(100000+IDcorrection)
+            if ret == 'ok':
+                self.MAJ(100000+IDcorrection)
         dlg.Destroy()
 
     def Modifier(self, event):

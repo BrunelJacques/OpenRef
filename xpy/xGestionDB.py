@@ -322,10 +322,20 @@ class DB():
             donneesValeurs += "%s"%Compose(donnees)
         return donneesValeurs +')'
 
-    def ReqInsert(self, nomTable="", lstChamps=[], lstlstDonnees=[], commit=True, mess=None, affichError=True):
+    def ReqInsert(self, nomTable="", lstChamps=[], lstlstDonnees=[],lstDonnees=None,commit=True, mess=None, affichError=True):
         """ Permet d'insérer les lstChamps ['ch1','ch2',..] et lstlstDonnees [[val11,val12...],[val21],[val22]...]
             self.newID peut être appelé ensuite pour récupérer le dernier'D """
-        if len(lstChamps)* len(lstlstDonnees) == 0: return '%s\n\nChamps ou données absents'%mess
+        if lstDonnees:
+            lsttemp=[]
+            lstChamps=[]
+            for (champ,donnee) in lstDonnees:
+                lstChamps.append(champ)
+                lsttemp.append(donnee)
+            lstlstDonnees.append(lsttemp)
+        if len(lstChamps)* len(lstlstDonnees) == 0:
+            if affichError:
+                wx.MessageBox('%s\n\nChamps ou données absents'%mess)
+            return '%s\n\nChamps ou données absents'%mess
         valeurs = self.DonneesInsert(lstlstDonnees)
         champs = '( ' + str(lstChamps)[1:-1].replace('\'','') +' )'
         req = """INSERT INTO %s 

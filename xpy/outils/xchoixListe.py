@@ -518,8 +518,8 @@ class DialogAffiche(wx.Dialog):
         self.ctrl_bandeau = xbd.Bandeau(self, titre=titre, texte=intro,  hauteur=18, nomImage="xpy/Images/32x32/Python.png")
 
         # Boutons
-        bmpabort = wx.Bitmap("xpy/Images/32x32/Quitter.png")
-        self.bouton_fermer = wx.Button(self, id = wx.ID_CANCEL,label=(u"Fermer"))
+        bmpabort = wx.Bitmap("xpy/Images/32x32/Valider.png")
+        self.bouton_fermer = wx.Button(self, id=wx.ID_OK,label=(u"Valider"))
         self.bouton_fermer.SetBitmap(bmpabort)
 
         # Initialisations
@@ -542,7 +542,7 @@ class DialogAffiche(wx.Dialog):
 
     def __set_properties(self):
         self.bouton_fermer.SetToolTip(u"Cliquez ici pour fermer")
-        self.Bind(wx.EVT_BUTTON, self.OnDblClicFermer, self.bouton_fermer)
+        #self.Bind(wx.EVT_BUTTON, self.OnDblClicFermer, self.bouton_fermer)
         self.ctrlOlv.Bind(wx.EVT_LIST_ITEM_ACTIVATED,self.OnDblClicOk)
 
     def __do_layout(self):
@@ -576,9 +576,6 @@ class DialogAffiche(wx.Dialog):
             lstDefn.append(ColumnDefn(colonne, "left",-1,code,isSpaceFilling=True))
         return lstDefn
 
-    def OnDblClicFermer(self, event):
-        self.EndModal(wx.ID_CANCEL)
-
     def OnDblClicOk(self, event):
         selection = self.ctrlOlv.GetSelectedObject()
         if selection == None:
@@ -588,10 +585,14 @@ class DialogAffiche(wx.Dialog):
         else:
             self.choix = self.GetChoix()
             event.Skip()
+            self.EndModal(wx.ID_OK)
 
     def GetChoix(self):
         selection = self.ctrlOlv.GetSelectedObject()
-        return selection.donnees
+        donnees = None
+        if selection :
+            donnees = selection.donnees
+        return donnees
 
 
 
