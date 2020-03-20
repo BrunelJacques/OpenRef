@@ -440,8 +440,10 @@ class DB():
         finally:
             return self.retourReq
 
-    def ReqDEL(self, nomTable, condition, commit=True, mess=None, affichError=True):
-        """ Suppression d'un enregistrement """
+    def ReqDEL(self, nomTable,champID="",ID=None, condition="", commit=True, mess=None, affichError=True):
+        """ Suppression d'un enregistrement ou d'un ensemble avec condition de type where"""
+        if len(condition)==0:
+            condition = champID+" = %d"%ID
         self.retourReq = "ok"
         req = "DELETE FROM %s WHERE %s ;" % (nomTable, condition)
         try:

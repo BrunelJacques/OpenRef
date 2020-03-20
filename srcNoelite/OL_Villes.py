@@ -12,6 +12,7 @@ import wx
 import xpy.xGestionDB                   as xdb
 import srcNoelite.UTILS_SaisieAdresse   as usa
 import srcNoelite.UTILS_Utilisateurs    as nuu
+import srcNoelite.DLG_Secteurs          as ndsect
 from xpy.outils.ObjectListView import FastObjectListView, ColumnDefn, Filter, CTRL_Outils
 
 class CTRL_Bouton_image(wx.Button):
@@ -73,9 +74,9 @@ class DLG_Saisie(wx.Dialog):
         grid_sizer_contenu.AddGrowableCol(1)
         grid_sizer_base.Add(grid_sizer_contenu, 1, wx.ALL|wx.EXPAND, 10)
         grid_sizer_boutons.Add((20, 20), 0, wx.EXPAND, 0)
-        grid_sizer_boutons.Add(self.bouton_ok, 0, 0, 0)
         grid_sizer_boutons.Add(self.bouton_annuler, 0, 0, 0)
-        grid_sizer_boutons.AddGrowableCol(1)
+        grid_sizer_boutons.Add(self.bouton_ok, 0, 0, 0)
+        grid_sizer_boutons.AddGrowableCol(0)
         grid_sizer_base.Add(grid_sizer_boutons, 1, wx.LEFT|wx.RIGHT|wx.BOTTOM|wx.EXPAND, 10)
         self.SetSizer(grid_sizer_base)
         grid_sizer_base.Fit(self)
@@ -95,7 +96,12 @@ class DLG_Saisie(wx.Dialog):
         return self.ctrl_pays.GetValue().upper()
 
     def OnChoixPays(self,event):
-         event.Skip()
+        dlg = ndsect.Dialog(self)
+        if dlg.ShowModal() == wx.ID_OK:
+            pays = dlg.saisie_pays
+            self.ctrl_pays.SetValue(pays)
+        dlg.Destroy()
+        event.Skip()
 
     def OnBoutonOk(self, event):
         nom = self.ctrl_nom.GetValue()
@@ -115,14 +121,8 @@ class DLG_Saisie(wx.Dialog):
             return
         if pays:
             if len(pays)>0:
-                testPays = usa.GetOnePays(pays)
-                pays = pays.upper()
-                if testPays != pays:
-                    dlg = wx.MessageDialog(self, u"Le pays '%s' n'est pas connu, veuillez le gérer !"%pays, u"Erreur de saisie", wx.OK | wx.ICON_EXCLAMATION)
-                    dlg.ShowModal()
-                    dlg.Destroy()
-                    return
-                self.ctrl_pays.SetValue = testPays
+                getPays = usa.GetOnePays(pays)
+                self.ctrl_pays.SetValue(getPays)
                 self.ctrl_pays.SetFocus()
         self.EndModal(wx.ID_OK)
 
@@ -281,14 +281,14 @@ class ListView(FastObjectListView):
         item = wx.MenuItem(menuPop, 10, u"Ajouter")
         bmp = wx.Bitmap("xpy/Images/16x16/Ajouter.png", wx.BITMAP_TYPE_PNG)
         item.SetBitmap(bmp)
-        menuPop.AppendItem(item)
+        menuPop.Append(item)
         self.Bind(wx.EVT_MENU, self.Ajouter, id=10)
 
         # Item Modifier
         item = wx.MenuItem(menuPop, 20, u"Modifier")
         bmp = wx.Bitmap("xpy/Images/16x16/Modifier.png", wx.BITMAP_TYPE_PNG)
         item.SetBitmap(bmp)
-        menuPop.AppendItem(item)
+        menuPop.Append(item)
         self.Bind(wx.EVT_MENU, self.Modifier, id=20)
         if noSelection == True : item.Enable(False)
         
@@ -296,7 +296,7 @@ class ListView(FastObjectListView):
         item = wx.MenuItem(menuPop, 30, u"Supprimer")
         bmp = wx.Bitmap("xpy/Images/16x16/Supprimer.png", wx.BITMAP_TYPE_PNG)
         item.SetBitmap(bmp)
-        menuPop.AppendItem(item)
+        menuPop.Append(item)
         self.Bind(wx.EVT_MENU, self.Supprimer, id=30)
         if noSelection == True : item.Enable(False)
 
@@ -304,7 +304,7 @@ class ListView(FastObjectListView):
         item = wx.MenuItem(menuPop, 40, u"Choisir")
         bmp = wx.Bitmap("xpy/Images/16x16/Ok.png", wx.BITMAP_TYPE_PNG)
         item.SetBitmap(bmp)
-        menuPop.AppendItem(item)
+        menuPop.Append(item)
         self.Bind(wx.EVT_MENU, self.Choisir, id=40)
         if noSelection == True : item.Enable(False)
 
@@ -348,12 +348,16 @@ class ListView(FastObjectListView):
             cp = dlg.GetCp()
             pays = dlg.GetPays()
             DB = xdb.DB()
-            # Si c'est une ville par défaut
+            # Si c'est une ville par défaut prise dans geographie.dat
             if IDville < 100000 :
-                IDcorrection = DB.ReqInsert("corrections_villes", [("mode", "modif"), ("IDville", IDville), ("nom", nom), ("cp", cp), ("pays", pays)])
-                self.MAJ(100000+IDcorrection)
+                ret = DB.ReqInsert("corrections_villes", lstDonnees=[("mode", "modif"), ("IDville", IDville),("nom", nom), ("cp", cp), ("pays", pays)],
+                               mess="OL_Villes.Modif",)
+                IDcorrection = DB.newID
+                DB.Close()
+                if ret == 'ok':
+                    self.MAJ(100000+IDcorrection)
             else :
-                # Si c'est un ajout perso
+                # Si c'est un ajout dans correctif qu'on vient de modifier
                 IDcorrection = IDville-100000
                 DB.ReqMAJ("corrections_villes", [("nom", nom), ("cp", cp), ("pays", pays)], "IDcorrection", IDcorrection)
                 self.MAJ(IDville)
@@ -373,8 +377,9 @@ class ListView(FastObjectListView):
         pays = self.Selection()[0].pays
         mode = self.Selection()[0].mode
         
-        dlg = wx.MessageDialog(self, u"Souhaitez-vous vraiment supprimer la ville '%s (%s)' ?" % (nom, cp, pays), u"Suppression", wx.YES_NO|wx.NO_DEFAULT|wx.CANCEL|wx.ICON_INFORMATION)
-        if dlg.ShowModal() == wx.ID_YES :
+        dlg = wx.MessageDialog(self, "Souhaitez-vous vraiment supprimer la ville '%s (%s)' ?" % (nom, cp), u"Suppression", wx.YES_NO|wx.NO_DEFAULT|wx.CANCEL|wx.ICON_INFORMATION)
+        ret = dlg.ShowModal()
+        if  ret == wx.ID_YES :
             DB = xdb.DB()
             # Si c'est une ville par défaut
             if IDville < 100000 :
@@ -383,7 +388,7 @@ class ListView(FastObjectListView):
                 # Si la ville est un ajout ou une modif
                 IDcorrection = IDville-100000
                 if mode == "ajout" :
-                    DB.ReqDEL("corrections_villes", "IDcorrection", IDcorrection)
+                    ret = DB.ReqDEL("corrections_villes", "IDcorrection", IDcorrection, mess="OL_Villes.ListView.Supprimer")
                 if mode == "modif" :
                     listeDonnees = [("mode", "suppr"), ("nom", None), ("cp", None), ("pays", None)]
                     DB.ReqMAJ("corrections_villes", listeDonnees, "IDcorrection", IDcorrection)
@@ -456,7 +461,6 @@ class MyFrame(wx.Frame):
 
 if __name__ == '__main__':
     app = wx.App(0)
-    #wx.InitAllImageHandlers()
     import os
     os.chdir("..")
     frame_1 = MyFrame(None, -1, "OL TEST")

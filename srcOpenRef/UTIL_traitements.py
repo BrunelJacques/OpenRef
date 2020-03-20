@@ -876,17 +876,17 @@ class Traitements():
             if len(lstProduits)>0:
                 condition = "IDdossier = %d AND IDMproduit not in (%s)"%(IDdossier,str(lstProduits[1:-1]))
             else: condition = "IDdossier = %d"%IDdossier
-            self.DBsql.ReqDEL('_Produits',condition,mess="PurgeDuNonValidé dossier %d"%(IDdossier))
+            self.DBsql.ReqDEL('_Produits',condition=condition,mess="PurgeDuNonValidé dossier %d"%(IDdossier))
 
             if len(lstCouts)>0:
                 condition = "IDdossier = %d AND IDMcoût not in (%s)"%(IDdossier,str(lstCouts[1:-1]))
             else: condition = "IDdossier = %d"%IDdossier
-            self.DBsql.ReqDEL('_Coûts',condition,mess="PurgeDuNonValidé dossier %d"%(IDdossier))
+            self.DBsql.ReqDEL('_Coûts',condition=condition,mess="PurgeDuNonValidé dossier %d"%(IDdossier))
 
             if len(lstAteliers)>0:
                 condition = "IDdossier = %d AND IDMatelier not in (%s)"%(IDdossier,str(lstAteliers[1:-1]))
             else: condition = "IDdossier = %d"%IDdossier
-            self.DBsql.ReqDEL('_Ateliers',condition,mess="PurgeDuNonValidé dossier %d"%(IDdossier))
+            self.DBsql.ReqDEL('_Ateliers',condition=condition,mess="PurgeDuNonValidé dossier %d"%(IDdossier))
         return
 
     def GetBalance(self,IDdossier):

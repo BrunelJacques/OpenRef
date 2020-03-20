@@ -13,7 +13,7 @@ import xpy.outils.xbandeau      as xbd
 import srcNoelite.OL_Villes     as olv
 
 class CTRL_Bouton_image(wx.Button):
-    def __init__(self, parent, id=wx.ID_APPLY, texte="", cheminImage=None):
+    def __init__(self, parent, id=-1, texte="", cheminImage=None):
         wx.Button.__init__(self, parent, id=id, label=texte)
         if cheminImage:
             self.SetBitmap(wx.Bitmap(cheminImage))
@@ -41,13 +41,15 @@ class Dialog(wx.Dialog):
         self.ctrl_cp = wx.TextCtrl(self.panel_saisie, -1, "")
         self.label_ville = wx.StaticText(self.panel_saisie, -1, "Ville :")
         self.ctrl_ville = wx.TextCtrl(self.panel_saisie, -1, "")
+        self.label_pays = wx.StaticText(self.panel_saisie, -1, "Pays :")
+        self.ctrl_pays = wx.TextCtrl(self.panel_saisie, -1, "")
 
         self.bouton_ajouter = wx.BitmapButton(self, -1, wx.Bitmap("xpy/Images/16x16/Ajouter.png", wx.BITMAP_TYPE_ANY))
         self.bouton_modifier = wx.BitmapButton(self, -1, wx.Bitmap("xpy/Images/16x16/Modifier.png", wx.BITMAP_TYPE_ANY))
         self.bouton_supprimer = wx.BitmapButton(self, -1, wx.Bitmap("xpy/Images/16x16/Supprimer.png", wx.BITMAP_TYPE_ANY))
 
         self.bouton_importer = CTRL_Bouton_image(self, texte=u"Choisir la ville", cheminImage="xpy/Images/32x32/Fleche_bas.png")
-        self.bouton_annuler = CTRL_Bouton_image(self, texte=u"Fermer", cheminImage="xpy/Images/32x32/Valider.png")
+        self.bouton_annuler = CTRL_Bouton_image(self, texte=u"Fermer", cheminImage="xpy/Images/32x32/Annuler.png")
         
         if modeImportation == False :
             self.panel_saisie.Show(False)
@@ -66,11 +68,12 @@ class Dialog(wx.Dialog):
         self.ctrl_cp.SetMinSize((60, -1))
         self.ctrl_cp.SetToolTip(u"Saisissez ici un code postal")
         self.ctrl_ville.SetToolTip(u"Saisissez ici le nom d'une ville")
+        self.ctrl_pays.SetToolTip(u"Saisissez ici le nom du pays")
         self.bouton_ajouter.SetToolTip(u"Cliquez ici pour ajouter une ville")
         self.bouton_modifier.SetToolTip(u"Cliquez ici pour modifier la ville sélectionnée dans la liste")
         self.bouton_supprimer.SetToolTip(u"Cliquez ici pour supprimer la ville sélectionnée dans la liste")
         self.bouton_importer.SetToolTip(u"Cliquez ici pour importer la ville saisie manuellement ou sélectionnée dans la liste")
-        self.bouton_annuler.SetToolTip(u"Cliquez ici pour fermer")
+        self.bouton_annuler.SetToolTip(u"Cliquez ici pour abandonner")
         self.SetMinSize((480, 600))
 
     def __do_layout(self):
@@ -96,11 +99,13 @@ class Dialog(wx.Dialog):
         
         grid_sizer_base.Add(grid_sizer_recherche, 1, wx.LEFT|wx.RIGHT|wx.EXPAND, 10)
         
-        grid_sizer_saisie_2 = wx.FlexGridSizer(rows=1, cols=4, vgap=5, hgap=5)
+        grid_sizer_saisie_2 = wx.FlexGridSizer(rows=1, cols=6, vgap=5, hgap=5)
         grid_sizer_saisie_2.Add(self.label_cp, 0, wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL, 0)
         grid_sizer_saisie_2.Add(self.ctrl_cp, 0, 0, 0)
         grid_sizer_saisie_2.Add(self.label_ville, 0, wx.LEFT|wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL, 5)
         grid_sizer_saisie_2.Add(self.ctrl_ville, 0, wx.EXPAND, 0)
+        grid_sizer_saisie_2.Add(self.label_pays, 0, wx.LEFT|wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL, 5)
+        grid_sizer_saisie_2.Add(self.ctrl_pays, 0, wx.EXPAND, 0)
         grid_sizer_saisie_2.AddGrowableRow(0)
         grid_sizer_saisie_2.AddGrowableCol(3)
         staticbox_saisie.Add(grid_sizer_saisie_2, 1, wx.ALL|wx.EXPAND, 5)
@@ -111,12 +116,12 @@ class Dialog(wx.Dialog):
         grid_sizer_base.Add(self.panel_saisie, 1, wx.EXPAND, 0)
         
         # Boutons
-        grid_sizer_boutons = wx.FlexGridSizer(rows=1, cols=4, vgap=10, hgap=10)
+        grid_sizer_boutons = wx.FlexGridSizer(rows=1, cols=3, vgap=10, hgap=10)
         grid_sizer_boutons.Add((20, 20), 0, wx.EXPAND, 0)
-        grid_sizer_boutons.Add(self.bouton_importer, 0, 0, 0)
         grid_sizer_boutons.Add(self.bouton_annuler, 0, 0, 0)
+        grid_sizer_boutons.Add(self.bouton_importer, 0, 0, 0)
         grid_sizer_boutons.AddGrowableRow(0)
-        grid_sizer_boutons.AddGrowableCol(1)
+        grid_sizer_boutons.AddGrowableCol(0)
         grid_sizer_base.Add(grid_sizer_boutons, 1, wx.ALL|wx.EXPAND, 10)
         self.SetSizer(grid_sizer_base)
         grid_sizer_base.Fit(self)
@@ -135,15 +140,19 @@ class Dialog(wx.Dialog):
         self.ctrl_villes.Supprimer(None)
 
     def GetVille(self):
-        saisie_cp = self.ctrl_cp.GetValue()
-        saisie_ville = self.ctrl_ville.GetValue()
+        saisie_cp = self.ctrl_cp.GetValue().upper()
+        saisie_ville = self.ctrl_ville.GetValue().upper()
+        saisie_pays = self.ctrl_pays.GetValue().upper()
         if saisie_ville != "" and saisie_cp != "" :
-            return saisie_cp, saisie_ville, ''
+            return saisie_cp, saisie_ville, saisie_pays
         return self.ctrl_villes.Selection()[0].cp, self.ctrl_villes.Selection()[0].nom,\
                self.ctrl_villes.Selection()[0].pays
-            
+
     def OnBoutonChoisir(self, event):
         selectionListe = self.ctrl_villes.Selection()
+        if not event:
+            # renvoyé par le double clic dans l'OLV, priorité à la selection
+            self.EndModal(wx.ID_OK)
         saisie_cp = self.ctrl_cp.GetValue()
         saisie_ville = self.ctrl_ville.GetValue()
         if saisie_ville == "" and saisie_cp == "" and len(selectionListe) == 0 :

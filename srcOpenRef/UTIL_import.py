@@ -629,7 +629,7 @@ class ImportComptas(object):
                 condition = "_Ident.IDdossier = %d"% exID
                 for table in ('_Ident','_Balances','_Infos'):
                     condition = "%s.IDdossier = %d" % (table,exID)
-                    self.DBsql.ReqDEL(table,condition,mess='Del dans %s'%table)
+                    self.DBsql.ReqDEL(table,condition=condition,mess='Del dans %s'%table)
                 InsertOpenRef(exID)
             else:
                 #silencieux en mode batch

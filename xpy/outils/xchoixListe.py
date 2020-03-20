@@ -497,9 +497,18 @@ class DialogAffiche(wx.Dialog):
     def __init__(self, titre="Ici mon titre", intro="et mes explications", lstDonnees=[("a",2),("b",10)],
                  lstColonnes=["let","nbre"],size=(600,600)):
         wx.Dialog.__init__(self, None, -1, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
-
         self.SetMinSize(size)
-
+        mess = None
+        if not lstDonnees or len(lstDonnees)==0 : mess = "xchoixListe.DialogAffiche reçoit 'lstDonnees' vide"
+        if (not lstDonnees[0]) or (not isinstance(lstDonnees[0],(tuple,list))):
+            mess = "xchoixListe.DialogAffiche reçoit 'lstDonnees' contenant un type :%s"%type(lstDonnees[0])
+        if mess:
+            wx.MessageBox(mess)
+            self.EndModal(wx.ID_ABORT)
+        if len(lstColonnes) != len(lstDonnees[0]):
+            lstColonnes=[]
+            for i in range(len(lstDonnees[0])):
+                lstColonnes.append("col " + str(i))
         self.dicOlv = {
             'listeColonnes': self.ComposeColonnes(lstColonnes),
             'listeDonnees': lstDonnees,
@@ -518,9 +527,12 @@ class DialogAffiche(wx.Dialog):
         self.ctrl_bandeau = xbd.Bandeau(self, titre=titre, texte=intro,  hauteur=18, nomImage="xpy/Images/32x32/Python.png")
 
         # Boutons
-        bmpabort = wx.Bitmap("xpy/Images/32x32/Valider.png")
-        self.bouton_fermer = wx.Button(self, id=wx.ID_OK,label=(u"Valider"))
-        self.bouton_fermer.SetBitmap(bmpabort)
+        bmpabort = wx.Bitmap("xpy/Images/32x32/Annuler.png")
+        self.bouton_annuler = wx.Button(self, id=wx.ID_CANCEL,label=(u"Abandon"))
+        self.bouton_annuler.SetBitmap(bmpabort)
+        bmpok = wx.Bitmap("xpy/Images/32x32/Valider.png")
+        self.bouton_fermer = wx.Button(self, id=-1,label=(u"Valider"))
+        self.bouton_fermer.SetBitmap(bmpok)
 
         # Initialisations
         self.__init_olv()
@@ -541,8 +553,8 @@ class DialogAffiche(wx.Dialog):
         self.ctrlOlv.MAJ()
 
     def __set_properties(self):
-        self.bouton_fermer.SetToolTip(u"Cliquez ici pour fermer")
-        #self.Bind(wx.EVT_BUTTON, self.OnDblClicFermer, self.bouton_fermer)
+        self.bouton_fermer.SetToolTip(u"Cliquez ici pour valider votre choix")
+        self.Bind(wx.EVT_BUTTON, self.OnDblClicOk, self.bouton_fermer)
         self.ctrlOlv.Bind(wx.EVT_LIST_ITEM_ACTIVATED,self.OnDblClicOk)
 
     def __do_layout(self):
@@ -559,6 +571,7 @@ class DialogAffiche(wx.Dialog):
         # Boutons
         gridsizer_boutons = wx.FlexGridSizer(rows=1, cols=3, vgap=0, hgap=0)
         gridsizer_boutons.Add((20, 20), 1, wx.ALIGN_BOTTOM, 0)
+        gridsizer_boutons.Add(self.bouton_annuler, 1, wx.EXPAND, 0)
         gridsizer_boutons.Add(self.bouton_fermer, 1, wx.EXPAND, 0)
         gridsizer_boutons.AddGrowableCol(0)
         gridsizer_base.Add(gridsizer_boutons, 1, wx.RIGHT|wx.TOP|wx.BOTTOM|wx.EXPAND,5)

@@ -13,8 +13,8 @@ from builtins import object
 import datetime
 import wx
 
-from outils.ObjectListView import ReportFormat
-from outils import xlistctrlprinter, xdates, xoptionsimpression
+from xpy.outils.ObjectListView import ReportFormat
+from xpy.outils import xlistctrlprinter, xdates, xoptionsimpression
 
 
 class PreviewControlBar(wx.PyPreviewControlBar):

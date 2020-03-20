@@ -956,7 +956,7 @@ class Gestion_ligne(object):
             designation = "Ligne : %s %s %s" % tuple([self.selection.donnees[x] for x in [1, 2, 3]])
             if wx.YES == wx.MessageBox("Confirmez-vous la suppresion de la selection?\n\n%s" % designation,
                                        style=wx.YES_NO):
-                ret = self.DBsql.ReqDEL(self.table, self.clewhere, mess='DEL affectations.%s.Ecran' % self.table)
+                ret = self.DBsql.ReqDEL(self.table, condition=self.clewhere, mess='DEL affectations.%s.Ecran' % self.table)
                 if ret != 'ok': wx.MessageBox(ret, style=wx.ICON_WARNING)
                 del self.ctrlolv.donnees[self.ixsel]
                 if not self.ixsel > 0: self.ixsel = 0

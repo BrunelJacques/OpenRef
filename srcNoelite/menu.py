@@ -51,7 +51,6 @@ class MENU():
         # lance la configuration initiale à la base de donnée pincipale
         dlg = ndga.Dialog()
         dlg.ShowModal()
-        dlg.Destroy()
 
     def On_config(self,event):
         #lance la configuration initiale à la base de donnée pincipale

@@ -126,6 +126,7 @@ class CTRL_mdp(wx.SearchCtrl):
                 cfg = xucfg.ParamUser()
                 self.choix = cfg.GetDict(groupe='USER')
                 self.choix['pseudo'] =  dictUtilisateur['prenom'] + " " + dictUtilisateur['nom']
+                self.choix['nom'] = self.choix['pseudo']
                 self.choix['mpuser'] = dictUtilisateur['mdp']
                 self.choix['id'] =  dictUtilisateur['IDutilisateur']
                 self.choix['droits'] = dictUtilisateur['droits']

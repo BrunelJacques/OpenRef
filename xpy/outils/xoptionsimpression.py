@@ -19,8 +19,8 @@ import copy
 import wx.html as html
 import sys
 
-from outils.xconst import *
-from outils import xctrlbi
+from xpy.outils.xconst import *
+from xpy.outils import xctrlbi
 
 class EditeurComboBoxAvecBoutons(wxpg.PGChoiceEditor):
     """

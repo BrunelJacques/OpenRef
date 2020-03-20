@@ -62,15 +62,22 @@ def VerificationDroitsUtilisateurActuel(categorie="", action="", IDactivite="", 
     try :
         topWindow = wx.GetApp().GetTopWindow()
         nomWindow = topWindow.GetName()
+        dictUtilisateur = topWindow.dicUser
     except :
-        nomWindow = None
-        return True
-    if nomWindow == "general" : 
+        dictUtilisateur = None
+    if not dictUtilisateur:
+        try :
+            import xpy.xUTILS_Config as xucfg
+            cfg = xucfg.ParamUser()
+            dictUtilisateur = cfg.GetDict(groupe='USER')
+        except:
+            pass
+    if dictUtilisateur:
         # Si la frame 'General' est chargée, on y récupère le dict de config
-        dictUtilisateur = topWindow.dictUtilisateur
         resultat = VerificationDroits(dictUtilisateur, categorie, action, IDactivite)
-        if resultat == True or afficheMessage == True :
-            wx.MessageBox( "Votre profil utilisateur ne vous permet pas d'accéder à cette fonctionnalité !")
+        if resultat == False and afficheMessage == True :
+            wx.MessageBox("'%s'\n\nVotre profil utilisateur  ne permet pas d'accéder à la fonctionnalité demandée!\n'%s' - '%s'"
+                          %(dictUtilisateur['nom'],categorie,action),style=wx.ICON_AUTH_NEEDED)
         return resultat
     return True
     

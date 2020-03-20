@@ -187,9 +187,11 @@ def GetRegions():
 
 def GetOnePays(filtre=""):
     filtre = filtre.upper()
-    if filtre in "FRANCE":
+    if filtre == "FRANCE":
         wx.MessageBox("La France n'est pas un pays étranger, il faut laisser le champ à blanc!")
         return ""
+    if filtre in ("ANGLETERRE","ECOSSE","PAYS DE GALLE"):
+        return "ROYAUME UNI"
     if len(filtre)>0:
         condition = "WHERE secteurs.nom LIKE '%s%%'"%filtre
     else: condition = ""
@@ -211,11 +213,11 @@ def GetOnePays(filtre=""):
             # le pays saisi n'existe pas on propose tout
             listeDonnees = Requete("")
         # Choisir dans la liste
-        dlg = xcl.Dialog(None, listeOriginale=listeDonnees, LargeurLib=80,colSort=1, titre="Précisez le pays",
+        dlg = xcl.DialogAffiche(lstDonnees=listeDonnees, titre="Précisez le pays",
                                       intro="Si le pays n'existe pas passer par la gestion des pays postaux")
         ret = dlg.ShowModal()
         if ret == wx.ID_OK:
-            pays = dlg.GetChoix()[1]
+            pays = dlg.GetChoix()[0]
         dlg.Destroy()
     db.Close()
     return pays

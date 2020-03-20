@@ -253,7 +253,8 @@ class PnlAdresse(wx.Panel):
     def OnClicVille(self,event):
         event.Skip()
         dlg = ndv.Dialog(None, modeImportation=True)
-        if dlg.ShowModal() == wx.ID_OK:
+        ret = dlg.ShowModal()
+        if  ret == wx.ID_OK:
             cp, ville, pays = dlg.GetVille()
             self.SetValue("cp",cp)
             self.SetValue("ville",ville)

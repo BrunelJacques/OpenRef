@@ -21,6 +21,7 @@ import xpy.outils.xbandeau      as xbd
 import xpy.xGestion_Tableau     as xgt
 import xpy.xUTILS_SaisieParams  as xusp
 import xpy.xGestionDB           as xdb
+import srcNoelite.UTILS_Utilisateurs  as nuu
 import srcNoelite.DLG_SaisieAdresse   as nsa
 import srcNoelite.UTILS_SaisieAdresse as nusa
 from xpy.outils.ObjectListView import CTRL_Outils
@@ -108,6 +109,10 @@ def GetIndividus():
 class Dialog(wx.Dialog):
     def __init__(self, titre=TITRE, intro=INTRO):
         wx.Dialog.__init__(self, None, -1, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
+        if nuu.VerificationDroitsUtilisateurActuel("individus_fiche", "consulter") == False:
+            if self.IsModal():
+                self.EndModal(wx.ID_CANCEL)
+            else: self.Destroy()
         self.SetTitle(NOM_MODULE)
         self.choix= None
         self.avecFooter = True
@@ -121,7 +126,7 @@ class Dialog(wx.Dialog):
         self.bouton_ok = wx.Button(self, id = wx.ID_APPLY,label=(ACTION))
         self.bouton_ok.SetBitmap(bmpok)
         bmpabort = wx.Bitmap("xpy/Images/32x32/Quitter.png")
-        self.bouton_fermer = wx.Button(self, id = wx.ID_CANCEL,label=(u"Fermer"))
+        self.bouton_fermer = wx.Button(self, id = wx.ID_CANCEL,label=(u"Quitter"))
         self.bouton_fermer.SetBitmap(bmpabort)
 
         # Initialisations
@@ -185,6 +190,7 @@ class Dialog(wx.Dialog):
             dlg.ShowModal()
             dlg.Destroy()
         else:
+            if nuu.VerificationDroitsUtilisateurActuel("individus_coordonnees", "modifier") == False: return
             individu = self.choix.individu
             dlg2 = nsa.DlgSaisieAdresse(individu, titre=u"Adresse de %d"%individu)
             ret = dlg2.ShowModal()
