@@ -73,7 +73,7 @@ class PnlAdresse(wx.Panel):
         self.lstCpVillesPays = []
         self.oldCp = ""
         self.oldVille = ""
-        self.goEvent = ""
+        self.goEvent = None
         lstLignes = [
             ['appart',  u"Appart,Esc,Etage|Service",
              u"Réservé au numéro de l'appartement, escalier ou étage\nPour une administration le nom du service est accepté"],
@@ -210,37 +210,41 @@ class PnlAdresse(wx.Panel):
             adresse.append(self.lstCtrl[ix].ctrl.GetValue())
         return adresse
 
-    def MAJ(self,goEvent=None):
-        if self.goEvent != goEvent:
-            cp = self.lstCtrl[self.lstNomsChamps.index("cp")].ctrl.GetValue()
-            if goEvent == "cp":
-                if self.oldCp != cp and len(cp)>1:
-                    # Le code postal a été modifié, recherche des villes associées
-                    self.GetVillesDuCp(cp)
-            if goEvent == "ville":
-                ville = self.lstCtrl[self.lstNomsChamps.index("ville")].ctrl.GetValue()
-                if self.oldVille != ville and len(ville) > 1:
-                    # Le nom de la ville a été modifié recherche des ambigus
-                    self.GetVilleDuNom(ville)
+    def MAJ(self,nomEvent=None):
+        cp = self.lstCtrl[self.lstNomsChamps.index("cp")].ctrl.GetValue()
+        if nomEvent == "cp":
+            if self.oldCp != cp and len(cp)>1:
+                # Le code postal a été modifié, recherche des villes associées
+                self.GetVillesDuCp(cp)
+        if nomEvent == "ville":
+            ville = self.lstCtrl[self.lstNomsChamps.index("ville")].ctrl.GetValue()
+            if self.oldVille != ville and len(ville) > 1:
+                # Le nom de la ville a été modifié recherche des ambigus
+                self.GetVilleDuNom(ville)
 
     def OnKillFocusChamp(self,event):
-        self.goEvent = event.EventObject.nom
-        # Gestion de la sortie de certains champs
-        if event.EventObject.nom in ("cp","ville"):
-            self.MAJ(event.EventObject.nom)
+        if not self.goEvent:
+            self.goEvent = event.EventObject.nom
+            # Gestion de la sortie de certains champs
+            if event.EventObject.nom in ("cp","ville"):
+                self.MAJ(event.EventObject.nom)
+            self.goEvent = None
         event.Skip()
 
     def OnSetFocusChamp(self,event):
         event.Skip()
 
     def OnKeyEnter(self,event):
-        nom = event.EventObject.nom
+        if not self.goEvent:
+            self.goEvent = event.EventObject.nom
+            nom = event.EventObject.nom
+            if nom in ("cp","ville"):
+                self.MAJ(nom)
+            ix = self.lstNomsChamps.index(nom) +1
+            if len(self.lstNomsChamps)>ix:
+                self.lstCtrl[ix].ctrl.SetFocus()
+            self.goEvent = None
         event.Skip()
-        if nom in ("cp","ville"):
-            self.MAJ(nom)
-        ix = self.lstNomsChamps.index(nom) +1
-        if len(self.lstNomsChamps)>ix:
-            self.lstCtrl[ix].ctrl.SetFocus()
 
     def OnChoixVille(self,event):
         event.Skip()
