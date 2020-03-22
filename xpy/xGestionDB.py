@@ -32,7 +32,6 @@ def Supprime_accent(texte):
         texte = texte.replace(a.upper(), b.upper())
     return texte
 
-
 def DateEngEnDateDD(dateEng):
     return datetime.date(int(dateEng[:4]), int(dateEng[5:7]), int(dateEng[8:10]))
 

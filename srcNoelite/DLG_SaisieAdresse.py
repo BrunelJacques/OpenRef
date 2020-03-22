@@ -36,6 +36,12 @@ class CTRL_champ(wx.Panel):
             self.bouton = wx.Button(self, -1, "...", size=(20, 20))
             self.bouton.SetToolTip(btntip)
             self.bouton.Bind(wx.EVT_BUTTON, btnonclic)
+        elif nom == "IDindividu":
+            self.ctrl = wx.TextCtrl(self, -1, valdef,style=wx.TE_PROCESS_ENTER, size=(230,20))
+            self.ctrl.SetMaxLength(38)
+            self.bouton = wx.Button(self, -1, "...", size=(20, 20))
+            self.bouton.SetToolTip(btntip)
+            self.bouton.Bind(wx.EVT_BUTTON, btnonclic)
         elif nom in ("forcer"):
             self.ctrl = wx.CheckBox(self, -1)
         else:
@@ -47,15 +53,14 @@ class CTRL_champ(wx.Panel):
         self.ctrl.nom = nom
         self.label.SetToolTip(aide)
         self.ctrl.SetToolTip(aide)
-        if nom in ('pays','forcer'):
+        if nom in ('IDindividu','pays','forcer'):
             self.ctrl.Enable(False)
-
         self.__do_layout()
 
     def __do_layout(self):
         gridsizer_base = wx.FlexGridSizer(rows=1, cols=3, vgap=0, hgap=0)
         gridsizer_base.Add(self.label, 1, wx.ALIGN_CENTRE_VERTICAL| wx.ALIGN_RIGHT | wx.TOP|wx.RIGHT, 5)
-        if self.ctrl.nom in ("ville"):
+        if self.ctrl.nom in ("IDindividu","ville"):
             gridsizer_base.Add(self.bouton, 0, wx.ALIGN_CENTRE_VERTICAL| wx.ALIGN_RIGHT | wx.TOP|wx.RIGHT, 5)
         else:
             gridsizer_base.Add((10,10), 0, wx.TOP | wx.RIGHT, 5)
@@ -71,10 +76,22 @@ class PnlAdresse(wx.Panel):
     def __init__(self, parent):
         wx.Panel.__init__(self, parent, -1, style=wx.RESIZE_BORDER|wx.MAXIMIZE_BOX|wx.MINIMIZE_BOX)
         self.lstCpVillesPays = []
+        self.parent = parent
         self.oldCp = ""
         self.oldVille = ""
         self.goEvent = None
-        lstLignes = [
+        if self.parent.mode == "familles":
+            lstLignes = [
+            ['designation', u"Désignation de la famille",   u"Libellé de l'adresse du courrier pour la famille", u"Obligatoire"],
+            ['IDindividu', u"Individu correspondant", u"Individu dont l'adresse est utilisée pour correspondre", u"Obligatoire", ["Choisir..."],
+                 u"Changement du correspondant de la famille", self.OnClicCorrespondant],
+            ]
+            self.posAdresse = 2
+        else:
+            lstLignes = []
+            self.posAdresse = 0
+
+        lstLignes += [
             ['appart',  u"Appart,Esc,Etage|Service",
              u"Réservé au numéro de l'appartement, escalier ou étage\nPour une administration le nom du service est accepté"],
             ['batiment',u"Bâtiment, Résidence", u"Un numéro une lettre doivent être précédés de BATIMENT, zone optionnelle"],
@@ -163,6 +180,8 @@ class PnlAdresse(wx.Panel):
     def GetVilleDuNom(self,ville):
         # Appelle les villes correspondant au nom partiellement fourni
         self.lstCpVillesPays = usa.GetVilles("ville",ville)
+        if self.lstCpVillesPays == ("","",""):
+            return
         lstChoix = []
         self.lstVilles = []
         lstCp = []
@@ -200,14 +219,26 @@ class PnlAdresse(wx.Panel):
         self.lstPays= [pays for cp,vil,pays in self.lstCpVillesPays]
         self.SetChoices("ville", self.lstVilles)
         for ix in range(7):
-            self.lstCtrl[ix].ctrl.SetValue(adresse[ix])
+            self.lstCtrl[ix+self.posAdresse].ctrl.SetValue(adresse[ix])
+        return
+
+    def SetCorrespondant(self,dicCorrespondant):
+        # met les champs deu correspondant dans la grille
+        ix = 0
+        for champ in ('designation','IDindividu'):
+            if not dicCorrespondant[champ]:
+                dicCorrespondant[champ] = ''
+            value = str(dicCorrespondant[champ])
+            if not isinstance(value,str): value = str(value)
+            self.lstCtrl[ix].ctrl.SetValue(value)
+            ix += 1
         return
 
     def GetAdresse(self):
         # retourne l'adresse saisie dans les champs
         adresse = []
         for ix in range(7):
-            adresse.append(self.lstCtrl[ix].ctrl.GetValue())
+            adresse.append(self.lstCtrl[ix+self.posAdresse].ctrl.GetValue())
         return adresse
 
     def MAJ(self,nomEvent=None):
@@ -265,6 +296,15 @@ class PnlAdresse(wx.Panel):
             self.SetValue("pays", pays)
         dlg.Destroy()
 
+    def OnClicCorrespondant(self,event):
+        event.Skip()
+        IDindividu = usa.GetDBCorrespondant(self.parent.IDfamille)
+        lstAdresse, IDindividuLu,(nom,prenom) = usa.GetDBadresse(IDindividu,retNom=True)
+        if IDindividu == IDindividuLu:
+            self.SetAdresse(lstAdresse)
+            self.SetValue("IDindividu","%d %s %s"%(IDindividu,prenom,nom))
+
+
     def SetValue(self,champ,valeur):
         # SetValue de 'valeur' sur le ctrl de la ligne nommée par 'champ'
         ixChamp = self.lstNomsChamps.index(champ)
@@ -282,12 +322,19 @@ class PnlAdresse(wx.Panel):
 
 class DlgSaisieAdresse(wx.Dialog):
     # Gestion de l'adresse dans sa fenêtre
-    def __init__(self,IDindividu,LargeurCode=180,LargeurLib=100,minSize=(180, 350),titre=u"Saisie d'une adresse normalisée",
-                 intro=u"Lignes limitées à 38 caractères"):
+    def __init__(self,ID,mode='individus',LargeurCode=180,LargeurLib=100,minSize=(180, 350),
+                 titre=u"Saisie d'une adresse normalisée",intro=u"Lignes limitées à 38 caractères"):
         wx.Dialog.__init__(self, None, -1, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER|wx.MAXIMIZE_BOX|wx.MINIMIZE_BOX)
         self.SetTitle("aDLG_SaisieAdresse")
+        self.mode = mode
         self.choix= None
-        self.IDindividu = IDindividu
+        if self.mode == 'familles':
+            self.dicCorrespondant = usa.GetDBfamille(ID)
+            self.IDfamille = ID
+            self.IDindividu = self.dicCorrespondant['IDindividu']
+        else:
+            self.dicCorrespondant = None
+            self.IDindividu = ID
         self.minSize = minSize
         self.wCode = LargeurCode
         self.wLib = LargeurLib
@@ -302,6 +349,14 @@ class DlgSaisieAdresse(wx.Dialog):
         self.lstAdresse, self.IDindividuLu,(nom,prenom) = usa.GetDBadresse(self.IDindividu,retNom=True)
         if self.IDindividu == self.IDindividuLu:
             self.panelAdresse.SetAdresse(self.lstAdresse)
+            if self.mode == 'familles':
+                self.panelAdresse.SetCorrespondant(self.dicCorrespondant)
+        elif not nom or nom == "":
+            mess = "Cette adresse est perdue,\n\nvous pouvez affecter un nouveau correspondant"
+            mess += "\nou voulez-vous lui créer une adresse personnelle?"
+            ret = wx.MessageBox(mess, "Pas d'adresse personnelle", style=wx.YES_NO | wx.CENTER)
+            if ret != wx.YES:
+                self.Destroy()
         else:
             mess = "Cette personne avait l'adresse de %s %s\n\nVoulez-vous lui créer une adresse personnelle?"%(prenom,nom)
             mess += "\nSinon changez l'adresse de l'individu %s"%self.IDindividuLu
@@ -392,6 +447,10 @@ class DlgSaisieAdresse(wx.Dialog):
                 if not exadresse:
                     ret = usa.SetDBoldAdresse(None,self.IDindividu, self.lstAdresse)
                 self.EndModal(wx.ID_OK)
+            ret = usa.SetDBcorrespondant(self.dicCorrespondant)
+            if ret != "ok":
+                wx.MessageBox(self, u"Pas d'écriture possible du correspondant !\n%s"%ret)
+
 
         if (validee and nonmodifiee) or forcer:
             enregistre()
@@ -407,7 +466,7 @@ if __name__ == u"__main__":
     import os
     os.chdir("..")
     dlg = wx.Frame(None)
-    dlg.individu = 15977
-    dlg2 = DlgSaisieAdresse(dlg.individu, titre=u"Adresse de %d"%dlg.individu)
+    dlg.ID = 60
+    dlg2 = DlgSaisieAdresse(dlg.ID, mode='familles', titre=u"Adresse de %d"%dlg.ID)
     dlg2.ShowModal()
     app.MainLoop()

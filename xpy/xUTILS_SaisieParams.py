@@ -11,6 +11,7 @@
 import wx
 import datetime
 import os
+import re
 import wx.propgrid as wxpg
 import copy
 import unicodedata
@@ -111,6 +112,12 @@ def Normalise(genre, name, label, value):
             value = str(value)
     return genre,name,label,value
 
+def NoPunctuationNoSpaces(txt = ''):
+    txt= txt.replace(' ','')
+    punctuation = u"'!\"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~'"
+    regex = re.compile('[%s]' % re.escape(punctuation))
+    return regex.sub(' ', txt)
+
 def SupprimeAccents(texte):
     # met en minuscule sans accents et sans caractères spéciaux
     code = ''.join(c for c in unicodedata.normalize('NFD', texte) if unicodedata.category(c) != 'Mn')
@@ -147,7 +154,8 @@ def DefColonnes(lstNoms,lstCodes,lstValDef,lstLargeur):
             lstLargeur[ix] = -1
             isSpaceFilling = True
         else: isSpaceFilling = False
-        lstColonnes.append(ColumnDefn(title=colonne,align=posit,width=lstLargeur[ix],valueGetter=lstCodes[ix],valueSetter=lstValDef[ix],
+        code = lstCodes[ix]
+        lstColonnes.append(ColumnDefn(title=colonne,align=posit,width=lstLargeur[ix],valueGetter=code,valueSetter=lstValDef[ix],
                                       isSpaceFilling=isSpaceFilling,stringConverter=stringConverter))
         ix += 1
     return lstColonnes
@@ -1117,6 +1125,7 @@ class FramePanels(wx.Frame):
 
 if __name__ == '__main__':
     app = wx.App(0)
+    print(NoPunctuationNoSpaces("ceci et celà."))
     os.chdir("..")
     dictDonnees = {"bd_reseau": {'serveur': 'my server',
                                  'bdReseau':False,

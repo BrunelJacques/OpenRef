@@ -37,19 +37,25 @@ class MENU():
             {"code": "modifAdresses", "label": ("&Modification d'adresses Individus\tCtrl-I"),
              "infobulle": (u"Gestion de l'adresses de rattachement des personnes (soit la leur soit celle de leur hébergeur"),
              "image": "Images/16x16/Editeur_email.png",
-             "action": "On_gestion_adresses", "genre": wx.ITEM_NORMAL},
+             "action": "On_Adresses_individus", "genre": wx.ITEM_NORMAL},
             {"code": "modifAdresses", "label": ("&Modification d'adresses Familles\tCtrl-F"),
              "infobulle": (u"Gestion des adresses des familles, mais pas de tous les individus de la famille"),
              "image": "Images/16x16/Editeur_email.png",
-             "action": "On_gestion_adresses", "genre": wx.ITEM_NORMAL},
+             "action": "On_Adresses_familles", "genre": wx.ITEM_NORMAL},
             "-",
         ]}
         ]
         return menu
 
-    def On_gestion_adresses(self, event):
+    def On_Adresses_individus(self, event):
         # lance la configuration initiale à la base de donnée pincipale
-        dlg = ndga.Dialog()
+        dlg = ndga.Dialog(mode='individus',titre="Choisissez un individu")
+        dlg.ShowModal()
+
+    def On_Adresses_familles(self, event):
+        # lance la configuration initiale à la base de donnée pincipale
+        texte = "Double clic pour lancer la gestion de l'adresse du correspondant de la famille"
+        dlg = ndga.Dialog(mode='familles',titre="Choisissez une famille",intro=texte)
         dlg.ShowModal()
 
     def On_config(self,event):

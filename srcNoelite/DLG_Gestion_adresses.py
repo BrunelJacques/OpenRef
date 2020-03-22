@@ -8,7 +8,7 @@
 
 NOM_MODULE = "DLG_Gestion_adresse"
 ACTION = "Gestion\nadresse"
-TITRE = "Choisissez un individu !"
+TITRE = "Choisissez une ligne !"
 INTRO = "Double clic pour lancer la gestion de l'adresse"
 MINSIZE = (1200,650)
 WCODE = 150
@@ -80,7 +80,53 @@ def GetIndividus():
         recordset = db.ResultatReq()
         if len(recordset) == 0:
             retour = "aucun enregistrement disponible"
-    if (not retour == "ok"):
+    else:
+        wx.MessageBox("Erreur : %s" % retour)
+        return 'ko'
+    db.Close()
+    lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstNomsColonnes]
+    lstValDefColonnes = ValeursDefaut(lstNomsColonnes, lstTypes)
+    lstLargeurColonnes = LargeursDefaut(lstNomsColonnes, lstTypes)
+    # composition des données du tableau à partir du recordset
+    lstDonnees = []
+    for record in recordset:
+        ligne = ComposeLstDonnees( record, lstChamps)
+        lstDonnees.append(ligne)
+
+    # matrice OLV
+    lstColonnes = xusp.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
+    dicOlv =    {
+                'listeColonnes': lstColonnes,
+                'listeDonnees': lstDonnees,
+                'checkColonne': False,
+                'colonneTri': COLONNETRI,
+                'style': wx.LC_SINGLE_SEL|wx.LC_HRULES|wx.LC_VRULES,
+                'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
+                'dictColFooter': {"nom": {"mode": "nombre", "alignement": wx.ALIGN_CENTER},}
+                }
+    return dicOlv
+
+def GetFamilles():
+    # appel des données à afficher
+    lstChamps = ["0","familles.IDfamille","individus.IDindividu","familles.adresse_intitule","individus.nom",
+                 "individus.prenom","individus.adresse_auto","individus.rue_resid","individus.cp_resid","individus.ville_resid"]
+
+    lstNomsColonnes = ["0","famille","individu","intitule famille","nom corresp.",
+                        "prenomcorresp.","adresse_auto","rue","cp","ville"]
+
+    lstTypes = ["INTEGER","INTEGER","INTEGER","VARCHAR(100)","VARCHAR(100)",
+                "VARCHAR(100)","INTEGER","VARCHAR(100)","VARCHAR(11)","VARCHAR(80)"]
+    db = xdb.DB()
+    req = """   SELECT %s
+                FROM familles 
+                LEFT JOIN individus ON familles.adresse_individu = individus.IDindividu;
+                """ % (",".join(lstChamps))
+    retour = db.ExecuterReq(req, mess='%s.GetIndividus'%NOM_MODULE )
+    if retour == "ok":
+        recordset = db.ResultatReq()
+        if len(recordset) == 0:
+            retour = "aucun enregistrement disponible"
+    else:
         wx.MessageBox("Erreur : %s" % retour)
         return 'ko'
     db.Close()
@@ -107,12 +153,13 @@ def GetIndividus():
     return dicOlv
 
 class Dialog(wx.Dialog):
-    def __init__(self, titre=TITRE, intro=INTRO):
+    def __init__(self, mode='individus', titre=TITRE, intro=INTRO):
         wx.Dialog.__init__(self, None, -1, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
         if nuu.VerificationDroitsUtilisateurActuel("individus_fiche", "consulter") == False:
             if self.IsModal():
                 self.EndModal(wx.ID_CANCEL)
             else: self.Destroy()
+        self.mode = mode
         self.SetTitle(NOM_MODULE)
         self.choix= None
         self.avecFooter = True
@@ -135,7 +182,11 @@ class Dialog(wx.Dialog):
         self.__do_layout()
 
     def __init_olv(self):
-        dicOlv = GetIndividus()
+        if self.mode == 'familles':
+            dicOlv = GetFamilles()
+        else:
+            dicOlv = GetIndividus()
+
         pnlOlv = xgt.PanelListView(self,**dicOlv)
         if self.avecFooter:
             self.ctrlOlv = pnlOlv.ctrl_listview
@@ -191,8 +242,15 @@ class Dialog(wx.Dialog):
             dlg.Destroy()
         else:
             if nuu.VerificationDroitsUtilisateurActuel("individus_coordonnees", "modifier") == False: return
-            individu = self.choix.individu
-            dlg2 = nsa.DlgSaisieAdresse(individu, titre=u"Adresse de %d"%individu)
+            if self.mode == 'familles':
+                ID = self.choix.famille
+                nom = "famille"
+                prenom = self.choix.intitulefamille
+            else:
+                ID = self.choix.individu
+                nom = self.choix.nom
+                prenom = self.choix.prenom
+            dlg2 = nsa.DlgSaisieAdresse(ID,mode=self.mode, titre=u"Adresse de %d - %s %s"%(ID,nom,prenom))
             ret = dlg2.ShowModal()
             if ret == wx.ID_OK:
                 lstAdresse = dlg2.lstAdresse
@@ -214,7 +272,6 @@ if __name__ == '__main__':
     app = wx.App(0)
     import os
     os.chdir("..")
-    f = Dialog()
-    app.SetTopWindow(f)
-    print(f.ShowModal())
+    dlg = Dialog(mode='familles')
+    dlg.ShowModal()
     app.MainLoop()

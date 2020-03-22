@@ -52,12 +52,22 @@ def CompacteAdresse(lstAdresse):
 def VerifieVille(codepost="",ville="",pays=""):
     # vérifie la présence des éléments dans les possibles retourne ok ou message
     if not ville or len(ville.strip()) == 0: return "Ville à blanc."
-    filtrecp = codepost
-    if len(codepost)>0:
-        while filtrecp[0] == "0":
-            filtrecp = filtrecp[1:]
+    filtre = codepost.upper()
+    tronque = 0
+    # filtrage des zéro non significatifs pour le premier accès
+    if len(filtre) > 0:
+        while filtre[0] == "0" and len(filtre) > 1:
+            tronque += 1
+            filtre = filtre[1:]
+        if filtre == '0':
+            filtre = ""
+            tronque += 1
+        conditioncp  = "AND cp LIKE '%s%%'"%(filtre)
 
-    condition = "WHERE nom = '%s' AND cp = '%s'" % (ville, filtrecp)
+    condition = "WHERE nom = '%s'" %(ville)
+    if len(conditioncp)>1:
+        condition +=" AND cp = '%s'"% codepost
+
     DB = xdb.DB(nomFichier="srcNoelite/Data/Geographie.dat")
     req = """  SELECT IDville, nom, cp     
                 FROM villes 
@@ -68,10 +78,13 @@ def VerifieVille(codepost="",ville="",pays=""):
     if len(ret)== 1:
             if len(pays.strip())==0: return "ok"
 
-    # la ville n'est pas en france avec le code postal
+    # si la ville n'est pas en france avec le code postal
     # Importation des corrections de villes et codes postaux
     DB = xdb.DB()
-    condition = "WHERE nom = '%s' AND cp = '%s' AND pays = '%s'" % (ville, codepost,pays)
+    condition = "WHERE nom = '%s' AND pays = '%s'" %(ville, pays)
+    if len(codepost)>1:
+        condition +=" AND cp = '%s'"% codepost
+
     req = """SELECT IDcorrection, mode, IDville, nom, cp, pays
     FROM corrections_villes %s; """%condition
     DB.ExecuterReq(req, mess="aUTILS_SaisieAdresse.VerifieVille")
@@ -83,18 +96,25 @@ def VerifieVille(codepost="",ville="",pays=""):
 def GetVilles(champFiltre="ville",filtre=""):
     # Importation de la base par défaut avec un filtre sur le code postal ou sur le nom de la ville
     if not filtre: filtre = ""
-    filtre = filtre.upper()
-    lenfiltre = len(filtre)
     tronque = 0
-    if len(filtre)==0:
-        condition = ""
+    filtre = filtre.upper()
+    filtrecp = filtre
+    # filtrage des zéro non significatifs pour le premier accès
+    if champFiltre == "cp" and len(filtre) > 0:
+        while filtre[0] == "0" and len(filtre) > 1:
+            tronque += 1
+            filtre = filtre[1:]
+        if filtre == '0':
+            filtre = ""
+            tronque += 1
+        condition  = "WHERE %s LIKE '%s%%'"%(champFiltre,filtre)
     else:
-        if champFiltre=="cp":
-            while filtre[0] == "0":
-                tronque += 1
-                filtre = filtre[1:]
-            condition  = "WHERE %s LIKE '%s%%'"%(champFiltre,filtre)
-        else: condition  = "WHERE %s LIKE '%s%%'"%("nom",filtre)
+        # filtre sur ville
+        condition  = "WHERE %s LIKE '%s%%'"%("nom",filtre)
+
+    if len(filtre)==0:
+        condition = "WHERE 1 = 0 "
+        filtrecp = "zzzzz"
 
     # Importation des villes par défaut
     DB = xdb.DB(nomFichier="srcNoelite/Data/Geographie.dat")
@@ -105,13 +125,15 @@ def GetVilles(champFiltre="ville",filtre=""):
     listeVillesTmp = []
     DB.Close()
     if champFiltre == "cp":
-        filtre = "00000"[:tronque] + filtre
+        filtre = "00000"[:tronque] + filtrecp
     for id,nom,cp,pays in ret:
         if len(cp) < 5:
             # Correction du fichier qui ne renvoit pas le zéro devant le code postal
             cp = ("00000" + cp)[-5:]
-        if (champFiltre == "cp" and cp[:lenfiltre] == filtre) or (champFiltre == "ville" and nom[:lenfiltre] == filtre):
+        if (champFiltre == "cp" and cp[:len(filtre)] == filtre) or (champFiltre == "ville" and nom[:len(filtre)] == filtre):
             listeVillesTmp.append((id,nom,cp,pays))
+
+
     # Importation des corrections de villes et codes postaux
     DB = xdb.DB()
     req = """SELECT IDcorrection, mode, IDville, nom, cp, pays
@@ -124,15 +146,19 @@ def GetVilles(champFiltre="ville",filtre=""):
     dictModifSuppr = {}
     for IDcorrection, mode, IDville, nom, cp, pays in listeCorrections :
         if not pays: pays = ""
-        if mode == "ajout" :
-            if champFiltre == "cp":
-                if condition == "" or cp[:len(filtre)] == filtre:
-                    listeVillesTmp.append((None, nom, cp, pays))
-            else:
-                if condition == "" or nom[:len(filtre)] == filtre:
-                    listeVillesTmp.append((None, nom, cp, pays))
-        else :
-            dictModifSuppr[IDville] = {"mode":mode, "nom":nom, "cp":cp, "pays":pays}
+        if not nom: nom = ""
+        if not cp: cp = ""
+        if champFiltre == "cp":
+            champ = cp
+            filtre = filtrecp
+        else: champ = nom
+
+        if condition == "" or champ[:len(filtre)] == filtre:
+            if mode == "ajout" :
+                listeVillesTmp.append((None, nom, cp, pays))
+            else :
+                # modification suppression
+                dictModifSuppr[IDville] = {"mode":mode, "nom":nom, "cp":cp, "pays":pays}
 
     listeVilles = []
     for IDville, nom, cp, pays in listeVillesTmp:
@@ -234,6 +260,29 @@ def GetOnePays(filtre=""):
             if self.selectionID == item[0] :
                 self.selectionTrack = track
 
+def GetDBCorrespondant(IDfamille):
+    # Importation de la base par défaut
+    DB = xdb.DB()
+    IDindividu = None
+    req = """SELECT 0,rattachements.IDindividu,rattachements.titulaire, individus.prenom, individus.nom, 
+                    individus.rue_resid, individus.cp_resid, individus.ville_resid
+            FROM rattachements 
+            INNER JOIN individus ON rattachements.IDindividu = individus.IDindividu
+            WHERE (((rattachements.IDfamille) = %d));
+            """%IDfamille
+    DB.ExecuterReq(req)
+    lstMembres = DB.ResultatReq()
+    DB.Close()
+    lstColonnes = ["0","ind","tit","prenom","nom","rue","cp","ville"]
+    dlg = xcl.DialogAffiche(titre=u"Précisez votre choix", intro=u"Sinon allez choisir la ville par '...'",
+                            lstDonnees=lstMembres, lstColonnes=lstColonnes)
+    ret = dlg.ShowModal()
+    if ret == wx.ID_OK and dlg.GetChoix():
+        ix = lstMembres.index(dlg.GetChoix())
+        IDindividu = lstMembres[ix][1]
+    dlg.Destroy()
+    return IDindividu
+
 def ChampsToLstAdresse(rue,cp,ville):
     if not rue: rue = ""
     if not cp: cp = ""
@@ -264,8 +313,9 @@ def LstAdresseToChamps(lstAdresse):
 
 def GetDBadresse(IDindividu=None,retNom=False):
     # lit dans la base une adresse et retourne une liste de 7 lignes dont certaines à blanc
-    IDindividuLu = IDindividu
     adresse = ['']*7
+    nom = None
+    prenom = None
     if IDindividu and IDindividu >0:
         # Importation de l'adresse de l'individu
         DB = xdb.DB()
@@ -281,17 +331,38 @@ def GetDBadresse(IDindividu=None,retNom=False):
             # un seul record possible au plus
             for auto,rue,cp,ville,secteur,normee,nom,prenom in recordset:
                 # rue et ville peuvent contenir plusieurs lignes à séparer
-                if auto and auto >1 and auto != IDindividuLu:
+                if auto and auto >0 and auto != IDindividu:
                     # appel de l'adresse indirecte sur un autre individu
-                    adresse,IDindividuLu, (nom,prenom) = GetDBadresse(auto,retNom=True)
+                    adresse,IDindividu, (nom,prenom) = GetDBadresse(auto,retNom=True)
                 else:
                     # adresse découpée et complétée.
                     adresse = ChampsToLstAdresse(rue,cp,ville)
         DB.Close()
     if retNom:
-        return adresse,IDindividuLu,(nom,prenom)
+        return adresse,IDindividu,(nom,prenom)
     else:
-        return adresse,IDindividuLu
+        return adresse,IDindividu
+
+def GetDBfamille(IDfamille=None):
+    # lit dans la base les données de la table famille
+    dicCorrespondant = {'IDindividu':None,'designation':None,'IDfamille':IDfamille}
+
+    if IDfamille and IDfamille >0:
+        # Importation de l'adresse de l'individu
+        DB = xdb.DB()
+        req = """SELECT adresse_individu, adresse_intitule 
+                FROM familles
+                WHERE (familles.IDfamille = %d)
+                ;"""%IDfamille
+        ret = DB.ExecuterReq(req,mess="aUTILS_SaisieAdresse.GetDBfamille")
+        if ret == "ok":
+            recordset = DB.ResultatReq()
+            # un seul record possible au plus
+            for IDindividu, designation in recordset:
+                dicCorrespondant['IDindividu']=IDindividu
+                dicCorrespondant['designation']= designation
+        DB.Close()
+    return dicCorrespondant
 
 def GetDBoldAdresse(IDindividu=None):
     # lit dans la base l'ancienne adresse et retourne une liste de 7 lignes dont certaines à blanc sans modifs
@@ -356,6 +427,15 @@ def SetDBadresse(DB,IDindividu=None,adresse = "\n\n\n\n\n\n\n"):
                     ("adresse_auto", None)]
     # envoi dans la base de donnée
     ret = DB.ReqMAJ("individus",lstDonnees,"IDindividu",IDindividu,mess="Insert Adresse Individu")
+    return ret
+
+def SetDBcorrespondant(dicCorrespondant):
+    # Stocke dans la base de donnée l'adresse avec 4 lignes obligatoires pour rue, 2 pour ville et cp à part.
+    lstDonnees = [  ("adresse_intitule",dicCorrespondant['designation']),
+                    ("adresse_individu", dicCorrespondant['IDindividu'])]
+    # envoi dans la base de donnée
+    DB=xdb.DB()
+    ret = DB.ReqMAJ("familles",lstDonnees,"IDfamille",dicCorrespondant['IDfamille'],mess="Insert familles Correspondant")
     return ret
 
 def SetDBoldAdresse(DB,IDindividu=None,adresse = "\n\n\n\n\n\n\n"):
