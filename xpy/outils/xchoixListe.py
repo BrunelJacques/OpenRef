@@ -495,7 +495,7 @@ class DialogCoches(wx.Dialog):
 
 class DialogAffiche(wx.Dialog):
     def __init__(self, titre="Ici mon titre", intro="et mes explications", lstDonnees=[("a",2),("b",10)],
-                 lstColonnes=["let","nbre"],size=(600,600)):
+                 lstColonnes=["let","nbre"],lstWcol=None,size=(600,600)):
         wx.Dialog.__init__(self, None, -1, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
         self.SetMinSize(size)
         mess = None
@@ -510,7 +510,7 @@ class DialogAffiche(wx.Dialog):
             for i in range(len(lstDonnees[0])):
                 lstColonnes.append("col " + str(i))
         self.dicOlv = {
-            'listeColonnes': self.ComposeColonnes(lstColonnes),
+            'listeColonnes': self.ComposeColonnes(lstColonnes,lstWcol=lstWcol),
             'listeDonnees': lstDonnees,
             'checkColonne': False,
             'colonneTri': 0,
@@ -582,16 +582,23 @@ class DialogAffiche(wx.Dialog):
         self.Layout()
         self.CenterOnScreen()
 
-    def ComposeColonnes(self,lstColonnes):
+    def ComposeColonnes(self,lstColonnes,lstWcol=None):
         lstDefn = []
+        if lstWcol and len(lstWcol) != len(lstColonnes):
+            lstWcol = None
+        width = -1
+        spFil = True
         for colonne in lstColonnes:
+            if lstWcol:
+                width = lstWcol[lstColonnes.index(colonne)]
+                if width != -1 : spFil = False
             code = xdb.NoPunctuation(colonne)
-            lstDefn.append(ColumnDefn(colonne, "left",-1,code,isSpaceFilling=True))
+            lstDefn.append(ColumnDefn(colonne, "left",width,code,isSpaceFilling=spFil))
         return lstDefn
 
     def OnDblClicOk(self, event):
         selection = self.ctrlOlv.GetSelectedObject()
-        if selection == None:
+        if selection == None and len(self.ctrlOlv.innerList)>1:
             dlg = wx.MessageDialog(self, (u"Pas de sélection faite !\nIl faut choisir ou cliquer sur annuler"), (u"Accord Impossible"), wx.OK | wx.ICON_EXCLAMATION)
             dlg.ShowModal()
             dlg.Destroy()
@@ -605,9 +612,9 @@ class DialogAffiche(wx.Dialog):
         donnees = None
         if selection :
             donnees = selection.donnees
+        elif len(self.ctrlOlv.innerList) == 1:
+            donnees = self.ctrlOlv.innerList[0].donnees
         return donnees
-
-
 
 if __name__ == u"__main__":
 

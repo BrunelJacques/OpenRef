@@ -264,6 +264,8 @@ def GetDBCorrespondant(IDfamille):
     # Importation de la base par défaut
     DB = xdb.DB()
     IDindividu = None
+    designIndiv = None
+    lstChamps = ['zero','IDindividu','titulaire','prenom','nom','rue','cp','ville']
     req = """SELECT 0,rattachements.IDindividu,rattachements.titulaire, individus.prenom, individus.nom, 
                     individus.rue_resid, individus.cp_resid, individus.ville_resid
             FROM rattachements 
@@ -272,15 +274,27 @@ def GetDBCorrespondant(IDfamille):
             """%IDfamille
     DB.ExecuterReq(req)
     lstMembres = DB.ResultatReq()
+    if len(lstMembres) == 0:
+        wx.MessageBox("Famille '%d' sans aucun membre!"%IDfamille,style=wx.ICON_ERROR)
+        return wx.ID_ABORT
     DB.Close()
-    lstColonnes = ["0","ind","tit","prenom","nom","rue","cp","ville"]
-    dlg = xcl.DialogAffiche(titre=u"Précisez votre choix", intro=u"Sinon allez choisir la ville par '...'",
-                            lstDonnees=lstMembres, lstColonnes=lstColonnes)
+    lstColonnes =   ["0","ind","tit","prenom","nom","rue","cp","ville"]
+    lstWcol =       [0,    80,  30,     120,   120,   180, 60,     180]
+    dlg = xcl.DialogAffiche(titre=u"Choisissez un membre ayant une adresse", intro=u"Sinon allez gérer les individus",
+                            lstDonnees=lstMembres, lstColonnes=lstColonnes,lstWcol=lstWcol)
     ret = dlg.ShowModal()
     if ret == wx.ID_OK and dlg.GetChoix():
         ix = lstMembres.index(dlg.GetChoix())
-        IDindividu = lstMembres[ix][1]
+        IDindividu = lstMembres[ix][lstChamps.index('IDindividu')]
+        prenom = lstMembres[ix][lstChamps.index('prenom')]
+        nom = lstMembres[ix][lstChamps.index('nom')]
+        designIndiv = "%d - %s %s" % (IDindividu, prenom, nom)
     dlg.Destroy()
+    ix = lstChamps.index('ville')
+    lstVilles = [x[ix] for x in lstMembres if (x[ix]!= None) and (len(x[ix])>0)]
+    if len(lstVilles) == 0:
+        # gestion d'absence d'une adresse dans la famille. ID_APPLI est un flag en retour
+        return (wx.ID_APPLY,IDindividu,designIndiv)
     return IDindividu
 
 def ChampsToLstAdresse(rue,cp,ville):
@@ -345,22 +359,25 @@ def GetDBadresse(IDindividu=None,retNom=False):
 
 def GetDBfamille(IDfamille=None):
     # lit dans la base les données de la table famille
-    dicCorrespondant = {'IDindividu':None,'designation':None,'IDfamille':IDfamille}
+    dicCorrespondant = {'IDindividu':None,'designation':None,'IDfamille':IDfamille,'designIndiv':""}
 
     if IDfamille and IDfamille >0:
         # Importation de l'adresse de l'individu
         DB = xdb.DB()
-        req = """SELECT adresse_individu, adresse_intitule 
-                FROM familles
+        req = """SELECT familles.adresse_individu, familles.adresse_intitule, individus.prenom, individus.nom
+                FROM familles 
+                LEFT JOIN individus ON familles.adresse_individu = individus.IDindividu
                 WHERE (familles.IDfamille = %d)
                 ;"""%IDfamille
         ret = DB.ExecuterReq(req,mess="aUTILS_SaisieAdresse.GetDBfamille")
         if ret == "ok":
             recordset = DB.ResultatReq()
             # un seul record possible au plus
-            for IDindividu, designation in recordset:
-                dicCorrespondant['IDindividu']=IDindividu
-                dicCorrespondant['designation']= designation
+            for IDindividu, designation, prenom, nom in recordset:
+                designIndiv = "%d - %s %s" % (IDindividu, prenom, nom)
+                dicCorrespondant['IDindividu'] = IDindividu
+                dicCorrespondant['designIndiv'] = designIndiv
+                dicCorrespondant['designation'] = designation
         DB.Close()
     return dicCorrespondant
 

@@ -29,20 +29,20 @@ class CTRL_champ(wx.Panel):
         self.parent = parent
         self.choices = choices
         self.label = wx.StaticText(self, -1, label + u" :", style=wx.ALIGN_RIGHT,size=(140,20))
-        if nom == "ville":
+        if nom == 'ville':
             self.ctrl = wx.ComboBox(self,-1,value=valdef,choices=choices,style=wx.TE_PROCESS_ENTER)
             self.ctrl.SetSelection(0)
             self.ctrl.Bind(wx.EVT_COMBOBOX,self.parent.OnChoixVille)
             self.bouton = wx.Button(self, -1, "...", size=(20, 20))
             self.bouton.SetToolTip(btntip)
             self.bouton.Bind(wx.EVT_BUTTON, btnonclic)
-        elif nom == "IDindividu":
+        elif nom == 'designIndiv':
             self.ctrl = wx.TextCtrl(self, -1, valdef,style=wx.TE_PROCESS_ENTER, size=(230,20))
             self.ctrl.SetMaxLength(38)
             self.bouton = wx.Button(self, -1, "...", size=(20, 20))
             self.bouton.SetToolTip(btntip)
             self.bouton.Bind(wx.EVT_BUTTON, btnonclic)
-        elif nom in ("forcer"):
+        elif nom in ('forcer'):
             self.ctrl = wx.CheckBox(self, -1)
         else:
             self.ctrl = wx.TextCtrl(self, -1, valdef,style=wx.TE_PROCESS_ENTER, size=(230,20))
@@ -53,14 +53,14 @@ class CTRL_champ(wx.Panel):
         self.ctrl.nom = nom
         self.label.SetToolTip(aide)
         self.ctrl.SetToolTip(aide)
-        if nom in ('IDindividu','pays','forcer'):
+        if nom in ('designIndiv','pays','forcer'):
             self.ctrl.Enable(False)
         self.__do_layout()
 
     def __do_layout(self):
         gridsizer_base = wx.FlexGridSizer(rows=1, cols=3, vgap=0, hgap=0)
         gridsizer_base.Add(self.label, 1, wx.ALIGN_CENTRE_VERTICAL| wx.ALIGN_RIGHT | wx.TOP|wx.RIGHT, 5)
-        if self.ctrl.nom in ("IDindividu","ville"):
+        if self.ctrl.nom in ("designIndiv","ville"):
             gridsizer_base.Add(self.bouton, 0, wx.ALIGN_CENTRE_VERTICAL| wx.ALIGN_RIGHT | wx.TOP|wx.RIGHT, 5)
         else:
             gridsizer_base.Add((10,10), 0, wx.TOP | wx.RIGHT, 5)
@@ -83,8 +83,8 @@ class PnlAdresse(wx.Panel):
         if self.parent.mode == "familles":
             lstLignes = [
             ['designation', u"Désignation de la famille",   u"Libellé de l'adresse du courrier pour la famille", u"Obligatoire"],
-            ['IDindividu', u"Individu correspondant", u"Individu dont l'adresse est utilisée pour correspondre", u"Obligatoire", ["Choisir..."],
-                 u"Changement du correspondant de la famille", self.OnClicCorrespondant],
+            ['designIndiv', u"Individu correspondant", u"Individu dont l'adresse est utilisée pour correspondre", u"Obligatoire",
+             ["Choisir..."], u"Changement du correspondant de la famille", self.OnClicCorrespondant],
             ]
             self.posAdresse = 2
         else:
@@ -144,6 +144,9 @@ class PnlAdresse(wx.Panel):
     def GetVillesDuCp(self,filtrecp,mute=False):
         # Appelle les villes du code postal et prépare les listes des choices de villes
         self.lstCpVillesPays = usa.GetVilles("cp",filtrecp)
+        if self.lstCpVillesPays == [("","","")]:
+            self.lstCpVillesPays = [("","",filtrecp)]
+            return
         self.lstVilles = []
         lstCp = []
         lstChoix = []
@@ -180,7 +183,8 @@ class PnlAdresse(wx.Panel):
     def GetVilleDuNom(self,ville):
         # Appelle les villes correspondant au nom partiellement fourni
         self.lstCpVillesPays = usa.GetVilles("ville",ville)
-        if self.lstCpVillesPays == ("","",""):
+        if self.lstCpVillesPays == [("","","")]:
+            self.lstCpVillesPays = [("", ville, "")]
             return
         lstChoix = []
         self.lstVilles = []
@@ -224,8 +228,9 @@ class PnlAdresse(wx.Panel):
 
     def SetCorrespondant(self,dicCorrespondant):
         # met les champs deu correspondant dans la grille
+        self.dicCorrespondant = dicCorrespondant
         ix = 0
-        for champ in ('designation','IDindividu'):
+        for champ in ('designation','designIndiv'):
             if not dicCorrespondant[champ]:
                 dicCorrespondant[champ] = ''
             value = str(dicCorrespondant[champ])
@@ -242,12 +247,13 @@ class PnlAdresse(wx.Panel):
         return adresse
 
     def MAJ(self,nomEvent=None):
+        if self.lstCtrl[self.lstNomsChamps.index("forcer")].ctrl.GetValue(): return
         cp = self.lstCtrl[self.lstNomsChamps.index("cp")].ctrl.GetValue()
         if nomEvent == "cp":
             if self.oldCp != cp and len(cp)>1:
                 # Le code postal a été modifié, recherche des villes associées
                 self.GetVillesDuCp(cp)
-        if nomEvent == "ville":
+        if nomEvent == "ville" :
             ville = self.lstCtrl[self.lstNomsChamps.index("ville")].ctrl.GetValue()
             if self.oldVille != ville and len(ville) > 1:
                 # Le nom de la ville a été modifié recherche des ambigus
@@ -267,9 +273,11 @@ class PnlAdresse(wx.Panel):
 
     def OnKeyEnter(self,event):
         if not self.goEvent:
+            # blocage pour ne gérer qu'un seul évènement et non la rafale
             self.goEvent = event.EventObject.nom
             nom = event.EventObject.nom
             if nom in ("cp","ville"):
+                # seuls ces deux champs font l'objet d'un traitement
                 self.MAJ(nom)
             ix = self.lstNomsChamps.index(nom) +1
             if len(self.lstNomsChamps)>ix:
@@ -298,12 +306,38 @@ class PnlAdresse(wx.Panel):
 
     def OnClicCorrespondant(self,event):
         event.Skip()
-        IDindividu = usa.GetDBCorrespondant(self.parent.IDfamille)
-        lstAdresse, IDindividuLu,(nom,prenom) = usa.GetDBadresse(IDindividu,retNom=True)
-        if IDindividu == IDindividuLu:
-            self.SetAdresse(lstAdresse)
-            self.SetValue("IDindividu","%d %s %s"%(IDindividu,prenom,nom))
+        ret  = usa.GetDBCorrespondant(self.parent.IDfamille)
+        if ret == wx.ID_ABORT:
+            return
+        elif isinstance(ret,tuple):
+            # cas d'absence d'adresse saisie dans la famille, on prépare la saisie d'une adresse propre
+            #flag = ret[0]
+            IDindividu = ret[1]
+            designIndiv = ret[2]
+            self.dicCorrespondant['IDindividu'] = IDindividu
+            self.dicCorrespondant['designIndiv'] = designIndiv
+            self.SetValue('designIndiv',designIndiv)
+            return
+        IDindividu = ret
 
+        lstAdresse, IDindividuLu,(nom,prenom) = usa.GetDBadresse(IDindividu,retNom=True)
+        if IDindividu  and IDindividu != IDindividuLu:
+            if not nom or nom == "":
+                mess = "Adresse perdue,\n\nvous pouvez affecter un autre correspondant"
+                ret = wx.MessageBox(mess, "Pas d'adresse", style=wx.OK_DEFAULT | wx.CENTER)
+                return
+            else:
+                mess = "Cette personne avait l'adresse de %s %s\n\nChoisissez un autre correspondant," % (
+                prenom, nom)
+                mess += "\nou gérez préalablement les adresses des individus de la famille"
+                ret = wx.MessageBox(mess, "Pas d'adresse personnelle", style=wx.OK_DEFAULT | wx.CENTER)
+                return
+        if IDindividu  and IDindividu != self.dicCorrespondant['IDindividu']:
+            designIndiv = "%d - %s %s"%(IDindividu,prenom,nom)
+            self.dicCorrespondant['IDindividu'] = IDindividu
+            self.dicCorrespondant['designIndiv'] = designIndiv
+            self.SetAdresse(lstAdresse)
+            self.SetValue('designIndiv',designIndiv)
 
     def SetValue(self,champ,valeur):
         # SetValue de 'valeur' sur le ctrl de la ligne nommée par 'champ'
@@ -417,11 +451,30 @@ class DlgSaisieAdresse(wx.Dialog):
         if event : event.Skip()
         self.EndModal(wx.ID_CANCEL)
 
+    def Enregistre(self):
+        self.IDindividu = self.dicCorrespondant['IDindividu']
+        # Enregistrement de l'adresse et sortie
+        ret = usa.SetDBadresse(None,self.IDindividu,self.lstAdresse)
+        if ret != "ok":
+            wx.MessageBox(self, u"Pas d'écriture possible !\nAbandon de la modification\n%s"%ret)
+            self.EndModal(wx.ID_ABORT)
+        else:
+            # archive cette adresse s'il n'y en a pas d'autre
+            exadresse = usa.GetDBoldAdresse(self.IDindividu)
+            if not exadresse:
+                ret = usa.SetDBoldAdresse(None,self.IDindividu, self.lstAdresse)
+            self.EndModal(wx.ID_OK)
+        ret = usa.SetDBcorrespondant(self.dicCorrespondant)
+        if ret != "ok":
+            wx.MessageBox(self, u"Pas d'écriture possible du correspondant !\n%s"%ret)
+
     def OnClicOk(self, event):
         event.Skip()
         mess = ""
         saisie = self.panelAdresse.GetAdresse()
         self.lstAdresse = usa.TransposeAdresse(saisie)
+        self.panelAdresse.SetAdresse(self.lstAdresse)
+        self.dicCorrespondant = self.panelAdresse.dicCorrespondant
         nonmodifiee=True
         for i in range(len(saisie)):
             if saisie[i].upper() != self.lstAdresse[i].upper():
@@ -433,33 +486,15 @@ class DlgSaisieAdresse(wx.Dialog):
             if mess == wx.ID_OK:
                 validee = True
         self.lstCtrl[self.lstNomsChamps.index("forcer")].ctrl.Enable(True)
-        self.panelAdresse.SetAdresse(self.lstAdresse)
-        #self.panelAdresse.MAJ()
-        def enregistre():
-            # Enregistrement de l'adresse et sortie
-            ret = usa.SetDBadresse(None,self.IDindividu,self.lstAdresse)
-            if ret != "ok":
-                wx.MessageBox(self, u"Pas d'écriture possible !\nAbandon de la modification\n%s"%ret)
-                self.EndModal(wx.ID_ABORT)
-            else:
-                # archive cette adresse s'il n'y en a pas d'autre
-                exadresse = usa.GetDBoldAdresse(self.IDindividu)
-                if not exadresse:
-                    ret = usa.SetDBoldAdresse(None,self.IDindividu, self.lstAdresse)
-                self.EndModal(wx.ID_OK)
-            ret = usa.SetDBcorrespondant(self.dicCorrespondant)
-            if ret != "ok":
-                wx.MessageBox(self, u"Pas d'écriture possible du correspondant !\n%s"%ret)
-
+        self.lstCtrl[self.lstNomsChamps.index("pays")].ctrl.Enable(True)
 
         if (validee and nonmodifiee) or forcer:
-            enregistre()
+            self.Enregistre()
         elif validee:
             self.panelAdresse.SetAdresse(self.lstAdresse)
             wx.MessageBox(u"L'adresse vient d'être reformatée !\nValidez à nouveau pour confirmer")
         elif nonmodifiee:
             wx.MessageBox(mess+"\n\nPour sortir quand même sans abandonner, vous pouvez cocher la case 'Forcer la saisie'")
-
 
 if __name__ == u"__main__":
     app = wx.App(0)
