@@ -272,6 +272,6 @@ if __name__ == '__main__':
     app = wx.App(0)
     import os
     os.chdir("..")
-    dlg = Dialog(mode='familles')
+    dlg = Dialog(mode='individus')
     dlg.ShowModal()
     app.MainLoop()

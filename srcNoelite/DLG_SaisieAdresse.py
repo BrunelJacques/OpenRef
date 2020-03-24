@@ -13,7 +13,6 @@ import srcNoelite.DLG_Villes    as ndv
 import srcNoelite.UTILS_SaisieAdresse as usa
 import xpy.outils.xchoixListe   as xcl
 
-
 class CTRL_Bouton_image(wx.Button):
     def __init__(self, parent, id=wx.ID_APPLY, texte="", cheminImage=None):
         wx.Button.__init__(self, parent, id=id, label=texte)
@@ -367,7 +366,7 @@ class DlgSaisieAdresse(wx.Dialog):
             self.IDfamille = ID
             self.IDindividu = self.dicCorrespondant['IDindividu']
         else:
-            self.dicCorrespondant = None
+            self.dicCorrespondant = {'IDindividu':ID}
             self.IDindividu = ID
         self.minSize = minSize
         self.wCode = LargeurCode
@@ -464,9 +463,10 @@ class DlgSaisieAdresse(wx.Dialog):
             if not exadresse:
                 ret = usa.SetDBoldAdresse(None,self.IDindividu, self.lstAdresse)
             self.EndModal(wx.ID_OK)
-        ret = usa.SetDBcorrespondant(self.dicCorrespondant)
-        if ret != "ok":
-            wx.MessageBox(self, u"Pas d'écriture possible du correspondant !\n%s"%ret)
+        if self.mode == 'familles':
+            ret = usa.SetDBcorrespondant(self.dicCorrespondant)
+            if ret != "ok":
+                wx.MessageBox(self, u"Pas d'écriture possible du correspondant !\n%s"%ret)
 
     def OnClicOk(self, event):
         event.Skip()
@@ -474,7 +474,8 @@ class DlgSaisieAdresse(wx.Dialog):
         saisie = self.panelAdresse.GetAdresse()
         self.lstAdresse = usa.TransposeAdresse(saisie)
         self.panelAdresse.SetAdresse(self.lstAdresse)
-        self.dicCorrespondant = self.panelAdresse.dicCorrespondant
+        if self.mode == 'familles':
+            self.dicCorrespondant = self.panelAdresse.dicCorrespondant
         nonmodifiee=True
         for i in range(len(saisie)):
             if saisie[i].upper() != self.lstAdresse[i].upper():
