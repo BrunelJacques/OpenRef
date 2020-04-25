@@ -6,7 +6,7 @@
 # Licence:         Licence GNU GPL
 # -------------------------------------------------------------
 
-NOM_MODULE = "DLG_Gestion_adresse"
+NOM_MODULE = "DLG_Adresses_gestion"
 ACTION = "Gestion\nadresse"
 TITRE = "Choisissez une ligne !"
 INTRO = "Double clic pour lancer la gestion de l'adresse"
@@ -22,8 +22,8 @@ import xpy.xGestion_Tableau     as xgt
 import xpy.xUTILS_SaisieParams  as xusp
 import xpy.xGestionDB           as xdb
 import srcNoelite.UTILS_Utilisateurs  as nuu
-import srcNoelite.DLG_SaisieAdresse   as nsa
-import srcNoelite.UTILS_SaisieAdresse as nusa
+import srcNoelite.DLG_Adresses_saisie   as nsa
+import srcNoelite.UTILS_Adresses_saisie as nusa
 from xpy.outils.ObjectListView import CTRL_Outils
 
 def ComposeLstDonnees(record,lstChamps):
@@ -250,7 +250,7 @@ class Dialog(wx.Dialog):
                 ID = self.choix.individu
                 nom = self.choix.nom
                 prenom = self.choix.prenom
-            dlg2 = nsa.DlgSaisieAdresse(ID,mode=self.mode, titre=u"Adresse de %d - %s %s"%(ID,nom,prenom))
+            dlg2 = nsa.DlgAdresses_saisie(ID,mode=self.mode, titre=u"Adresse de %d - %s %s"%(ID,nom,prenom))
             ret = dlg2.ShowModal()
             if ret == wx.ID_OK:
                 lstAdresse = dlg2.lstAdresse

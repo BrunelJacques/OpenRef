@@ -82,7 +82,8 @@ class Track(object):
             exec(commande)
 
 class DialogLettrage(wx.Dialog):
-    # Gestion d'un lettrage à partir de deux dictionnaires
+    # Gestion d'un lettrage à partir de deux dictionnaires, mots clés des champs : montant en dernière position
+    # La première colonne sera l'ID suivi du sens (origine fichier) et lettre. La suite sera les champs
     def __init__(self, parent,dicList1={},lstChamps1=[],dicList2={},lstChamps2=[],lstLettres=[],columnSort=3,
                  LargeurCode=80,LargeurLib=100,minSize=(350, 350),titre=u"Lettrage des montants",
                  intro=u"Cochez les lignes associées puis cliquez sur lettrage...", altOK = False):
@@ -288,6 +289,8 @@ class DialogLettrage(wx.Dialog):
         for donnee in self.lstDonnees:
             if (donnee[0],donnee[1]) in self.dicLettres:
                 let = self.dicLettres[(donnee[0],donnee[1])]
+                for ix in (0,-1,-2):
+                    if not donnee[ix]: donnee[ix]=0
                 self.dicEquiLet[let] += donnee[0]*(donnee[-1]+donnee[-2])
         # application de la lettre dans les données et vérif de l'équilibre pour la mettre en majuscules
         for donnee in self.lstDonnees:

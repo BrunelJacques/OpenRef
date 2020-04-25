@@ -9,7 +9,7 @@
 #------------------------------------------------------------------------
 
 import wx
-import srcNoelite.DLG_Gestion_adresses as ndga
+import srcNoelite.DLG_Adresses_gestion as ndga
 import srcNoelite.CTRL_Identification as nident
 
 """ Paramétrage de la construction de la barre de menus """

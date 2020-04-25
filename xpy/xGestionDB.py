@@ -367,8 +367,11 @@ class DB():
             return self.retourReq
 
     def CoupleMAJ(self,champ, valeur):
+        nonetype = type(None)
         if isinstance(valeur,(int,float)):
             val = "%s, " %str(valeur)
+        elif isinstance(valeur, (nonetype)):
+            val = "NULL, "
         elif isinstance(valeur, (tuple, list,dict)):
             val = str(valeur)[1:-1]
             val = val.replace("'","")

@@ -61,7 +61,7 @@ COLONNES_CONFIGS = {
     "db_second": ['nomDBlocal', 'typeDBloc'],
 }
 
-def AppelLgnesMatrice(categ=None, possibles={}):
+def AppelLignesMatrice(categ=None, possibles={}):
     # retourne les lignes de la  matrice de l'argument categ
     # ou la première catégorie si not categ
     label = ''
@@ -118,7 +118,7 @@ class DLG_identification(wx.Dialog):
                 ddDonnees[ident] = valeurs
                 self.ctrlID.SetValeurs(ddDonnees=ddDonnees)
 
-            code,label,lignes = AppelLgnesMatrice(None, MATRICE_USER)
+            code,label,lignes = AppelLignesMatrice(None, MATRICE_USER)
             # le nom de la configuration c'est le premier champ décrit dans la matrice
             self.codeConfig = code + '.' + lignes[0]['name']
             ###self.codeConfig = lignes[0]['name']

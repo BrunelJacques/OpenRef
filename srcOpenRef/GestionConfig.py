@@ -169,11 +169,11 @@ class DLG_import(wx.Dialog):
 
             if self.multi:
                 # récupère le premier groupe de paramètres à afficher dans la grille
-                code, label, lignes = xgc.AppelLgnesMatrice(None, MATRICE_IMPORTMULTI)
+                code, label, lignes = xgc.AppelLignesMatrice(None, MATRICE_IMPORTMULTI)
                 # simple texte d'intro dans la grille
                 self.titre = wx.StaticText(self, -1, "Import d\'un groupe de dossiers compta")
             else:
-                code,label,lignes = xgc.AppelLgnesMatrice(None, MATRICE_IMPORT)
+                code,label,lignes = xgc.AppelLignesMatrice(None, MATRICE_IMPORT)
                 self.titre =wx.StaticText(self, -1, "Import d'un dossier compta")
 
             # contrôle gérant la saisie des paramètres de config
@@ -363,7 +363,7 @@ class DLG_trait(wx.Dialog):
 
         def Affiche():
             # récupère les paramètres à afficher dans la grille
-            code, label, lignes = xgc.AppelLgnesMatrice(None, self.matrice)
+            code, label, lignes = xgc.AppelLignesMatrice(None, self.matrice)
 
             # contrôle gérant la saisie des paramètres
             self.ctrlExport = xusp.BoxPanel(self, -1, lblbox=label, code=code, lignes=lignes, dictDonnees={})
@@ -543,7 +543,7 @@ class DLG_affect(wx.Dialog):
 
         def Affiche():
             # récupère les paramètres à afficher dans la grille
-            code, label, lignes = xgc.AppelLgnesMatrice(None, self.matrice)
+            code, label, lignes = xgc.AppelLignesMatrice(None, self.matrice)
 
             # contrôle gérant la saisie des paramètres
             self.ctrlExport = xusp.BoxPanel(self, -1, lblbox=label, code=code, lignes=lignes, dictDonnees={})
@@ -715,7 +715,7 @@ class DLG_export(wx.Dialog):
 
         def Affiche():
             # récupère les paramètres à afficher dans la grille
-            code, label, lignes = xgc.AppelLgnesMatrice(None, self.matrice)
+            code, label, lignes = xgc.AppelLignesMatrice(None, self.matrice)
 
             # contrôle gérant la saisie des paramètres
             self.ctrlExport = xusp.BoxPanel(self, -1, lblbox=label, code=code, lignes=lignes, dictDonnees={})
@@ -934,7 +934,7 @@ class DLG_implantation(wx.Dialog):
 
         def Affiche():
             # récupère le premier groupe de paramètres à afficher dans la grille
-            code,label,lignes = xgc.AppelLgnesMatrice(None, MATRICE_COMPTA)
+            code,label,lignes = xgc.AppelLignesMatrice(None, MATRICE_COMPTA)
             # le nom de la configuration c'est le premier champ décrit dans la matrice
             #self.codeConfig = code + '.' + lignes[0]['name']
 

@@ -156,10 +156,11 @@ class ListView(FastObjectListView):
         self.SetEmptyListMsg(self.msgIfEmpty)
         self.SetEmptyListMsgFont(wx.FFont(11, wx.DEFAULT))
         # Si la colonne à trier n'est pas précisée on trie selon la première par défaut
-        if self.colonneTri == None:
-            self.SortBy(1, self.sensTri)
-        else:
-            self.SortBy(self.colonneTri, self.sensTri)
+        if self.ColumnCount > 1:
+            if self.colonneTri == None:
+                self.SortBy(1, self.sensTri)
+            else:
+                self.SortBy(self.colonneTri, self.sensTri)
         self.SetObjects(self.donnees)
 
     def MAJ(self, ID=None):

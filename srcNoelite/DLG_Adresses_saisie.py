@@ -10,7 +10,7 @@
 import wx
 import xpy.outils.xbandeau      as xbd
 import srcNoelite.DLG_Villes    as ndv
-import srcNoelite.UTILS_SaisieAdresse as usa
+import srcNoelite.UTILS_Adresses_saisie as usa
 import xpy.outils.xchoixListe   as xcl
 
 class CTRL_Bouton_image(wx.Button):
@@ -353,12 +353,12 @@ class PnlAdresse(wx.Panel):
         ixChamp = self.lstNomsChamps.index(champ)
         self.lstCtrl[ixChamp].ctrl.Set(lstval)
 
-class DlgSaisieAdresse(wx.Dialog):
+class DlgAdresses_saisie(wx.Dialog):
     # Gestion de l'adresse dans sa fenêtre
     def __init__(self,ID,mode='individus',LargeurCode=180,LargeurLib=100,minSize=(180, 350),
                  titre=u"Saisie d'une adresse normalisée",intro=u"Lignes limitées à 38 caractères"):
         wx.Dialog.__init__(self, None, -1, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER|wx.MAXIMIZE_BOX|wx.MINIMIZE_BOX)
-        self.SetTitle("aDLG_SaisieAdresse")
+        self.SetTitle("aDLG_Adresses_saisie")
         self.mode = mode
         self.choix= None
         if self.mode == 'familles':
@@ -455,7 +455,7 @@ class DlgSaisieAdresse(wx.Dialog):
         # Enregistrement de l'adresse et sortie
         ret = usa.SetDBadresse(None,self.IDindividu,self.lstAdresse)
         if ret != "ok":
-            wx.MessageBox(self, u"Pas d'écriture possible !\nAbandon de la modification\n%s"%ret)
+            wx.MessageBox("Pas d'écriture possible !\nAbandon de la modification\n%s"%ret)
             self.EndModal(wx.ID_ABORT)
         else:
             # archive cette adresse s'il n'y en a pas d'autre
@@ -503,6 +503,6 @@ if __name__ == u"__main__":
     os.chdir("..")
     dlg = wx.Frame(None)
     dlg.ID = 60
-    dlg2 = DlgSaisieAdresse(dlg.ID, mode='familles', titre=u"Adresse de %d"%dlg.ID)
+    dlg2 = DlgAdresses_saisie(dlg.ID, mode='familles', titre=u"Adresse de %d"%dlg.ID)
     dlg2.ShowModal()
     app.MainLoop()

@@ -81,13 +81,13 @@ def VerifieVille(codepost="",ville="",pays=""):
     # si la ville n'est pas en france avec le code postal
     # Importation des corrections de villes et codes postaux
     DB = xdb.DB()
-    condition = "WHERE nom = '%s' AND pays = '%s'" %(ville, pays)
+    condition = "WHERE nom = '%s' " %(ville)
     if len(codepost)>1:
         condition +=" AND cp = '%s'"% codepost
 
     req = """SELECT IDcorrection, mode, IDville, nom, cp, pays
     FROM corrections_villes %s; """%condition
-    DB.ExecuterReq(req, mess="aUTILS_SaisieAdresse.VerifieVille")
+    DB.ExecuterReq(req, mess="aUTILS_Adresses_saisie.VerifieVille")
     ret = DB.ResultatReq()
     DB.Close()
     if len(ret)==1: return "ok"
@@ -138,7 +138,7 @@ def GetVilles(champFiltre="ville",filtre=""):
     DB = xdb.DB()
     req = """SELECT IDcorrection, mode, IDville, nom, cp, pays
     FROM corrections_villes; """ 
-    DB.ExecuterReq(req,mess="aUTILS_SaisieAdresse.GetVilles")
+    DB.ExecuterReq(req,mess="aUTILS_Adresses_saisie.GetVilles")
     listeCorrections = DB.ResultatReq()
     DB.Close()
     
@@ -227,7 +227,7 @@ def GetOnePays(filtre=""):
         req = """SELECT secteurs.nom
         FROM secteurs
         %s ;"""%condition
-        db.ExecuterReq(req,mess="UTILS_SaisieAdresse.GetOnePays")
+        db.ExecuterReq(req,mess="UTILS_Adresses_saisie.GetOnePays")
         return db.ResultatReq()
 
     listeDonnees = Requete(condition)
@@ -339,7 +339,7 @@ def GetDBadresse(IDindividu=None,retNom=False):
                 LEFT JOIN secteurs ON individus.IDsecteur = secteurs.IDsecteur
                 WHERE individus.IDindividu = %d
                 ;"""%IDindividu
-        ret = DB.ExecuterReq(req,mess="aUTILS_SaisieAdresse.GetDBadresse")
+        ret = DB.ExecuterReq(req,mess="aUTILS_Adresses_saisie.GetDBadresse")
         if ret == "ok":
             recordset = DB.ResultatReq()
             # un seul record possible au plus
@@ -369,7 +369,7 @@ def GetDBfamille(IDfamille=None):
                 LEFT JOIN individus ON familles.adresse_individu = individus.IDindividu
                 WHERE (familles.IDfamille = %d)
                 ;"""%IDfamille
-        ret = DB.ExecuterReq(req,mess="aUTILS_SaisieAdresse.GetDBfamille")
+        ret = DB.ExecuterReq(req,mess="aUTILS_Adresses_saisie.GetDBfamille")
         if ret == "ok":
             recordset = DB.ResultatReq()
             # un seul record possible au plus
@@ -392,7 +392,7 @@ def GetDBoldAdresse(IDindividu=None):
                 FROM exadresses
                 WHERE IDindividu = %d
                 ;"""%IDindividu
-        ret = DB.ExecuterReq(req,mess="UTILS_SaisieAdresse.GetDBoldAdresse")
+        ret = DB.ExecuterReq(req,mess="UTILS_Adresses_saisie.GetDBoldAdresse")
         if ret == "ok":
             recordset = DB.ResultatReq()
             # un seul record possible au plus
