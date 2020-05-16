@@ -409,7 +409,7 @@ class PanelListView(wx.Panel):
         wx.Panel.__init__(self, parent, id=id, style=stylePanel)
         self.dictColFooter = kwargs.pop("dictColFooter", {})
         if not "id" in kwargs: kwargs["id"] = wx.ID_ANY
-        if not "style" in kwargs: kwargs["style"] = wx.LC_EDIT_LABELS |wx.LC_REPORT|wx.NO_BORDER|wx.LC_HRULES|wx.LC_VRULES
+        if not "style" in kwargs: kwargs["style"] = wx.LC_REPORT|wx.NO_BORDER|wx.LC_HRULES|wx.LC_VRULES
         kwargs["pnlfooter"]=self
         listview = ListView(self,**kwargs)
 
@@ -445,7 +445,11 @@ class PanelListView(wx.Panel):
 
     def OnEditFinishing(self,event):
         row,col = self.ctrl_listview.cellBeingEdited
-        print("ligne : %d, colonne : %d"%(row,col))
+        track = self.ctrl_listview.GetObjectAt(row)
+        #old_data = track.donnees[col]
+        new_data = self.ctrl_listview.cellEditor.GetValue()
+        track.__setattr__(self.ctrl_listview.lstCodesColonnes[col], new_data)
+        track.donnees[col]=new_data
         event.Skip()
 
     def OnChar(self, event):
@@ -466,6 +470,7 @@ class PanelListView(wx.Panel):
         return
 
     def OnFunctionKeys(self,eventObj,codeKey):
+        # Fonction appelée par CellEditor.Validator lors de l'activation d'une touche de fonction
         row, col = self.ctrl_listview.cellBeingEdited
         wx.MessageBox(u"Touche <F%d> pressée sur cell (%d,%d)"%(codeKey - wx.WXK_F1 + 1,row,col))
 

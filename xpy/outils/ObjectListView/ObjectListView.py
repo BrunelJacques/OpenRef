@@ -1190,7 +1190,8 @@ class ObjectListView(wx.ListCtrl):
         This column is edited when F2 is pressed.
         """
         for (i, x) in enumerate(self.columns):
-            if not x.isInternal:
+            if not x.isInternal and x.width > 0 :
+
                 return i
 
         return -1
@@ -2073,7 +2074,7 @@ class ObjectListView(wx.ListCtrl):
         """
         Start an edit operation on the given cell after performing some sanity checks
         """
-        if 0 > rowIndex >= self.GetItemCount():
+        if 0 > rowIndex or rowIndex >= self.GetItemCount():
             return
 
         if 0 > subItemIndex >= self.GetColumnCount():
@@ -2154,7 +2155,8 @@ class ObjectListView(wx.ListCtrl):
         # If the event handler hasn't already configured the editor, do it now.
         if evt.shouldConfigureEditor:
             self.cellEditor.SetFocus()
-            self.cellEditor.SetValue(evt.cellValue)
+            if evt.cellValue:
+                self.cellEditor.SetValue(evt.cellValue)
             self._ConfigureCellEditor(
                 self.cellEditor,
                 evt.cellBounds,
