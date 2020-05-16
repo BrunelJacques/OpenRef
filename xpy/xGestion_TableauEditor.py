@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 #  Jacques Brunel x Sébastien Gouast
-#  MATTHANIA - Projet XPY - xTableau.py (implémentation d'une gestion de tableau paramétrable)
-#  2019/04/18
+#  MATTHANIA - Projet XPY - xTableau.py (implémentation d'une saisie directe dans  un tableau paramétrable)
+#  2020/05/15
 # note l'appel des fonctions 2.7 passent par le chargement de la bibliothèque future (vue comme past)
 # ce module reprend les fonctions de xUTILS_Tableau sans y faire appel
 # matrice OLV
@@ -11,10 +11,33 @@
 import wx
 import os
 import xpy.outils.xformat
-from xpy.outils.ObjectListView import FastObjectListView, ColumnDefn, Filter, Footer, CTRL_Outils, OLVEvent
+from xpy.outils.ObjectListView import FastObjectListView, ColumnDefn, Filter, Footer, CTRL_Outils, OLVEvent,CellEditor
 from xpy.outils.xconst import *
+import datetime
 
 # ------------------------------------------------------------------------------------------------------------------
+
+class TrackGeneral(object):
+    #    Cette classe va transformer une ligne en objet selon les listes de colonnes et valeurs par défaut(setter)
+    def __init__(self, donnees,codesColonnes, nomsColonnes, setterValues):
+        self.donnees = donnees
+        if not(len(donnees) == len(codesColonnes)== len(nomsColonnes) == len(setterValues)):
+            wx.MessageBox("Problème de nombre d'occurences!\n%d donnees, %d codes, %d colonnes et %d valeurs défaut"
+                          %(len(donnees), len(codesColonnes), len(nomsColonnes), len(setterValues)))
+        for ix in range(len(donnees)):
+            donnee = donnees[ix]
+            if setterValues[ix]:
+                if (donnee is None):
+                    donnee = setterValues[ix]
+                else:
+                    if not isinstance(donnee,type(setterValues[ix])):
+                        try:
+                            if type(setterValues[ix]) in (int,float):
+                                donnee = float(donnee)
+                            elif type(setterValues[ix]) == str:
+                                donnee = str(donnee)
+                        except : pass
+            self.__setattr__(codesColonnes[ix], donnee)
 
 class ListView(FastObjectListView):
     """
@@ -52,6 +75,7 @@ class ListView(FastObjectListView):
         self.pnlfooter = kwds.pop("pnlfooter", None)
         self.checkColonne = kwds.pop("checkColonne",True)
         self.listeColonnes = kwds.pop("listeColonnes", [])
+        self.editMode = kwds.pop("editMode", True)
         self.msgIfEmpty = kwds.pop("msgIfEmpty", "Tableau vide")
         self.colonneTri = kwds.pop("colonneTri", None)
         self.sensTri = kwds.pop("sensTri", True)
@@ -91,6 +115,8 @@ class ListView(FastObjectListView):
         # Binds perso
         self.Bind(OLVEvent.EVT_ITEM_CHECKED, self.OnItemChecked)
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
+        if self.editMode:
+            self.cellEditMode = FastObjectListView.CELLEDIT_SINGLECLICK
 
     def SetFooter(self, ctrl=None, dictColFooter={}):
         self.ctrl_footer = ctrl
@@ -383,13 +409,16 @@ class PanelListView(wx.Panel):
         wx.Panel.__init__(self, parent, id=id, style=stylePanel)
         self.dictColFooter = kwargs.pop("dictColFooter", {})
         if not "id" in kwargs: kwargs["id"] = wx.ID_ANY
-        if not "style" in kwargs: kwargs["style"] = wx.LC_REPORT|wx.NO_BORDER|wx.LC_SINGLE_SEL|wx.LC_HRULES|wx.LC_VRULES
+        if not "style" in kwargs: kwargs["style"] = wx.LC_EDIT_LABELS |wx.LC_REPORT|wx.NO_BORDER|wx.LC_HRULES|wx.LC_VRULES
         kwargs["pnlfooter"]=self
         listview = ListView(self,**kwargs)
 
+        self.buffertracks = None
         self.ctrl_listview = listview
         self.ctrl_footer = None
         self.SetFooter(reinit=False)
+        self.ctrl_listview.Bind(wx.EVT_CHAR,self.OnChar)
+        self.ctrl_listview.Bind(OLVEvent.EVT_CELL_EDIT_FINISHING,self.OnEditFinishing)
 
         # Layout
 
@@ -414,31 +443,34 @@ class PanelListView(wx.Panel):
     def GetListview(self):
         return self.ctrl_listview
 
-class TrackGeneral(object):
-    #    Cette classe va transformer une ligne en objet selon les listes de colonnes et valeurs par défaut(setter)
-    def __init__(self, donnees,codesColonnes, nomsColonnes, setterValues):
-        self.donnees = donnees
-        if not(len(donnees) == len(codesColonnes)== len(nomsColonnes) == len(setterValues)):
-            wx.MessageBox("Problème de nombre d'occurences!\n%d donnees, %d codes, %d colonnes et %d valeurs défaut"
-                          %(len(donnees), len(codesColonnes), len(nomsColonnes), len(setterValues)))
-        for ix in range(len(donnees)):
-            donnee = donnees[ix]
-            if setterValues[ix]:
-                if (donnee is None):
-                    donnee = setterValues[ix]
-                else:
-                    if not isinstance(donnee,type(setterValues[ix])):
-                        try:
-                            if type(setterValues[ix]) in (int,float):
-                                donnee = float(donnee)
-                            elif type(setterValues[ix]) == str:
-                                donnee = str(donnee)
-                        except : pass
-            self.__setattr__(codesColonnes[ix], donnee)
+    def OnEditFinishing(self,event):
+        row,col = self.ctrl_listview.cellBeingEdited
+        print("ligne : %d, colonne : %d"%(row,col))
+        event.Skip()
+
+    def OnChar(self, event):
+        keycode = event.GetUnicodeKey()
+        if keycode == 3: self.OnCtrlC()
+        if keycode == 22: self.OnCtrlV()
+        event.Skip()
+
+    def OnCtrlC(self):
+        # action copier
+        self.buffertracks = self.ctrl_listview.GetSelectedObjects()
+        wx.MessageBox(u" %d lignes sélectionnées"%len(self.buffertracks))
+        return
+
+    def OnCtrlV(self):
+        # action coller
+        wx.MessageBox(u" %d lignes à copier"%len(self.buffertracks))
+        return
+
+    def OnFunctionKeys(self,eventObj,codeKey):
+        row, col = self.ctrl_listview.cellBeingEdited
+        wx.MessageBox(u"Touche <F%d> pressée sur cell (%d,%d)"%(codeKey - wx.WXK_F1 + 1,row,col))
 
 # ------------------------------------------------------------------------------------------------------------------
-
-class PNL_tableau(wx.Panel):
+class PNL_params(wx.Panel):
     #panel olv avec habillage optionnel pour des boutons actions (à droite) des infos (bas gauche) et boutons sorties
     def __init__(self, parent, dicOlv,*args, **kwds):
         self.lanceur = dicOlv.pop('lanceur',None)
@@ -568,81 +600,270 @@ class PNL_tableau(wx.Panel):
     def OnBoutonOK(self,event):
         self.parent.Close()
 
-class DLG_tableau(wx.Dialog):
-    # minimum fonctionnel dans dialog tout est dans pnl
-    def __init__(self,parent,dicOlv={}, **kwds):
+class PNL_tableau(wx.Panel):
+    #panel olv avec habillage optionnel pour des boutons actions (à droite) des infos (bas gauche) et boutons sorties
+    def __init__(self, parent, dicOlv,*args, **kwds):
+        self.lanceur = dicOlv.pop('lanceur',None)
+        hauteur = dicOlv.pop('hauteur',400)
+        largeur = dicOlv.pop('largeur',800)
+        wx.Panel.__init__(self, parent, *args,  **kwds)
+        #ci dessous l'ensemble des autres paramètres possibles pour OLV
+        lstParamsOlv = ['id',
+                        'style',
+                        'listeColonnes',
+                        'listeDonnees',
+                        'msgIfEmpty',
+                        'sensTri',
+                        'exportExcel',
+                        'exportTexte',
+                        'checkColonne',
+                        'apercuAvantImpression',
+                        'imprimer',
+                        'saisie',
+                        'toutCocher',
+                        'toutDecocher',
+                        'inverserSelection',
+                        'titreImpression',
+                        'orientationImpression',
+                        'dictColFooter']
+        self.avecFooter = "dictColFooter" in dicOlv
+        if not self.avecFooter : lstParamsOlv.remove('dictColFooter')
+        if 'recherche' in dicOlv: self.barreRecherche = dicOlv['recherche']
+        else : self.barreRecherche = True
         self.parent = parent
-        largeur = dicOlv.pop("largeur", 800)
-        hauteur = dicOlv.pop("hauteur", 700)
+        #récup des seules clés possibles pour dicOLV
+        dicOlvOut = {}
+        for key,valeur in dicOlv.items():
+            if key in lstParamsOlv:
+                 dicOlvOut[key] = valeur
+
+        # choix footer ou pas
+        pnlOlv = PanelListView(self,**dicOlvOut)
+        if self.avecFooter:
+            self.ctrlOlv = pnlOlv.ctrl_listview
+            self.olv = pnlOlv
+        else:
+            self.ctrlOlv = ListView(self,**dicOlvOut)
+            self.olv = self.ctrlOlv
+            self.ctrlOlv.parent = self.ctrlOlv.Parent
+        if self.barreRecherche:
+            self.ctrloutils = CTRL_Outils(self, listview=self.ctrlOlv, afficherCocher=False)
+        self.ctrlOlv.SetMinSize((largeur,hauteur))
+        self.ctrlOlv.MAJ()
+        self.Sizer()
+
+    def Sizer(self):
+        #composition de l'écran selon les composants
+        sizerolv = wx.BoxSizer(wx.VERTICAL)
+        sizerolv.Add(self.olv, 10, wx.EXPAND, 10)
+        if self.barreRecherche:
+            sizerolv.Add(self.ctrloutils, 0, wx.EXPAND, 10)
+        self.SetSizerAndFit(sizerolv)
+
+    def GetItemsBtn(self,lstBtns):
+        # décompactage des paramètres de type bouton
+        lstBtn = []
+        for btn in lstBtns:
+            try:
+                (code,ID,label,tooltip) = btn
+                if isinstance(label,wx.Bitmap):
+                    bouton = wx.BitmapButton(self,ID,label)
+                elif isinstance(label,str):
+                    bouton = wx.Button(self,ID,label)
+                else: bouton = wx.Button(self,ID,'Erreur!')
+                bouton.SetToolTip(tooltip)
+                bouton.name = code
+                #le bouton OK est par défaut, il ferme l'écran DLG
+                if code == 'BtnOK':
+                    bouton.Bind(wx.EVT_BUTTON, self.OnBoutonOK)
+                #implémente les fonctions bind transmises, soit par le pointeur soit par eval du texte
+                if self.dicOnClick and code in self.dicOnClick:
+                    if isinstance(self.dicOnClick[code],str):
+                        fonction = lambda evt,code=code: eval(self.dicOnClick[code])
+                    else: fonction = self.dicOnClick[code]
+                    bouton.Bind(wx.EVT_BUTTON, fonction)
+                lstBtn.append((bouton, 0, wx.ALL | wx.ALIGN_RIGHT, 5))
+
+            except:
+                bouton = wx.Button(self, wx.ID_ANY, 'Erreur!')
+                lstBtn.append((bouton, 0, wx.ALL, 5))
+        return lstBtn
+
+    def GetItemsInfos(self,lstInfos):
+        lstInfo = []
+        for label in lstInfos:
+            if isinstance(label,wx.Bitmap):
+                info = wx.StaticBitmap(self, wx.ID_ANY, label)
+            elif isinstance(label,str):
+                info = wx.StaticText(self,wx.ID_ANY,label)
+            else: info = wx.Button(self,wx.ID_OK,'Erreur!')
+            lstInfo.append((info,0,wx.RIGHT|wx.ALIGN_LEFT,10))
+        return lstInfo
+
+    def OnBoutonOK(self,event):
+        self.parent.Close()
+
+class PNL_Pied(wx.Panel):
+    #panel infos (gauche) et boutons sorties(droite)
+    def __init__(self, parent, dicOlv,*args, **kwds):
+        self.lanceur = dicOlv.pop('lanceur',None)
+        self.lstActions = kwds.pop('lstActions',None)
+        self.lstInfos = kwds.pop('lstInfos',None)
+        self.lstBtns = kwds.pop('lstBtns',None)
+        self.dicOnClick = kwds.pop('dicOnClick',None)
+        if (not self.lstBtns) and (not self.lstInfos):
+            #force la présence d'un pied d'écran par défaut
+            self.lstBtns = [('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_ok.png", wx.BITMAP_TYPE_ANY),
+                           "Cliquez ici pour fermer la fenêtre")]
+
+        wx.Panel.__init__(self, parent, *args,  **kwds)
+        self.parent = parent
+        self.Sizer()
+
+    def Sizer(self):
+        #composition de l'écran selon les composants
+        sizerpied = wx.BoxSizer(wx.HORIZONTAL)
+        if self.lstInfos:
+            sizerinfos = wx.StaticBoxSizer(wx.HORIZONTAL,self,label='infos')
+            self.itemsInfos = self.GetItemsInfos(self.lstInfos)
+            sizerinfos.AddMany(self.itemsInfos)
+            sizerpied.Add(sizerinfos,10,wx.BOTTOM|wx.LEFT|wx.EXPAND,3)
+        else:
+            sizerpied.Add((10,10),1,wx.BOTTOM|wx.EXPAND,3)
+        if self.lstBtns:
+            self.itemsBtns = self.GetItemsBtn(self.lstBtns)
+            sizerpied.AddMany(self.itemsBtns)
+        self.SetSizerAndFit(sizerpied)
+
+    def GetItemsBtn(self,lstBtns):
+        # décompactage des paramètres de type bouton
+        lstBtn = []
+        for btn in lstBtns:
+            try:
+                (code,ID,label,tooltip) = btn
+                if isinstance(label,wx.Bitmap):
+                    bouton = wx.BitmapButton(self,ID,label)
+                elif isinstance(label,str):
+                    bouton = wx.Button(self,ID,label)
+                else: bouton = wx.Button(self,ID,'Erreur!')
+                bouton.SetToolTip(tooltip)
+                bouton.name = code
+                #le bouton OK est par défaut, il ferme l'écran DLG
+                if code == 'BtnOK':
+                    bouton.Bind(wx.EVT_BUTTON, self.OnBoutonOK)
+                #implémente les fonctions bind transmises, soit par le pointeur soit par eval du texte
+                if self.dicOnClick and code in self.dicOnClick:
+                    if isinstance(self.dicOnClick[code],str):
+                        fonction = lambda evt,code=code: eval(self.dicOnClick[code])
+                    else: fonction = self.dicOnClick[code]
+                    bouton.Bind(wx.EVT_BUTTON, fonction)
+                lstBtn.append((bouton, 0, wx.ALL | wx.ALIGN_RIGHT, 5))
+
+            except:
+                bouton = wx.Button(self, wx.ID_ANY, 'Erreur!')
+                lstBtn.append((bouton, 0, wx.ALL, 5))
+        return lstBtn
+
+    def GetItemsInfos(self,lstInfos):
+        lstInfo = []
+        for label in lstInfos:
+            if isinstance(label,wx.Bitmap):
+                info = wx.StaticBitmap(self, wx.ID_ANY, label)
+            elif isinstance(label,str):
+                info = wx.StaticText(self,wx.ID_ANY,label)
+            else: info = wx.Button(self,wx.ID_OK,'Erreur!')
+            lstInfo.append((info,0,wx.RIGHT|wx.ALIGN_LEFT,10))
+        return lstInfo
+
+    def OnBoutonOK(self,event):
+        self.parent.Close()
+
+# ------------------------------------------------------------------------------------------------------------------
+class DLG_tableau(wx.Dialog):
+    # minimum fonctionnel dans dialog tout est dans les trois pnl
+    def __init__(self,parent,dicParams={},dicOlv={},dicPied={}, **kwds):
+        self.parent = parent
         listArbo=os.path.abspath(__file__).split("\\")
         titre = listArbo[-1:][0] + "/" + self.__class__.__name__
-        wx.Dialog.__init__(self,None, title=titre, size=(largeur,hauteur),style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
+        wx.Dialog.__init__(self,None, title=titre, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
         self.SetBackgroundColour(wx.WHITE)
         self.marge = 10
-        self.pnl = PNL_tableau(self, dicOlv,  **kwds )
-        self.ctrlOlv = self.pnl.ctrlOlv
+        self.pnlOlv = PNL_tableau(self, dicOlv,  **kwds )
+        self.ctrlOlv = self.pnlOlv.ctrlOlv
+        self.pnlPied = PNL_Pied(self, dicPied,  **kwds )
+        sizer_base = wx.FlexGridSizer(rows=3, cols=1, vgap=0, hgap=0)
+        sizer_base.Add(self.pnlOlv, 1, wx.TOP| wx.EXPAND, 3)
+        sizer_base.Add(self.pnlPied, 0, wx.ALIGN_RIGHT|wx.ALL|wx.EXPAND, 3)
+        sizer_base.AddGrowableCol(0)
+        sizer_base.AddGrowableRow(0)
         self.CenterOnScreen()
         self.Layout()
+        self.SetSizerAndFit(sizer_base)
 
     def Close(self):
         self.EndModal(wx.OK)
 
     def Validation(self,param=None):
         # pour test avec appel de xGestion_Ligne
-        self.pnl.ctrlOlv.MAJ()
+        self.pnlOlv.ctrlOlv.MAJ()
         return True
 
 # -- pour tests -----------------------------------------------------------------------------------------------------
-liste_Colonnes = [
-    ColumnDefn("clé", 'left', 70, "cle",valueSetter=1,isSpaceFilling = True,),
-    ColumnDefn("mot d'ici", 'left', 200, "mot",valueSetter='',isEditable=False),
-    ColumnDefn("nbre", 'right', -1, "nombre",isSpaceFilling = True, valueSetter=0.0, stringConverter=xpy.outils.xformat.FmtDecimal),
-    ColumnDefn("prix", 'left', 80, "prix",valueSetter=0.0,isSpaceFilling = True, stringConverter=xpy.outils.xformat.FmtMontant),
-    ColumnDefn("date", 'center', 80, "date",valueSetter=wx.DateTime.FromDMY(1,0,1900),isSpaceFilling = True,  stringConverter=xpy.outils.xformat.FmtDate),
-    ColumnDefn("date SQL", 'center', 80, "datesql", valueSetter='2000-01-01',isSpaceFilling = True,
-               stringConverter=xpy.outils.xformat.FmtDate)
-]
-liste_Donnees = [[18, "Bonjour", -1230.05939,-1230.05939,None,None],
-                 [19, "Bonsoir", 57.5, 208.99,wx.DateTime.FromDMY(15,11,2018),'2019-03-29'],
-                 [1, "Jonbour", 0 , 209,wx.DateTime.FromDMY(6,11,2018),'2019-03-01'],
-                 [29, "Salut", 57.082, 209,wx.DateTime.FromDMY(28,1,2019),'2019-11-23'],
-                 [None, "Salutation", 57.08, 0,wx.DateTime.FromDMY(1,7,1997),'2019-10-24'],
-                 [2, "Python", 1557.08, 29,wx.DateTime.FromDMY(7,1,1997),'2000-12-25'],
-                 [3, "Java", 57.08, 219,wx.DateTime.FromDMY(1,0,1900),''],
-                 [98, "langage C", 10000, 209,wx.DateTime.FromDMY(1,0,1900),''],
-                 ]
-dicOlv = {'listeColonnes':liste_Colonnes,
-                'listeDonnees':liste_Donnees,
-                'hauteur':650,
-                'largeur':850,
-                'recherche':True,
-                'msgIfEmpty':"Aucune donnée ne correspond à votre recherche",
-                'dictColFooter':{"nombre" : {"mode" : "total",  "alignement" : wx.ALIGN_RIGHT},
-                                 "mot" : {"mode" : "nombre",  "alignement" : wx.ALIGN_CENTER},
-                                 "prix": {"mode": "total", "alignement": wx.ALIGN_RIGHT},}
-        }
-# params d'actions: idem boutons, ce sont des boutons placés à droite et non en bas
-lstActions = [('Action1',wx.ID_COPY,'Choix un',"Cliquez pour l'action 1"),
-              ('Action2',wx.ID_CUT,'Choix deux',"Cliquez pour l'action 2")]
-# params des actions ou boutons: name de l'objet, fonction ou texte à passer par eval()
-dicOnClick = {'Action1': lambda evt: wx.MessageBox('ceci active la fonction action1'),
-                'Action2': 'self.parent.Validation()',
-                'BtnPrec' : 'self.parent.Close()'}
 
 if __name__ == '__main__':
     app = wx.App(0)
     os.chdir("..")
-    lstBtns = [('BtnPrec', wx.ID_FORWARD, wx.ArtProvider.GetBitmap(wx.ART_GO_BACK, wx.ART_OTHER, (42, 22)),
-                "Cliquez ici pour retourner à l'écran précédent"),
+
+    liste_Colonnes = [
+        ColumnDefn("null", 'centre', 0, "null", valueSetter=''),
+        ColumnDefn("clé", 'centre', 60, "cle", valueSetter=1, isSpaceFilling=False, ),
+        ColumnDefn("mot d'ici", 'left', 200, "mot", valueSetter='', isEditable=True),
+        ColumnDefn("nbre", 'right', -1, "nombre", isSpaceFilling=True, valueSetter=0.0,
+                   stringConverter=xpy.outils.xformat.FmtDecimal),
+        ColumnDefn("prix", 'left', 80, "prix", valueSetter=0.0, isSpaceFilling=True,
+                   stringConverter=xpy.outils.xformat.FmtMontant),
+        ColumnDefn("date", 'center', 80, "date", valueSetter=wx.DateTime.FromDMY(1, 0, 1900), isSpaceFilling=True,
+                   stringConverter=xpy.outils.xformat.FmtDate),
+        ColumnDefn("date SQL", 'center', 80, "datesql", valueSetter='2000-01-01', isSpaceFilling=True,
+                   stringConverter=xpy.outils.xformat.FmtDate)
+    ]
+    liste_Donnees = [[None,18, "Bonjour", -1230.05939, -1230.05939, None,'01/02/2015'],
+                     [None,19, "Bonsoir", 57.5, 208.99,datetime.date.today(), '2019-03-29'],
+                     [None,1, "Jonbour", 0, 209, datetime.date(2018, 11, 20), '2019-03-01'],
+                     [None,29, "Salut", 57.082, 209, wx.DateTime.FromDMY(28, 1, 2019), '2019-11-23'],
+                     [None,None, "Salutation", 57.08, 0, wx.DateTime.FromDMY(1, 7, 1997), '2019-10-24'],
+                     [None,2, "Python", 1557.08, 29, wx.DateTime.FromDMY(7, 1, 1997), '2000-12-25'],
+                     [None,3, "Java", 57.08, 219, wx.DateTime.FromDMY(1, 0, 1900), ''],
+                     [None,98, "langage C", 10000, 209, wx.DateTime.FromDMY(1, 0, 1900), ''],
+                     ]
+    dicActions = {'Action1': lambda evt: wx.MessageBox('ceci active la fonction action1'),
+                  'Action2': 'self.parent.Validation()',
+                  'BtnPrec': 'self.parent.Close()'}
+    dicOlv = {'listeColonnes': liste_Colonnes,
+              'listeDonnees': liste_Donnees,
+              'dicActions': dicActions,
+              'hauteur': 350,
+              'largeur': 650,
+              'checkColonne': False,
+              'recherche': True,
+              'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
+              'dictColFooter': {"nombre": {"mode": "total", "alignement": wx.ALIGN_RIGHT},
+                                "mot": {"mode": "nombre", "alignement": wx.ALIGN_CENTER},
+                                "prix": {"mode": "total", "alignement": wx.ALIGN_RIGHT}, }
+              }
+    # boutons de bas d'écran - infos: texte ou objet window.  Les infos sont  placées en bas à gauche
+    lstBtns = [('BtnPrec', wx.ID_FORWARD, wx.ArtProvider.GetBitmap(wx.ART_GO_BACK, wx.ART_OTHER, (42, 22)),"Cliquez ici pour retourner à l'écran précédent"),
                ('BtnPrec2', wx.ID_PREVIEW_NEXT, "Ecran\nprécédent", "Retour à l'écran précédent next"),
-               ('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_fermer.png", wx.BITMAP_TYPE_ANY),
-                "Cliquez ici pour fermer la fenêtre")
+               ('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_fermer.png", wx.BITMAP_TYPE_ANY),"Cliquez ici pour fermer la fenêtre")
                ]
-    # un param par info: texte ou objet window.  Les infos sont  placées en bas à gauche
+    dicOnBtn = {'Action1': lambda evt: wx.MessageBox('ceci active la fonction action1'),
+                'Action2': 'self.parent.Validation()',
+                'BtnPrec': 'self.parent.Close()'}
     lstInfos = ['Première', "Voici", wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)),
                 "Autre\nInfo"]
+    dicPied = {'lstBtns': lstBtns, 'dicOnBtn': dicOnBtn, "lstInfos": lstInfos}
 
-    exempleframe = DLG_tableau(None,dicOlv=dicOlv,lstBtns= lstBtns,lstActions=lstActions,lstInfos=lstInfos,dicOnClick=dicOnClick)
+    exempleframe = DLG_tableau(None,dicOlv=dicOlv,dicPied=dicPied)
     app.SetTopWindow(exempleframe)
     ret = exempleframe.ShowModal()
     print(ret)

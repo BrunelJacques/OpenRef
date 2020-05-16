@@ -125,9 +125,9 @@ def FmtDate(date):
     if date == None or date == wx.DateTime.FromDMY(1,0,1900) or date == '':
         return ''
     if isinstance(date,str):
-        tpldate = date.split('-')
+        tpldate = date.split('/')
         if len(tpldate)!=3: return ''
-        strdate = tpldate[2]+'/'+tpldate[1]+'/'+tpldate[0]
+        strdate = tpldate[0]+'/'+tpldate[1]+'/'+tpldate[2]
     else:
         strdate = DatetimeToStr(date)
     return strdate

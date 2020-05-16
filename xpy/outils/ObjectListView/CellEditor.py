@@ -94,6 +94,7 @@ class EditorRegistry(object):
         self.typeToFunctionMap[int] = self._MakeIntegerEditor
         self.typeToFunctionMap[int] = self._MakeLongEditor
         self.typeToFunctionMap[float] = self._MakeFloatEditor
+        self.typeToFunctionMap[wx.DateTime] = self._MakeDateEditor
         self.typeToFunctionMap[datetime.datetime] = self._MakeDateTimeEditor
         self.typeToFunctionMap[datetime.date] = self._MakeDateEditor
         self.typeToFunctionMap[datetime.time] = self._MakeTimeEditor
@@ -126,7 +127,7 @@ class EditorRegistry(object):
 
     @staticmethod
     def _MakeStringEditor(olv, rowIndex, subItemIndex):
-        return BaseCellTextEditor(olv, subItemIndex)
+        return BaseCellTextEditor(olv, subItemIndex, validator=AlphabeticValidator())
 
     @staticmethod
     def _MakeBoolEditor(olv, rowIndex, subItemIndex):
@@ -138,7 +139,7 @@ class EditorRegistry(object):
 
     @staticmethod
     def _MakeLongEditor(olv, rowIndex, subItemIndex):
-        return LongEditor(olv, subItemIndex)
+        return LongEditor(olv, subItemIndex, validator=NumericValidator())
 
     @staticmethod
     def _MakeFloatEditor(olv, rowIndex, subItemIndex):
@@ -156,7 +157,8 @@ class EditorRegistry(object):
 
     @staticmethod
     def _MakeDateEditor(olv, rowIndex, subItemIndex):
-        dte = DateEditor(olv, style=wx.DP_DROPDOWN | wx.DP_SHOWCENTURY | wx.WANTS_CHARS)
+        dte = DateEditor(olv,)
+        #dte = DateEditor(olv, style=wx.DP_DROPDOWN | wx.DP_SHOWCENTURY | wx.WANTS_CHARS)
         # dte.SetValidator(MyValidator(olv))
         return dte
 
@@ -255,7 +257,6 @@ class LongEditor(BaseCellTextEditor):
             value = repr(value)
         wx.TextCtrl.SetValue(self, value)
 
-
 # ----------------------------------------------------------------------------
 
 class FloatEditor(BaseCellTextEditor):
@@ -277,7 +278,6 @@ class FloatEditor(BaseCellTextEditor):
         if isinstance(value, float):
             value = repr(value)
         wx.TextCtrl.SetValue(self, value)
-
 
 # ----------------------------------------------------------------------------
 
@@ -381,14 +381,13 @@ class DateTimeEditor(BaseCellTextEditor):
 
         return None
 
-
 # ----------------------------------------------------------------------------
 
 class NumericValidator(wx.PyValidator):
     """This validator only accepts numeric keys"""
 
     def __init__(self, acceptableChars="0123456789+-"):
-        wx.PyValidator.__init__(self)
+        wx.Validator.__init__(self)
         self.Bind(wx.EVT_CHAR, self._OnChar)
         self.acceptableChars = acceptableChars
         self.acceptableCodes = [ord(x) for x in self.acceptableChars]
@@ -406,13 +405,42 @@ class NumericValidator(wx.PyValidator):
         if event.GetModifiers() != 0 and event.GetModifiers() != wx.MOD_SHIFT:
             event.Skip()
             return
-
         if event.GetKeyCode() in self.acceptableCodes:
             event.Skip()
             return
-
+        if event.GetKeyCode() >= wx.WXK_F1 and event.GetKeyCode() <= wx.WXK_F12:
+            if hasattr(event.EventObject.GrandParent, 'OnFunctionKeys'):
+                event.EventObject.GrandParent.OnFunctionKeys(event.EventObject, event.GetKeyCode())
+            else:
+                wx.MessageBox(u"Touches de fonctions non implémentées")
+            event.Skip()
+            return
         wx.Bell()
 
+class AlphabeticValidator(wx.PyValidator):
+    """This validator accepts alls keys"""
+    def __init__(self):
+        wx.Validator.__init__(self)
+        self.Bind(wx.EVT_CHAR, self._OnChar)
+
+    def Clone(self):
+        "Make a new copy of this validator"
+        return AlphabeticValidator()
+
+    def _OnChar(self, event):
+        "Handle the OnChar event by rejecting non-numerics"
+        if event.GetModifiers() != 0 and event.GetModifiers() != wx.MOD_SHIFT:
+            event.Skip()
+            return
+        if event.GetKeyCode() >= wx.WXK_F1 and event.GetKeyCode() <= wx.WXK_F12:
+            if hasattr(event.EventObject.GrandParent, 'OnFunctionKeys'):
+                event.EventObject.GrandParent.OnFunctionKeys(event.EventObject, event.GetKeyCode())
+            else:
+                wx.MessageBox(u"Touches de fonctions non implémentées")
+            event.Skip()
+            return
+        event.Skip()
+        return
 
 # ----------------------------------------------------------------------------
 
@@ -424,25 +452,23 @@ class DateEditor(wx.adv.DatePickerCtrl):
     """
 
     def __init__(self, *args, **kwargs):
-        wx.DatePickerCtrl.__init__(self, *args, **kwargs)
+        wx.adv.DatePickerCtrl.__init__(self, *args, **kwargs)
         self.SetValue(None)
 
     def SetValue(self, value):
         if value:
             dt = wx.DateTime()
-            dt.Set(value.day, value.month - 1, value.year)
+            dt.Set(value.day, value.month , value.year)
         else:
             dt = wx.DateTime.Today()
-        wx.DatePickerCtrl.SetValue(self, dt)
+        wx.adv.DatePickerCtrl.SetValue(self, dt)
 
     def GetValue(self):
         "Get the value from the editor"
-        dt = wx.DatePickerCtrl.GetValue(self)
-        if dt.IsOk():
-            return datetime.date(dt.Year, dt.Month + 1, dt.Day)
-        else:
-            return None
-
+        dt = wx.adv.DatePickerCtrl.GetValue(self)
+        #dt.Month += 1
+        #return datetime.date(dt.Year, dt.Month , dt.Day)
+        return dt
 
 # ----------------------------------------------------------------------------
 
@@ -478,7 +504,6 @@ class TimeEditor(BaseCellTextEditor):
 
         return None
 
-
 # ======================================================================
 # Auto complete controls
 
@@ -508,7 +533,6 @@ def MakeAutoCompleteComboBox(olv, columnIndex, maxObjectsToConsider=10000):
                      style=wx.CB_DROPDOWN | wx.CB_SORT | wx.TE_PROCESS_ENTER)
     AutoCompleteHelper(cb)
     return cb
-
 
 # -------------------------------------------------------------------------
 
@@ -560,7 +584,6 @@ class AutoCompleteHelper(object):
             # Seems that under linux, selecting only seems to work here if we do it
             # outside of the text event
             wx.CallAfter(self.control.SetSelection, insertIndex, len(newValue))
-
 
 if __name__ == '__main__':
     pass

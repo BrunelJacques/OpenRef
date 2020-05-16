@@ -15,7 +15,7 @@ import datetime
 def NoPunctuation(txt = u''):
     if not txt: return u''
     if txt.strip()== u'': return u''
-    punctuation = "'!\"#$%&()*+,./:;<=>?@[\\]^_`{|}~'"
+    punctuation = "!\"#$%&()*+,./:;<=>?@[\\]^_`{|}~"
     regex = re.compile('[%s]' % re.escape(punctuation))
     regex = regex.sub(' ', txt)
     return regex.replace('  ',' ')
@@ -51,7 +51,12 @@ def CompacteAdresse(lstAdresse):
 
 def VerifieVille(codepost="",ville="",pays=""):
     # vérifie la présence des éléments dans les possibles retourne ok ou message
-    if not ville or len(ville.strip()) == 0: return "Ville à blanc."
+    if len(pays)>0 : return "ok"
+    # Seulement les adresses en france    if not ville or len(ville.strip()) == 0: return "Ville à blanc."
+    if "'"in ville:
+        lst = ville.split("'")
+        ville = "_".join(lst)
+    conditioncp = ""
     filtre = codepost.upper()
     tronque = 0
     # filtrage des zéro non significatifs pour le premier accès
@@ -64,10 +69,7 @@ def VerifieVille(codepost="",ville="",pays=""):
             tronque += 1
         conditioncp  = "AND cp LIKE '%s%%'"%(filtre)
 
-    condition = "WHERE nom = '%s'" %(ville)
-    if len(conditioncp)>1:
-        condition +=" AND cp = '%s'"% codepost
-
+    condition = "WHERE nom LIKE '%s' %s "%(ville, conditioncp)
     DB = xdb.DB(nomFichier="srcNoelite/Data/Geographie.dat")
     req = """  SELECT IDville, nom, cp     
                 FROM villes 
@@ -78,10 +80,11 @@ def VerifieVille(codepost="",ville="",pays=""):
     if len(ret)== 1:
             if len(pays.strip())==0: return "ok"
 
-    # si la ville n'est pas en france avec le code postal
+    # la ville n'est pas en france avec le code postal
     # Importation des corrections de villes et codes postaux
     DB = xdb.DB()
-    condition = "WHERE nom = '%s' " %(ville)
+
+    condition = "WHERE nom LIKE '%s' " %(ville)
     if len(codepost)>1:
         condition +=" AND cp = '%s'"% codepost
 
@@ -91,7 +94,7 @@ def VerifieVille(codepost="",ville="",pays=""):
     ret = DB.ResultatReq()
     DB.Close()
     if len(ret)==1: return "ok"
-    return "Ville non trouvée avec ce code postal et ce pays."
+    return "Ville non trouvée avec ce code postal"
 
 def GetVilles(champFiltre="ville",filtre=""):
     # Importation de la base par défaut avec un filtre sur le code postal ou sur le nom de la ville
@@ -163,6 +166,7 @@ def GetVilles(champFiltre="ville",filtre=""):
     listeVilles = []
     for IDville, nom, cp, pays in listeVillesTmp:
         if not pays: pays = ""
+
         # Traitement des modifs et suppressions
         valide = True
         if IDville in dictModifSuppr :
@@ -452,7 +456,7 @@ def SetDBcorrespondant(dicCorrespondant):
                     ("adresse_individu", dicCorrespondant['IDindividu'])]
     # envoi dans la base de donnée
     DB=xdb.DB()
-    ret = DB.ReqMAJ("familles",lstDonnees,"IDfamille",dicCorrespondant['IDfamille'],mess="Insert familles Correspondant")
+    ret = DB.ReqMAJ("familles",lstDonnees,"IDfamille",dicCorrespondant['IDfamille'],MsgBox="Insert familles Correspondant")
     return ret
 
 def SetDBoldAdresse(DB,IDindividu=None,adresse = "\n\n\n\n\n\n\n"):
@@ -840,6 +844,77 @@ def TransposeAdresse(adresse=[]):
     newadresse += adresse[-3:]
     # la normalisation consiste à enlever les ponctuation et mettre e majuscule selon les lignes
     return Normalisation(newadresse)
+
+def DesignationFamille(IDfamille):
+    # composition automatique d'une désignation famille
+    DB = aGestionDB.DB()
+    # Récupération des individus de la famille
+    req = """
+            SELECT rattachements.IDindividu, rattachements.titulaire, rattachements.IDcategorie, individus.nom, individus.prenom
+            FROM rattachements 
+                INNER JOIN individus ON rattachements.IDindividu = individus.IDindividu
+            WHERE rattachements.IDfamille = %d AND rattachements.IDcategorie IN (1,2);
+            """%IDfamille
+    DB.ExecuterReq(req,MsgBox="aUTILS_SaisieAdresse.DesignationFamille")
+    ltplIndividus = DB.ResultatReq()
+
+    titulaires = []
+    representants = []
+    nomsEnfants = []
+    for IDindividu, titulaire, categorie, nom, prenom in ltplIndividus:
+        if titulaire == 1:
+            titulaires.append((nom,prenom))
+        if categorie == 1:
+            representants.append((nom,prenom))
+        elif not nom in nomsEnfants:
+                nomsEnfants.append(nom)
+
+    def ajoutNom(nomA,prenomA,nomB,prenomB):
+        if len(nomA) == 0:
+            nomA = nomB
+            prenomA= prenomB
+        elif nomA == nomB:
+            if len(prenomA) >0:
+                prenomA += u" et "+prenomB
+            else: prenomA = prenomB
+        else:
+            # deux noms différents
+            lstradA = nomA.split(u" ")
+            lstradB = nomB.split(u" ")
+            for mot in lstradB:
+                if mot in lstradA: lstradA.remove(mot)
+            for mot in lstradA:
+                if mot in lstradB: lstradB.remove(mot)
+            nomAB = u" ".join(lstradA+lstradB)
+            if nomAB == nomA + u" " + nomB:
+                # il n'y avait pas de radical commun
+                nomA = nomA + u" " + prenomA
+                prenomA = u"et " + nomB + u" "+prenomB
+            else:
+                nomA = nomAB
+                prenomA = prenomA + u" et " +prenomB
+        return nomA, prenomA
+
+    nomF = ""
+    prenomF = ""
+    if len(titulaires)>1:
+        for nom,prenom in titulaires:
+            nomF,prenomF = ajoutNom(nomF,prenomF,nom,prenom)
+    elif len(representants) > 1:
+        for nom, prenom in representants:
+            nomF, prenomF = ajoutNom(nomF, prenomF, nom, prenom)
+    elif len(nomsEnfants)>0:
+        if len(titulaires)>0:
+            nomTit = titulaires[0][0]
+            nomF = u"Famille %s"%nomTit
+        else : nomF = u"Famille"
+        for nom in nomsEnfants:
+            if not nom in nomF:
+                nomF += u" %s"%nom
+    elif len(titulaires)>0: nomF,prenomF = titulaires[0]
+    designation = (nomF + " " + prenomF)[:55]
+    return designation
+
 
 # -----------------------------------------------------------------------------------------------------
 
