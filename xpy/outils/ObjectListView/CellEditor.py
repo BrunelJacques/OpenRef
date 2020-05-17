@@ -159,7 +159,7 @@ class EditorRegistry(object):
     def _MakeDateEditor(olv, rowIndex, subItemIndex):
         dte = DateEditor(olv,)
         #dte = DateEditor(olv, style=wx.DP_DROPDOWN | wx.DP_SHOWCENTURY | wx.WANTS_CHARS)
-        # dte.SetValidator(MyValidator(olv))
+        #dte.SetValidator(AlphabeticValidator())
         return dte
 
     @staticmethod
@@ -405,9 +405,19 @@ class NumericValidator(wx.PyValidator):
         if event.GetModifiers() != 0 and event.GetModifiers() != wx.MOD_SHIFT:
             event.Skip()
             return
+
+        if event.GetKeyCode() == wx.WXK_RETURN:
+            if event.GetKeyCode() == wx.WXK_RETURN:
+                # Touche enter on détourne l'usage pour un équivalent tab
+                olv = event.EventObject.Parent
+                row, col = olv.cellBeingEdited
+                olv._PossibleStartCellEdit(row, col + 1)
+                return
+
         if event.GetKeyCode() in self.acceptableCodes:
             event.Skip()
             return
+
         if event.GetKeyCode() >= wx.WXK_F1 and event.GetKeyCode() <= wx.WXK_F12:
             if hasattr(event.EventObject.GrandParent, 'OnFunctionKeys'):
                 event.EventObject.GrandParent.OnFunctionKeys(event.EventObject, event.GetKeyCode())
@@ -416,6 +426,7 @@ class NumericValidator(wx.PyValidator):
             event.Skip()
             return
         wx.Bell()
+
 
 class AlphabeticValidator(wx.PyValidator):
     """This validator accepts alls keys"""
@@ -432,6 +443,14 @@ class AlphabeticValidator(wx.PyValidator):
         if event.GetModifiers() != 0 and event.GetModifiers() != wx.MOD_SHIFT:
             event.Skip()
             return
+
+        if event.GetKeyCode() == wx.WXK_RETURN:
+            # Touche enter on détourne l'usage pour un équivalent tab
+            olv = event.EventObject.Parent
+            row,col = olv.cellBeingEdited
+            olv._PossibleStartCellEdit(row,col+1)
+            return
+
         if event.GetKeyCode() >= wx.WXK_F1 and event.GetKeyCode() <= wx.WXK_F12:
             if hasattr(event.EventObject.GrandParent, 'OnFunctionKeys'):
                 event.EventObject.GrandParent.OnFunctionKeys(event.EventObject, event.GetKeyCode())
@@ -450,10 +469,25 @@ class DateEditor(wx.adv.DatePickerCtrl):
     wx.DatePickerCtrl works only with wx.DateTime, but they are strange beasts.
     wx.DataTime use 0 indexed months, i.e. January==0 and December==11.
     """
-
     def __init__(self, *args, **kwargs):
         wx.adv.DatePickerCtrl.__init__(self, *args, **kwargs)
         self.SetValue(None)
+        self.Bind(wx.EVT_CHAR, self._OnChar)
+
+    def _OnChar(self, event):
+        "Handle the OnChar event by rejecting non-numerics"
+        print(event.GetKeyCode())
+        if event.GetModifiers() != 0 and event.GetModifiers() != wx.MOD_SHIFT:
+            event.Skip()
+            return
+        if event.GetKeyCode() >= wx.WXK_F1 and event.GetKeyCode() <= wx.WXK_F12:
+            if hasattr(event.EventObject.GrandParent, 'OnFunctionKeys'):
+                event.EventObject.GrandParent.OnFunctionKeys(event.EventObject, event.GetKeyCode())
+            else:
+                wx.MessageBox(u"Touches de fonctions non implémentées")
+            event.Skip()
+            return
+        event.Skip()
 
     def SetValue(self, value):
         if value:
