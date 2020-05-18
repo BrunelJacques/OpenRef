@@ -85,7 +85,6 @@ class ListView(FastObjectListView):
         self.lstNomsColonnes = self.formerNomsColonnes()
         self.lstSetterValues = self.formerSetterValues()
         self.dictColFooter = kwds.pop("dictColFooter", {})
-        self.formerTracks()
 
         # Choix des options du 'tronc commun' du menu contextuel
         self.exportExcel = kwds.pop("exportExcel", True)
@@ -111,6 +110,8 @@ class ListView(FastObjectListView):
         self.listeFiltres = []
 
         # Initialisation du listCtrl
+        if not 'autoAddRow' in kwds: kwds['autoAddRow']=True
+        if not 'sortable' in kwds: kwds['sortable']=False
         FastObjectListView.__init__(self, *args,**kwds)
         # Binds perso
         self.Bind(OLVEvent.EVT_ITEM_CHECKED, self.OnItemChecked)
@@ -129,14 +130,14 @@ class ListView(FastObjectListView):
             self.ctrl_footer.MAJ_affichage()
 
     def formerTracks(self):
-        self.tracks = list()
+        tracks = list()
         if self.listeDonnees is None:
-            return
+            return tracks
 
         for ligneDonnees in self.listeDonnees:
-            self.tracks.append(TrackGeneral(donnees=ligneDonnees,codesColonnes=self.lstCodesColonnes,
+            tracks.append(TrackGeneral(donnees=ligneDonnees,codesColonnes=self.lstCodesColonnes,
                                             nomsColonnes=self.lstNomsColonnes,setterValues=self.lstSetterValues))
-        return
+        return tracks
 
     def formerCodeColonnes(self):
         codeColonnes = list()
@@ -170,9 +171,6 @@ class ListView(FastObjectListView):
             setterValues.append(tip)
         return setterValues
 
-    def InitModel(self):
-        self.donnees = self.GetTracks()
-
     def InitObjectListView(self):
         # Couleur en alternance des lignes
         self.oddRowsBackColor = "#F0FBED"
@@ -185,17 +183,10 @@ class ListView(FastObjectListView):
         # On définit le message en cas de tableau vide
         self.SetEmptyListMsg(self.msgIfEmpty)
         self.SetEmptyListMsgFont(wx.FFont(11, wx.DEFAULT))
-        # Si la colonne à trier n'est pas précisée on trie selon la première par défaut
-        if self.ColumnCount > 1:
-            if self.colonneTri == None:
-                self.SortBy(1, self.sensTri)
-            else:
-                self.SortBy(self.colonneTri, self.sensTri)
-        self.SetObjects(self.donnees)
+        self.SetObjects(self.formerTracks())
 
     def MAJ(self, ID=None):
         self.selectionID = ID
-        self.InitModel()
         self.InitObjectListView()
         # Rappel de la sélection d'un item
         if self.selectionID != None and len(self.innerList) > 0:
@@ -203,10 +194,6 @@ class ListView(FastObjectListView):
 
     def Selection(self):
         return self.GetSelectedObjects()
-
-    def GetTracks(self):
-        """ Récupération des données """
-        return self.tracks
 
     def OnItemChecked(self, event):
         if self.pnlfooter:
@@ -820,22 +807,22 @@ if __name__ == '__main__':
     os.chdir("..")
 
     liste_Colonnes = [
-        ColumnDefn("null", 'centre', 0, "null", valueSetter=''),
+        ColumnDefn("null", 'centre', 0, "IX", valueSetter=''),
         ColumnDefn("clé", 'centre', 60, "cle", valueSetter=1, isSpaceFilling=False, ),
-        ColumnDefn("mot d'ici", 'left', 200, "mot", valueSetter='', isEditable=True),
+        ColumnDefn("mot d'ici", 'left', 200, "mot", valueSetter='A saisir', isEditable=True),
         ColumnDefn("nbre", 'right', -1, "nombre", isSpaceFilling=True, valueSetter=0.0,
                    stringConverter=xpy.outils.xformat.FmtDecimal),
         ColumnDefn("prix", 'left', 80, "prix", valueSetter=0.0, isSpaceFilling=True,
                    stringConverter=xpy.outils.xformat.FmtMontant),
         ColumnDefn("date", 'center', 80, "date", valueSetter=wx.DateTime.FromDMY(1, 0, 1900), isSpaceFilling=True,
                    stringConverter=xpy.outils.xformat.FmtDate),
-        ColumnDefn("date SQL", 'center', 80, "datesql", valueSetter='2000-01-01', isSpaceFilling=True,
+        ColumnDefn("date SQL", 'center', 80, "datesql", isSpaceFilling=True,
                    stringConverter=xpy.outils.xformat.FmtDate)
     ]
-    liste_Donnees = [[None,18, "Bonjour", -1230.05939, -1230.05939, None,'01/02/2015'],
-                     [None,19, "Bonsoir", 57.5, 208.99,datetime.date.today(), '2019-03-29'],
-                     [None,1, "Jonbour", 0, 209, datetime.date(2018, 11, 20), '2019-03-01'],
-                     [None,29, "Salut", 57.082, 209, wx.DateTime.FromDMY(28, 1, 2019), '2019-11-23'],
+    liste_Donnees = [[1,18, "Bonjour", -1230.05939, -1230.05939, None,'01/02/2015'],
+                     [2,19, "Bonsoir", 57.5, 208.99,datetime.date.today(), '2019-03-29'],
+                     [3,1, "Jonbour", 0, 209, datetime.date(2018, 11, 20), '2019-03-01'],
+                     [4,29, "Salut", 57.082, 209, wx.DateTime.FromDMY(28, 1, 2019), '2019-11-23'],
                      [None,None, "Salutation", 57.08, 0, wx.DateTime.FromDMY(1, 7, 1997), '2019-10-24'],
                      [None,2, "Python", 1557.08, 29, wx.DateTime.FromDMY(7, 1, 1997), '2000-12-25'],
                      [None,3, "Java", 57.08, 219, wx.DateTime.FromDMY(1, 0, 1900), ''],
@@ -871,5 +858,4 @@ if __name__ == '__main__':
     exempleframe = DLG_tableau(None,dicOlv=dicOlv,dicPied=dicPied)
     app.SetTopWindow(exempleframe)
     ret = exempleframe.ShowModal()
-    print(ret)
     app.MainLoop()

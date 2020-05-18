@@ -61,7 +61,7 @@ class ListView(FastObjectListView):
         self.lstNomsColonnes = self.formerNomsColonnes()
         self.lstSetterValues = self.formerSetterValues()
         self.dictColFooter = kwds.pop("dictColFooter", {})
-        self.formerTracks()
+        #self.formerTracks()
 
         # Choix des options du 'tronc commun' du menu contextuel
         self.exportExcel = kwds.pop("exportExcel", True)
@@ -103,14 +103,15 @@ class ListView(FastObjectListView):
             self.ctrl_footer.MAJ_affichage()
 
     def formerTracks(self):
-        self.tracks = list()
+        #self.tracks = list() faisait double emploi avec 'self.modelObjects'
+        tracks = list()
         if self.listeDonnees is None:
-            return
+            return tracks
 
         for ligneDonnees in self.listeDonnees:
-            self.tracks.append(TrackGeneral(donnees=ligneDonnees,codesColonnes=self.lstCodesColonnes,
+            tracks.append(TrackGeneral(donnees=ligneDonnees,codesColonnes=self.lstCodesColonnes,
                                             nomsColonnes=self.lstNomsColonnes,setterValues=self.lstSetterValues))
-        return
+        return tracks
 
     def formerCodeColonnes(self):
         codeColonnes = list()
@@ -145,7 +146,8 @@ class ListView(FastObjectListView):
         return setterValues
 
     def InitModel(self):
-        self.donnees = self.GetTracks()
+        #self.donnees = self.GetTracks()
+        self.donnees = self.formerTracks()
 
     def InitObjectListView(self):
         # Couleur en alternance des lignes
@@ -165,11 +167,11 @@ class ListView(FastObjectListView):
                 self.SortBy(1, self.sensTri)
             else:
                 self.SortBy(self.colonneTri, self.sensTri)
-        self.SetObjects(self.donnees)
+        self.SetObjects(self.formerTracks())
 
     def MAJ(self, ID=None):
         self.selectionID = ID
-        self.InitModel()
+        #self.InitModel()
         self.InitObjectListView()
         # Rappel de la sélection d'un item
         if self.selectionID != None and len(self.innerList) > 0:
@@ -178,9 +180,9 @@ class ListView(FastObjectListView):
     def Selection(self):
         return self.GetSelectedObjects()
 
-    def GetTracks(self):
-        """ Récupération des données """
-        return self.tracks
+    """def GetTracks(self):
+        # Récupération des données
+        return self.tracks"""
 
     def OnItemChecked(self, event):
         if self.pnlfooter:
@@ -594,7 +596,7 @@ class DLG_tableau(wx.Dialog):
 
 # -- pour tests -----------------------------------------------------------------------------------------------------
 liste_Colonnes = [
-    ColumnDefn("clé", 'left', 70, "cle",valueSetter=1,isSpaceFilling = True,),
+    ColumnDefn("clé", 'left', 10, "cle",valueSetter=1,isSpaceFilling = True,),
     ColumnDefn("mot d'ici", 'left', 200, "mot",valueSetter='',isEditable=False),
     ColumnDefn("nbre", 'right', -1, "nombre",isSpaceFilling = True, valueSetter=0.0, stringConverter=xpy.outils.xformat.FmtDecimal),
     ColumnDefn("prix", 'left', 80, "prix",valueSetter=0.0,isSpaceFilling = True, stringConverter=xpy.outils.xformat.FmtMontant),

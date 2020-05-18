@@ -281,12 +281,14 @@ class ObjectListView(wx.ListCtrl):
             True)
         self.sortable = kwargs.pop("sortable", True)
         self.cellEditMode = kwargs.pop("cellEditMode", self.CELLEDIT_NONE)
+        self.autoAddRow = kwargs.pop("autoAddRow",False)
         self.typingSearchesSortColumn = kwargs.pop(
             "typingSearchesSortColumn",
             True)
 
         self.evenRowsBackColor = wx.Colour(240, 248, 255)  # ALICE BLUE
         self.oddRowsBackColor = wx.Colour(255, 250, 205)  # LEMON CHIFFON
+        self.newRowsBackColor = wx.Colour(240,248,255)      # VERT ESPERANCE
 
         wx.ListCtrl.__init__(self, *args, **kwargs)
 
@@ -1003,6 +1005,10 @@ class ObjectListView(wx.ListCtrl):
         """
         self.stEmptyListMsg.SetFont(font)
 
+    def AutoAddRow(self):
+        # création automatique d'une nouvelle ligne pour la saisie
+        self.modelObjects.append(TrackModel(self))
+
     def SetObjects(self, modelObjects, preserveSelection=False):
         """
         Set the list of modelObjects to be displayed by the control.
@@ -1016,6 +1022,8 @@ class ObjectListView(wx.ListCtrl):
         else:
             self.modelObjects = modelObjects[:]
 
+        if self.autoAddRow:
+            self.AutoAddRow()
         self.RepopulateList()
 
         if preserveSelection:
@@ -2492,7 +2500,7 @@ class ObjectListView(wx.ListCtrl):
                     break
         #self.OnCheck(None)
 
-########################################################################
+#======================================================================
 
 class AbstractVirtualObjectListView(ObjectListView):
     """
@@ -2670,7 +2678,7 @@ class AbstractVirtualObjectListView(ObjectListView):
 
         return self.lastGetObject
 
-########################################################################
+#======================================================================
 
 class VirtualObjectListView(AbstractVirtualObjectListView):
 
@@ -2749,7 +2757,7 @@ class VirtualObjectListView(AbstractVirtualObjectListView):
         """
         pass
 
-########################################################################
+#======================================================================
 
 class FastObjectListView(AbstractVirtualObjectListView):
 
@@ -3579,7 +3587,7 @@ class GroupListView(FastObjectListView):
     #    """
     #    pass
 
-#######################################################################
+#======================================================================
 
 class ListGroup(object):
 
@@ -3601,7 +3609,7 @@ class ListGroup(object):
         """
         self.modelObjects.append(model)
 
-#######################################################################
+#======================================================================
 
 class ColumnDefn(object):
 
@@ -3854,7 +3862,6 @@ class ColumnDefn(object):
         self.valueSetter = valueSetter
         self.imageGetter = imageGetter
         self.stringConverter = stringConverter
-        self.valueSetter = valueSetter
         self.isSpaceFilling = isSpaceFilling
         self.cellEditorCreator = cellEditorCreator
         self.freeSpaceProportion = 1
@@ -4207,7 +4214,7 @@ class ColumnDefn(object):
                 self.checkStateSetter,
                 True)
 
-#######################################################################
+#======================================================================
 
 class BarreRecherche(wx.SearchCtrl):
     def __init__(self, parent, listview, texteDefaut=u"Saisir un radical puis valider..."):
@@ -4408,6 +4415,19 @@ class CTRL_Outils(wx.Panel):
 
 #======================================================================
 
+class TrackModel(object):
+    #    Cette classe initialise une ligne avec les valeurs par défaut définies dans les colonnes
+    def __init__(self,olv):
+        self.donnees = []
+        for column in olv.columns:
+            value = None
+            if column.valueSetter :
+                value = column.valueSetter
+            if not value and hasattr(olv,'lstSetterValue'):
+                value = olv.lstSetterValue[olv.columns.index(column)]
+            self.__setattr__(column.valueGetter, value)
+            self.donnees.append(value)
+
 class NamedImageList(object):
 
     """
@@ -4585,8 +4605,7 @@ class BatchedUpdate(object):
             self.freezeUntil = time.clock() + self.updatePeriod
             return
 
-        # TODO: We should check that none of the model objects is already in
-        # the list
+        # TODO: We should check that none of the model objects is already in the list
         self.objectsToAdd.extend(modelObjects)
 
         # Since we are adding these objects, we must no longer remove them
@@ -4709,7 +4728,7 @@ def _getSmallDownArrowBitmap():
         return wx.BitmapFromImage(wx.ImageFromStream(stream))
 
 #
-#######################################################################
+#======================================================================
 # TESTING ONLY
 
 if __name__ == '__main__':
