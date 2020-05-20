@@ -80,9 +80,31 @@ def EnterAction(event):
         row += 1
         coldefn = olv.GetPrimaryColumn()
         col = olv.columns.index(coldefn)-1
-        print(col)
         olv.Select(False)
     olv._PossibleStartCellEdit(row, col + 1)
+    return
+
+def UpDownAction(event):
+    # Touche Up et Down changent de ligne
+    keyup = event.GetKeyCode() == wx.WXK_UP
+    olv = event.EventObject.Parent
+    row, col = olv.cellBeingEdited
+    olv.FinishCellEdit()
+    if row != len(olv.innerList)-1 and not keyup:
+        # on passe à la ligne suivante
+        row += 1
+    elif row != 0 and keyup:
+        row -=1
+    olv.Select(False)
+    olv._PossibleStartCellEdit(row, col)
+    return
+
+def ShiftTabAction(event):
+    # Gestion pour éditeur date qui ne gère pas la tabulation
+    olv = event.EventObject.Parent
+    row, col = olv.cellBeingEdited
+    olv.FinishCellEdit()
+    olv._PossibleStartCellEdit(row, col - 1)
     return
 
 def EscapeAction(event):
@@ -97,6 +119,55 @@ def FunctionActions(event):
         event.EventObject.GrandParent.OnFunctionKeys(event.EventObject, event.GetKeyCode())
     else:
         wx.MessageBox(u"Touches de fonctions non implémentées")
+    event.Skip()
+    return
+
+def OnChar(editor, event):
+
+    if event.GetModifiers() != 0 and event.GetModifiers() != wx.MOD_SHIFT:
+        # passe les alt ctrl et altgr
+        event.Skip()
+        return
+
+    if event.GetKeyCode() >= wx.WXK_F1 and event.GetKeyCode() <= wx.WXK_F12:
+        FunctionActions(event)
+        return
+
+    if type(editor).__name__ == 'DateEditor':
+        # Gestion du comportement de tab pour adv.DatePickerCtrl
+        if event.GetKeyCode() == wx.WXK_TAB:
+            if event.GetModifiers() == wx.MOD_SHIFT:
+                ShiftTabAction(event)
+            elif event.GetModifiers() == 0:
+                EnterAction(event)
+            return
+        if event.GetKeyCode() in (wx.WXK_UP, wx.WXK_DOWN):
+            event.Skip()
+            return
+
+    if event.GetKeyCode() in [wx.WXK_CANCEL, wx.WXK_TAB, wx.WXK_BACK, wx.WXK_DELETE, wx.WXK_HOME,
+                              wx.WXK_END,wx.WXK_LEFT, wx.WXK_RIGHT,]:
+        event.Skip()
+        return
+
+    #EditKeysPerso = [wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER,wx.WXK_ESCAPE,wx.WXK_UP, wx.WXK_DOWN ]
+
+    if event.GetKeyCode() in (wx.WXK_UP,wx.WXK_NUMPAD_DOWN):
+        UpDownAction(event)
+        return
+
+    if event.GetKeyCode() in (wx.WXK_RETURN,wx.WXK_NUMPAD_ENTER):
+        EnterAction(event)
+        return
+
+    if event.GetKeyCode() == (wx.WXK_ESCAPE):
+        EscapeAction(event)
+        return
+
+    if type(editor).__name__ == 'DateEditor':
+        # le validator accepté les touches autorisées retent les non  autorisée et  non spéciales
+        wx.Bell()
+        return
     event.Skip()
     return
 
@@ -159,7 +230,7 @@ class EditorRegistry(object):
 
     @staticmethod
     def _MakeStringEditor(olv, rowIndex, subItemIndex):
-        return BaseCellTextEditor(olv, subItemIndex, validator=AlphabeticValidator())
+        return BaseCellTextEditor(olv, subItemIndex)
 
     @staticmethod
     def _MakeBoolEditor(olv, rowIndex, subItemIndex):
@@ -191,7 +262,6 @@ class EditorRegistry(object):
     def _MakeDateEditor(olv, rowIndex, subItemIndex):
         dte = DateEditor(olv,)
         #dte = DateEditor(olv, style=wx.DP_DROPDOWN | wx.DP_SHOWCENTURY | wx.WANTS_CHARS)
-        #dte.SetValidator(AlphabeticValidator())
         return dte
 
     @staticmethod
@@ -237,11 +307,17 @@ class BaseCellTextEditor(wx.TextCtrl):
             else:
                 style |= olv.columns[subItemIndex].GetAlignmentForText()
         wx.TextCtrl.__init__(self, olv, style=style, **kwargs)
-
         # With the MULTILINE flag, the text control always has a vertical
         # scrollbar, which looks stupid. I don't know how to get rid of it.
         # This doesn't do it:
         # self.ToggleWindowStyle(wx.VSCROLL)
+        self.Bind(wx.EVT_CHAR_HOOK, self._OnChar)
+
+    def _OnChar(self, event):
+        if type(event.EventObject).__name__ in (FloatEditor, IntEditor):
+            event.Skip()
+            return
+        OnChar(self, event)
 
 class IntEditor(BaseCellTextEditor):
     """This is a text editor for integers for use in an ObjectListView"""
@@ -409,19 +485,7 @@ class DateEditor(wx.adv.DatePickerCtrl):
         self.Bind(wx.EVT_CHAR_HOOK, self._OnChar)
 
     def _OnChar(self, event):
-        "Handle the OnChar event by rejecting non-numerics"
-        if event.GetModifiers() != 0 and event.GetModifiers() != wx.MOD_SHIFT:
-            event.Skip()
-            return
-
-        if event.GetKeyCode() in  (wx.WXK_RETURN,wx.WXK_TAB):
-            EnterAction(event)
-            return
-
-        if event.GetKeyCode() >= wx.WXK_F1 and event.GetKeyCode() <= wx.WXK_F12:
-            FunctionActions(event)
-            return
-        event.Skip()
+        OnChar(self,event)
 
     def SetValue(self, value):
         if value:
@@ -477,20 +541,26 @@ class NumericValidator(wx.PyValidator):
 
     def __init__(self, acceptableChars="0123456789+-"):
         wx.Validator.__init__(self)
-        self.Bind(wx.EVT_CHAR, self._OnChar)
         self.acceptableChars = acceptableChars
         self.acceptableCodes = [ord(x) for x in self.acceptableChars]
-        stdEditKeys = [wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER, wx.WXK_ESCAPE, wx.WXK_CANCEL,
+        self.Bind(wx.EVT_CHAR, self._OnChar)
+        """stdEditKeys = [wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER, wx.WXK_ESCAPE, wx.WXK_CANCEL,
                        wx.WXK_TAB, wx.WXK_BACK, wx.WXK_DELETE, wx.WXK_HOME, wx.WXK_END,
                        wx.WXK_LEFT, wx.WXK_RIGHT]
-        self.acceptableCodes.extend(stdEditKeys)
+        self.acceptableCodes.extend(stdEditKeys)"""
 
     def Clone(self):
         "Make a new copy of this validator"
         return NumericValidator(self.acceptableChars)
 
     def _OnChar(self, event):
-        "Handle the OnChar event by rejecting non-numerics"
+        if event.GetKeyCode() in self.acceptableCodes:
+            event.Skip()
+            return
+        OnChar(self,event)
+
+    def zz_OnChar(self, event):
+
         if event.GetModifiers() != 0 and event.GetModifiers() != wx.MOD_SHIFT:
             event.Skip()
             return
@@ -507,32 +577,6 @@ class NumericValidator(wx.PyValidator):
             FunctionActions(event)
             return
         wx.Bell()
-
-class AlphabeticValidator(wx.PyValidator):
-    """This validator accepts alls keys"""
-    def __init__(self):
-        wx.Validator.__init__(self)
-        self.Bind(wx.EVT_CHAR, self._OnChar)
-
-    def Clone(self):
-        "Make a new copy of this validator"
-        return AlphabeticValidator()
-
-    def _OnChar(self, event):
-        "Handle the OnChar event by rejecting non-numerics"
-        if event.GetModifiers() != 0 and event.GetModifiers() != wx.MOD_SHIFT:
-            event.Skip()
-            return
-
-        if event.GetKeyCode() == wx.WXK_RETURN:
-            EnterAction(event)
-            return
-
-        if event.GetKeyCode() >= wx.WXK_F1 and event.GetKeyCode() <= wx.WXK_F12:
-            FunctionActions(event)
-            return
-        event.Skip()
-        return
 
 # ============== Auto complete controls =========================================
 

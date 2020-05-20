@@ -286,9 +286,9 @@ class ObjectListView(wx.ListCtrl):
             "typingSearchesSortColumn",
             True)
 
-        self.evenRowsBackColor = wx.Colour(240, 248, 255)  # ALICE BLUE
-        self.oddRowsBackColor = wx.Colour(255, 250, 205)  # LEMON CHIFFON
-        self.newRowsBackColor = wx.Colour(240,248,255)      # VERT ESPERANCE
+        self.pairRowsBackColor = wx.Colour(255, 255, 245)
+        self.impairRowsBackColor = wx.Colour(245, 245, 255)
+        self.newRowsBackColor = wx.Colour(255,250,205)      # Jaune
 
         wx.ListCtrl.__init__(self, *args, **kwargs)
 
@@ -800,9 +800,11 @@ class ObjectListView(wx.ListCtrl):
         """
         if self.useAlternateBackColors and self.InReportView():
             if index & 1:
-                item.SetBackgroundColour(self.oddRowsBackColor)
+                item.SetBackgroundColour(self.impairRowsBackColor)
             else:
-                item.SetBackgroundColour(self.evenRowsBackColor)
+                item.SetBackgroundColour(self.pairRowsBackColor)
+        if type(model).__name__ == 'TrackModel':
+            item.SetBackgroundColour(self.newRowsBackColor)
 
         if self.rowFormatter is not None:
             self.rowFormatter(item, model)
