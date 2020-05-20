@@ -458,8 +458,9 @@ class PanelListView(wx.Panel):
 
     def OnFunctionKeys(self,eventObj,codeKey):
         # Fonction appelée par CellEditor.Validator lors de l'activation d'une touche de fonction
-        row, col = self.ctrl_listview.cellBeingEdited
-        wx.MessageBox(u"Touche <F%d> pressée sur cell (%d,%d)"%(codeKey - wx.WXK_F1 + 1,row,col))
+        if self.ctrl_listview.cellBeingEdited:
+            row, col = self.ctrl_listview.cellBeingEdited
+            wx.MessageBox(u"Touche <F%d> pressée sur cell (%d,%d)"%(codeKey - wx.WXK_F1 + 1,row,col))
 
 # ------------------------------------------------------------------------------------------------------------------
 class PNL_params(wx.Panel):

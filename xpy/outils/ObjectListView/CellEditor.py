@@ -80,13 +80,13 @@ def EnterAction(event):
         row += 1
         coldefn = olv.GetPrimaryColumn()
         col = olv.columns.index(coldefn)-1
-        olv.Select(False)
+        olv._SelectAndFocus(row)
     olv._PossibleStartCellEdit(row, col + 1)
     return
 
 def UpDownAction(event):
     # Touche Up et Down changent de ligne
-    keyup = event.GetKeyCode() == wx.WXK_UP
+    keyup = event.GetKeyCode() in (wx.WXK_UP,wx.WXK_NUMPAD_UP)
     olv = event.EventObject.Parent
     row, col = olv.cellBeingEdited
     olv.FinishCellEdit()
@@ -95,7 +95,7 @@ def UpDownAction(event):
         row += 1
     elif row != 0 and keyup:
         row -=1
-    olv.Select(False)
+    olv._SelectAndFocus(row)
     olv._PossibleStartCellEdit(row, col)
     return
 
@@ -110,13 +110,13 @@ def ShiftTabAction(event):
 def EscapeAction(event):
     olv = event.EventObject.Parent
     olv.FinishCellEdit()
-    #olv.Select(True)
-    #olv.SetFocus()
+    olv._SelectAndFocus(olv.lastGetObjectIndex)
     return
 
 def FunctionActions(event):
     if hasattr(event.EventObject.GrandParent, 'OnFunctionKeys'):
         event.EventObject.GrandParent.OnFunctionKeys(event.EventObject, event.GetKeyCode())
+        event.EventObject.Parent._SelectAndFocus(event.EventObject.Parent.lastGetObjectIndex)
     else:
         wx.MessageBox(u"Touches de fonctions non implémentées")
     event.Skip()
@@ -152,7 +152,7 @@ def OnChar(editor, event):
 
     #EditKeysPerso = [wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER,wx.WXK_ESCAPE,wx.WXK_UP, wx.WXK_DOWN ]
 
-    if event.GetKeyCode() in (wx.WXK_UP,wx.WXK_NUMPAD_DOWN):
+    if event.GetKeyCode() in (wx.WXK_UP,wx.WXK_NUMPAD_UP,wx.WXK_DOWN,wx.WXK_NUMPAD_DOWN):
         UpDownAction(event)
         return
 
@@ -162,11 +162,6 @@ def OnChar(editor, event):
 
     if event.GetKeyCode() == (wx.WXK_ESCAPE):
         EscapeAction(event)
-        return
-
-    if type(editor).__name__ == 'DateEditor':
-        # le validator accepté les touches autorisées retent les non  autorisée et  non spéciales
-        wx.Bell()
         return
     event.Skip()
     return
@@ -314,9 +309,6 @@ class BaseCellTextEditor(wx.TextCtrl):
         self.Bind(wx.EVT_CHAR_HOOK, self._OnChar)
 
     def _OnChar(self, event):
-        if type(event.EventObject).__name__ in (FloatEditor, IntEditor):
-            event.Skip()
-            return
         OnChar(self, event)
 
 class IntEditor(BaseCellTextEditor):
@@ -544,39 +536,28 @@ class NumericValidator(wx.PyValidator):
         self.acceptableChars = acceptableChars
         self.acceptableCodes = [ord(x) for x in self.acceptableChars]
         self.Bind(wx.EVT_CHAR, self._OnChar)
-        """stdEditKeys = [wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER, wx.WXK_ESCAPE, wx.WXK_CANCEL,
-                       wx.WXK_TAB, wx.WXK_BACK, wx.WXK_DELETE, wx.WXK_HOME, wx.WXK_END,
-                       wx.WXK_LEFT, wx.WXK_RIGHT]
-        self.acceptableCodes.extend(stdEditKeys)"""
 
     def Clone(self):
         "Make a new copy of this validator"
         return NumericValidator(self.acceptableChars)
 
     def _OnChar(self, event):
-        if event.GetKeyCode() in self.acceptableCodes:
-            event.Skip()
-            return
-        OnChar(self,event)
-
-    def zz_OnChar(self, event):
-
+        # complément du bind de BaseCellTextEditor
         if event.GetModifiers() != 0 and event.GetModifiers() != wx.MOD_SHIFT:
+            # passe les alt ctrl et altgr
             event.Skip()
-            return
-
-        if event.GetKeyCode() == wx.WXK_RETURN:
-            EnterAction(event)
             return
 
         if event.GetKeyCode() in self.acceptableCodes:
+            # accepte les acceptables
             event.Skip()
             return
 
-        if event.GetKeyCode() >= wx.WXK_F1 and event.GetKeyCode() <= wx.WXK_F12:
-            FunctionActions(event)
+        if event.GetKeyCode() >= 32 and event.GetKeyCode() != 127 and event.GetKeyCode() < 256:
+            # bloque les ascii non aceptables, interromp le traitement
+            wx.Bell()
             return
-        wx.Bell()
+        event.Skip()
 
 # ============== Auto complete controls =========================================
 

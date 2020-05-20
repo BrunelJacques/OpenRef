@@ -1414,7 +1414,8 @@ class ObjectListView(wx.ListCtrl):
     # Event handling
 
     def _HandleChar(self, evt):
-        if evt.GetKeyCode() == wx.WXK_F2 and not self.IsCellEditing():
+        if evt.GetKeyCode() in (wx.WXK_F2, wx.WXK_NUMPAD_ENTER, wx.WXK_RETURN) and not self.IsCellEditing():
+            # entrée dans l'éditor du début de ligne
             return self._PossibleStartCellEdit(
                 self.GetFocusedRow(),
                 self.GetPrimaryColumnIndex())
@@ -1423,18 +1424,14 @@ class ObjectListView(wx.ListCtrl):
         # (e.g. ComboBox, UserControl) don't trigger key events that we can listen for.
         # Treat Return or Enter as committing the current edit operation unless the control
         # is a multiline text control, in which case we treat it as data
-        if evt.GetKeyCode() in (
-                wx.WXK_RETURN,
-                wx.WXK_NUMPAD_ENTER) and self.IsCellEditing():
+        if evt.GetKeyCode() in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER) and self.IsCellEditing():
             if self.cellEditor and self.cellEditor.HasFlag(wx.TE_MULTILINE):
                 return evt.Skip()
             else:
                 return self.FinishCellEdit()
 
         # Treat Escape as cancel the current edit operation
-        if evt.GetKeyCode() in (
-                wx.WXK_ESCAPE,
-                wx.WXK_CANCEL) and self.IsCellEditing():
+        if evt.GetKeyCode() in (wx.WXK_ESCAPE, wx.WXK_CANCEL) and self.IsCellEditing():
             return self.CancelCellEdit()
 
         # Tab to the next editable column
@@ -1467,20 +1464,55 @@ class ObjectListView(wx.ListCtrl):
         evt.Skip()
 
     def _HandleTypingEvent(self, evt):
-        """
-        """
+
         if self.GetItemCount() == 0 or self.GetColumnCount() == 0:
             return False
 
         if evt.GetModifiers() != 0 and evt.GetModifiers() != wx.MOD_SHIFT:
             return False
 
-        if evt.GetKeyCode() > wx.WXK_START:
-            return False
-
         if evt.GetKeyCode() in (wx.WXK_BACK, wx.WXK_DELETE):
             self.searchPrefix = ""
-            return True
+            nb = len(self.GetSelectedObjects())
+            if nb == 0: mess = "Pour supprimer des lignes il faut les sélectionner"
+            elif nb == 1 : mess = "Confirmez-vous la suppression de la ligne sélectionnée!"
+            else:  mess = "Confirmez-vous la suppression des %d lignes sélectionnées!"%nb
+            mess += "\n\n<Entrée> ou <esc>"
+            dlg = wx.MessageDialog(self,mess,
+                                   "Touche Supprime",style=wx.YES_NO,)
+            ret = dlg.ShowModal()
+            dlg.Destroy()
+            if ret  == wx.ID_YES:
+                for obj in self.GetSelectedObjects():
+                    # suppression des lignes pour la saisie
+                    ix = self.lastGetObjectIndex
+                    self.modelObjects.remove(obj)
+                self.RepopulateList()
+                self._SelectAndFocus(ix)
+                return True
+            else:
+                return False
+
+        if evt.GetKeyCode() == wx.WXK_INSERT:
+            self.searchPrefix = ""
+            dlg = wx.MessageDialog(self,"Confirmez-vous l'insertion d'une ligne!\n\n<Entrée> ou <esc>",
+                                   "Touche Insertion",style=wx.YES_NO,)
+            ret = dlg.ShowModal()
+            dlg.Destroy()
+            if ret  == wx.ID_YES:
+                # création automatique d'une nouvelle ligne pour la saisie
+                ix = self.lastGetObjectIndex
+                self.modelObjects.insert(ix,TrackModel(self))
+                self.RepopulateList()
+                self._SelectAndFocus(ix)
+                return True
+            else:
+                return False
+
+        if evt.GetKeyCode() > wx.WXK_START:
+            # tout autre key spéciale
+            return False
+
 
         # On which column are we going to compare values? If we should search on the
         # sorted column, and there is a sorted column and it is searchable, we use that
