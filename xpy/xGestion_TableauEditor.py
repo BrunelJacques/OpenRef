@@ -834,7 +834,7 @@ if __name__ == '__main__':
     dicOlv = {'listeColonnes': liste_Colonnes,
               'listeDonnees': liste_Donnees,
               'dicActions': dicActions,
-              'hauteur': 350,
+              'hauteur': 450,
               'largeur': 650,
               'checkColonne': False,
               'recherche': True,

@@ -664,6 +664,7 @@ class ImportComptas(object):
         # import des comptas sur une plage d'exercices
         configCPTA = {}
         self.nbreOK = 0
+        lstClientsNafs=[]
         if self.config['compta'] == 'quadratus':
             configCPTA['nameDB'] = 'Qcompta.mdb'
             configCPTA['typeDB'] = 'access'
