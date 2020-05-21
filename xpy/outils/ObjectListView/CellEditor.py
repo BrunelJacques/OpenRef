@@ -58,10 +58,8 @@ import datetime
 import wx
 import wx.adv
 
-# ======================================================================
 # Editor Registry
 
-# Module level variable
 _cellEditorRegistrySingleton = None
 
 def EnterAction(event):
@@ -109,13 +107,16 @@ def ShiftTabAction(event):
 
 def EscapeAction(event):
     olv = event.EventObject.Parent
+    if hasattr(event.EventObject.GrandParent, 'OnEditStarted'):
+        row, col = olv.cellBeingEdited
+        track = olv.GetObjectAt(row)
+        event.EventObject.SetValue(track.old_data)
     olv.FinishCellEdit()
-    olv._SelectAndFocus(olv.lastGetObjectIndex)
     return
 
-def FunctionActions(event):
-    if hasattr(event.EventObject.GrandParent, 'OnFunctionKeys'):
-        event.EventObject.GrandParent.OnFunctionKeys(event.EventObject, event.GetKeyCode())
+def FunctionKeys(event):
+    if hasattr(event.EventObject.GrandParent, 'OnEditorFunctionKeys'):
+        event.EventObject.GrandParent.OnEditorFunctionKeys(event.EventObject, event.GetKeyCode())
         event.EventObject.Parent._SelectAndFocus(event.EventObject.Parent.lastGetObjectIndex)
     else:
         wx.MessageBox(u"Touches de fonctions non implémentées")
@@ -130,7 +131,12 @@ def OnChar(editor, event):
         return
 
     if event.GetKeyCode() >= wx.WXK_F1 and event.GetKeyCode() <= wx.WXK_F12:
-        FunctionActions(event)
+        FunctionKeys(event)
+        return
+
+    if event.GetKeyCode() == 61:
+        # touche égal
+        FunctionKeys(event)
         return
 
     if type(editor).__name__ == 'DateEditor':
@@ -542,7 +548,7 @@ class NumericValidator(wx.PyValidator):
         return NumericValidator(self.acceptableChars)
 
     def _OnChar(self, event):
-        # complément du bind de BaseCellTextEditor
+        # complément du bind de BaseCellTextEditor, rejet des lettres accept les chiffres
         if event.GetModifiers() != 0 and event.GetModifiers() != wx.MOD_SHIFT:
             # passe les alt ctrl et altgr
             event.Skip()

@@ -133,7 +133,6 @@ class ListView(FastObjectListView):
         tracks = list()
         if self.listeDonnees is None:
             return tracks
-
         for ligneDonnees in self.listeDonnees:
             tracks.append(TrackGeneral(donnees=ligneDonnees,codesColonnes=self.lstCodesColonnes,
                                             nomsColonnes=self.lstNomsColonnes,setterValues=self.lstSetterValues))
@@ -173,8 +172,6 @@ class ListView(FastObjectListView):
 
     def InitObjectListView(self):
         # Couleur en alternance des lignes
-        self.oddRowsBackColor = "#F0FBED"
-        self.evenRowsBackColor = wx.Colour(255, 255, 255)
         self.useExpansionColumn = True
         # On définit les colonnes
         self.SetColumns(self.listeColonnes)
@@ -406,6 +403,7 @@ class PanelListView(wx.Panel):
         self.SetFooter(reinit=False)
         self.ctrl_listview.Bind(wx.EVT_CHAR,self.OnChar)
         self.ctrl_listview.Bind(OLVEvent.EVT_CELL_EDIT_FINISHING,self.OnEditFinishing)
+        self.ctrl_listview.Bind(OLVEvent.EVT_CELL_EDIT_STARTED,self.OnEditStarted)
 
         # Layout
 
@@ -430,37 +428,78 @@ class PanelListView(wx.Panel):
     def GetListview(self):
         return self.ctrl_listview
 
-    def OnEditFinishing(self,event):
-        row,col = self.ctrl_listview.cellBeingEdited
-        track = self.ctrl_listview.GetObjectAt(row)
-        #old_data = track.donnees[col]
-        new_data = self.ctrl_listview.cellEditor.GetValue()
-        track.__setattr__(self.ctrl_listview.lstCodesColonnes[col], new_data)
-        track.donnees[col]=new_data
-        event.Skip()
-
+    # Handler niveau OLV
     def OnChar(self, event):
         keycode = event.GetUnicodeKey()
         if keycode == 3: self.OnCtrlC()
-        if keycode == 22: self.OnCtrlV()
+        if keycode == 24: self.OnCtrlX(event)
+        if keycode == 22: self.OnCtrlV(event)
         event.Skip()
 
     def OnCtrlC(self):
         # action copier
         self.buffertracks = self.ctrl_listview.GetSelectedObjects()
-        wx.MessageBox(u" %d lignes sélectionnées"%len(self.buffertracks))
+        if len(self.buffertracks) == 0:
+            mess = "Pas de sélection faite"
+            wx.MessageBox(mess)
         return
 
-    def OnCtrlV(self):
+    def OnCtrlX(self,event):
+        # action copier
+        self.buffertracks = self.ctrl_listview.GetSelectedObjects()
+        if len(self.buffertracks) == 0:
+            mess = "Pas de sélection faite"
+            wx.MessageBox(mess)
+            return
+        for item in self.buffertracks:
+            olv = event.EventObject
+            ix = olv.lastGetObjectIndex
+            olv.modelObjects.remove(item)
+            olv.RepopulateList()
+            olv._SelectAndFocus(ix)
+            wx.MessageBox(u" %d lignes supprimées et mémorisées pour prochain <ctrl> V"%len(self.buffertracks))
+        return
+
+    def OnCtrlV(self,event):
         # action coller
-        wx.MessageBox(u" %d lignes à copier"%len(self.buffertracks))
+        if self.buffertracks and len(self.buffertracks) >0:
+            for item in self.buffertracks:
+                olv = event.EventObject
+                ix = olv.lastGetObjectIndex
+                olv.modelObjects.insert(ix,item)
+                olv.RepopulateList()
+                olv._SelectAndFocus(ix)
+        else:
+            mess = "Rien en attente de collage, refaites le <ctrl> C ou <ctrl> X"
+            wx.MessageBox(mess)
         return
 
-    def OnFunctionKeys(self,eventObj,codeKey):
+    # Handlers niveau cell Editor
+    def OnEditorFunctionKeys(self,eventObj,codeKey):
         # Fonction appelée par CellEditor.Validator lors de l'activation d'une touche de fonction
         if self.ctrl_listview.cellBeingEdited:
             row, col = self.ctrl_listview.cellBeingEdited
             wx.MessageBox(u"Touche <F%d> pressée sur cell (%d,%d)"%(codeKey - wx.WXK_F1 + 1,row,col))
+
+    def OnEditFinishing(self, event):
+        # gestion des actions de sortie
+        row, col = self.ctrl_listview.cellBeingEdited
+        track = self.ctrl_listview.GetObjectAt(row)
+        new_data = self.ctrl_listview.cellEditor.GetValue()
+        code = self.ctrl_listview.lstCodesColonnes[col]
+        try:
+            exec("self.On_%s(new_data)"%code)
+        except: pass
+        track.__setattr__(code, new_data)
+        track.donnees[col] = new_data
+        event.Skip()
+
+    def OnEditStarted(self, event):
+        # stockage de la valeur initiale de la dernière cellule éditée
+        row, col = self.ctrl_listview.cellBeingEdited
+        track = self.ctrl_listview.GetObjectAt(row)
+        track.old_data = track.donnees[col]
+        event.Skip()
 
 # ------------------------------------------------------------------------------------------------------------------
 class PNL_params(wx.Panel):

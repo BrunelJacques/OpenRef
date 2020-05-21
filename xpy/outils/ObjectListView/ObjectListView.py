@@ -286,8 +286,8 @@ class ObjectListView(wx.ListCtrl):
             "typingSearchesSortColumn",
             True)
 
-        self.pairRowsBackColor = wx.Colour(255, 255, 245)
-        self.impairRowsBackColor = wx.Colour(245, 245, 255)
+        self.evenRowsBackColor = wx.Colour(255, 255, 245)
+        self.oddRowsBackColor = wx.Colour(245, 245, 255)
         self.newRowsBackColor = wx.Colour(255,250,205)      # Jaune
 
         wx.ListCtrl.__init__(self, *args, **kwargs)
@@ -333,8 +333,7 @@ class ObjectListView(wx.ListCtrl):
                 0,
                 ""))
 
-    # --------------------------------------------------------------#000000#FFFFFF
-    # Setup
+    # Setup OLV
 
     def SetColumns(self, columns, repopulate=True):
         """
@@ -553,7 +552,6 @@ class ObjectListView(wx.ListCtrl):
             self.normalImageList = NamedImageList(normalImageList, 32)
         self.SetImageList(self.normalImageList.imageList, wx.IMAGE_LIST_NORMAL)
 
-    # --------------------------------------------------------------#000000#FFFFFF
     # Commands
 
     def AddImages(self, smallImage=None, normalImage=None):
@@ -561,6 +559,9 @@ class ObjectListView(wx.ListCtrl):
         Add the given images (:class:`wx.Bitmap <wx:Bitmap>`) to the list of available images. Return the index of the image.
         """
         return self.AddNamedImages(None, smallImage, normalImage)
+
+    def GetTrackVierge(self):
+        return TrackVierge(self)
 
     def AddObject(self, modelObject):
         """
@@ -800,10 +801,10 @@ class ObjectListView(wx.ListCtrl):
         """
         if self.useAlternateBackColors and self.InReportView():
             if index & 1:
-                item.SetBackgroundColour(self.impairRowsBackColor)
+                item.SetBackgroundColour(self.oddRowsBackColor)
             else:
-                item.SetBackgroundColour(self.pairRowsBackColor)
-        if type(model).__name__ == 'TrackModel':
+                item.SetBackgroundColour(self.evenRowsBackColor)
+        if type(model).__name__ == 'TrackVierge':
             item.SetBackgroundColour(self.newRowsBackColor)
 
         if self.rowFormatter is not None:
@@ -1009,7 +1010,7 @@ class ObjectListView(wx.ListCtrl):
 
     def AutoAddRow(self):
         # création automatique d'une nouvelle ligne pour la saisie
-        self.modelObjects.append(TrackModel(self))
+        self.modelObjects.append(self.GetTrackVierge())
 
     def SetObjects(self, modelObjects, preserveSelection=False):
         """
@@ -1064,7 +1065,6 @@ class ObjectListView(wx.ListCtrl):
         """
         self.SetCheckState(modelObject, False)
 
-    # --------------------------------------------------------------#000000#FFFFFF
     # Accessing
 
     def GetCheckedObjects(self):
@@ -1312,7 +1312,6 @@ class ObjectListView(wx.ListCtrl):
             yield self.GetObjectAt(i)
             i = self.GetNextItem(i, wx.LIST_NEXT_ALL, wx.LIST_STATE_SELECTED)
 
-    #-------------------------------------------------------------------------
     # Calculating
 
     def GetSubItemRect(self, rowIndex, subItemIndex, flag):
@@ -1394,8 +1393,6 @@ class ObjectListView(wx.ListCtrl):
 
         return (rowIndex, 0, -1)
 
-
-    # ----------------------------------------------------------------------
     # Utilities
 
     def _IsPrintable(self, char):
@@ -1409,8 +1406,23 @@ class ObjectListView(wx.ListCtrl):
         else:
             return False
 
+    def OnDelete(self,evt):
+        for obj in self.GetSelectedObjects():
+            # suppression des lignes pour la saisie
+            ix = self.lastGetObjectIndex
+            self.modelObjects.remove(obj)
+        self.RepopulateList()
+        self._SelectAndFocus(ix)
+        return True
 
-    #-------------------------------------------------------------------------
+    def OnInsert(self,evt):
+        # création automatique d'une nouvelle ligne pour la saisie
+        ix = self.lastGetObjectIndex
+        self.modelObjects.insert(ix, self.GetTrackVierge())
+        self.RepopulateList()
+        self._SelectAndFocus(ix)
+        return True
+
     # Event handling
 
     def _HandleChar(self, evt):
@@ -1472,6 +1484,8 @@ class ObjectListView(wx.ListCtrl):
             return False
 
         if evt.GetKeyCode() in (wx.WXK_BACK, wx.WXK_DELETE):
+            if self.cellEditMode == self.CELLEDIT_NONE:
+                return False
             self.searchPrefix = ""
             nb = len(self.GetSelectedObjects())
             if nb == 0: mess = "Pour supprimer des lignes il faut les sélectionner"
@@ -1483,29 +1497,20 @@ class ObjectListView(wx.ListCtrl):
             ret = dlg.ShowModal()
             dlg.Destroy()
             if ret  == wx.ID_YES:
-                for obj in self.GetSelectedObjects():
-                    # suppression des lignes pour la saisie
-                    ix = self.lastGetObjectIndex
-                    self.modelObjects.remove(obj)
-                self.RepopulateList()
-                self._SelectAndFocus(ix)
-                return True
+                return self.OnDelete(evt)
             else:
                 return False
 
         if evt.GetKeyCode() == wx.WXK_INSERT:
+            if self.cellEditMode == self.CELLEDIT_NONE:
+                return False
             self.searchPrefix = ""
             dlg = wx.MessageDialog(self,"Confirmez-vous l'insertion d'une ligne!\n\n<Entrée> ou <esc>",
                                    "Touche Insertion",style=wx.YES_NO,)
             ret = dlg.ShowModal()
             dlg.Destroy()
             if ret  == wx.ID_YES:
-                # création automatique d'une nouvelle ligne pour la saisie
-                ix = self.lastGetObjectIndex
-                self.modelObjects.insert(ix,TrackModel(self))
-                self.RepopulateList()
-                self._SelectAndFocus(ix)
-                return True
+                return self.OnInsert(evt)
             else:
                 return False
 
@@ -1675,6 +1680,8 @@ class ObjectListView(wx.ListCtrl):
         for x in selection:
             self.SetCheckState(x, newValue)
         self.RefreshObjects(selection)
+
+    # Event Binds HandleMouse
 
     def _HandleColumnBeginDrag(self, evt):
         """
@@ -1867,7 +1874,6 @@ class ObjectListView(wx.ListCtrl):
 
         self.selectionBeforeCellEdit = shadowSelection
 
-    # --------------------------------------------------------------#000000#FFFFFF
     # Sorting
 
     def EnableSorting(self):
@@ -2049,7 +2055,6 @@ class ObjectListView(wx.ListCtrl):
             if imageIndex != -1:
                 self.SetColumnImage(sortColumnIndex, imageIndex)
 
-    # --------------------------------------------------------------#000000#FFFFFF
     # Selecting
 
     def SelectAll(self):
@@ -2109,7 +2114,6 @@ class ObjectListView(wx.ListCtrl):
         else:
             return self.FindItemData(-1, modelIndex)
 
-    #-------------------------------------------------------------------------
     # Cell editing
 
     def _PossibleStartCellEdit(self, rowIndex, subItemIndex):
@@ -2924,7 +2928,6 @@ class GroupListView(FastObjectListView):
 
     """
 
-    #-------------------------------------------------------------------------
     # Creation
 
     def __init__(self, *args, **kwargs):
@@ -3004,7 +3007,6 @@ class GroupListView(FastObjectListView):
                 0,
                 size))
 
-    #-------------------------------------------------------------------------
     # Accessing
 
     def GetShowGroups(self):
@@ -3084,7 +3086,6 @@ class GroupListView(FastObjectListView):
         else:
             self.alwaysGroupByColumnIndex = column
 
-    #-------------------------------------------------------------------------
     # Commands
 
     def AddObjects(self, modelObjects):
@@ -3149,7 +3150,6 @@ class GroupListView(FastObjectListView):
             self.groups = list()
         FastObjectListView.SetObjects(self, modelObjects, preserveSelection)
 
-    #-------------------------------------------------------------------------
     # Building
 
     def _SetGroups(self, groups):
@@ -3239,9 +3239,7 @@ class GroupListView(FastObjectListView):
             if grp.isExpanded:
                 self.innerList.extend(grp.modelObjects)
 
-    #-------------------------------------------------------------------------
-    # Virtual list callbacks.
-    # These are called a lot! Keep them efficient
+    # Virtual list callbacks. These are called a lot! Keep them efficient
 
     def OnGetItemText(self, itemIdx, colIdx):
         """
@@ -3326,7 +3324,6 @@ class GroupListView(FastObjectListView):
 
         return FastObjectListView.OnGetItemAttr(self, itemIdx)
 
-    #-------------------------------------------------------------------------
     # Commands
 
     def ToggleExpansion(self, group):
@@ -3429,7 +3426,6 @@ class GroupListView(FastObjectListView):
     SelectGroup = ObjectListView.SelectObject
     SelectGroups = ObjectListView.SelectObjects
 
-    #-------------------------------------------------------------------------
     # Accessing
 
     def FindGroupFor(self, modelObject):
@@ -3514,7 +3510,6 @@ class GroupListView(FastObjectListView):
                 ListGroup)]
         return [[column.GetStringValue(x) for column in cols] for x in objects]
 
-    #-------------------------------------------------------------------------
     # Event handlers
 
     def _HandleChar(self, evt):
@@ -4449,7 +4444,7 @@ class CTRL_Outils(wx.Panel):
 
 #======================================================================
 
-class TrackModel(object):
+class TrackVierge(object):
     #    Cette classe initialise une ligne avec les valeurs par défaut définies dans les colonnes
     def __init__(self,olv):
         self.donnees = []
