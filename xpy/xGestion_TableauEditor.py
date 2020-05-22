@@ -14,7 +14,7 @@ import xpy.outils.xformat
 from xpy.outils.ObjectListView import FastObjectListView, ColumnDefn, Filter, Footer, CTRL_Outils, OLVEvent,CellEditor
 from xpy.outils.xconst import *
 import datetime
-
+import xpy.xUTILS_SaisieParams as xusp
 # ------------------------------------------------------------------------------------------------------------------
 
 class TrackGeneral(object):
@@ -503,134 +503,23 @@ class PanelListView(wx.Panel):
 
 # ------------------------------------------------------------------------------------------------------------------
 class PNL_params(wx.Panel):
-    #panel olv avec habillage optionnel pour des boutons actions (à droite) des infos (bas gauche) et boutons sorties
-    def __init__(self, parent, dicOlv,*args, **kwds):
-        self.lanceur = dicOlv.pop('lanceur',None)
-        self.lstActions = kwds.pop('lstActions',None)
-        self.lstInfos = kwds.pop('lstInfos',None)
-        self.lstBtns = kwds.pop('lstBtns',None)
-        self.dicOnClick = kwds.pop('dicOnClick',None)
-        if (not self.lstBtns) and (not self.lstInfos):
-            #force la présence d'un pied d'écran par défaut
-            self.lstBtns = [('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_ok.png", wx.BITMAP_TYPE_ANY),
-                           "Cliquez ici pour fermer la fenêtre")]
-
-        wx.Panel.__init__(self, parent, *args,  **kwds)
-        #ci dessous l'ensemble des autres paramètres possibles pour OLV
-        lstParamsOlv = ['id',
-                        'style',
-                        'listeColonnes',
-                        'listeDonnees',
-                        'msgIfEmpty',
-                        'sensTri',
-                        'exportExcel',
-                        'exportTexte',
-                        'checkColonne',
-                        'apercuAvantImpression',
-                        'imprimer',
-                        'toutCocher',
-                        'toutDecocher',
-                        'inverserSelection',
-                        'titreImpression',
-                        'orientationImpression',
-                        'dictColFooter']
-        self.avecFooter = "dictColFooter" in dicOlv
-        if not self.avecFooter : lstParamsOlv.remove('dictColFooter')
-        if 'recherche' in dicOlv: self.barreRecherche = dicOlv['recherche']
-        else : self.barreRecherche = True
+    #panel de paramètres de l'application
+    def __init__(self, parent, dicParams, **kwds):
+        self.lanceur = dicParams.pop('lanceur', None)
+        self.lstActions = dicParams.pop('lstActions', None)
+        self.lstInfos = dicParams.pop('lstInfos', None)
+        self.lstBtns = dicParams.pop('lstBtns', None)
+        self.dicOnClick = dicParams.pop('dicOnClick', None)
+        wx.Panel.__init__(self, parent, **kwds)
         self.parent = parent
-        #récup des seules clés possibles pour dicOLV
-        dicOlvOut = {}
-        for key,valeur in dicOlv.items():
-            if key in lstParamsOlv:
-                 dicOlvOut[key] = valeur
-
-        # choix footer ou pas
-        pnlOlv = PanelListView(self,**dicOlvOut)
-        if self.avecFooter:
-            self.ctrlOlv = pnlOlv.ctrl_listview
-            self.olv = pnlOlv
-        else:
-            self.ctrlOlv = ListView(self,**dicOlvOut)
-            self.olv = self.ctrlOlv
-            self.ctrlOlv.parent = self.ctrlOlv.Parent
-        if self.barreRecherche:
-            self.ctrloutils = CTRL_Outils(self, listview=self.ctrlOlv, afficherCocher=False)
-        self.ctrlOlv.MAJ()
+        self.ctrl = xusp.CTRL_property(self, matrice=dicParams, enable=True)
         self.Sizer()
 
     def Sizer(self):
         #composition de l'écran selon les composants
-        sizerbase = wx.BoxSizer(wx.VERTICAL)
-        sizerhaut = wx.BoxSizer(wx.HORIZONTAL)
-        sizerolv = wx.BoxSizer(wx.VERTICAL)
-        sizerolv.Add(self.olv, 10, wx.EXPAND, 10)
-        if self.barreRecherche:
-            sizerolv.Add(self.ctrloutils, 0, wx.EXPAND, 10)
-        sizerhaut.Add(sizerolv,10,wx.ALL|wx.EXPAND,3)
-        if self.lstActions:
-            sizeractions = wx.StaticBoxSizer(wx.VERTICAL, self, label='Actions')
-            self.itemsActions = self.GetItemsBtn(self.lstActions)
-            sizeractions.AddMany(self.itemsActions)
-            sizerhaut.Add(sizeractions,0,wx.ALL|wx.EXPAND,3)
-
-        sizerbase.Add(sizerhaut, 10, wx.EXPAND, 10)
-        sizerbase.Add(wx.StaticLine(self), 0, wx.TOP| wx.EXPAND, 3)
-        sizerpied = wx.BoxSizer(wx.HORIZONTAL)
-        if self.lstInfos:
-            sizerinfos = wx.StaticBoxSizer(wx.HORIZONTAL,self,label='infos')
-            self.itemsInfos = self.GetItemsInfos(self.lstInfos)
-            sizerinfos.AddMany(self.itemsInfos)
-            sizerpied.Add(sizerinfos,10,wx.BOTTOM|wx.LEFT|wx.EXPAND,3)
-        else: sizerpied.Add((10,10),10,wx.BOTTOM|wx.LEFT|wx.EXPAND,3)
-        if self.lstBtns:
-            self.itemsBtns = self.GetItemsBtn(self.lstBtns)
-            sizerpied.AddMany(self.itemsBtns)
-        sizerbase.Add(sizerpied,0,wx.EXPAND,5)
-        self.SetSizerAndFit(sizerbase)
-
-    def GetItemsBtn(self,lstBtns):
-        # décompactage des paramètres de type bouton
-        lstBtn = []
-        for btn in lstBtns:
-            try:
-                (code,ID,label,tooltip) = btn
-                if isinstance(label,wx.Bitmap):
-                    bouton = wx.BitmapButton(self,ID,label)
-                elif isinstance(label,str):
-                    bouton = wx.Button(self,ID,label)
-                else: bouton = wx.Button(self,ID,'Erreur!')
-                bouton.SetToolTip(tooltip)
-                bouton.name = code
-                #le bouton OK est par défaut, il ferme l'écran DLG
-                if code == 'BtnOK':
-                    bouton.Bind(wx.EVT_BUTTON, self.OnBoutonOK)
-                #implémente les fonctions bind transmises, soit par le pointeur soit par eval du texte
-                if self.dicOnClick and code in self.dicOnClick:
-                    if isinstance(self.dicOnClick[code],str):
-                        fonction = lambda evt,code=code: eval(self.dicOnClick[code])
-                    else: fonction = self.dicOnClick[code]
-                    bouton.Bind(wx.EVT_BUTTON, fonction)
-                lstBtn.append((bouton, 0, wx.ALL | wx.ALIGN_RIGHT, 5))
-
-            except:
-                bouton = wx.Button(self, wx.ID_ANY, 'Erreur!')
-                lstBtn.append((bouton, 0, wx.ALL, 5))
-        return lstBtn
-
-    def GetItemsInfos(self,lstInfos):
-        lstInfo = []
-        for label in lstInfos:
-            if isinstance(label,wx.Bitmap):
-                info = wx.StaticBitmap(self, wx.ID_ANY, label)
-            elif isinstance(label,str):
-                info = wx.StaticText(self,wx.ID_ANY,label)
-            else: info = wx.Button(self,wx.ID_OK,'Erreur!')
-            lstInfo.append((info,0,wx.RIGHT|wx.ALIGN_LEFT,10))
-        return lstInfo
-
-    def OnBoutonOK(self,event):
-        self.parent.Close()
+        sizerparams = wx.BoxSizer(wx.HORIZONTAL)
+        sizerparams.Add(self.ctrl,10,wx.BOTTOM|wx.LEFT|wx.EXPAND,3)
+        self.SetSizerAndFit(sizerparams)
 
 class PNL_tableau(wx.Panel):
     #panel olv avec habillage optionnel pour des boutons actions (à droite) des infos (bas gauche) et boutons sorties
@@ -737,18 +626,18 @@ class PNL_tableau(wx.Panel):
 
 class PNL_Pied(wx.Panel):
     #panel infos (gauche) et boutons sorties(droite)
-    def __init__(self, parent, dicOlv,*args, **kwds):
-        self.lanceur = dicOlv.pop('lanceur',None)
-        self.lstActions = kwds.pop('lstActions',None)
-        self.lstInfos = kwds.pop('lstInfos',None)
-        self.lstBtns = kwds.pop('lstBtns',None)
-        self.dicOnClick = kwds.pop('dicOnClick',None)
+    def __init__(self, parent, dicPied, **kwds):
+        self.lanceur = dicPied.pop('lanceur',None)
+        self.lstActions = dicPied.pop('lstActions',None)
+        self.lstInfos = dicPied.pop('lstInfos',None)
+        self.lstBtns = dicPied.pop('lstBtns',None)
+        self.dicOnClick = dicPied.pop('dicOnClick',None)
         if (not self.lstBtns) and (not self.lstInfos):
             #force la présence d'un pied d'écran par défaut
             self.lstBtns = [('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_ok.png", wx.BITMAP_TYPE_ANY),
                            "Cliquez ici pour fermer la fenêtre")]
 
-        wx.Panel.__init__(self, parent, *args,  **kwds)
+        wx.Panel.__init__(self, parent,  **kwds)
         self.parent = parent
         self.Sizer()
 
@@ -820,14 +709,16 @@ class DLG_tableau(wx.Dialog):
         wx.Dialog.__init__(self,None, title=titre, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
         self.SetBackgroundColour(wx.WHITE)
         self.marge = 10
+        self.pnlParams = PNL_params(self, dicParams)
         self.pnlOlv = PNL_tableau(self, dicOlv,  **kwds )
         self.ctrlOlv = self.pnlOlv.ctrlOlv
         self.pnlPied = PNL_Pied(self, dicPied,  **kwds )
         sizer_base = wx.FlexGridSizer(rows=3, cols=1, vgap=0, hgap=0)
+        sizer_base.Add(self.pnlParams, 1, wx.TOP| wx.EXPAND, 3)
         sizer_base.Add(self.pnlOlv, 1, wx.TOP| wx.EXPAND, 3)
         sizer_base.Add(self.pnlPied, 0, wx.ALIGN_RIGHT|wx.ALL|wx.EXPAND, 3)
         sizer_base.AddGrowableCol(0)
-        sizer_base.AddGrowableRow(0)
+        sizer_base.AddGrowableRow(1)
         self.CenterOnScreen()
         self.Layout()
         self.SetSizerAndFit(sizer_base)
@@ -845,7 +736,7 @@ class DLG_tableau(wx.Dialog):
 if __name__ == '__main__':
     app = wx.App(0)
     os.chdir("..")
-
+    # tableau OLV central de l'écran
     liste_Colonnes = [
         ColumnDefn("null", 'centre', 0, "IX", valueSetter=''),
         ColumnDefn("clé", 'centre', 60, "cle", valueSetter=1, isSpaceFilling=False, ),
@@ -883,6 +774,7 @@ if __name__ == '__main__':
                                 "mot": {"mode": "nombre", "alignement": wx.ALIGN_CENTER},
                                 "prix": {"mode": "total", "alignement": wx.ALIGN_RIGHT}, }
               }
+
     # boutons de bas d'écran - infos: texte ou objet window.  Les infos sont  placées en bas à gauche
     lstBtns = [('BtnPrec', wx.ID_FORWARD, wx.ArtProvider.GetBitmap(wx.ART_GO_BACK, wx.ART_OTHER, (42, 22)),"Cliquez ici pour retourner à l'écran précédent"),
                ('BtnPrec2', wx.ID_PREVIEW_NEXT, "Ecran\nprécédent", "Retour à l'écran précédent next"),
@@ -895,7 +787,18 @@ if __name__ == '__main__':
                 "Autre\nInfo"]
     dicPied = {'lstBtns': lstBtns, 'dicOnBtn': dicOnBtn, "lstInfos": lstInfos}
 
-    exempleframe = DLG_tableau(None,dicOlv=dicOlv,dicPied=dicPied)
+    # cadre des paramètres
+    import datetime
+    dicParams = {
+            ("ident","Vos paramètres"):[
+                {'name': 'date', 'genre': 'Date', 'label': 'Début de période', 'value': datetime.date.today(),
+                                    'help': 'Ce préfixe à votre nom permet de vous identifier'},
+                {'name': 'utilisateur', 'genre': 'String', 'label': 'Votre identifiant', 'value': "NomSession",
+                                    'help': 'Confirmez le nom de sesssion de l\'utilisateur'},
+                ],
+            }
+
+    exempleframe = DLG_tableau(None,dicParams,dicOlv=dicOlv,dicPied=dicPied)
     app.SetTopWindow(exempleframe)
     ret = exempleframe.ShowModal()
     app.MainLoop()
