@@ -139,7 +139,7 @@ def OnChar(editor, event):
         FunctionKeys(event)
         return
 
-    if type(editor).__name__ == 'DateEditor':
+    if type(editor).__name__ in ('DateEditor','ChoiceEditor','ComboEditor','BoleanEditor'):
         # Gestion du comportement de tab pour adv.DatePickerCtrl
         if event.GetKeyCode() == wx.WXK_TAB:
             if event.GetModifiers() == wx.MOD_SHIFT:
@@ -195,7 +195,6 @@ class EditorRegistry(object):
 
         # Standard types and their creator functions
         self.typeToFunctionMap[str] = self._MakeStringEditor
-        self.typeToFunctionMap[str] = self._MakeStringEditor
         self.typeToFunctionMap[bool] = self._MakeBoolEditor
         self.typeToFunctionMap[int] = self._MakeIntegerEditor
         self.typeToFunctionMap[int] = self._MakeLongEditor
@@ -235,7 +234,7 @@ class EditorRegistry(object):
 
     @staticmethod
     def _MakeBoolEditor(olv, rowIndex, subItemIndex):
-        return BooleanEditor(olv)
+        return BooleanEditor(olv,rowIndex, subItemIndex)
 
     @staticmethod
     def _MakeIntegerEditor(olv, rowIndex, subItemIndex):
@@ -281,9 +280,14 @@ class BooleanEditor(wx.Choice):
     """This is a simple editor to edit a boolean value that can be used in an
     ObjectListView"""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, olv,row,col, **kwargs):
         kwargs["choices"] = ["True", "False"]
-        wx.Choice.__init__(self, *args, **kwargs)
+        wx.Choice.__init__(self, olv, **kwargs)
+        olv.editor = {col: self}
+        self.Bind(wx.EVT_CHAR_HOOK, self._OnChar)
+
+    def _OnChar(self, event):
+        OnChar(self, event)
 
     def GetValue(self):
         "Get the value from the editor"
@@ -295,6 +299,44 @@ class BooleanEditor(wx.Choice):
             self.Select(0)
         else:
             self.Select(1)
+
+class ChoiceEditor(wx.Choice):
+    # doit être géré à l'entrée de la cellule par SetItems Personnalisé
+    def __init__(self,olv,row,col, **kwargs):
+        wx.Choice.__init__(self,olv, **kwargs)
+        olv.editor = {col:self}
+        self.Bind(wx.EVT_CHAR_HOOK, self._OnChar)
+
+    def _OnChar(self, event):
+        OnChar(self, event)
+
+    def GetValue(self):
+        "Get the value from the editor"
+        return self.GetString(self.GetSelection())
+
+    def SetValue(self,value):
+        if value in self.GetItems():
+            self.SetSelection(self.GetItems().index(str(value)))
+        else:
+            self.FindString(str(value))
+        return
+
+class ComboEditor(wx.ComboBox):
+    # doit être géré à l'entrée de la cellule par SetItems Personnalisé
+    def __init__(self, olv,row,col, **kwargs):
+        wx.ComboBox.__init__(self, olv,style = wx.TE_PROCESS_ENTER| wx.TE_PROCESS_TAB, **kwargs)
+        olv.editor = {col:self}
+        self.Bind(wx.EVT_CHAR_HOOK, self._OnChar)
+
+    def _OnChar(self, event):
+        OnChar(self, event)
+
+    def SetValue(self,value):
+        if value in self.GetItems():
+            self.SetSelection(self.GetItems().index(str(value)))
+        else:
+            self.FindString(str(value))
+        return
 
 class BaseCellTextEditor(wx.TextCtrl):
     """This is a base text editor for text-like editors used in an ObjectListView"""

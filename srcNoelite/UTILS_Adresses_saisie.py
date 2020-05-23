@@ -68,13 +68,14 @@ def VerifieVille(codepost="",ville="",pays=""):
             filtre = ""
             tronque += 1
         conditioncp  = "AND cp LIKE '%s%%'"%(filtre)
-
+    for chaine in (ville, conditioncp):
+        chaine = chaine.replace("'","''")
     condition = "WHERE nom LIKE '%s' %s "%(ville, conditioncp)
     DB = xdb.DB(nomFichier="srcNoelite/Data/Geographie.dat")
     req = """  SELECT IDville, nom, cp     
                 FROM villes 
                 %s;"""% condition
-    DB.ExecuterReq(req)
+    DB.ExecuterReq(req,mess="aUTILS_Adresses_saisie.VerifieVille")
     ret = DB.ResultatReq()
     DB.Close()
     if len(ret)== 1:
@@ -83,14 +84,14 @@ def VerifieVille(codepost="",ville="",pays=""):
     # la ville n'est pas en france avec le code postal
     # Importation des corrections de villes et codes postaux
     DB = xdb.DB()
-
-    condition = "WHERE nom LIKE '%s' " %(ville)
+    ville = ville.replace("'","?")
+    condition = "WHERE nom LIKE '%s'" %(ville)
     if len(codepost)>1:
         condition +=" AND cp = '%s'"% codepost
 
     req = """SELECT IDcorrection, mode, IDville, nom, cp, pays
     FROM corrections_villes %s; """%condition
-    DB.ExecuterReq(req, mess="aUTILS_Adresses_saisie.VerifieVille")
+    DB.ExecuterReq(req, mess="aUTILS_Adresses_saisie.VerifieVille2")
     ret = DB.ResultatReq()
     DB.Close()
     if len(ret)==1: return "ok"
@@ -100,7 +101,7 @@ def GetVilles(champFiltre="ville",filtre=""):
     # Importation de la base par défaut avec un filtre sur le code postal ou sur le nom de la ville
     if not filtre: filtre = ""
     tronque = 0
-    filtre = filtre.upper()
+    filtre = filtre.upper().replace("'","?")
     filtrecp = filtre
     # filtrage des zéro non significatifs pour le premier accès
     if champFiltre == "cp" and len(filtre) > 0:
@@ -123,7 +124,7 @@ def GetVilles(champFiltre="ville",filtre=""):
     DB = xdb.DB(nomFichier="srcNoelite/Data/Geographie.dat")
     req = """   SELECT IDville, nom, cp, NULL 
                 FROM villes %s"""%condition
-    DB.ExecuterReq(req)
+    DB.ExecuterReq(req,mess="aUTILS_Adresses_saisie.GetVilles")
     ret = DB.ResultatReq()
     listeVillesTmp = []
     DB.Close()
@@ -216,7 +217,7 @@ def GetRegions():
     return dictRegions
 
 def GetOnePays(filtre=""):
-    filtre = filtre.upper()
+    filtre = filtre.upper().replace("'","?")
     if filtre == "FRANCE":
         wx.MessageBox("La France n'est pas un pays étranger, il faut laisser le champ à blanc!")
         return ""
@@ -847,7 +848,7 @@ def TransposeAdresse(adresse=[]):
 
 def DesignationFamille(IDfamille):
     # composition automatique d'une désignation famille
-    DB = aGestionDB.DB()
+    DB = xdb.DB()
     # Récupération des individus de la famille
     req = """
             SELECT rattachements.IDindividu, rattachements.titulaire, rattachements.IDcategorie, individus.nom, individus.prenom

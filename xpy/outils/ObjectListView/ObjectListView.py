@@ -2562,8 +2562,6 @@ class AbstractVirtualObjectListView(ObjectListView):
         self.lastGetObject = None
         self.objectGetter = None
         self.listItemAttr = None
-        #self.cacheHit = 0
-        #self.cacheMiss = 0
 
         self.SetObjectGetter(kwargs.pop("getter", None))
 
@@ -2745,9 +2743,6 @@ class VirtualObjectListView(AbstractVirtualObjectListView):
 
         AbstractVirtualObjectListView.__init__(self, *args, **kwargs)
 
-    #-------------------------------------------------------------------------
-    # Commands
-
     def AddObjects(self, modelObjects):
         """
         Add the given collections of objects to our collection of objects.
@@ -2784,7 +2779,6 @@ class VirtualObjectListView(AbstractVirtualObjectListView):
         """
         pass
 
-    #-------------------------------------------------------------------------
     #  Sorting
 
     def _SortItemsNow(self):
@@ -3993,9 +3987,9 @@ class ColumnDefn(object):
         fmt = converter or "%s"
         try:
             return fmt % value
-        except UnicodeError:
+        except:
             #return unicode(fmt) % value
-            return
+            return ""
 
     def GetGroupKey(self, modelObject):
         """
@@ -4454,8 +4448,9 @@ class TrackVierge(object):
                 value = column.valueSetter
             if not value and hasattr(olv,'lstSetterValue'):
                 value = olv.lstSetterValue[olv.columns.index(column)]
-            self.__setattr__(column.valueGetter, value)
-            self.donnees.append(value)
+            if value:
+                self.__setattr__(column.valueGetter, value)
+                self.donnees.append(value)
 
 class NamedImageList(object):
 

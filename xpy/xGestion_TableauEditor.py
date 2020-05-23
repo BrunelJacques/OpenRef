@@ -43,7 +43,7 @@ class ListView(FastObjectListView):
     """
     Lors de l'instanciation de cette classe vous pouvez y passer plusieurs parametres :
 
-    listeColonnes : censé être une liste d'objets ColumndeFn
+    lstColonnes : censé être une liste d'objets ColumndeFn
     listeDonnees : liste de listes ayant la même longueur que le nombre de colonnes.
 
     msgIfEmpty : une chaine de caractères à envoyer si le tableau est vide
@@ -74,7 +74,7 @@ class ListView(FastObjectListView):
         self.parent = args[0].parent
         self.pnlfooter = kwds.pop("pnlfooter", None)
         self.checkColonne = kwds.pop("checkColonne",True)
-        self.listeColonnes = kwds.pop("listeColonnes", [])
+        self.lstColonnes = kwds.pop("lstColonnes", [])
         self.editMode = kwds.pop("editMode", True)
         self.msgIfEmpty = kwds.pop("msgIfEmpty", "Tableau vide")
         self.colonneTri = kwds.pop("colonneTri", None)
@@ -140,21 +140,21 @@ class ListView(FastObjectListView):
 
     def formerCodeColonnes(self):
         codeColonnes = list()
-        for colonne in self.listeColonnes:
+        for colonne in self.lstColonnes:
             code = colonne.valueGetter
             codeColonnes.append(code)
         return codeColonnes
 
     def formerNomsColonnes(self):
         nomColonnes = list()
-        for colonne in self.listeColonnes:
+        for colonne in self.lstColonnes:
             nom = colonne.title
             nomColonnes.append(nom)
         return nomColonnes
 
     def formerSetterValues(self):
         setterValues = list()
-        for colonne in self.listeColonnes:
+        for colonne in self.lstColonnes:
             fmt = colonne.stringConverter
             tip = None
             if colonne.valueSetter != None:
@@ -174,7 +174,7 @@ class ListView(FastObjectListView):
         # Couleur en alternance des lignes
         self.useExpansionColumn = True
         # On définit les colonnes
-        self.SetColumns(self.listeColonnes)
+        self.SetColumns(self.lstColonnes)
         if self.checkColonne:
             self.CreateCheckStateColumn(0)
         # On définit le message en cas de tableau vide
@@ -428,6 +428,13 @@ class PanelListView(wx.Panel):
     def GetListview(self):
         return self.ctrl_listview
 
+    def GetChoices(self,code):
+        if code == "choice":
+            return ["mon item", "deuxième item"]
+        elif code == 'prix':
+            return ['prix 1','remisé','mon item']
+        return None
+
     # Handler niveau OLV
     def OnChar(self, event):
         keycode = event.GetUnicodeKey()
@@ -496,8 +503,16 @@ class PanelListView(wx.Panel):
 
     def OnEditStarted(self, event):
         # stockage de la valeur initiale de la dernière cellule éditée
-        row, col = self.ctrl_listview.cellBeingEdited
-        track = self.ctrl_listview.GetObjectAt(row)
+        olv = self.ctrl_listview
+        row, col = olv.cellBeingEdited
+        nomCol = olv.lstNomsColonnes[col]
+        # Appel des items pour les mettre dans l'editor de type choice ou combo
+        try:
+            value = olv.lastGetObject.donnees[col]
+            olv.editor[col].SetItems(self.GetChoices(nomCol))
+            olv.editor[col].SetValue(value)
+        except: pass
+        track = olv.GetObjectAt(row)
         track.old_data = track.donnees[col]
         event.Skip()
 
@@ -531,7 +546,7 @@ class PNL_tableau(wx.Panel):
         #ci dessous l'ensemble des autres paramètres possibles pour OLV
         lstParamsOlv = ['id',
                         'style',
-                        'listeColonnes',
+                        'lstColonnes',
                         'listeDonnees',
                         'msgIfEmpty',
                         'sensTri',
@@ -726,53 +741,43 @@ class DLG_tableau(wx.Dialog):
     def Close(self):
         self.EndModal(wx.OK)
 
-    def Validation(self,param=None):
-        # pour test avec appel de xGestion_Ligne
-        self.pnlOlv.ctrlOlv.MAJ()
-        return True
-
 # -- pour tests -----------------------------------------------------------------------------------------------------
 
 if __name__ == '__main__':
     app = wx.App(0)
     os.chdir("..")
-    # tableau OLV central de l'écran
+    # tableau OLV central de l'écran ,
+    #                    stringConverter=xpy.outils.xformat.FmtMontant
     liste_Colonnes = [
         ColumnDefn("null", 'centre', 0, "IX", valueSetter=''),
-        ColumnDefn("clé", 'centre', 60, "cle", valueSetter=1, isSpaceFilling=False, ),
+        ColumnDefn("clé", 'centre', 60, "cle", valueSetter=True, isSpaceFilling=False ,cellEditorCreator = CellEditor.BooleanEditor),
         ColumnDefn("mot d'ici", 'left', 200, "mot", valueSetter='A saisir', isEditable=True),
         ColumnDefn("nbre", 'right', -1, "nombre", isSpaceFilling=True, valueSetter=0.0,
                    stringConverter=xpy.outils.xformat.FmtDecimal),
-        ColumnDefn("prix", 'left', 80, "prix", valueSetter=0.0, isSpaceFilling=True,
-                   stringConverter=xpy.outils.xformat.FmtMontant),
+        ColumnDefn("prix", 'left', 80, "prix", valueSetter=0.0, isSpaceFilling=True,cellEditorCreator = CellEditor.ComboEditor),
         ColumnDefn("date", 'center', 80, "date", valueSetter=wx.DateTime.FromDMY(1, 0, 1900), isSpaceFilling=True,
                    stringConverter=xpy.outils.xformat.FmtDate),
-        ColumnDefn("date SQL", 'center', 80, "datesql", isSpaceFilling=True,
-                   stringConverter=xpy.outils.xformat.FmtDate)
+        ColumnDefn("choice", 'center', 40, "choice", valueSetter="mon item", isSpaceFilling=True,
+                   cellEditorCreator = CellEditor.ChoiceEditor,)
     ]
-    liste_Donnees = [[1,18, "Bonjour", -1230.05939, -1230.05939, None,'01/02/2015'],
-                     [2,19, "Bonsoir", 57.5, 208.99,datetime.date.today(), '2019-03-29'],
-                     [3,1, "Jonbour", 0, 209, datetime.date(2018, 11, 20), '2019-03-01'],
-                     [4,29, "Salut", 57.082, 209, wx.DateTime.FromDMY(28, 1, 2019), '2019-11-23'],
+    liste_Donnees = [[1,False, "Bonjour", -1230.05939, -1230.05939, None,"deux"],
+                     [2,None, "Bonsoir", 57.5, 208.99,datetime.date.today(),None],
+                     [3,'', "Jonbour", 0, 'remisé', datetime.date(2018, 11, 20), "mon item"],
+                     [4,29, "Salut", 57.082, 209, wx.DateTime.FromDMY(28, 1, 2019),"Gérer l'entrée dans la cellule"],
                      [None,None, "Salutation", 57.08, 0, wx.DateTime.FromDMY(1, 7, 1997), '2019-10-24'],
                      [None,2, "Python", 1557.08, 29, wx.DateTime.FromDMY(7, 1, 1997), '2000-12-25'],
-                     [None,3, "Java", 57.08, 219, wx.DateTime.FromDMY(1, 0, 1900), ''],
+                     [None,3, "Java", 57.08, 219, wx.DateTime.FromDMY(1, 0, 1900), None],
                      [None,98, "langage C", 10000, 209, wx.DateTime.FromDMY(1, 0, 1900), ''],
                      ]
-    dicActions = {'Action1': lambda evt: wx.MessageBox('ceci active la fonction action1'),
-                  'Action2': 'self.parent.Validation()',
-                  'BtnPrec': 'self.parent.Close()'}
-    dicOlv = {'listeColonnes': liste_Colonnes,
+    dicOlv = {'lstColonnes': liste_Colonnes,
               'listeDonnees': liste_Donnees,
-              'dicActions': dicActions,
               'hauteur': 450,
               'largeur': 650,
               'checkColonne': False,
               'recherche': True,
               'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
               'dictColFooter': {"nombre": {"mode": "total", "alignement": wx.ALIGN_RIGHT},
-                                "mot": {"mode": "nombre", "alignement": wx.ALIGN_CENTER},
-                                "prix": {"mode": "total", "alignement": wx.ALIGN_RIGHT}, }
+                                "mot": {"mode": "nombre", "alignement": wx.ALIGN_CENTER},}
               }
 
     # boutons de bas d'écran - infos: texte ou objet window.  Les infos sont  placées en bas à gauche
