@@ -57,16 +57,20 @@ class ListView(FastObjectListView):
     imprimer : idem
     toutCocher : idem
     toutDecocher : idem
-    menuPersonnel : On peut avoir déjà créé un "pré" menu contextuel auquel viendra s'ajouter le tronc commun
+    menuPersonnel : On peut avoir déjà créé un "pré" menu contextuel auquel
+                    viendra s'ajouter le tronc commun
+    titreImpression : Le titre qu'on veut donner à la page en cas d'impression
+                    par exemple "Titre")
+    orientationImpression : L'orientation de l'impression, True pour portrait et
+                    False pour paysage
 
-    titreImpression : Le titre qu'on veut donner à la page en cas d'impression par exemple "Titre")
-    orientationImpression : L'orientation de l'impression, True pour portrait et False pour paysage
+    Pour cette surcouche de OLV j'ai décidé de ne pas laisser la fonction
+    OnItemActivated car ça peut changer selon le tableau
+    donc ce sera le role de la classe parent (qui appelle ListView) de définir
+    une fonction OnItemActivated qui sera utilisée lors du double clic sur une ligne
 
-    Pour cette surcouche de OLV j'ai décidé de ne pas laisser la fonction OnItemActivated car ça peut changer selon le tableau
-    donc ce sera le role de la classe parent (qui appelle ListView) de définir une fonction OnItemActivated qui sera utilisée
-    lors du double clic sur une ligne
-
-    Dictionnaire optionnel ou on indique si on veut faire le bilan (exemple somme des valeurs)
+    Dictionnaire optionnel ou on indique si on veut faire le bilan
+                (exemple somme des valeurs)
     """
 
     def __init__(self, *args, **kwds):
@@ -533,15 +537,14 @@ class PNL_params(wx.Panel):
     def Sizer(self):
         #composition de l'écran selon les composants
         sizerparams = wx.BoxSizer(wx.HORIZONTAL)
-        sizerparams.Add(self.ctrl,10,wx.BOTTOM|wx.LEFT|wx.EXPAND,3)
+        sizerparams.Add(self.ctrl,1,wx.BOTTOM|wx.LEFT,3)
         self.SetSizerAndFit(sizerparams)
 
-class PNL_tableau(wx.Panel):
+class PNL_corps(wx.Panel):
     #panel olv avec habillage optionnel pour des boutons actions (à droite) des infos (bas gauche) et boutons sorties
     def __init__(self, parent, dicOlv,*args, **kwds):
-        self.lanceur = dicOlv.pop('lanceur',None)
-        hauteur = dicOlv.pop('hauteur',400)
-        largeur = dicOlv.pop('largeur',800)
+        hauteur = dicOlv.pop('hauteur',350)
+        largeur = dicOlv.pop('largeur',650)
         wx.Panel.__init__(self, parent, *args,  **kwds)
         #ci dessous l'ensemble des autres paramètres possibles pour OLV
         lstParamsOlv = ['id',
@@ -722,10 +725,8 @@ class DLG_tableau(wx.Dialog):
         listArbo=os.path.abspath(__file__).split("\\")
         titre = listArbo[-1:][0] + "/" + self.__class__.__name__
         wx.Dialog.__init__(self,None, title=titre, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
-        self.SetBackgroundColour(wx.WHITE)
-        self.marge = 10
         self.pnlParams = PNL_params(self, dicParams)
-        self.pnlOlv = PNL_tableau(self, dicOlv,  **kwds )
+        self.pnlOlv = PNL_corps(self, dicOlv,  **kwds )
         self.ctrlOlv = self.pnlOlv.ctrlOlv
         self.pnlPied = PNL_Pied(self, dicPied,  **kwds )
         sizer_base = wx.FlexGridSizer(rows=3, cols=1, vgap=0, hgap=0)
@@ -771,7 +772,7 @@ if __name__ == '__main__':
                      ]
     dicOlv = {'lstColonnes': liste_Colonnes,
               'listeDonnees': liste_Donnees,
-              'hauteur': 450,
+              'hauteur': 350,
               'largeur': 650,
               'checkColonne': False,
               'recherche': True,

@@ -245,7 +245,7 @@ class DLG_saisieConfig(xusp.DLG_listCtrl):
             if 'lstConfigs' in dic:
                if dic['lstConfigs']:self.lddDonnees += dic['lstConfigs']
             # paramètres pour self.pnl contenu principal de l'écran
-            self.kwds['lblbox'] = 'Configuations disponibles'
+            self.kwds['lblbox'] = 'Configurations disponibles'
             self.MinSize = (400,300)
             if self.dldMatrice != {}:
                 self.Init()

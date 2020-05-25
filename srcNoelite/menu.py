@@ -43,19 +43,25 @@ class MENU():
              "image": "Images/16x16/Editeur_email.png",
              "action": "On_Adresses_familles", "genre": wx.ITEM_NORMAL},
             "-",
+            {"code": "gestionReglements", "label": ("&Gestion des règlements\tCtrl-R"),
+             "infobulle": (u"Gestion de bordereau de règlements : remise de chèques, arrivée de virements, de dons..."),
+             "image": "Images/16x16/Impayes.png",
+             "action": "On_reglements_bordereau", "genre": wx.ITEM_NORMAL},
         ]}
         ]
         return menu
 
     def On_Adresses_individus(self, event):
-        # lance la configuration initiale à la base de donnée pincipale
         dlg = ndga.Dialog(mode='individus',titre="Choisissez un individu")
         dlg.ShowModal()
 
     def On_Adresses_familles(self, event):
-        # lance la configuration initiale à la base de donnée pincipale
         texte = "Double clic pour lancer la gestion de l'adresse du correspondant de la famille"
         dlg = ndga.Dialog(mode='familles',titre="Choisissez une famille",intro=texte)
+        dlg.ShowModal()
+
+    def On_reglements_bordereau(self, event):
+        dlg = ndga.Dialog()
         dlg.ShowModal()
 
     def On_config(self,event):
