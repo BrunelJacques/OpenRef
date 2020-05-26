@@ -17,6 +17,65 @@ import datetime
 import xpy.xUTILS_SaisieParams as xusp
 # ------------------------------------------------------------------------------------------------------------------
 
+class Button(wx.Button):
+    # Enrichissement du wx.Button par l'image, nom, toolTip et Bind
+    def __init__(self, parent,**kwds):
+        #ID=None,label=None,name=None,image=None,toolTip=None,onBtn=None,...):
+        # image en bitmap ou ID de artProvider sont possibles
+        ID = kwds.pop('ID',None)
+        label = kwds.pop('label',None)
+        name = kwds.pop('name',None)
+        image = kwds.pop('image',None)
+        toolTip = kwds.pop('toolTip',None)
+        onBtn = kwds.pop('onBtn',None)
+        size = kwds.pop('size',None)
+        sizeBmp = None
+        sizeFont = 14
+        if size:
+            kwds['size']=size
+            cote = int(size[1]*0.8)
+            sizeBmp = (cote,cote)
+            sizeFont = int(cote*0.5)
+        # récupère un éventuel id en minuscule
+        if not ID: ID = kwds.pop('id',None)
+        if not ID : ID = wx.ID_ANY
+
+        # récupère le label
+        if not label : label = ""
+        if "\n" in label: sizeFont = int(sizeFont*0.75)
+        # fixe le nom interne du controle
+        if not name:
+            name = 'btn'
+            if len(label)>0:
+                name += str(label.split()[0].lower())
+        kwds['name'] = name
+
+        #parent, id=ID_ANY, label="", pos=DefaultPosition,size=DefaultSize, style=0, validator=DefaultValidator,name=ButtonNameStr)
+        wx.Button.__init__(self,parent,ID,label,**kwds)
+        font = wx.Font(sizeFont, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL,False)
+        self.SetFont(font)
+        #self.SetBackgroundColour(wx.Colour(200,230,230))
+        # ajout de l'image. Le code de wx.ART_xxxx est de type bytes et peut être mis en lieu de l'image
+        if  isinstance(image,bytes):
+            if sizeBmp:
+                self.SetBitmap(wx.ArtProvider.GetBitmap(image,wx.ART_BUTTON,wx.Size(sizeBmp)))
+            else:
+                self.SetBitmap(wx.ArtProvider.GetBitmap(image,wx.ART_BUTTON))
+        elif isinstance(image,wx.Bitmap):
+            self.SetBitmap(image)
+
+        # Compléments d'actions
+        self.SetToolTip(toolTip)
+        self.name = name
+
+        # implémente les fonctions bind transmises, soit par le pointeur soit par eval du texte
+        if onBtn:
+            if isinstance(onBtn, str):
+                fonction = lambda evt, code=name: eval(onBtn)
+            else:
+                fonction = onBtn
+            self.Bind(wx.EVT_BUTTON, fonction)
+
 class TrackGeneral(object):
     #    Cette classe va transformer une ligne en objet selon les listes de colonnes et valeurs par défaut(setter)
     def __init__(self, donnees,codesColonnes, nomsColonnes, setterValues):
@@ -675,33 +734,37 @@ class PNL_Pied(wx.Panel):
         self.SetSizerAndFit(sizerpied)
 
     def GetItemsBtn(self,lstBtns):
-        # décompactage des paramètres de type bouton
-        lstBtn = []
+        # décompactage des paramètres de type bouton, différents constructeurs
+        lstWxBtns = []
         for btn in lstBtns:
-            try:
-                (code,ID,label,tooltip) = btn
-                if isinstance(label,wx.Bitmap):
-                    bouton = wx.BitmapButton(self,ID,label)
-                elif isinstance(label,str):
-                    bouton = wx.Button(self,ID,label)
-                else: bouton = wx.Button(self,ID,'Erreur!')
-                bouton.SetToolTip(tooltip)
-                bouton.name = code
-                #le bouton OK est par défaut, il ferme l'écran DLG
-                if code == 'BtnOK':
-                    bouton.Bind(wx.EVT_BUTTON, self.OnBoutonOK)
-                #implémente les fonctions bind transmises, soit par le pointeur soit par eval du texte
-                if self.dicOnClick and code in self.dicOnClick:
-                    if isinstance(self.dicOnClick[code],str):
-                        fonction = lambda evt,code=code: eval(self.dicOnClick[code])
-                    else: fonction = self.dicOnClick[code]
-                    bouton.Bind(wx.EVT_BUTTON, fonction)
-                lstBtn.append((bouton, 0, wx.ALL | wx.ALIGN_RIGHT, 5))
-
-            except:
-                bouton = wx.Button(self, wx.ID_ANY, 'Erreur!')
-                lstBtn.append((bouton, 0, wx.ALL, 5))
-        return lstBtn
+            # gestion par série :(code, ID, image ou texte, texteToolTip), image ou texte mais pas les deux!
+            if isinstance(btn,(tuple,list)):
+                try:
+                    (code,ID,label,tooltip) = btn
+                    if isinstance(label,wx.Bitmap):
+                        bouton = wx.BitmapButton(self,ID,label)
+                    elif isinstance(label,str):
+                        bouton = wx.Button(self,ID,label)
+                    else: bouton = wx.Button(self,ID,'Erreur!')
+                    bouton.SetToolTip(tooltip)
+                    bouton.name = code
+                    #le bouton OK est par défaut, il ferme l'écran DLG
+                    if code == 'BtnOK':
+                        bouton.Bind(wx.EVT_BUTTON, self.OnBoutonOK)
+                    #implémente les fonctions bind transmises, soit par le pointeur soit par eval du texte
+                    if self.dicOnClick and code in self.dicOnClick:
+                        if isinstance(self.dicOnClick[code],str):
+                            fonction = lambda evt,code=code: eval(self.dicOnClick[code])
+                        else: fonction = self.dicOnClick[code]
+                        bouton.Bind(wx.EVT_BUTTON, fonction)
+                    lstWxBtns.append((bouton, 0, wx.ALL | wx.ALIGN_RIGHT, 5))
+                except:
+                    bouton = wx.Button(self, wx.ID_ANY, 'Erreur\nparam!')
+                    lstWxBtns.append((bouton, 0, wx.ALL, 5))
+            # gestion par classe Button(parent,**kwds
+            elif isinstance(btn,dict):
+                lstWxBtns.append((Button(self,**btn),0,wx.ALL,5))
+        return lstWxBtns
 
     def GetItemsInfos(self,lstInfos):
         lstInfo = []
@@ -782,9 +845,9 @@ if __name__ == '__main__':
               }
 
     # boutons de bas d'écran - infos: texte ou objet window.  Les infos sont  placées en bas à gauche
-    lstBtns = [('BtnPrec', wx.ID_FORWARD, wx.ArtProvider.GetBitmap(wx.ART_GO_BACK, wx.ART_OTHER, (42, 22)),"Cliquez ici pour retourner à l'écran précédent"),
-               ('BtnPrec2', wx.ID_PREVIEW_NEXT, "Ecran\nprécédent", "Retour à l'écran précédent next"),
-               ('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_fermer.png", wx.BITMAP_TYPE_ANY),"Cliquez ici pour fermer la fenêtre")
+    lstBtns = [('BtnPrec',-1, wx.ArtProvider.GetBitmap(wx.ART_GO_BACK, wx.ART_OTHER, (42, 22)),"Cliquez ici pour retourner à l'écran précédent"),
+               ('BtnPrec2',-1, "Ecran\nprécédent", "Retour à l'écran précédent next"),
+               ('BtnOK', -1, wx.Bitmap("xpy/Images/100x30/Bouton_fermer.png", wx.BITMAP_TYPE_ANY),"Cliquez ici pour fermer la fenêtre")
                ]
     dicOnBtn = {'Action1': lambda evt: wx.MessageBox('ceci active la fonction action1'),
                 'Action2': 'self.parent.Validation()',

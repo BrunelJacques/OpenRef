@@ -131,7 +131,6 @@ class PNL_params(wx.Panel):
         self.btnBanque = wx.Button(self, label="...",size=(40,22))
         self.btnBanque.SetBitmap(wx.ArtProvider.GetBitmap(wx.ART_FIND,size=(16,16)))
         self.ctrlSsDepot = wx.CheckBox(self,-1," _Sans dépôt immédiat, (saisie d'encaissements futurs)")
-
         self.btnBordereau = wx.Button(self, label="Rechercher \nun borderau")
         self.btnBordereau.SetBitmap(wx.ArtProvider.GetBitmap(wx.ART_FIND,size=(22,22)))
 
@@ -196,11 +195,13 @@ class PNL_Pied(xgte.PNL_Pied):
     def __init__(self, parent, dicPied, **kwds):
         xgte.PNL_Pied.__init__(self,parent, dicPied, **kwds)
 
-class Dialog(wx.Dialog):
+class DLG_ReglementsGestion(wx.Dialog):
     def __init__(self):
         listArbo = os.path.abspath(__file__).split("\\")
         titre = listArbo[-1:][0] + "/" + self.__class__.__name__
         wx.Dialog.__init__(self, None,-1,title=titre, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
+
+        # définition de l'OLV
         liste_Colonnes = [
             ColumnDefn("null", 'centre', 0, "IX", valueSetter=''),
             ColumnDefn("clé", 'centre', 60, "cle", valueSetter=True, isSpaceFilling=False,
@@ -215,32 +216,28 @@ class Dialog(wx.Dialog):
             ColumnDefn("choicee", 'center', 40, "choice", valueSetter="mon item", isSpaceFilling=True,
                        cellEditorCreator=CellEditor.ChoiceEditor, )
         ]
-        liste_Donnees = [[1, False, "Bonjour", -1230.05939, -1230.05939, None, "deux"],
-                         [2, None, "Bonsoir", 57.5, 208.99, datetime.date.today(), None],
-                         [3, '', "Jonbour", 0, 'remisé', datetime.date(2018, 11, 20), "mon item"],
-                         ]
+        liste_Donnees = []
         dicOlv = {'lstColonnes': liste_Colonnes,
                   'listeDonnees': liste_Donnees,
                   'hauteur': 400,
                   'largeur': 850,
                   'checkColonne': False,
                   'recherche': True,
-                  'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
                   'dictColFooter': {"nombre": {"mode": "total", "alignement": wx.ALIGN_RIGHT},
                                     "mot": {"mode": "nombre", "alignement": wx.ALIGN_CENTER}, }
                   }
 
         # boutons de bas d'écran - infos: texte ou objet window.  Les infos sont  placées en bas à gauche
         lstBtns = [
-                   ('BtnPrec2', wx.ID_PREVIEW_NEXT, "précédent", "Retour à l'écran précédent next"),
-                   ('BtnOK', wx.ID_OK, "fermer","Cliquez ici pour fermer la fenêtre")
+                    {'name': 'btnImp', 'label': "Imprimer\nle bordereau",
+                        'toolTip': "Cliquez ici pour imprimer et enregistrer le bordereau",
+                        'size': (120, 35), 'image': wx.ART_PRINT,'onBtn':self.OnImprimer},
+                    {'name':'btnOK','ID':wx.ID_ANY,'label':"Fermer",'toolTip':"Cliquez ici pour fermer la fenêtre",
+                        'size':(120,35),'image':wx.ART_GOTO_LAST,'onBtn':self.OnClose}
                    ]
-        dicOnBtn = {'Action1': lambda evt: wx.MessageBox('ceci active la fonction action1'),
-                    'Action2': 'self.parent.Validation()',
-                    'BtnPrec': 'self.parent.Close()'}
         lstInfos = [ wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)),
                     "Petite info selon contexte"]
-        dicPied = {'lstBtns': lstBtns, 'dicOnBtn': dicOnBtn, "lstInfos": lstInfos}
+        dicPied = {'lstBtns': lstBtns, "lstInfos": lstInfos}
 
         # lancement de l'écran en blocs principaux
         self.pnlBandeau = xout.xbandeau.Bandeau(self,TITRE,INTRO,nomImage="xpy/Images/32x32/Matth.png")
@@ -262,8 +259,12 @@ class Dialog(wx.Dialog):
         self.SetSizerAndFit(sizer_base)
         self.CenterOnScreen()
 
-    def Close(self):
-        self.EndModal(wx.OK)
+    def OnImprimer(self,event):
+        event.Skip()
+        return
+
+    def OnClose(self,event):
+        self.Destroy()
 
 #-------------------------------------------------
 
@@ -271,6 +272,6 @@ if __name__ == '__main__':
     app = wx.App(0)
     import os
     os.chdir("..")
-    dlg = Dialog()
+    dlg = DLG_ReglementsGestion()
     dlg.ShowModal()
     app.MainLoop()
