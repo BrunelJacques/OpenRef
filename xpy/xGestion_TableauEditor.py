@@ -732,10 +732,10 @@ class PNL_Pied(wx.Panel):
         #composition de l'écran selon les composants
         sizerpied = wx.BoxSizer(wx.HORIZONTAL)
         if self.lstInfos:
-            sizerinfos = wx.StaticBoxSizer(wx.HORIZONTAL,self,label='infos')
+            sizerinfos = wx.StaticBoxSizer(wx.HORIZONTAL,self,label="")
             self.itemsInfos = self.GetItemsInfos(self.lstInfos)
             sizerinfos.AddMany(self.itemsInfos)
-            sizerpied.Add(sizerinfos,10,wx.BOTTOM|wx.LEFT|wx.EXPAND,3)
+            sizerpied.Add(sizerinfos,11,wx.BOTTOM|wx.LEFT|wx.EXPAND,3)
         else:
             sizerpied.Add((10,10),1,wx.BOTTOM|wx.EXPAND,3)
         if self.lstBtns:

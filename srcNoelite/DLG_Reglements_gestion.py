@@ -6,18 +6,66 @@
 # Licence:         Licence GNU GPL
 # -------------------------------------------------------------
 
-TITRE = "Bordereau de réglements: création, modification"
-INTRO = "Définissez la banque, choisissez un numéro si c'est pour une reprise, puis saisissez les règlements dans le tableau"
-
 import wx
 import datetime
-import xpy.outils                       as xout
 import xpy.xGestionDB                   as xdb
 import xpy.xGestion_TableauEditor       as xgte
 import xpy.xUTILS_SaisieParams          as xusp
-import xpy.outils.xbandeau
 import srcNoelite.UTILS_Utilisateurs    as nuu
-from xpy.outils.ObjectListView import FastObjectListView,ColumnDefn, CTRL_Outils, CellEditor
+from xpy.outils.ObjectListView  import ColumnDefn, CellEditor
+from xpy.outils                 import xformat,xbandeau
+
+#---------------------- Matrices de paramétres -------------------------------------
+
+TITRE = "Bordereau de réglements: création, modification"
+INTRO = "Définissez la banque, choisissez un numéro si c'est pour une reprise, puis saisissez les règlements dans le tableau"
+
+def GetBoutons(dlg):
+    return  [
+                {'name': 'btnImp', 'label': "Imprimer\nle bordereau",
+                    'toolTip': "Cliquez ici pour imprimer et enregistrer le bordereau",
+                    'size': (120, 35), 'image': wx.ART_PRINT,'onBtn':dlg.OnImprimer},
+                {'name':'btnOK','ID':wx.ID_ANY,'label':"Quitter",'toolTip':"Cliquez ici pour fermer la fenêtre",
+                    'size':(120,35),'image':"xpy/Images/32x32/Quitter.png",'onBtn':dlg.OnClose}
+            ]
+
+def GetOlvColonnes(dlg):
+    return [
+            ColumnDefn("ID", 'centre', 0, 'IDregl',isEditable=False),
+            ColumnDefn("date", 'center', 80, 'dateregl', valueSetter=wx.DateTime.Today(),isSpaceFilling=False,
+                                stringConverter=xformat.FmtDate),
+            ColumnDefn("famille", 'centre', 50, 'IDfamille', valueSetter=0,isSpaceFilling=False,
+                                stringConverter=xformat.FmtIntNoSpce),
+            ColumnDefn("désignation famille", 'left', 180, 'designation',valueSetter='',isSpaceFilling=True,
+                            isEditable=False),
+            ColumnDefn("émetteur", 'left', 80, "emetteur", valueSetter='', isSpaceFilling=True,
+                                cellEditorCreator=CellEditor.ComboEditor),
+            ColumnDefn("mode", 'centre', 50, 'mode', valueSetter='CHQ', isSpaceFilling=False),
+            ColumnDefn("n°ref", 'left', 50, 'numero', isSpaceFilling=False),
+            ColumnDefn("nat", 'centre', 40, 'nature', isSpaceFilling=False,
+                                cellEditorCreator=CellEditor.ChoiceEditor),
+            ColumnDefn("IDart", 'centre', 40, 'IDarticle'),
+            ColumnDefn("libelle", 'left', 200, 'libelle', valueSetter='à saisir', isSpaceFilling=True),
+            ColumnDefn("montant", 'right',70, "montant", isSpaceFilling=False, valueSetter=0.0,
+                               stringConverter=xformat.FmtDecimal),
+            ColumnDefn("créer", 'centre', 38, 'creation', valueSetter=False,
+                                cellEditorCreator=CellEditor.CheckEditor,
+                               stringConverter=xformat.FmtCheck),
+            ColumnDefn("differé", 'center', 80, 'differe', valueSetter=wx.DateTime.Today(), isSpaceFilling=False,
+                   stringConverter=xformat.FmtDate,),
+            ]
+
+def GetOlvOptions(dlg):
+    return {
+            'hauteur': 400,
+            'largeur': 850,
+            'checkColonne': False,
+            'recherche': True,
+            'dictColFooter': {"nombre": {"mode": "total", "alignement": wx.ALIGN_RIGHT},
+                              "mot": {"mode": "nombre", "alignement": wx.ALIGN_CENTER}, }
+            }
+
+#---------------------- Fonctions liées aux appels de données -----------------------
 
 def ComposeLstDonnees(record,lstChamps):
     # retourne les données pour colonnes, extraites d'un record défini par une liste de champs
@@ -103,6 +151,8 @@ def GetFamilles():
                 }
     return dicOlv
 
+#----------------------- Parties de l'écrans -----------------------------------------
+
 class PNL_params(wx.Panel):
     #panel de paramètres de l'application
     def __init__(self, parent, **kwds):
@@ -178,51 +228,25 @@ class PNL_Pied(xgte.PNL_Pied):
         xgte.PNL_Pied.__init__(self,parent, dicPied, **kwds)
 
 class DLG_ReglementsGestion(wx.Dialog):
+
+    # ------------------- Composition de l'acceuil ------------------
+
     def __init__(self):
         listArbo = os.path.abspath(__file__).split("\\")
         titre = listArbo[-1:][0] + "/" + self.__class__.__name__
         wx.Dialog.__init__(self, None,-1,title=titre, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
 
         # définition de l'OLV
-        liste_Colonnes = [
-            ColumnDefn("null", 'centre', 0, "IX", valueSetter=''),
-            ColumnDefn("clé", 'centre', 60, "cle", valueSetter=True, isSpaceFilling=False,
-                       cellEditorCreator=CellEditor.BooleanEditor),
-            ColumnDefn("mot d'ici", 'left', 200, "mot", valueSetter='A saisir', isEditable=True),
-            ColumnDefn("nbre", 'right', -1, "nombre", isSpaceFilling=True, valueSetter=0.0,
-                       stringConverter=xout.xformat.FmtDecimal),
-            ColumnDefn("prix", 'left', 80, "prix", valueSetter=0.0, isSpaceFilling=True,
-                       cellEditorCreator=CellEditor.ComboEditor),
-            ColumnDefn("ddate", 'center', 80, "date", valueSetter=wx.DateTime.FromDMY(1, 0, 1900), isSpaceFilling=True,
-                       stringConverter=xout.xformat.FmtDate),
-            ColumnDefn("choicee", 'center', 40, "choice", valueSetter="mon item", isSpaceFilling=True,
-                       cellEditorCreator=CellEditor.ChoiceEditor, )
-        ]
-        liste_Donnees = []
-        dicOlv = {'lstColonnes': liste_Colonnes,
-                  'listeDonnees': liste_Donnees,
-                  'hauteur': 400,
-                  'largeur': 850,
-                  'checkColonne': False,
-                  'recherche': True,
-                  'dictColFooter': {"nombre": {"mode": "total", "alignement": wx.ALIGN_RIGHT},
-                                    "mot": {"mode": "nombre", "alignement": wx.ALIGN_CENTER}, }
-                  }
+        dicOlv = {'lstColonnes': GetOlvColonnes(self)}
+        dicOlv.update(GetOlvOptions(self))
 
         # boutons de bas d'écran - infos: texte ou objet window.  Les infos sont  placées en bas à gauche
-        lstBtns = [
-                    {'name': 'btnImp', 'label': "Imprimer\nle bordereau",
-                        'toolTip': "Cliquez ici pour imprimer et enregistrer le bordereau",
-                        'size': (120, 35), 'image': wx.ART_PRINT,'onBtn':self.OnImprimer},
-                    {'name':'btnOK','ID':wx.ID_ANY,'label':"Quitter",'toolTip':"Cliquez ici pour fermer la fenêtre",
-                        'size':(120,35),'image':"xpy/Images/32x32/Quitter.png",'onBtn':self.OnClose}
-                   ]
-        lstInfos = [ wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)),
-                    "Petite info selon contexte"]
-        dicPied = {'lstBtns': lstBtns, "lstInfos": lstInfos}
+        self.txtInfo =  "Petite info selon contexte"
+        lstInfos = [ wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)),self.txtInfo]
+        dicPied = {'lstBtns': GetBoutons(self), "lstInfos": lstInfos}
 
         # lancement de l'écran en blocs principaux
-        self.pnlBandeau = xout.xbandeau.Bandeau(self,TITRE,INTRO,nomImage="xpy/Images/32x32/Matth.png")
+        self.pnlBandeau = xbandeau.Bandeau(self,TITRE,INTRO,nomImage="xpy/Images/32x32/Matth.png")
         self.pnlParams = PNL_params(self)
         self.pnlOlv = PNL_corps(self, dicOlv)
         self.pnlPied = PNL_Pied(self, dicPied)
@@ -241,6 +265,8 @@ class DLG_ReglementsGestion(wx.Dialog):
         self.SetSizerAndFit(sizer_base)
         self.CenterOnScreen()
 
+    # ------------------- Gestion des actions -----------------------
+
     def OnImprimer(self,event):
         event.Skip()
         return
@@ -248,7 +274,7 @@ class DLG_ReglementsGestion(wx.Dialog):
     def OnClose(self,event):
         self.Destroy()
 
-#-------------------------------------------------
+#------------------------ Lanceur de test  -------------------------------------------
 
 if __name__ == '__main__':
     app = wx.App(0)

@@ -114,6 +114,17 @@ def FmtInt(montant):
     strMtt = strMtt.replace(',',' ')
     return strMtt
 
+def FmtIntNoSpce(montant):
+    if isinstance(montant,str):
+        montant.replace(',','.')
+    try:
+        x=float(montant)
+    except: return ""
+    if montant == None or montant == '' or float(montant) == 0:
+        return ""
+    strMtt = '{:.0f} '.format(int(float(montant)))
+    return strMtt
+
 def FmtPercent(montant):
     if isinstance(montant,str):montant.replace(',','.')
     if montant == None or montant == '' or float(montant) == 0:
@@ -131,6 +142,13 @@ def FmtDate(date):
     else:
         strdate = DatetimeToStr(date)
     return strdate
+
+def FmtCheck(value):
+    if value == False:
+        return '-'
+    if value == True:
+        return 'X'
+    return ''
 
 def FmtMontant(montant):
     if isinstance(montant,str): montant.replace(',','.')

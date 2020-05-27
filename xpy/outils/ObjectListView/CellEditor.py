@@ -67,6 +67,12 @@ def EnterAction(event):
     olv = event.EventObject.Parent
     row, col = olv.cellBeingEdited
     olv.FinishCellEdit()
+    for ix in range(col+1,olv.ColumnCount):
+        # saute une cellule non éditable
+        if olv.columns[ix].isEditable:
+            olv._PossibleStartCellEdit(row,ix)
+            break
+        col = ix
     if col == olv.ColumnCount - 1:
         # fin de ligne, on passe à la suivante
         if row == len(olv.innerList)-1:
@@ -79,7 +85,6 @@ def EnterAction(event):
         coldefn = olv.GetPrimaryColumn()
         col = olv.columns.index(coldefn)-1
         olv._SelectAndFocus(row)
-    olv._PossibleStartCellEdit(row, col + 1)
     return
 
 def UpDownAction(event):
@@ -102,7 +107,14 @@ def ShiftTabAction(event):
     olv = event.EventObject.Parent
     row, col = olv.cellBeingEdited
     olv.FinishCellEdit()
-    olv._PossibleStartCellEdit(row, col - 1)
+    if olv.columns[col-1].isEditable:
+        olv._PossibleStartCellEdit(row, col - 1)
+    else:
+        for ix in range(col-1,-1,-1):
+            # saute une cellule non éditable
+            if olv.columns[ix].isEditable:
+                olv._PossibleStartCellEdit(row,ix)
+                break
     return
 
 def EscapeAction(event):
@@ -138,6 +150,11 @@ def OnChar(editor, event):
         # touche égal
         FunctionKeys(event)
         return
+
+    # le shift Tab doit sauter les non éditables
+    if event.GetKeyCode() == wx.WXK_TAB and  event.GetModifiers() == wx.MOD_SHIFT:
+            ShiftTabAction(event)
+            return
 
     if type(editor).__name__ in ('DateEditor','ChoiceEditor','ComboEditor','BoleanEditor'):
         # Gestion du comportement de tab pour adv.DatePickerCtrl
@@ -197,7 +214,7 @@ class EditorRegistry(object):
         self.typeToFunctionMap[str] = self._MakeStringEditor
         self.typeToFunctionMap[bool] = self._MakeBoolEditor
         self.typeToFunctionMap[int] = self._MakeIntegerEditor
-        self.typeToFunctionMap[int] = self._MakeLongEditor
+        #self.typeToFunctionMap[int] = self._MakeLongEditor
         self.typeToFunctionMap[float] = self._MakeFloatEditor
         self.typeToFunctionMap[wx.DateTime] = self._MakeDateEditor
         self.typeToFunctionMap[datetime.datetime] = self._MakeDateTimeEditor
@@ -260,9 +277,13 @@ class EditorRegistry(object):
 
     @staticmethod
     def _MakeDateEditor(olv, rowIndex, subItemIndex):
-        dte = DateEditor(olv,)
+        dte = DateEditor(olv,rowIndex, subItemIndex)
         #dte = DateEditor(olv, style=wx.DP_DROPDOWN | wx.DP_SHOWCENTURY | wx.WANTS_CHARS)
         return dte
+
+    @staticmethod
+    def _MakeCheckEditor(olv, rowIndex, subItemIndex):
+        return CheckEditor(olv,)
 
     @staticmethod
     def _MakeTimeEditor(olv, rowIndex, subItemIndex):
@@ -281,7 +302,7 @@ class BooleanEditor(wx.Choice):
     ObjectListView"""
 
     def __init__(self, olv,row,col, **kwargs):
-        kwargs["choices"] = ["True", "False"]
+        kwargs["choices"] = ["Oui", "Non"]
         wx.Choice.__init__(self, olv, **kwargs)
         olv.editor = {col: self}
         self.Bind(wx.EVT_CHAR_HOOK, self._OnChar)
@@ -299,6 +320,16 @@ class BooleanEditor(wx.Choice):
             self.Select(0)
         else:
             self.Select(1)
+
+class CheckEditor(wx.CheckBox):
+    def __init__(self, olv,row,col,**kwargs):
+        wx.CheckBox.__init__(self,olv)
+        self.SetValue(False)
+        self.Bind(wx.EVT_CHAR_HOOK, self._OnChar)
+        olv.editor = {col: self}
+
+    def _OnChar(self, event):
+        OnChar(self,event)
 
 class ChoiceEditor(wx.Choice):
     # doit être géré à l'entrée de la cellule par SetItems Personnalisé
@@ -338,6 +369,37 @@ class ComboEditor(wx.ComboBox):
             self.FindString(str(value))
         return
 
+class DateEditor(wx.adv.DatePickerCtrl):
+    """
+    This control uses standard datetime.
+    wx.DatePickerCtrl works only with wx.DateTime, but they are strange beasts.
+    wx.DataTime use 0 indexed months, i.e. January==0 and December==11.
+    """
+    def __init__(self, olv,row,col, **kwargs):
+        wx.adv.DatePickerCtrl.__init__(self,olv, **kwargs)
+        self.SetValue(None)
+        olv.editor = {col:self}
+        self.Bind(wx.EVT_CHAR_HOOK, self._OnChar)
+
+    def _OnChar(self, event):
+        OnChar(self,event)
+
+    def SetValue(self, value):
+        if value:
+            dt = wx.DateTime()
+            dt.Set(value.day, value.month , value.year)
+        else:
+            dt = wx.DateTime.Today()
+        wx.adv.DatePickerCtrl.SetValue(self, dt)
+
+    def GetValue(self):
+        "Get the value from the editor"
+        dt = wx.adv.DatePickerCtrl.GetValue(self)
+        #dt.Month += 1
+        #return datetime.date(dt.Year, dt.Month , dt.Day)
+        return dt
+
+# Base Texte et ses dérivés
 class BaseCellTextEditor(wx.TextCtrl):
     """This is a base text editor for text-like editors used in an ObjectListView"""
 
@@ -512,35 +574,6 @@ class DateTimeEditor(BaseCellTextEditor):
                 pass
 
         return None
-
-class DateEditor(wx.adv.DatePickerCtrl):
-    """
-    This control uses standard datetime.
-    wx.DatePickerCtrl works only with wx.DateTime, but they are strange beasts.
-    wx.DataTime use 0 indexed months, i.e. January==0 and December==11.
-    """
-    def __init__(self, *args, **kwargs):
-        wx.adv.DatePickerCtrl.__init__(self, *args, **kwargs)
-        self.SetValue(None)
-        self.Bind(wx.EVT_CHAR_HOOK, self._OnChar)
-
-    def _OnChar(self, event):
-        OnChar(self,event)
-
-    def SetValue(self, value):
-        if value:
-            dt = wx.DateTime()
-            dt.Set(value.day, value.month , value.year)
-        else:
-            dt = wx.DateTime.Today()
-        wx.adv.DatePickerCtrl.SetValue(self, dt)
-
-    def GetValue(self):
-        "Get the value from the editor"
-        dt = wx.adv.DatePickerCtrl.GetValue(self)
-        #dt.Month += 1
-        #return datetime.date(dt.Year, dt.Month , dt.Day)
-        return dt
 
 class TimeEditor(BaseCellTextEditor):
     """A text editor that expects and return time values"""

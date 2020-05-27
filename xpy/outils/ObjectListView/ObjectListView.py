@@ -2690,7 +2690,7 @@ class AbstractVirtualObjectListView(ObjectListView):
 
     def GetObjectAt(self, index):
         """
-        Return the model modelObject at the given row of the list.
+        Return the model(track) modelObject at the given row of the list.
 
         This method is called a lot! Keep it as efficient as possible.
         """
@@ -4450,7 +4450,8 @@ class TrackVierge(object):
                 value = olv.lstSetterValue[olv.columns.index(column)]
             if value:
                 self.__setattr__(column.valueGetter, value)
-                self.donnees.append(value)
+            self.donnees.append(value)
+        return
 
 class NamedImageList(object):
 
