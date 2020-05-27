@@ -14,10 +14,10 @@ import srcNoelite.UTILS_Adresses_saisie as usa
 import xpy.outils.xchoixListe   as xcl
 
 class CTRL_Bouton_image(wx.Button):
-    def __init__(self, parent, id=wx.ID_APPLY, texte="", cheminImage=None):
+    def __init__(self, parent, id=wx.ID_APPLY, texte="", image=None):
         wx.Button.__init__(self, parent, id=id, label=texte)
-        if cheminImage:
-            self.SetBitmap(wx.Bitmap(cheminImage))
+        if image:
+            self.SetBitmap(wx.Bitmap(image))
         self.SetFont(wx.Font(9, wx.SWISS, wx.NORMAL, wx.BOLD))
         self.SetInitialSize()
 
@@ -398,9 +398,9 @@ class DlgAdresses_saisie(wx.Dialog):
                 self.Destroy()
 
         # Boutons
-        self.bouton_remonte = CTRL_Bouton_image(self, texte=u"Remonte\nex adr.", cheminImage="xpy/Images/32x32/Actualiser.png",)
-        self.bouton_ok = CTRL_Bouton_image(self, texte=u"Valider", cheminImage="xpy/Images/32x32/Valider.png")
-        self.bouton_fermer = CTRL_Bouton_image(self, texte=u"Abandon", cheminImage="xpy/Images/32x32/Annuler.png")
+        self.bouton_remonte = CTRL_Bouton_image(self, texte=u"Remonte\nex adr.", image="xpy/Images/32x32/Actualiser.png",)
+        self.bouton_ok = CTRL_Bouton_image(self, texte=u"Valider", image="xpy/Images/32x32/Valider.png")
+        self.bouton_fermer = CTRL_Bouton_image(self, texte=u"Abandon", image="xpy/Images/32x32/Annuler.png")
 
         self.__set_properties()
         self.__do_layout()

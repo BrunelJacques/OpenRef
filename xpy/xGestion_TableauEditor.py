@@ -52,17 +52,27 @@ class Button(wx.Button):
 
         #parent, id=ID_ANY, label="", pos=DefaultPosition,size=DefaultSize, style=0, validator=DefaultValidator,name=ButtonNameStr)
         wx.Button.__init__(self,parent,ID,label,**kwds)
-        font = wx.Font(sizeFont, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL,False)
+        font = wx.Font(sizeFont, wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL,False)
         self.SetFont(font)
-        #self.SetBackgroundColour(wx.Colour(200,230,230))
+
+
         # ajout de l'image. Le code de wx.ART_xxxx est de type bytes et peut être mis en lieu de l'image
         if  isinstance(image,bytes):
+            # image ArtProvider
             if sizeBmp:
                 self.SetBitmap(wx.ArtProvider.GetBitmap(image,wx.ART_BUTTON,wx.Size(sizeBmp)))
             else:
                 self.SetBitmap(wx.ArtProvider.GetBitmap(image,wx.ART_BUTTON))
         elif isinstance(image,wx.Bitmap):
+            # image déjà en format wx
             self.SetBitmap(image)
+        elif isinstance(image,str):
+            # image en bitmap pointée par son adresse
+            self.SetBitmap(wx.Bitmap(image))
+
+        # ajustement de la taille si non précisée
+        if not size :
+            self.SetInitialSize()
 
         # Compléments d'actions
         self.SetToolTip(toolTip)

@@ -9,15 +9,6 @@
 TITRE = "Bordereau de réglements: création, modification"
 INTRO = "Définissez la banque, choisissez un numéro si c'est pour une reprise, puis saisissez les règlements dans le tableau"
 
-MATRICE_PRINCIPAL = {
-        ("choix_config","Choisissez votre configuration"):
-            [
-                {'name': 'banque', 'genre': 'Enum', 'label': 'Banque récéptrice','value':'','values':['LCL','LBP',],
-                        'help': "Choisissez la banque qui reçoit les règlements"},
-                {'name': 'mode', 'genre': 'Enum', 'label': 'Type de règlement','value':'Virements',
-                        'values':['Virements', 'Chèques', 'Chq mis au coffre'],
-                        'help': 'Choisissez le type de règlement lié à cette banque'},]}
-
 import wx
 import datetime
 import xpy.outils                       as xout
@@ -27,15 +18,6 @@ import xpy.xUTILS_SaisieParams          as xusp
 import xpy.outils.xbandeau
 import srcNoelite.UTILS_Utilisateurs    as nuu
 from xpy.outils.ObjectListView import FastObjectListView,ColumnDefn, CTRL_Outils, CellEditor
-
-dictAPPLI = {
-            'NOM_APPLICATION'       : "noelite",
-            'REP_SOURCES'           : "srcNoelite",
-            'REP_DATA'              : "srcNoelite/Data",
-            'REP_TEMP'              : "srcNoelite/Temp",
-            'NOM_FICHIER_LOG'       : "logsNoelite.log",
-            'OPTIONSCONFIG'         : ["db_prim"],
-            }
 
 def ComposeLstDonnees(record,lstChamps):
     # retourne les données pour colonnes, extraites d'un record défini par une liste de champs
@@ -232,8 +214,8 @@ class DLG_ReglementsGestion(wx.Dialog):
                     {'name': 'btnImp', 'label': "Imprimer\nle bordereau",
                         'toolTip': "Cliquez ici pour imprimer et enregistrer le bordereau",
                         'size': (120, 35), 'image': wx.ART_PRINT,'onBtn':self.OnImprimer},
-                    {'name':'btnOK','ID':wx.ID_ANY,'label':"Fermer",'toolTip':"Cliquez ici pour fermer la fenêtre",
-                        'size':(120,35),'image':wx.ART_GOTO_LAST,'onBtn':self.OnClose}
+                    {'name':'btnOK','ID':wx.ID_ANY,'label':"Quitter",'toolTip':"Cliquez ici pour fermer la fenêtre",
+                        'size':(120,35),'image':"xpy/Images/32x32/Quitter.png",'onBtn':self.OnClose}
                    ]
         lstInfos = [ wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)),
                     "Petite info selon contexte"]
