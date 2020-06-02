@@ -15,7 +15,47 @@ from xpy.outils.ObjectListView import FastObjectListView, ColumnDefn, Filter, Fo
 from xpy.outils.xconst import *
 import datetime
 import xpy.xUTILS_SaisieParams as xusp
-# ------------------------------------------------------------------------------------------------------------------
+
+#------------- Fonctions liées aux appels de données pour OLV ------------------------------
+
+def ComposeLstDonnees(record,lstChamps):
+    # retourne les données pour colonnes, extraites d'un record défini par une liste de champs
+    lstdonnees=[]
+    for ix in range(len(lstChamps)):
+        lstdonnees.append(record[ix])
+    return lstdonnees
+
+def ValeursDefaut(lstNomsColonnes,lstTypes):
+    # Détermine des valeurs par défaut selon le type des variables
+    lstValDef = [0,]
+    for ix in range(1,len(lstNomsColonnes)):
+        tip = lstTypes[ix].lower()
+        if tip[:3] == 'int': lstValDef.append(0)
+        elif tip[:10] == 'tinyint(1)': lstValDef.append(False)
+        elif tip[:5] == 'float': lstValDef.append(0.0)
+        elif tip[:4] == 'date': lstValDef.append(datetime.date(1900,1,1))
+        else: lstValDef.append('')
+    return lstValDef
+
+def LargeursDefaut(lstNomsColonnes,lstTypes):
+    # Evaluation de la largeur nécessaire des colonnes selon le type de donnee et la longueur du champ
+    lstLargDef = [0,]
+    for ix in range(1, len(lstNomsColonnes)):
+        tip = lstTypes[ix]
+        tip = tip.lower()
+        if tip[:3] == 'int': lstLargDef.append(50)
+        elif tip[:5] == 'float': lstLargDef.append(60)
+        elif tip[:4] == 'date': lstLargDef.append(80)
+        elif tip[:7] == 'varchar':
+            lg = int(tip[8:-1])*8
+            if lg > 150: lg = -1
+            lstLargDef.append(lg)
+        elif 'blob' in tip:
+            lstLargDef.append(250)
+        else: lstLargDef.append(40)
+    return lstLargDef
+
+# ----------- Objets divers ----------------------------------------------------------------
 
 class Button(wx.Button):
     # Enrichissement du wx.Button par l'image, nom, toolTip et Bind
@@ -50,7 +90,6 @@ class Button(wx.Button):
                 name += str(label.split()[0].lower())
         kwds['name'] = name
 
-        #parent, id=ID_ANY, label="", pos=DefaultPosition,size=DefaultSize, style=0, validator=DefaultValidator,name=ButtonNameStr)
         wx.Button.__init__(self,parent,ID,label,**kwds)
         font = wx.Font(sizeFont, wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL,False)
         self.SetFont(font)
@@ -85,6 +124,8 @@ class Button(wx.Button):
             else:
                 fonction = onBtn
             self.Bind(wx.EVT_BUTTON, fonction)
+
+# ----------  Objets ObjectListView --------------------------------------------------------
 
 class TrackGeneral(object):
     #    Cette classe va transformer une ligne en objet selon les listes de colonnes et valeurs par défaut(setter)
@@ -589,7 +630,7 @@ class PanelListView(wx.Panel):
         track.old_data = track.donnees[col]
         event.Skip()
 
-# ------------------------------------------------------------------------------------------------------------------
+# ----------- Composition de l'écran -------------------------------------------------------
 class PNL_params(wx.Panel):
     #panel de paramètres de l'application
     def __init__(self, parent, dicParams, **kwds):
@@ -790,7 +831,7 @@ class PNL_Pied(wx.Panel):
     def OnBoutonOK(self,event):
         self.parent.Close()
 
-# ------------------------------------------------------------------------------------------------------------------
+# ------------- Lancement ------------------------------------------------------------------
 class DLG_tableau(wx.Dialog):
     # minimum fonctionnel dans dialog tout est dans les trois pnl
     def __init__(self,parent,dicParams={},dicOlv={},dicPied={}, **kwds):
@@ -815,7 +856,7 @@ class DLG_tableau(wx.Dialog):
     def Close(self):
         self.EndModal(wx.OK)
 
-# -- pour tests -----------------------------------------------------------------------------------------------------
+# ------------ Pour tests ------------------------------------------------------------------
 
 if __name__ == '__main__':
     app = wx.App(0)

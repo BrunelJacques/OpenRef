@@ -80,16 +80,15 @@ def VerificationDroitsUtilisateurActuel(categorie="", action="", IDactivite="", 
                           %(dictUtilisateur['nom'],categorie,action),style=wx.ICON_AUTH_NEEDED)
         return resultat
     return True
-    
 
 class CTRL_Bouton_image(wx.Button):
+    # La classe xGestion_TableauEditor.Button reprend le concept de manière plus large
     def __init__(self, parent, id=wx.ID_APPLY, texte="", cheminImage=None):
         wx.Button.__init__(self, parent, id=id, label=texte)
         if cheminImage:
             self.SetBitmap(wx.Bitmap(cheminImage))
         self.SetFont(wx.Font(9, wx.SWISS, wx.NORMAL, wx.BOLD))
         self.SetInitialSize()
-
 
 if __name__ == '__main__':
     app = wx.App(0)

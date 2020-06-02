@@ -7,6 +7,7 @@
 # -------------------------------------------------------------
 
 import wx
+import os
 import datetime
 import xpy.xGestionDB                   as xdb
 import xpy.xGestion_TableauEditor       as xgte
@@ -65,92 +66,6 @@ def GetOlvOptions(dlg):
                               "mot": {"mode": "nombre", "alignement": wx.ALIGN_CENTER}, }
             }
 
-#---------------------- Fonctions liées aux appels de données -----------------------
-
-def ComposeLstDonnees(record,lstChamps):
-    # retourne les données pour colonnes, extraites d'un record défini par une liste de champs
-    lstdonnees=[]
-    for ix in range(len(lstChamps)):
-        lstdonnees.append(record[ix])
-    return lstdonnees
-
-def ValeursDefaut(lstNomsColonnes,lstTypes):
-    # Détermine des valeurs par défaut selon le type des variables
-    lstValDef = [0,]
-    for ix in range(1,len(lstNomsColonnes)):
-        tip = lstTypes[ix].lower()
-        if tip[:3] == 'int': lstValDef.append(0)
-        elif tip[:10] == 'tinyint(1)': lstValDef.append(False)
-        elif tip[:5] == 'float': lstValDef.append(0.0)
-        elif tip[:4] == 'date': lstValDef.append(datetime.date(1900,1,1))
-        else: lstValDef.append('')
-    return lstValDef
-
-def LargeursDefaut(lstNomsColonnes,lstTypes):
-    # Evaluation de la largeur nécessaire des colonnes selon le type de donnee et la longueur du champ
-    lstLargDef = [0,]
-    for ix in range(1, len(lstNomsColonnes)):
-        tip = lstTypes[ix]
-        tip = tip.lower()
-        if tip[:3] == 'int': lstLargDef.append(50)
-        elif tip[:5] == 'float': lstLargDef.append(60)
-        elif tip[:4] == 'date': lstLargDef.append(80)
-        elif tip[:7] == 'varchar':
-            lg = int(tip[8:-1])*8
-            if lg > 150: lg = -1
-            lstLargDef.append(lg)
-        elif 'blob' in tip:
-            lstLargDef.append(250)
-        else: lstLargDef.append(40)
-    return lstLargDef
-
-def GetFamilles():
-    # laissé tel quel depuis DLG_Adresses_gestion
-    # appel des données à afficher
-    lstChamps = ["0","familles.IDfamille","individus.IDindividu","familles.reglement_intitule","individus.nom",
-                 "individus.prenom","individus.reglement_auto","individus.rue_resid","individus.cp_resid","individus.ville_resid"]
-
-    lstNomsColonnes = ["0","famille","individu","intitule famille","nom corresp.",
-                        "prenomcorresp.","reglement_auto","rue","cp","ville"]
-
-    lstTypes = ["INTEGER","INTEGER","INTEGER","VARCHAR(100)","VARCHAR(100)",
-                "VARCHAR(100)","INTEGER","VARCHAR(100)","VARCHAR(11)","VARCHAR(80)"]
-    db = xdb.DB()
-    req = """   SELECT %s
-                FROM familles 
-                LEFT JOIN individus ON familles.reglement_individu = individus.IDindividu;
-                """ % (",".join(lstChamps))
-    retour = db.ExecuterReq(req, mess='GetIndividus' )
-    if retour == "ok":
-        recordset = db.ResultatReq()
-        if len(recordset) == 0:
-            retour = "aucun enregistrement disponible"
-    else:
-        wx.MessageBox("Erreur : %s" % retour)
-        return 'ko'
-    db.Close()
-    lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstNomsColonnes]
-    lstValDefColonnes = ValeursDefaut(lstNomsColonnes, lstTypes)
-    lstLargeurColonnes = LargeursDefaut(lstNomsColonnes, lstTypes)
-    # composition des données du tableau à partir du recordset
-    lstDonnees = []
-    for record in recordset:
-        ligne = ComposeLstDonnees( record, lstChamps)
-        lstDonnees.append(ligne)
-
-    # matrice OLV
-    lstColonnes = xusp.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
-    dicOlv =    {
-                'listeColonnes': lstColonnes,
-                'listeDonnees': lstDonnees,
-                'checkColonne': False,
-                'colonneTri': 1,
-                'style': wx.LC_SINGLE_SEL|wx.LC_HRULES|wx.LC_VRULES,
-                'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
-                'dictColFooter': {"nom": {"mode": "nombre", "alignement": wx.ALIGN_CENTER},}
-                }
-    return dicOlv
-
 #----------------------- Parties de l'écrans -----------------------------------------
 
 class PNL_params(wx.Panel):
@@ -170,7 +85,6 @@ class PNL_params(wx.Panel):
         self.ctrlDate = wx.adv.DatePickerCtrl(self,-1,size=(90,20),style=wx.ALIGN_CENTRE_HORIZONTAL)
         self.lblRef = wx.StaticText(self,-1, label="Réference:  ",size=(90,20),style=wx.ALIGN_RIGHT)
         self.ctrlRef = wx.SpinCtrl(self,-1,size=(70,20))
-
 
         self.ToolTip()
         self.Sizer()
@@ -227,7 +141,7 @@ class PNL_Pied(xgte.PNL_Pied):
     def __init__(self, parent, dicPied, **kwds):
         xgte.PNL_Pied.__init__(self,parent, dicPied, **kwds)
 
-class DLG_ReglementsGestion(wx.Dialog):
+class Dialog(wx.Dialog):
 
     # ------------------- Composition de l'acceuil ------------------
 
@@ -235,6 +149,9 @@ class DLG_ReglementsGestion(wx.Dialog):
         listArbo = os.path.abspath(__file__).split("\\")
         titre = listArbo[-1:][0] + "/" + self.__class__.__name__
         wx.Dialog.__init__(self, None,-1,title=titre, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
+
+        if not nuu.VerificationDroitsUtilisateurActuel('reglements_depots','creer'):
+            self.OnClose(None)
 
         # définition de l'OLV
         dicOlv = {'lstColonnes': GetOlvColonnes(self)}
@@ -278,8 +195,7 @@ class DLG_ReglementsGestion(wx.Dialog):
 
 if __name__ == '__main__':
     app = wx.App(0)
-    import os
     os.chdir("..")
-    dlg = DLG_ReglementsGestion()
+    dlg = Dialog()
     dlg.ShowModal()
     app.MainLoop()

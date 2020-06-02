@@ -10,7 +10,7 @@
 
 import wx
 import xpy.xGestionDB                   as xdb
-import srcNoelite.UTILS_Adresses_saisie   as usa
+import srcNoelite.UTILS_Adresses   as usa
 import srcNoelite.UTILS_Utilisateurs    as nuu
 import srcNoelite.DLG_Secteurs          as ndsect
 from xpy.outils.ObjectListView import FastObjectListView, ColumnDefn, Filter, CTRL_Outils

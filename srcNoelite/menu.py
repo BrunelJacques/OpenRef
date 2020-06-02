@@ -10,6 +10,7 @@
 
 import wx
 import srcNoelite.DLG_Adresses_gestion as ndga
+import srcNoelite.DLG_Reglements_gestion as nrg
 import srcNoelite.CTRL_Identification as nident
 
 """ Paramétrage de la construction de la barre de menus """
@@ -20,25 +21,26 @@ class MENU():
     def ParamMenu(self):
         """ appelé pour Construire la barre de menus """
         menu = [
-            # Première colonne
-                {"code": "&params\tCtrl-P", "label": ("Paramètres"), "items": [
-                    {"code": "config", "label": ("&Accès Base de données\tCtrl-A"),
-                     "infobulle": (u"Reconfigurer l'accès à la base de données principale"),
-                     "image": "Images/16x16/Utilisateur_reseau.png",
-                     "action": "On_config", "genre": wx.ITEM_NORMAL},
-                    "-",
-                {"code": "utilisateurs", "label": (u"Utilisateurs"), "infobulle": (u"Paramétrage des utilisateurs"),
-                 "image": "Images/16x16/Personnes.png", "action": "On_utilisateurs"},
-                "-",
-                {"code": "quitter", "label": (u"Quitter"), "infobulle": (u"Fin de travail Noelite"),
-                 "image": "Images/16x16/Quitter.png", "action": "xQuitter"},
-                ]},
+        # Première colonne
+        {"code": "&params\tCtrl-P", "label": ("Paramètres"), "items": [
+            {"code": "config", "label": ("&Accès Base de données\tCtrl-A"),
+             "infobulle": (u"Reconfigurer l'accès à la base de données principale"),
+             "image": "Images/16x16/Utilisateur_reseau.png",
+             "action": "On_config", "genre": wx.ITEM_NORMAL},
+            "-",
+        {"code": "utilisateurs", "label": (u"Utilisateurs"), "infobulle": (u"Paramétrage des utilisateurs"),
+         "image": "Images/16x16/Personnes.png", "action": "On_utilisateurs"},
+        "-",
+        {"code": "quitter", "label": (u"Quitter"), "infobulle": (u"Fin de travail Noelite"),
+         "image": "Images/16x16/Quitter.png", "action": "xQuitter"},
+        ]},
+        # deuxième colonne
         {"code": "&params\tCtrl-P", "label": ("Actions"), "items": [
             {"code": "modifAdresses", "label": ("&Modification d'adresses Individus\tCtrl-I"),
              "infobulle": (u"Gestion de l'adresses de rattachement des personnes (soit la leur soit celle de leur hébergeur"),
              "image": "Images/16x16/Editeur_email.png",
              "action": "On_Adresses_individus", "genre": wx.ITEM_NORMAL},
-            {"code": "modifAdresses", "label": ("&Modification d'adresses Familles\tCtrl-F"),
+            {"code": "modifAdressesF", "label": ("&Modification d'adresses Familles\tCtrl-F"),
              "infobulle": (u"Gestion des adresses des familles, mais pas de tous les individus de la famille"),
              "image": "Images/16x16/Editeur_email.png",
              "action": "On_Adresses_familles", "genre": wx.ITEM_NORMAL},
@@ -61,7 +63,7 @@ class MENU():
         dlg.ShowModal()
 
     def On_reglements_bordereau(self, event):
-        dlg = ndga.Dialog()
+        dlg = nrg.Dialog()
         dlg.ShowModal()
 
     def On_config(self,event):

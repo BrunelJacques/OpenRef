@@ -4240,8 +4240,8 @@ class ColumnDefn(object):
 #======================================================================
 
 class BarreRecherche(wx.SearchCtrl):
-    def __init__(self, parent, listview, texteDefaut=u"Saisir un radical puis valider..."):
-        wx.SearchCtrl.__init__(self, parent, size=(-1, -1), style=wx.TE_PROCESS_ENTER)
+    def __init__(self, parent, listview, texteDefaut=u"Saisir un radical puis valider...",style=wx.TE_PROCESS_ENTER):
+        wx.SearchCtrl.__init__(self, parent, size=(-1, -1), style=style)
         self.parent = parent
         self.listview = listview
         self.rechercheEnCours = False

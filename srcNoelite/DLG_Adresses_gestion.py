@@ -23,7 +23,7 @@ import xpy.xUTILS_SaisieParams  as xusp
 import xpy.xGestionDB           as xdb
 import srcNoelite.UTILS_Utilisateurs  as nuu
 import srcNoelite.DLG_Adresses_saisie   as nsa
-import srcNoelite.UTILS_Adresses_saisie as nusa
+import srcNoelite.UTILS_Adresses as nua
 from xpy.outils.ObjectListView import CTRL_Outils
 
 def ComposeLstDonnees(record,lstChamps):
@@ -254,7 +254,7 @@ class Dialog(wx.Dialog):
             ret = dlg2.ShowModal()
             if ret == wx.ID_OK:
                 lstAdresse = dlg2.lstAdresse
-                rue, cp, ville = nusa.LstAdresseToChamps(lstAdresse)
+                rue, cp, ville = nua.LstAdresseToChamps(lstAdresse)
                 dlg2.Destroy()
                 self.choix.rue = rue
                 self.choix.ville = ville

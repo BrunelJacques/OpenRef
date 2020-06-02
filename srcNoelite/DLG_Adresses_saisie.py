@@ -10,7 +10,7 @@
 import wx
 import xpy.outils.xbandeau      as xbd
 import srcNoelite.DLG_Villes    as ndv
-import srcNoelite.UTILS_Adresses_saisie as usa
+import srcNoelite.UTILS_Adresses as nua
 import xpy.outils.xchoixListe   as xcl
 
 class CTRL_Bouton_image(wx.Button):
@@ -142,7 +142,7 @@ class PnlAdresse(wx.Panel):
 
     def GetVillesDuCp(self,filtrecp,mute=False):
         # Appelle les villes du code postal et prépare les listes des choices de villes
-        self.lstCpVillesPays = usa.GetVilles("cp",filtrecp)
+        self.lstCpVillesPays = nua.GetVilles("cp",filtrecp)
         if self.lstCpVillesPays == [("","","")]:
             self.lstCpVillesPays = [("","",filtrecp)]
             return
@@ -181,7 +181,7 @@ class PnlAdresse(wx.Panel):
 
     def GetVilleDuNom(self,ville):
         # Appelle les villes correspondant au nom partiellement fourni
-        self.lstCpVillesPays = usa.GetVilles("ville",ville)
+        self.lstCpVillesPays = nua.GetVilles("ville",ville)
         if self.lstCpVillesPays == [("","","")]:
             self.lstCpVillesPays = [("", ville, "")]
             return
@@ -217,7 +217,7 @@ class PnlAdresse(wx.Panel):
             wx.MessageBox(mess)
             return
         cp = adresse[4]
-        self.lstCpVillesPays = usa.GetVilles("cp", cp)
+        self.lstCpVillesPays = nua.GetVilles("cp", cp)
         self.lstVilles= [vil for cp,vil,pays in self.lstCpVillesPays]
         self.lstPays= [pays for cp,vil,pays in self.lstCpVillesPays]
         self.SetChoices("ville", self.lstVilles)
@@ -305,7 +305,7 @@ class PnlAdresse(wx.Panel):
 
     def OnClicCorrespondant(self,event):
         event.Skip()
-        ret  = usa.GetDBCorrespondant(self.parent.IDfamille)
+        ret  = nua.GetDBCorrespondant(self.parent.IDfamille)
         if ret == wx.ID_ABORT:
             return
         elif isinstance(ret,tuple):
@@ -319,7 +319,7 @@ class PnlAdresse(wx.Panel):
             return
         IDindividu = ret
 
-        lstAdresse, IDindividuLu,(nom,prenom) = usa.GetDBadresse(IDindividu,retNom=True)
+        lstAdresse, IDindividuLu,(nom,prenom) = nua.GetDBadresse(IDindividu,retNom=True)
         if IDindividu  and IDindividu != IDindividuLu:
             if not nom or nom == "":
                 mess = "Adresse perdue,\n\nvous pouvez affecter un autre correspondant"
@@ -362,7 +362,7 @@ class DlgAdresses_saisie(wx.Dialog):
         self.mode = mode
         self.choix= None
         if self.mode == 'familles':
-            self.dicCorrespondant = usa.GetDBfamille(ID)
+            self.dicCorrespondant = nua.GetDBfamille(ID)
             self.IDfamille = ID
             self.IDindividu = self.dicCorrespondant['IDindividu']
         else:
@@ -379,7 +379,7 @@ class DlgAdresses_saisie(wx.Dialog):
         self.lstCtrl = self.panelAdresse.lstCtrl
         self.lstNomsChamps = self.panelAdresse.lstNomsChamps
 
-        self.lstAdresse, self.IDindividuLu,(nom,prenom) = usa.GetDBadresse(self.IDindividu,retNom=True)
+        self.lstAdresse, self.IDindividuLu,(nom,prenom) = nua.GetDBadresse(self.IDindividu,retNom=True)
         if self.IDindividu == self.IDindividuLu:
             self.panelAdresse.SetAdresse(self.lstAdresse)
             if self.mode == 'familles':
@@ -438,7 +438,7 @@ class DlgAdresses_saisie(wx.Dialog):
 
     def OnClicRemonte(self, event):
         event.Skip()
-        self.lstAdresse = usa.GetDBoldAdresse(IDindividu=self.IDindividu)
+        self.lstAdresse = nua.GetDBoldAdresse(IDindividu=self.IDindividu)
         if not self.lstAdresse :
             wx.MessageBox(u"Pas d'adresse antérieure stockée!")
         else:
@@ -453,18 +453,18 @@ class DlgAdresses_saisie(wx.Dialog):
     def Enregistre(self):
         self.IDindividu = self.dicCorrespondant['IDindividu']
         # Enregistrement de l'adresse et sortie
-        ret = usa.SetDBadresse(None,self.IDindividu,self.lstAdresse)
+        ret = nua.SetDBadresse(None,self.IDindividu,self.lstAdresse)
         if ret != "ok":
             wx.MessageBox("Pas d'écriture possible !\nAbandon de la modification\n%s"%ret)
             self.EndModal(wx.ID_ABORT)
         else:
             # archive cette adresse s'il n'y en a pas d'autre
-            exadresse = usa.GetDBoldAdresse(self.IDindividu)
+            exadresse = nua.GetDBoldAdresse(self.IDindividu)
             if not exadresse:
-                ret = usa.SetDBoldAdresse(None,self.IDindividu, self.lstAdresse)
+                ret = nua.SetDBoldAdresse(None,self.IDindividu, self.lstAdresse)
             self.EndModal(wx.ID_OK)
         if self.mode == 'familles':
-            ret = usa.SetDBcorrespondant(self.dicCorrespondant)
+            ret = nua.SetDBcorrespondant(self.dicCorrespondant)
             if ret != "ok":
                 wx.MessageBox(self, u"Pas d'écriture possible du correspondant !\n%s"%ret)
 
@@ -472,7 +472,7 @@ class DlgAdresses_saisie(wx.Dialog):
         event.Skip()
         mess = ""
         saisie = self.panelAdresse.GetAdresse()
-        self.lstAdresse = usa.TransposeAdresse(saisie)
+        self.lstAdresse = nua.TransposeAdresse(saisie)
         self.panelAdresse.SetAdresse(self.lstAdresse)
         if self.mode == 'familles':
             self.dicCorrespondant = self.panelAdresse.dicCorrespondant
@@ -483,7 +483,7 @@ class DlgAdresses_saisie(wx.Dialog):
         forcer = self.lstCtrl[self.lstNomsChamps.index("forcer")].ctrl.Value
         validee = False
         if not forcer:
-            mess = usa.Validation(self.lstAdresse)
+            mess = nua.Validation(self.lstAdresse)
             if mess == wx.ID_OK:
                 validee = True
         self.lstCtrl[self.lstNomsChamps.index("forcer")].ctrl.Enable(True)
