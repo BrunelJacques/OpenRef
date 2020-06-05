@@ -40,9 +40,10 @@ def GetOlvColonnes(dlg):
                             isEditable=False),
             ColumnDefn("émetteur", 'left', 80, "emetteur", valueSetter='', isSpaceFilling=True,
                                 cellEditorCreator=CellEditor.ComboEditor),
-            ColumnDefn("mode", 'centre', 50, 'mode', valueSetter='CHQ', isSpaceFilling=False),
+            ColumnDefn("mode", 'centre', 50, 'mode', valueSetter='CHQ',choices=['CHQ','VRT','ESP'], isSpaceFilling=False,
+                       cellEditorCreator=CellEditor.ChoiceEditor),
             ColumnDefn("n°ref", 'left', 50, 'numero', isSpaceFilling=False),
-            ColumnDefn("nat", 'centre', 40, 'nature', isSpaceFilling=False,
+            ColumnDefn("nat", 'centre', 50, 'nature',valueSetter='Regl',choices=['Regl','Acpte','Don','Debour','X'], isSpaceFilling=False,
                                 cellEditorCreator=CellEditor.ChoiceEditor),
             ColumnDefn("IDart", 'centre', 40, 'IDarticle'),
             ColumnDefn("libelle", 'left', 200, 'libelle', valueSetter='à saisir', isSpaceFilling=True),
@@ -64,6 +65,8 @@ def GetOlvOptions(dlg):
             'recherche': True,
             }
 
+def GetOlvInfos(dlg):
+    return {'IDfamille':"<F4> Choix d'une famille",'emetteur':"<F4> Gestion des émetteurs"}
 #----------------------- Parties de l'écrans -----------------------------------------
 
 class PNL_params(wx.Panel):
@@ -148,23 +151,31 @@ class PNL_corpsReglements(xgte.PNL_corps):
         self.matriceFamilles = nur.GetMatriceFamilles()
         self.ctrlOlv.Choices={}
 
-    def On_IDfamille(self,IDfamille=None,designation=None):
+    def OnSt_IDfamille(self):
+        mess = GetOlvInfos('IDfamille')
+        self.parent.pnlPied.lstInfos = [ wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)),"Bonjour la famille"]
+        print(self.parent.pnlPied.itemsInfos)
+        self.parent.pnlPied.Sizer()
+        print(self.parent.pnlPied.itemsInfos)
+
+    def OnKl_IDfamille(self,IDfamille=None,designation=None):
         if not IDfamille : return
         IDfamille = int(IDfamille)
         if not designation:
             designation = nur.GetDesignationFamille(IDfamille)
         self.ctrlOlv.lastGetObject.designation = designation
         payeurs = nur.GetPayeurs(IDfamille)
-        if len(payeurs)>0: payeur = payeurs[0]
-        else: payeur = ""
+        if len(payeurs)==0: payeurs.append(designation)
+        payeur = payeurs[0]
         self.ctrlOlv.lastGetObject.emetteur = payeur
+        self.ctrlOlv.dicChoices[self.ctrlOlv.lstCodesColonnes.index('emetteur')]=payeurs
 
     def OnEditorFuctionKeys(self,event):
         row, col = self.ctrlOlv.cellBeingEdited
         if event.GetKeyCode() == wx.WXK_F4 and col == 2:
             # Choix famille
             (IDfamille,designation) = nur.GetFamille(self.matriceFamilles)
-            self.On_IDfamille(IDfamille,designation)
+            self.OnKl_IDfamille(IDfamille,designation)
             self.ctrlOlv.lastGetObject.IDfamille = IDfamille
 
 class PNL_Pied(xgte.PNL_Pied):

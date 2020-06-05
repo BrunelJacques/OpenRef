@@ -351,11 +351,17 @@ class ObjectListView(wx.ListCtrl):
         wx.ListCtrl.ClearAll(self)
         self.checkStateColumn = None
         self.columns = []
+        self.dicChoices={}
+        ix = 0
         for x in columns:
             if isinstance(x, ColumnDefn):
                 self.AddColumnDefn(x)
+                if x.choices:
+                    self.dicChoices[ix]= x.choices
             else:
+                # cas simple avec quelques un tuple de params dans l'ordre
                 self.AddColumnDefn(ColumnDefn(*x))
+            ix +=1
         # Try to preserve the column column
         self.SetSortColumn(sortCol)
         if repopulate:
@@ -3859,7 +3865,8 @@ class ColumnDefn(object):
             groupKeyConverter=None,
             useInitialLetterForGroupKey=False,
             groupTitleSingleItem=None,
-            groupTitlePluralItems=None):
+            groupTitlePluralItems=None,
+            choices=None):
 
         """
         Create a new ColumnDefn using the given attributes.
@@ -3879,6 +3886,7 @@ class ColumnDefn(object):
             If this is True, the column will use an autocomplete ComboBox when
             values of this column are edited. This overrules the cellEditorCreator parameter.
         """
+        self.choices = choices
         self.title = title
         self.align = align
         self.valueGetter = valueGetter

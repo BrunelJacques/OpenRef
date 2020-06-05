@@ -542,13 +542,6 @@ class PanelListView(wx.Panel):
     def GetListview(self):
         return self.ctrl_listview
 
-    def GetChoices(self,code):
-        if code == "choice":
-            return ["mon item", "deuxième item"]
-        elif code == 'prix':
-            return ['prix 1','remisé','mon item']
-        return None
-
     # Handler niveau OLV
     def OnChar(self, event):
         keycode = event.GetUnicodeKey()
@@ -612,26 +605,27 @@ class PanelListView(wx.Panel):
         track = self.ctrl_listview.GetObjectAt(row)
         new_data = self.ctrl_listview.cellEditor.GetValue()
         code = self.ctrl_listview.lstCodesColonnes[col]
+        # appel des éventuels spécifiques
         try:
-            exec("self.parent.On_%s(new_data)"%code)
+            exec("self.parent.OnKl_%s(new_data)"%code)
         except:
-            print(sys.exc_info()[0])
             pass
+        # stockage de la nouvelle saisie
         track.__setattr__(code, new_data)
         track.donnees[col] = new_data
         event.Skip()
 
     def OnEditStarted(self, event):
+        row, col = self.ctrl_listview.cellBeingEdited
+        code = self.ctrl_listview.lstCodesColonnes[col]
+        # appel des éventuels spécifiques
+        try:
+            exec("self.parent.OnSt_%s()"%code)
+        except:
+            pass
         # stockage de la valeur initiale de la dernière cellule éditée
         olv = self.ctrl_listview
         row, col = olv.cellBeingEdited
-        nomCol = olv.lstNomsColonnes[col]
-        # Appel des items pour les mettre dans l'editor de type choice ou combo
-        try:
-            value = olv.lastGetObject.donnees[col]
-            olv.editor[col].SetItems(self.GetChoices(nomCol))
-            olv.editor[col].SetValue(value)
-        except: pass
         track = olv.GetObjectAt(row)
         track.old_data = track.donnees[col]
         event.Skip()
@@ -709,49 +703,6 @@ class PNL_corps(wx.Panel):
             sizerolv.Add(self.ctrloutils, 0, wx.EXPAND, 10)
         self.SetSizerAndFit(sizerolv)
 
-    def GetItemsBtn(self,lstBtns):
-        # décompactage des paramètres de type bouton
-        lstBtn = []
-        for btn in lstBtns:
-            try:
-                (code,ID,label,tooltip) = btn
-                if isinstance(label,wx.Bitmap):
-                    bouton = wx.BitmapButton(self,ID,label)
-                elif isinstance(label,str):
-                    bouton = wx.Button(self,ID,label)
-                else: bouton = wx.Button(self,ID,'Erreur!')
-                bouton.SetToolTip(tooltip)
-                bouton.name = code
-                #le bouton OK est par défaut, il ferme l'écran DLG
-                if code == 'BtnOK':
-                    bouton.Bind(wx.EVT_BUTTON, self.OnBoutonOK)
-                #implémente les fonctions bind transmises, soit par le pointeur soit par eval du texte
-                if self.dicOnClick and code in self.dicOnClick:
-                    if isinstance(self.dicOnClick[code],str):
-                        fonction = lambda evt,code=code: eval(self.dicOnClick[code])
-                    else: fonction = self.dicOnClick[code]
-                    bouton.Bind(wx.EVT_BUTTON, fonction)
-                lstBtn.append((bouton, 0, wx.ALL | wx.ALIGN_RIGHT, 5))
-
-            except:
-                bouton = wx.Button(self, wx.ID_ANY, 'Erreur!')
-                lstBtn.append((bouton, 0, wx.ALL, 5))
-        return lstBtn
-
-    def GetItemsInfos(self,lstInfos):
-        lstInfo = []
-        for label in lstInfos:
-            if isinstance(label,wx.Bitmap):
-                info = wx.StaticBitmap(self, wx.ID_ANY, label)
-            elif isinstance(label,str):
-                info = wx.StaticText(self,wx.ID_ANY,label)
-            else: info = wx.Button(self,wx.ID_OK,'Erreur!')
-            lstInfo.append((info,0,wx.RIGHT|wx.ALIGN_LEFT,10))
-        return lstInfo
-
-    def OnBoutonOK(self,event):
-        self.parent.Close()
-
 class PNL_Pied(wx.Panel):
     #panel infos (gauche) et boutons sorties(droite)
     def __init__(self, parent, dicPied, **kwds):
@@ -764,12 +715,11 @@ class PNL_Pied(wx.Panel):
             #force la présence d'un pied d'écran par défaut
             self.lstBtns = [('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_ok.png", wx.BITMAP_TYPE_ANY),
                            "Cliquez ici pour fermer la fenêtre")]
-
         wx.Panel.__init__(self, parent,  **kwds)
         self.parent = parent
         self.Sizer()
 
-    def Sizer(self):
+    def Sizer(self,reinit = False):
         #composition de l'écran selon les composants
         sizerpied = wx.BoxSizer(wx.HORIZONTAL)
         if self.lstInfos:
@@ -818,15 +768,15 @@ class PNL_Pied(wx.Panel):
         return lstWxBtns
 
     def GetItemsInfos(self,lstInfos):
-        lstInfo = []
-        for label in lstInfos:
-            if isinstance(label,wx.Bitmap):
-                info = wx.StaticBitmap(self, wx.ID_ANY, label)
-            elif isinstance(label,str):
-                info = wx.StaticText(self,wx.ID_ANY,label)
-            else: info = wx.Button(self,wx.ID_OK,'Erreur!')
-            lstInfo.append((info,0,wx.RIGHT|wx.ALIGN_LEFT,10))
-        return lstInfo
+        # seulement une image et un texte sont retenus
+        self.infosImage = None
+        self.infosTexte = None
+        for item in lstInfos:
+            if isinstance(item,wx.Bitmap):
+                self.infosImage = wx.StaticBitmap(self, wx.ID_ANY, item)
+            elif isinstance(item,str):
+                self.infosTexte = wx.StaticText(self,wx.ID_ANY,item)
+        return [self.infosImage,(7,7),self.infosTexte]
 
     def OnBoutonOK(self,event):
         self.parent.Close()
@@ -872,7 +822,7 @@ if __name__ == '__main__':
         ColumnDefn("prix", 'left', 80, "prix", valueSetter=0.0, isSpaceFilling=True,cellEditorCreator = CellEditor.ComboEditor),
         ColumnDefn("date", 'center', 80, "date", valueSetter=wx.DateTime.FromDMY(1, 0, 1900), isSpaceFilling=True,
                    stringConverter=xpy.outils.xformat.FmtDate),
-        ColumnDefn("choice", 'center', 40, "choice", valueSetter="mon item", isSpaceFilling=True,
+        ColumnDefn("choice", 'center', 40, "choice", valueSetter="mon item",choices=['CHQ','VRT','ESP'], isSpaceFilling=True,
                    cellEditorCreator = CellEditor.ChoiceEditor,)
     ]
     liste_Donnees = [[1,False, "Bonjour", -1230.05939, -1230.05939, None,"deux"],
@@ -905,7 +855,8 @@ if __name__ == '__main__':
     dicOnBtn = {'Action1': lambda evt: wx.MessageBox('ceci active la fonction action1'),
                 'Action2': 'self.parent.Validation()',
                 'BtnPrec': 'self.parent.Close()'}
-    lstInfos = ['Première', "Voici", wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)),
+    # l'info se compmose d'une imgae et d'un texte
+    lstInfos = [wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)),
                 "Autre\nInfo"]
     dicPied = {'lstBtns': lstBtns, 'dicOnBtn': dicOnBtn, "lstInfos": lstInfos}
 

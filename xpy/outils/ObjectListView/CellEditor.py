@@ -339,6 +339,8 @@ class CheckEditor(wx.CheckBox):
 class ChoiceEditor(wx.Choice):
     # doit être géré à l'entrée de la cellule par SetItems Personnalisé
     def __init__(self,olv,row,col, **kwargs):
+        if col in olv.dicChoices.keys():
+                kwargs['choices']=olv.dicChoices[col]
         wx.Choice.__init__(self,olv, **kwargs)
         olv.editor = {col:self}
         self.Bind(wx.EVT_CHAR_HOOK, self._OnChar)
@@ -360,6 +362,8 @@ class ChoiceEditor(wx.Choice):
 class ComboEditor(wx.ComboBox):
     # doit être géré à l'entrée de la cellule par SetItems Personnalisé
     def __init__(self, olv,row,col, **kwargs):
+        if col in olv.dicChoices.keys():
+                kwargs['choices']=olv.dicChoices[col]
         wx.ComboBox.__init__(self, olv,style = wx.TE_PROCESS_ENTER| wx.TE_PROCESS_TAB, **kwargs)
         olv.editor = {col:self}
         self.Bind(wx.EVT_CHAR_HOOK, self._OnChar)
