@@ -62,11 +62,12 @@ import wx.adv
 
 _cellEditorRegistrySingleton = None
 
-def EnterAction(event):
+def EnterAction(event,finish = True):
     # Touche enter on détourne l'usage pour un équivalent tab sauf en fin de ligne on passe à la suivante
     olv = event.EventObject.Parent
     row, col = olv.cellBeingEdited
-    olv.FinishCellEdit()
+    if finish:
+        olv.FinishCellEdit()
     for ix in range(col+1,olv.ColumnCount):
         # saute une cellule non éditable
         if olv.columns[ix].isEditable:
@@ -127,9 +128,13 @@ def EscapeAction(event):
     return
 
 def FunctionKeys(event):
+    olv = event.EventObject.Parent
+    row, col = olv.cellBeingEdited
     if hasattr(event.EventObject.GrandParent, 'OnEditorFunctionKeys'):
-        event.EventObject.GrandParent.OnEditorFunctionKeys(event.EventObject, event.GetKeyCode())
-        event.EventObject.Parent._SelectAndFocus(event.EventObject.Parent.lastGetObjectIndex)
+        olv.FinishCellEdit()
+        olv.cellBeingEdited = (row, col)
+        event.EventObject.GrandParent.OnEditorFunctionKeys(event)
+        EnterAction(event, finish=False)
     else:
         wx.MessageBox(u"Touches de fonctions non implémentées")
     event.Skip()

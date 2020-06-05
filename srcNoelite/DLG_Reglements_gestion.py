@@ -8,11 +8,9 @@
 
 import wx
 import os
-import datetime
-import xpy.xGestionDB                   as xdb
 import xpy.xGestion_TableauEditor       as xgte
-import xpy.xUTILS_SaisieParams          as xusp
 import srcNoelite.UTILS_Utilisateurs    as nuu
+import srcNoelite.UTILS_Reglements      as nur
 from xpy.outils.ObjectListView  import ColumnDefn, CellEditor
 from xpy.outils                 import xformat,xbandeau
 
@@ -31,6 +29,7 @@ def GetBoutons(dlg):
             ]
 
 def GetOlvColonnes(dlg):
+    # retourne la liste des colonnes de l'écran principal
     return [
             ColumnDefn("ID", 'centre', 0, 'IDregl',isEditable=False),
             ColumnDefn("date", 'center', 80, 'dateregl', valueSetter=wx.DateTime.Today(),isSpaceFilling=False,
@@ -57,13 +56,12 @@ def GetOlvColonnes(dlg):
             ]
 
 def GetOlvOptions(dlg):
+    # retourne les paramètres de l'OLV del'écran général
     return {
             'hauteur': 400,
             'largeur': 850,
             'checkColonne': False,
             'recherche': True,
-            'dictColFooter': {"nombre": {"mode": "total", "alignement": wx.ALIGN_RIGHT},
-                              "mot": {"mode": "nombre", "alignement": wx.ALIGN_CENTER}, }
             }
 
 #----------------------- Parties de l'écrans -----------------------------------------
@@ -72,9 +70,11 @@ class PNL_params(wx.Panel):
     #panel de paramètres de l'application
     def __init__(self, parent, **kwds):
         wx.Panel.__init__(self, parent, **kwds)
-
+        self.dicBanques = nur.GetBanquesNne()
+        lstBanques = [x['nom'] for x in self.dicBanques if x['code_nne'][:2]!='47']
         self.lblBanque = wx.StaticText(self,-1, label="Banque Noethys:  ",size=(130,20),style=wx.ALIGN_RIGHT)
-        self.ctrlBanque = wx.Choice(self,size=(220,20),choices=["un", "deux"])
+        self.ctrlBanque = wx.Choice(self,size=(220,20),choices=lstBanques)
+        self.ctrlBanque.Bind(wx.EVT_KILL_FOCUS,self.OnKillFocusBanque)
         self.btnBanque = wx.Button(self, label="...",size=(40,22))
         self.btnBanque.SetBitmap(wx.ArtProvider.GetBitmap(wx.ART_FIND,size=(16,16)))
         self.ctrlSsDepot = wx.CheckBox(self,-1," _Sans dépôt immédiat, (saisie d'encaissements futurs)")
@@ -88,6 +88,7 @@ class PNL_params(wx.Panel):
 
         self.ToolTip()
         self.Sizer()
+        self.ctrlBanque.SetFocusFromKbd()
 
     def ToolTip(self):
         self.lblBanque.SetToolTip("Il s'agit de la banque réceptrice")
@@ -131,10 +132,40 @@ class PNL_params(wx.Panel):
         sizer_base.AddGrowableCol(0)
         self.SetSizer(sizer_base)
 
-class PNL_corps(xgte.PNL_corps):
+    def OnKillFocusBanque(self,event):
+        if self.ctrlBanque.GetSelection() == -1:
+            mess = "Choix de la banque obligatoire\n\n'OK' pourchoisir, 'Annuler' pour sortir"
+            ret = wx.MessageBox(mess,style=wx.OK|wx.CANCEL)
+            print(ret)
+            if ret == wx.OK:
+                self.ctrlBanque.SetFocusFromKbd()
+            else: self.Parent.OnClose(None)
+
+class PNL_corpsReglements(xgte.PNL_corps):
     #panel olv avec habillage optionnel pour des boutons actions (à droite) des infos (bas gauche) et boutons sorties
     def __init__(self, parent, dicOlv,*args, **kwds):
         xgte.PNL_corps.__init__(self,parent,dicOlv,*args,**kwds)
+        self.matriceFamilles = nur.GetMatriceFamilles()
+        self.ctrlOlv.Choices={}
+
+    def On_IDfamille(self,IDfamille=None,designation=None):
+        if not IDfamille : return
+        IDfamille = int(IDfamille)
+        if not designation:
+            designation = nur.GetDesignationFamille(IDfamille)
+        self.ctrlOlv.lastGetObject.designation = designation
+        payeurs = nur.GetPayeurs(IDfamille)
+        if len(payeurs)>0: payeur = payeurs[0]
+        else: payeur = ""
+        self.ctrlOlv.lastGetObject.emetteur = payeur
+
+    def OnEditorFuctionKeys(self,event):
+        row, col = self.ctrlOlv.cellBeingEdited
+        if event.GetKeyCode() == wx.WXK_F4 and col == 2:
+            # Choix famille
+            (IDfamille,designation) = nur.GetFamille(self.matriceFamilles)
+            self.On_IDfamille(IDfamille,designation)
+            self.ctrlOlv.lastGetObject.IDfamille = IDfamille
 
 class PNL_Pied(xgte.PNL_Pied):
     #panel infos (gauche) et boutons sorties(droite)
@@ -142,9 +173,7 @@ class PNL_Pied(xgte.PNL_Pied):
         xgte.PNL_Pied.__init__(self,parent, dicPied, **kwds)
 
 class Dialog(wx.Dialog):
-
-    # ------------------- Composition de l'acceuil ------------------
-
+    # ------------------- Composition de l'écran de gestion----------
     def __init__(self):
         listArbo = os.path.abspath(__file__).split("\\")
         titre = listArbo[-1:][0] + "/" + self.__class__.__name__
@@ -165,7 +194,7 @@ class Dialog(wx.Dialog):
         # lancement de l'écran en blocs principaux
         self.pnlBandeau = xbandeau.Bandeau(self,TITRE,INTRO,nomImage="xpy/Images/32x32/Matth.png")
         self.pnlParams = PNL_params(self)
-        self.pnlOlv = PNL_corps(self, dicOlv)
+        self.pnlOlv = PNL_corpsReglements(self, dicOlv)
         self.pnlPied = PNL_Pied(self, dicPied)
         self.ctrlOlv = self.pnlOlv.ctrlOlv
         self.__Sizer()

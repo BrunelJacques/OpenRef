@@ -8,6 +8,7 @@
 import wx
 import os
 import xpy.outils.xformat
+from xpy.outils import xbandeau
 from xpy.outils.ObjectListView import FastObjectListView, ColumnDefn, BarreRecherche, OLVEvent, Filter
 from xpy.outils.xconst import *
 
@@ -46,6 +47,7 @@ class ListView(FastObjectListView):
     def __init__(self, *args, **kwds):
         self.filtre = ""
         self.listeColonnes = kwds.pop("listeColonnes", [])
+        lstChamps = kwds.pop("listeChamps", [])
         self.msgIfEmpty = kwds.pop("msgIfEmpty", "Tableau vide")
         self.colonneTri = kwds.pop("colonneTri", None)
         self.sensTri = kwds.pop("sensTri", True)
@@ -54,6 +56,9 @@ class ListView(FastObjectListView):
         self.lstCodesColonnes = self.formerCodeColonnes()
         self.lstNomsColonnes = self.formerNomsColonnes()
         self.lstSetterValues = self.formerSetterValues()
+        self.matriceColonnes = {'listeChamps':lstChamps,
+                                'listeNomsColonnes':self.lstNomsColonnes,
+                                'listeCodesColonnes':self.lstCodesColonnes}
 
         # Choix des options du 'tronc commun' du menu contextuel
         self.exportExcel = kwds.pop("exportExcel", True)
@@ -74,6 +79,7 @@ class ListView(FastObjectListView):
         FastObjectListView.__init__(self, *args,**kwds)
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
         self.Bind(wx.EVT_LEFT_DCLICK, self.Parent.OnBoutonOK)
+        self.Bind(wx.EVT_COMMAND_ENTER, self.Parent.OnBoutonOK)
 
     def Filtrer(self, texteRecherche=''):
         # Filtre barre de recherche
@@ -82,8 +88,7 @@ class ListView(FastObjectListView):
         #self.Refresh()
 
     def formerTracks(self):
-        #self.tracks = list() faisait double emploi avec 'self.modelObjects'
-        self.listeDonnees = self.getDonnees(self.filtre)
+        self.listeDonnees = self.getDonnees(self.matriceColonnes,self.filtre)
         tracks = list()
         if self.listeDonnees is None:
             return tracks
@@ -126,6 +131,8 @@ class ListView(FastObjectListView):
 
     def InitModel(self):
         self.SetObjects(self.formerTracks())
+        if len(self.innerList) >0:
+            self.SelectObject(self.innerList[0])
 
     def InitObjectListView(self):
         # Couleur en alternance des lignes
@@ -276,25 +283,32 @@ class TrackGeneral(object):
 class PNL_tableau(wx.Panel):
     #panel olv avec habillage optionnel pour des boutons actions (à droite) des infos (bas gauche) et boutons sorties
     def __init__(self, parent, dicOlv,*args, **kwds):
-        self.lanceur = dicOlv.pop('lanceur',None)
+        dicBandeau = dicOlv.pop('dicBandeau',None)
         self.lstBtns = kwds.pop('lstBtns',None)
         self.dicOnClick = kwds.pop('dicOnClick',None)
         if (not self.lstBtns) :
             #force la présence d'un pied d'écran par défaut
-            self.lstBtns = [('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/100x30/Bouton_ok.png", wx.BITMAP_TYPE_ANY),
-                           "Cliquez ici pour fermer la fenêtre")]
+            self.lstBtns =  [('BtnPrec', wx.ID_CANCEL, wx.ArtProvider.GetBitmap(wx.ART_DELETE, wx.ART_OTHER, (32, 32)),
+                "Abandon, Cliquez ici pour retourner à l'écran précédent"),
+               ('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/32x32/Valider.png", wx.BITMAP_TYPE_ANY),
+                "Cliquez ici pour Choisir l'item sélectionné")
+               ]
 
         wx.Panel.__init__(self, parent, *args,  **kwds)
         #ci dessous l'ensemble des autres paramètres possibles pour OLV
+        if dicBandeau:
+            self.bandeau = xbandeau.Bandeau(self,**dicBandeau)
+        else:self.bandeau = None
         lstParamsOlv = ['id',
                         'style',
                         'listeColonnes',
+                        'listeChamps',
+                        'colonneTri',
                         'getDonnees',
                         'msgIfEmpty',
                         'sensTri',
                         'exportExcel',
                         'exportTexte',
-                        'checkColonne',
                         'apercuAvantImpression',
                         'imprimer',
                         'titreImpression',
@@ -303,6 +317,7 @@ class PNL_tableau(wx.Panel):
         if 'recherche' in dicOlv: self.barreRecherche = dicOlv['recherche']
         else : self.barreRecherche = True
         self.parent = parent
+
         #récup des seules clés possibles pour dicOLV
         dicOlvOut = {}
         for key,valeur in dicOlv.items():
@@ -310,17 +325,20 @@ class PNL_tableau(wx.Panel):
                  dicOlvOut[key] = valeur
 
         self.ctrlOlv = ListView(self,**dicOlvOut)
-        self.barreRecherche = BarreRecherche(self, listview=self.ctrlOlv,)
+        self.barreRecherche = BarreRecherche(self, listview=self.ctrlOlv,texteDefaut=u"Saisir nom, prénom ou ville ...",
+                                             style=wx.TE_LEFT|wx.TE_PROCESS_ENTER)
+        self.barreRecherche.Bind(wx.EVT_CHAR,self.OnRechercheChar)
         self.ctrlOlv.MAJ()
         self.Sizer()
+        self.barreRecherche.SetFocus()
 
     def Sizer(self):
         #composition de l'écran selon les composants
         sizerbase = wx.BoxSizer(wx.VERTICAL)
-        sizerhaut = wx.BoxSizer(wx.HORIZONTAL)
-        sizerolv = wx.BoxSizer(wx.VERTICAL)
-        sizerolv.Add(self.ctrlOlv, 10, wx.EXPAND, 10)
-        sizerhaut.Add(sizerolv,10,wx.ALL|wx.EXPAND,3)
+        sizerhaut = wx.BoxSizer(wx.VERTICAL)
+        if self.bandeau:
+            sizerhaut.Add(self.bandeau,0,wx.ALL|wx.EXPAND,3)
+        sizerhaut.Add(self.ctrlOlv,10,wx.ALL|wx.EXPAND,3)
 
         sizerbase.Add(sizerhaut, 10, wx.EXPAND, 10)
         sizerbase.Add(wx.StaticLine(self), 0, wx.TOP| wx.EXPAND, 3)
@@ -366,8 +384,14 @@ class PNL_tableau(wx.Panel):
         if not self.ctrlOlv.GetSelectedObject():
             wx.MessageBox("Aucun choix n'a été fait\n\nIl vous faut sélectionner une ligne ou abandonner!")
             return
-        self.selection = self.ctrlOlv.GetSelectedObject()
         self.parent.Close()
+
+    def OnRechercheChar(self,evt):
+        if evt.GetKeyCode() in (wx.WXK_UP,wx.WXK_DOWN,wx.WXK_PAGEDOWN,wx.WXK_PAGEUP):
+            self.ctrlOlv.Filtrer(self.barreRecherche.GetValue())
+            self.ctrlOlv.SetFocus()
+            return
+        evt.Skip()
 
 class DLG_tableau(wx.Dialog):
     # minimum fonctionnel dans dialog tout est dans pnl
@@ -386,14 +410,14 @@ class DLG_tableau(wx.Dialog):
         self.Layout()
 
     def GetSelection(self):
-        return self.pnl.selection
+        return self.pnl.ctrlOlv.GetSelectedObject()
 
     def Close(self):
         self.EndModal(wx.OK)
 
 # -- pour tests -----------------------------------------------------------------------------------------------------
 
-def GetDonnees(filtre = ""):
+def GetDonnees(matrice,filtre = ""):
     donnees = [[18, "Bonjour", -1230.05939, -1230.05939, None, None],
                      [19, "Bonsoir", 57.5, 208.99, wx.DateTime.FromDMY(15, 11, 2018), '2019-03-29'],
                      [1, "Jonbour", 0, 209, wx.DateTime.FromDMY(6, 11, 2018), '2019-03-01'],
@@ -405,6 +429,7 @@ def GetDonnees(filtre = ""):
                      ]
     donneesFiltrees = [x for x in donnees if filtre.upper() in x[1].upper() ]
     return donneesFiltrees
+
 liste_Colonnes = [
     ColumnDefn("clé", 'left', 10, "cle",valueSetter=1,isSpaceFilling = True,),
     ColumnDefn("mot d'ici", 'left', 200, "mot",valueSetter='',isEditable=False),
@@ -428,15 +453,12 @@ dicOlv = {'listeColonnes':liste_Colonnes,
 if __name__ == '__main__':
     app = wx.App(0)
     os.chdir("..")
-    lstBtns = [('BtnPrec', wx.ID_CANCEL, wx.ArtProvider.GetBitmap(wx.ART_DELETE, wx.ART_OTHER, (32, 32)),
-                "Abandon, Cliquez ici pour retourner à l'écran précédent"),
-               ('BtnOK', wx.ID_OK, wx.Bitmap("xpy/Images/32x32/Valider.png", wx.BITMAP_TYPE_ANY),
-                "Cliquez ici pour Choisir l'item sélectionné")
-               ]
-    # un param par info: texte ou objet window.  Les infos sont  placées en bas à gauche
-
-    exempleframe = DLG_tableau(None,dicOlv=dicOlv,lstBtns= lstBtns)
+    dicBandeau = {'titre':"MON TITRE", 'texte':"mon introduction", 'hauteur':15, 'nomImage':"xpy/Images/32x32/Matth.png"}
+    dicOlv['dicBandeau'] = dicBandeau
+    exempleframe = DLG_tableau(None,dicOlv=dicOlv,lstBtns= None)
     app.SetTopWindow(exempleframe)
     ret = exempleframe.ShowModal()
-    print(exempleframe.GetSelection().donnees)
+    if exempleframe.GetSelection():
+        print(exempleframe.GetSelection().donnees)
+    else: print(None)
     app.MainLoop()

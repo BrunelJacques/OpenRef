@@ -10,6 +10,7 @@
 
 import wx
 import os
+import sys
 import xpy.outils.xformat
 from xpy.outils.ObjectListView import FastObjectListView, ColumnDefn, Filter, Footer, CTRL_Outils, OLVEvent,CellEditor
 from xpy.outils.xconst import *
@@ -509,10 +510,9 @@ class PanelListView(wx.Panel):
         if not "id" in kwargs: kwargs["id"] = wx.ID_ANY
         if not "style" in kwargs: kwargs["style"] = wx.LC_REPORT|wx.NO_BORDER|wx.LC_HRULES|wx.LC_VRULES
         kwargs["pnlfooter"]=self
-        listview = ListView(self,**kwargs)
 
         self.buffertracks = None
-        self.ctrl_listview = listview
+        self.ctrl_listview = ListView(self,**kwargs)
         self.ctrl_footer = None
         self.SetFooter(reinit=False)
         self.ctrl_listview.Bind(wx.EVT_CHAR,self.OnChar)
@@ -596,11 +596,15 @@ class PanelListView(wx.Panel):
         return
 
     # Handlers niveau cell Editor
-    def OnEditorFunctionKeys(self,eventObj,codeKey):
+    def OnEditorFunctionKeys(self,event):
         # Fonction appelée par CellEditor.Validator lors de l'activation d'une touche de fonction
         if self.ctrl_listview.cellBeingEdited:
-            row, col = self.ctrl_listview.cellBeingEdited
-            wx.MessageBox(u"Touche <F%d> pressée sur cell (%d,%d)"%(codeKey - wx.WXK_F1 + 1,row,col))
+            try:
+                self.parent.OnEditorFuctionKeys(event)
+            except:
+                row, col = self.ctrl_listview.cellBeingEdited
+                wx.MessageBox(u"Touche <F%d> pressée sur cell (%d,%d)\n\n'error: %s'"%(event.GetKeyCode() - wx.WXK_F1 + 1,
+                                                                                       row,col, sys.exc_info()[0]))
 
     def OnEditFinishing(self, event):
         # gestion des actions de sortie
@@ -609,8 +613,10 @@ class PanelListView(wx.Panel):
         new_data = self.ctrl_listview.cellEditor.GetValue()
         code = self.ctrl_listview.lstCodesColonnes[col]
         try:
-            exec("self.On_%s(new_data)"%code)
-        except: pass
+            exec("self.parent.On_%s(new_data)"%code)
+        except:
+            print(sys.exc_info()[0])
+            pass
         track.__setattr__(code, new_data)
         track.donnees[col] = new_data
         event.Skip()
@@ -675,7 +681,7 @@ class PNL_corps(wx.Panel):
                         'titreImpression',
                         'orientationImpression',
                         'dictColFooter']
-        self.avecFooter = "dictColFooter" in dicOlv
+        self.avecFooter = ("dictColFooter" in dicOlv)
         if not self.avecFooter : lstParamsOlv.remove('dictColFooter')
         if 'recherche' in dicOlv: self.barreRecherche = dicOlv['recherche']
         else : self.barreRecherche = True
@@ -687,14 +693,8 @@ class PNL_corps(wx.Panel):
                  dicOlvOut[key] = valeur
 
         # choix footer ou pas
-        pnlOlv = PanelListView(self,**dicOlvOut)
-        if self.avecFooter:
-            self.ctrlOlv = pnlOlv.ctrl_listview
-            self.olv = pnlOlv
-        else:
-            self.ctrlOlv = ListView(self,**dicOlvOut)
-            self.olv = self.ctrlOlv
-            self.ctrlOlv.parent = self.ctrlOlv.Parent
+        self.olv = PanelListView(self,**dicOlvOut)
+        self.ctrlOlv = self.olv.ctrl_listview
         if self.barreRecherche:
             self.ctrloutils = CTRL_Outils(self, listview=self.ctrlOlv, afficherCocher=False)
         self.ctrlOlv.SetMinSize((largeur,hauteur))
@@ -890,10 +890,12 @@ if __name__ == '__main__':
               'largeur': 650,
               'checkColonne': False,
               'recherche': True,
-              'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
+              'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",}
+    """
               'dictColFooter': {"nombre": {"mode": "total", "alignement": wx.ALIGN_RIGHT},
                                 "mot": {"mode": "nombre", "alignement": wx.ALIGN_CENTER},}
               }
+    """
 
     # boutons de bas d'écran - infos: texte ou objet window.  Les infos sont  placées en bas à gauche
     lstBtns = [('BtnPrec',-1, wx.ArtProvider.GetBitmap(wx.ART_GO_BACK, wx.ART_OTHER, (42, 22)),"Cliquez ici pour retourner à l'écran précédent"),
