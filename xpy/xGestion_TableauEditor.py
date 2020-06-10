@@ -589,15 +589,20 @@ class PanelListView(wx.Panel):
         return
 
     # Handlers niveau cell Editor
-    def OnEditorFunctionKeys(self,event):
-        # Fonction appelée par CellEditor.Validator lors de l'activation d'une touche de fonction
-        if self.ctrl_listview.cellBeingEdited:
-            try:
-                self.parent.OnEditorFuctionKeys(event)
-            except:
-                row, col = self.ctrl_listview.cellBeingEdited
-                wx.MessageBox(u"Touche <F%d> pressée sur cell (%d,%d)\n\n'error: %s'"%(event.GetKeyCode() - wx.WXK_F1 + 1,
-                                                                                       row,col, sys.exc_info()[0]))
+    def OnEditStarted(self, event):
+        row, col = self.ctrl_listview.cellBeingEdited
+        code = self.ctrl_listview.lstCodesColonnes[col]
+        # appel des éventuels spécifiques
+        if hasattr(self.Parent, 'OnEditStarted'):
+            self.parent.OnEditStarted(code)
+        #except:
+        #print(sys.exc_info())
+        # stockage de la valeur initiale de la dernière cellule éditée
+        olv = self.ctrl_listview
+        row, col = olv.cellBeingEdited
+        track = olv.GetObjectAt(row)
+        track.old_data = track.donnees[col]
+        event.Skip()
 
     def OnEditFinishing(self, event):
         # gestion des actions de sortie
@@ -606,29 +611,22 @@ class PanelListView(wx.Panel):
         new_data = self.ctrl_listview.cellEditor.GetValue()
         code = self.ctrl_listview.lstCodesColonnes[col]
         # appel des éventuels spécifiques
-        try:
-            exec("self.parent.OnKl_%s(new_data)"%code)
-        except:
-            pass
+        if hasattr(self.Parent, 'OnEditFinishing'):
+            self.parent.OnEditFinishing(code,new_data)
         # stockage de la nouvelle saisie
         track.__setattr__(code, new_data)
         track.donnees[col] = new_data
         event.Skip()
 
-    def OnEditStarted(self, event):
-        row, col = self.ctrl_listview.cellBeingEdited
-        code = self.ctrl_listview.lstCodesColonnes[col]
-        # appel des éventuels spécifiques
-        try:
-            exec("self.parent.OnSt_%s()"%code)
-        except:
-            pass
-        # stockage de la valeur initiale de la dernière cellule éditée
-        olv = self.ctrl_listview
-        row, col = olv.cellBeingEdited
-        track = olv.GetObjectAt(row)
-        track.old_data = track.donnees[col]
-        event.Skip()
+    def OnEditFunctionKeys(self, event):
+        # Fonction appelée par CellEditor.Validator lors de l'activation d'une touche de fonction
+        if self.ctrl_listview.cellBeingEdited:
+            try:
+                self.parent.OnEditFunctionKeys(event)
+            except:
+                row, col = self.ctrl_listview.cellBeingEdited
+                wx.MessageBox(u"Touche <F%d> pressée sur cell (%d,%d)\n\n'error: %s'" % (event.GetKeyCode() - wx.WXK_F1 + 1,
+                                                                                         row, col, sys.exc_info()[0]))
 
 # ----------- Composition de l'écran -------------------------------------------------------
 class PNL_params(wx.Panel):
@@ -724,7 +722,7 @@ class PNL_Pied(wx.Panel):
         sizerpied = wx.BoxSizer(wx.HORIZONTAL)
         if self.lstInfos:
             sizerinfos = wx.StaticBoxSizer(wx.HORIZONTAL,self,label="")
-            self.itemsInfos = self.GetItemsInfos(self.lstInfos)
+            self.itemsInfos = self.CreateItemsInfos(self.lstInfos)
             sizerinfos.AddMany(self.itemsInfos)
             sizerpied.Add(sizerinfos,11,wx.BOTTOM|wx.LEFT|wx.EXPAND,3)
         else:
@@ -767,7 +765,7 @@ class PNL_Pied(wx.Panel):
                 lstWxBtns.append((Button(self,**btn),0,wx.ALL,5))
         return lstWxBtns
 
-    def GetItemsInfos(self,lstInfos):
+    def CreateItemsInfos(self,lstInfos):
         # seulement une image et un texte sont retenus
         self.infosImage = None
         self.infosTexte = None
@@ -777,6 +775,13 @@ class PNL_Pied(wx.Panel):
             elif isinstance(item,str):
                 self.infosTexte = wx.StaticText(self,wx.ID_ANY,item)
         return [self.infosImage,(7,7),self.infosTexte]
+
+    def SetItemsInfos(self,text=None,image=None,):
+        # après create  permet de modifier l'info du pied
+        if image:
+            self.infosImage.SetBitmap(image)
+        if text:
+            self.infosTexte.SetLabelText(text)
 
     def OnBoutonOK(self,event):
         self.parent.Close()
@@ -848,17 +853,20 @@ if __name__ == '__main__':
     """
 
     # boutons de bas d'écran - infos: texte ou objet window.  Les infos sont  placées en bas à gauche
-    lstBtns = [('BtnPrec',-1, wx.ArtProvider.GetBitmap(wx.ART_GO_BACK, wx.ART_OTHER, (42, 22)),"Cliquez ici pour retourner à l'écran précédent"),
+    lstBtns = [('BtnPrec',-1, wx.ArtProvider.GetBitmap(wx.ART_GO_BACK, wx.ART_OTHER, (42, 22)),"Cliquez ici pour test info"),
                ('BtnPrec2',-1, "Ecran\nprécédent", "Retour à l'écran précédent next"),
                ('BtnOK', -1, wx.Bitmap("xpy/Images/100x30/Bouton_fermer.png", wx.BITMAP_TYPE_ANY),"Cliquez ici pour fermer la fenêtre")
                ]
-    dicOnBtn = {'Action1': lambda evt: wx.MessageBox('ceci active la fonction action1'),
-                'Action2': 'self.parent.Validation()',
-                'BtnPrec': 'self.parent.Close()'}
-    # l'info se compmose d'une imgae et d'un texte
     lstInfos = [wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)),
                 "Autre\nInfo"]
-    dicPied = {'lstBtns': lstBtns, 'dicOnBtn': dicOnBtn, "lstInfos": lstInfos}
+
+    def modifLstInfos(self):
+        self.SetItemsInfos('C est nouveau',wx.ArtProvider.GetBitmap(wx.ART_FIND, wx.ART_OTHER, (16, 16)))
+        self.Refresh()
+        return
+    dicOnClick = {'BtnPrec': lambda evt: modifLstInfos(evt.EventObject.Parent)}
+    # l'info se compmose d'une imgae et d'un texte
+    dicPied = {'lstBtns': lstBtns, 'dicOnClick': dicOnClick, "lstInfos": lstInfos}
 
     # cadre des paramètres
     import datetime

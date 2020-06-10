@@ -145,9 +145,9 @@ def FmtDate(date):
 
 def FmtCheck(value):
     if value == False:
-        return '-'
+        return 'N'
     if value == True:
-        return 'X'
+        return 'O'
     return ''
 
 def FmtMontant(montant):

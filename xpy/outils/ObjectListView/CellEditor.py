@@ -130,10 +130,10 @@ def EscapeAction(event):
 def FunctionKeys(event):
     olv = event.EventObject.Parent
     row, col = olv.cellBeingEdited
-    if hasattr(event.EventObject.GrandParent, 'OnEditorFunctionKeys'):
+    if hasattr(event.EventObject.GrandParent, 'OnEditFunctionKeys'):
         olv.FinishCellEdit()
         olv.cellBeingEdited = (row, col)
-        event.EventObject.GrandParent.OnEditorFunctionKeys(event)
+        event.EventObject.GrandParent.OnEditFunctionKeys(event)
         EnterAction(event, finish=False)
     else:
         wx.MessageBox(u"Touches de fonctions non implémentées")
@@ -340,8 +340,9 @@ class ChoiceEditor(wx.Choice):
     # doit être géré à l'entrée de la cellule par SetItems Personnalisé
     def __init__(self,olv,row,col, **kwargs):
         if col in olv.dicChoices.keys():
-                kwargs['choices']=olv.dicChoices[col]
+            kwargs['choices']=olv.dicChoices[col]
         wx.Choice.__init__(self,olv, **kwargs)
+        self.SetSelection(0)
         olv.editor = {col:self}
         self.Bind(wx.EVT_CHAR_HOOK, self._OnChar)
 
