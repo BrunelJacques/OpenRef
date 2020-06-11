@@ -123,7 +123,8 @@ def EscapeAction(event):
     if hasattr(event.EventObject.GrandParent, 'OnEditStarted'):
         row, col = olv.cellBeingEdited
         track = olv.GetObjectAt(row)
-        event.EventObject.SetValue(track.old_data)
+        if track.old_data:
+            event.EventObject.SetValue(track.old_data)
     olv.FinishCellEdit()
     return
 
@@ -134,7 +135,8 @@ def FunctionKeys(event):
         olv.FinishCellEdit()
         olv.cellBeingEdited = (row, col)
         event.EventObject.GrandParent.OnEditFunctionKeys(event)
-        EnterAction(event, finish=False)
+        olv._PossibleStartCellEdit(row, col)
+        #EnterAction(event, finish=False)
     else:
         wx.MessageBox(u"Touches de fonctions non implémentées")
     event.Skip()

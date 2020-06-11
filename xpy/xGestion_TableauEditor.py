@@ -623,6 +623,7 @@ class PanelListView(wx.Panel):
         if self.ctrl_listview.cellBeingEdited:
             try:
                 self.parent.OnEditFunctionKeys(event)
+                event.Skip()
             except:
                 row, col = self.ctrl_listview.cellBeingEdited
                 wx.MessageBox(u"Touche <F%d> pressée sur cell (%d,%d)\n\n'error: %s'" % (event.GetKeyCode() - wx.WXK_F1 + 1,

@@ -36,14 +36,18 @@ def LettreSuivante(lettre=''):
     return new
 
 class CTRL_Solde(wx.Panel):
-    def __init__(self, parent):
-        wx.Panel.__init__(self, parent, id=-1, name="panel_solde", style=wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL,
-                          size=(100, 40))
+    def __init__(self, parent,**kwds):
+        if not kwds:
+            kwds = {'name':"panel_solde", 'style':wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL,'size':(100, 40)}
+            sizeFont = 11
+        else:
+            sizeFont = kwds.pop('sizeFont',11)
+        wx.Panel.__init__(self, parent, id=-1, **kwds)
         self.parent = parent
 
-        # Solde du compte
+        # Solde
         self.ctrl_solde = wx.StaticText(self, -1, u"0.00 ")
-        font = wx.Font(11, wx.SWISS, wx.NORMAL, wx.BOLD)
+        font = wx.Font(sizeFont, wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL,False)
         self.ctrl_solde.SetFont(font)
 
         # Layout
@@ -53,7 +57,6 @@ class CTRL_Solde(wx.Panel):
         grid_sizer_base.Fit(self)
         grid_sizer_base.AddGrowableCol(0)
         grid_sizer_base.AddGrowableRow(0)
-        # self.SetToolTip(u"Solde")
         self.ctrl_solde.SetToolTip(u"Solde")
 
     def SetSolde(self, montant=0.0):
@@ -80,6 +83,119 @@ class Track(object):
             else:
                 commande = "self.%s = donnees[ix]"%(champ)
             exec(commande)
+
+class DialogVentile(wx.Dialog):
+    def __init__(self, parent,LargeurCode=80,LargeurLib=100,minSize=(650, 350),
+                 listeOriginale=[("Choix1","Texte1",125.54),("Choix2","Texte2",),],
+                 columnSort=1,
+                 titre=u"Faites un choix !",
+                 intro=u"Double Clic sur la ou les réponses souhaitées...",
+                 imageBandeau = "xpy/Images/32x32/Python.png"):
+        wx.Dialog.__init__(self, parent, -1, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER|wx.MAXIMIZE_BOX|wx.MINIMIZE_BOX)
+
+        self.SetTitle("xchoixListe.DialogVentile")
+        self.columnSort = columnSort
+        self.choix= None
+        self.parent = parent
+        self.minSize = minSize
+        self.wCode = LargeurCode
+        self.wLib = LargeurLib
+        self.liste = []
+        self.nbColonnes=0
+        for item in listeOriginale :
+            if isinstance(item,(list,tuple)):
+                self.nbColonnes = len(item)
+            else:
+                self.nbColonnes = 1
+                item = (str(item),)
+            self.liste.append(item)
+
+        # Bandeau
+        self.ctrl_bandeau = xbd.Bandeau(self, titre=titre, texte=intro,  hauteur=15, nomImage=imageBandeau)
+        # conteneur des données
+        self.listview = FastObjectListView(self)
+        # Boutons
+        self.bouton_ok = wx.Button(self, label=u"Valider" )
+        self.bouton_ok.SetBitmap(wx.Bitmap("xpy/Images/32x32/Valider.png"))
+        self.bouton_fermer = wx.Button(self, label=u"Annuler")
+        self.bouton_fermer.SetBitmap(wx.Bitmap("xpy/Images/32x32/Annuler.png"))
+
+        self.__set_properties()
+        self.__do_layout()
+        # Binds
+        self.Bind(wx.EVT_BUTTON, self.OnClicOk, self.bouton_ok)
+        self.Bind(wx.EVT_BUTTON, self.OnClicFermer, self.bouton_fermer)
+        self.listview.Bind(wx.EVT_LIST_ITEM_ACTIVATED,self.OnDblClic)
+
+    def __set_properties(self):
+        self.SetMinSize(self.minSize)
+        self.bouton_fermer.SetToolTip(u"Cliquez ici pour fermer")
+        self.listview.SetToolTip(u"Double Cliquez pour choisir")
+        # Couleur en alternance des lignes
+        self.listview.oddRowsBackColor = "#F0FBED"
+        self.listview.evenRowsBackColor = wx.Colour(255, 255, 255)
+        self.listview.useExpansionColumn = True
+
+        if self.nbColonnes >1:
+            filCode = False
+        else: filCode = True
+        lstColumns = [
+            ColumnDefn("Code", "left", 0, 0),
+            ColumnDefn("Code", "left", self.wCode, 0,isSpaceFilling=filCode),]
+        if self.nbColonnes >1:
+            texte = "Libelle (non modifiables)"
+            for ix in range(1,self.nbColonnes):
+                lstColumns.append(ColumnDefn(texte, "left", self.wLib, ix, isSpaceFilling=True))
+                texte = "-"
+
+        self.listview.SetColumns(lstColumns)
+        self.listview.SetSortColumn(self.columnSort)
+        self.listview.CreateCheckStateColumn(0)
+        self.listview.SetObjects(self.liste)
+
+    def __do_layout(self):
+        gridsizer_base = wx.FlexGridSizer(rows=6, cols=1, vgap=0, hgap=0)
+
+        gridsizer_base.Add(self.ctrl_bandeau, 1, wx.EXPAND, 0)
+        gridsizer_base.Add(self.listview, 5, wx.LEFT|wx.RIGHT|wx.EXPAND, 0)
+        gridsizer_base.Add((5, 5), 0, wx.LEFT|wx.RIGHT|wx.EXPAND, 0)
+
+        # Boutons
+        gridsizer_boutons = wx.FlexGridSizer(rows=1, cols=3, vgap=0, hgap=0)
+        gridsizer_boutons.Add((20, 20), 1, wx.ALIGN_BOTTOM, 0)
+        gridsizer_boutons.Add(self.bouton_ok, 1, wx.EXPAND, 0)
+        gridsizer_boutons.Add(self.bouton_fermer, 1, wx.EXPAND, 0)
+        gridsizer_boutons.AddGrowableCol(0)
+        gridsizer_base.Add(gridsizer_boutons, 1, wx.RIGHT|wx.BOTTOM|wx.EXPAND, 10)
+        self.SetSizer(gridsizer_base)
+        gridsizer_base.Fit(self)
+        gridsizer_base.AddGrowableRow(1)
+        gridsizer_base.AddGrowableCol(0)
+        self.Layout()
+        self.CenterOnScreen()
+
+    def OnClicFermer(self, event):
+        self.choix = []
+        self.EndModal(wx.ID_CANCEL)
+
+    def OnClicOk(self, event):
+        self.choix = self.listview.GetCheckedObjects()
+        if len(self.choix) == 0:
+            dlg = wx.MessageDialog(self, u"Pas de sélection faite !\nIl faut choisir ou cliquer sur annuler", u"Accord Impossible", wx.OK | wx.ICON_EXCLAMATION)
+            dlg.ShowModal()
+            dlg.Destroy()
+        else:
+            if self.nbColonnes == 1:
+                self.choix = [x[0] for x in self.choix]
+            self.EndModal(wx.ID_OK)
+
+    def OnDblClic(self, event):
+        state = self.listview.GetCheckState(self.listview.GetSelectedObject())
+        if state :
+            state = False
+        else : state = True
+        self.listview.SetCheckState(self.listview.GetSelectedObject(),state)
+        self.listview.Refresh()
 
 class DialogLettrage(wx.Dialog):
     # Gestion d'un lettrage à partir de deux dictionnaires, mots clés des champs : montant en dernière position
@@ -625,20 +741,20 @@ if __name__ == u"__main__":
     import os
     os.chdir("..")
     os.chdir("..")
-    """dialog_3 = DialogLettrage(None,{12456:[u"choïx 1",15]},[u"libellé1",u"Montant"],{6545:[u"éssai",50,25]},[u"libellé2",u"libellé1","montant"],[(12456,None),])
-    app.SetTopWindow(dialog_3)
-    print(dialog_3.ShowModal())
-    print(dialog_3.choix)
-    del dialog_3"""
+
     dialog_1 = DialogAffiche()
     app.SetTopWindow(dialog_1)
-    print(dialog_1.ShowModal())
-    print(dialog_1.GetChoix())
-    del dialog_1
-    """dialog_2 = DialogCoches(None,listeOriginale=["choix1","text1","suite1","choix2","text2","suite2"])
+
+    dialog_2 = DialogCoches(None,listeOriginale=["choix1","text1","suite1","choix2","text2","suite2"])
     app.SetTopWindow(dialog_2)
-    print(dialog_2.ShowModal())
-    print(dialog_2.choix)
-    del dialog_2"""
+
+    dialog_3 = DialogLettrage(None,{12456:[u"choïx 1",15]},[u"libellé1",u"Montant"],{6545:[u"éssai",50,25]},[u"libellé2",u"libellé1","montant"],[(12456,None),])
+    app.SetTopWindow(dialog_3)
+
+    dialog_4 = DialogVentile(None)
+    app.SetTopWindow(dialog_3)
+
+    print(dialog_4.ShowModal())
+    print(dialog_4.choix)
     app.MainLoop()
 

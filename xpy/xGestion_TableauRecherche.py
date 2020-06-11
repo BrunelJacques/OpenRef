@@ -325,7 +325,7 @@ class PNL_tableau(wx.Panel):
                  dicOlvOut[key] = valeur
 
         self.ctrlOlv = ListView(self,**dicOlvOut)
-        self.barreRecherche = BarreRecherche(self, listview=self.ctrlOlv,texteDefaut=u"Saisir nom, prénom ou ville ...",
+        self.barreRecherche = BarreRecherche(self, listview=self.ctrlOlv,texteDefaut=u"Saisir une partie de mot à rechercher ...",
                                              style=wx.TE_LEFT|wx.TE_PROCESS_ENTER)
         self.barreRecherche.Bind(wx.EVT_CHAR,self.OnRechercheChar)
         self.ctrlOlv.MAJ()

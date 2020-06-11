@@ -43,28 +43,30 @@ def GetBoutons(dlg):
 def GetOlvColonnes(dlg):
     # retourne la liste des colonnes de l'écran principal
     return [
-            ColumnDefn("ID", 'centre', 0, 'IDregl',isEditable=False),
+            ColumnDefn("ID", 'centre', 0, 'IDregl',
+                            isEditable=False),
             ColumnDefn("date", 'center', 80, 'dateregl', valueSetter=wx.DateTime.Today(),isSpaceFilling=False,
-                                stringConverter=xformat.FmtDate),
+                            stringConverter=xformat.FmtDate),
             ColumnDefn("famille", 'centre', 50, 'IDfamille', valueSetter=0,isSpaceFilling=False,
-                                stringConverter=xformat.FmtIntNoSpce),
+                            stringConverter=xformat.FmtIntNoSpce),
             ColumnDefn("désignation famille", 'left', 180, 'designation',valueSetter='',isSpaceFilling=True,
                             isEditable=False),
             ColumnDefn("émetteur", 'left', 80, "emetteur", valueSetter='', isSpaceFilling=True,
-                                cellEditorCreator=CellEditor.ComboEditor),
+                            cellEditorCreator=CellEditor.ComboEditor),
             ColumnDefn("mode", 'centre', 50, 'mode', valueSetter='',choices=['VRT virement', 'CHQ chèque',
                                                     'ESP espèces'], isSpaceFilling=False,
-                       cellEditorCreator=CellEditor.ChoiceEditor),
+                            cellEditorCreator=CellEditor.ChoiceEditor),
             ColumnDefn("n°ref", 'left', 50, 'numero', isSpaceFilling=False),
             ColumnDefn("nat", 'centre', 50, 'nature',valueSetter='Règlement',choices=['Règlement','Acompte','Don','Debour','Ne pas créer'], isSpaceFilling=False,
-                                cellEditorCreator=CellEditor.ChoiceEditor),
-            ColumnDefn("IDart", 'centre', 40, 'IDarticle'),
+                            cellEditorCreator=CellEditor.ChoiceEditor),
+            ColumnDefn("article", 'left', 50, 'article', isSpaceFilling=False,
+                            isEditable=False),
             ColumnDefn("libelle", 'left', 200, 'libelle', valueSetter='à saisir', isSpaceFilling=True),
             ColumnDefn("montant", 'right',70, "montant", isSpaceFilling=False, valueSetter=0.0,
-                               stringConverter=xformat.FmtDecimal),
+                            stringConverter=xformat.FmtDecimal),
             ColumnDefn("créer", 'centre', 38, 'creer', valueSetter=True,
-                                isEditable=False,
-                                stringConverter=xformat.FmtCheck),
+                            isEditable=False,
+                            stringConverter=xformat.FmtCheck),
             ColumnDefn("differé", 'center', 80, 'differe', valueSetter=wx.DateTime.Today(), isSpaceFilling=False,
                    stringConverter=xformat.FmtDate,),
             ]
@@ -158,8 +160,8 @@ class PNL_corpsReglements(xgte.PNL_corps):
     #panel olv avec habillage optionnel pour des boutons actions (à droite) des infos (bas gauche) et boutons sorties
     def __init__(self, parent, dicOlv,*args, **kwds):
         xgte.PNL_corps.__init__(self,parent,dicOlv,*args,**kwds)
-        self.matriceFamilles = nur.GetMatriceFamilles()
         self.ctrlOlv.Choices={}
+        self.flagSkipEdit = False
 
     def OnEditStarted(self,code):
         if code in DIC_INFOS.keys():
@@ -170,10 +172,13 @@ class PNL_corpsReglements(xgte.PNL_corps):
 
     def OnEditFinishing(self,code=None,value=None):
         self.parent.pnlPied.SetItemsInfos( "-",wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
+        if self.flagSkipEdit : return
+        self.flagSkipEdit = True
         if code == 'IDfamille':
             try:
                 value = int(value)
             except:
+                self.flagSkipEdit = False
                 return
             designation = nur.GetDesignationFamille(value)
             self.ctrlOlv.lastGetObject.designation = designation
@@ -183,18 +188,32 @@ class PNL_corpsReglements(xgte.PNL_corps):
             self.ctrlOlv.lastGetObject.emetteur = payeur
             self.ctrlOlv.dicChoices[self.ctrlOlv.lstCodesColonnes.index('emetteur')]=payeurs
         if code == 'nature':
-            if value in ('Don','Debour') :
+            if value.lower() in ('don','debour') :
+                # Seuls les dons et débours vont générer la prestation selon l'article
                 self.ctrlOlv.lastGetObject.creer = True
-            else: self.ctrlOlv.lastGetObject.creer = False
+                # Choix article - code comptable
+                obj = nur.Article(value)
+                compte = obj.GetArticle()
+                self.ctrlOlv.lastGetObject.article = compte
+            else:
+                self.ctrlOlv.lastGetObject.article = ""
+                self.ctrlOlv.lastGetObject.creer = False
+            if code == 'montant':
+                if self.ctrlOlv.lastGetObject.nature in ('Règlement','Ne pas créer'):
+                    # appel des ventilations
+                    obj = nur.Ventilation(value)
+                    self.ctrlOlv.lastGetObject.ventilation = obj.GetVentilation()
 
+        # enlève l'info de bas d'écran
         self.parent.pnlPied.SetItemsInfos( "-",wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
-
+        self.flagSkipEdit = False
 
     def OnEditFunctionKeys(self,event):
         row, col = self.ctrlOlv.cellBeingEdited
-        if event.GetKeyCode() == wx.WXK_F4 and col == 2:
+        code = self.ctrlOlv.lstCodesColonnes[col]
+        if event.GetKeyCode() == wx.WXK_F4 and code == 'IDfamille':
             # Choix famille
-            (IDfamille,designation) = nur.GetFamille(self.matriceFamilles)
+            IDfamille = nur.GetFamille()
             self.OnEditFinishing('IDfamille',IDfamille)
             self.ctrlOlv.lastGetObject.IDfamille = IDfamille
 
