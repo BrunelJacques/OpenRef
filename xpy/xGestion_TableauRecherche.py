@@ -14,6 +14,28 @@ from xpy.outils.xconst import *
 
 # ------------------------------------------------------------------------------------------------------------------
 
+class TrackGeneral(object):
+    #    Cette classe va transformer une ligne en objet selon les listes de colonnes et valeurs par défaut(setter)
+    def __init__(self, donnees,codesColonnes, nomsColonnes, setterValues):
+        self.donnees = donnees
+        if not(len(donnees) == len(codesColonnes)== len(nomsColonnes) == len(setterValues)):
+            wx.MessageBox("Problème de nombre d'occurences!\n%d donnees, %d codes, %d colonnes et %d valeurs défaut"
+                          %(len(donnees), len(codesColonnes), len(nomsColonnes), len(setterValues)))
+        for ix in range(len(donnees)):
+            donnee = donnees[ix]
+            if setterValues[ix]:
+                if (donnee is None):
+                    donnee = setterValues[ix]
+                else:
+                    if not isinstance(donnee,type(setterValues[ix])):
+                        try:
+                            if type(setterValues[ix]) in (int,float):
+                                donnee = float(donnee)
+                            elif type(setterValues[ix]) == str:
+                                donnee = str(donnee)
+                        except : pass
+            self.__setattr__(codesColonnes[ix], donnee)
+
 class ListView(FastObjectListView):
     """
     Lors de l'instanciation de cette classe vous pouvez y passer plusieurs parametres :
@@ -46,6 +68,7 @@ class ListView(FastObjectListView):
 
     def __init__(self, *args, **kwds):
         self.filtre = ""
+        style = kwds.pop("style", wx.LC_SINGLE_SEL)
         self.listeColonnes = kwds.pop("listeColonnes", [])
         lstChamps = kwds.pop("listeChamps", [])
         self.msgIfEmpty = kwds.pop("msgIfEmpty", "Tableau vide")
@@ -76,10 +99,9 @@ class ListView(FastObjectListView):
         self.popupIndex = -1
 
         # Initialisation du listCtrl
-        FastObjectListView.__init__(self, *args,**kwds)
-        self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
-        self.Bind(wx.EVT_LEFT_DCLICK, self.Parent.OnBoutonOK)
-        self.Bind(wx.EVT_COMMAND_ENTER, self.Parent.OnBoutonOK)
+        FastObjectListView.__init__(self, *args,style=style,**kwds)
+        self.InitObjectListView()
+        self.MAJ()
 
     def Filtrer(self, texteRecherche=''):
         # Filtre barre de recherche
@@ -139,7 +161,7 @@ class ListView(FastObjectListView):
         self.oddRowsBackColor = "#F0FBED"
         self.evenRowsBackColor = wx.Colour(255, 255, 255)
         self.useExpansionColumn = True
-        # On définit les colonnes
+        # On définit les colonnes0
         self.SetColumns(self.listeColonnes)
         # On définit le message en cas de tableau vide
         self.SetEmptyListMsg(self.msgIfEmpty)
@@ -150,11 +172,10 @@ class ListView(FastObjectListView):
                 self.SortBy(1, self.sensTri)
             else:
                 self.SortBy(self.colonneTri, self.sensTri)
-        self.InitModel()
 
     def MAJ(self, ID=None):
         self.selectionID = ID
-        self.InitObjectListView()
+        self.InitModel()
         # Rappel de la sélection d'un item
         if self.selectionID != None and len(self.innerList) > 0:
             self.SelectObject(self.innerList[ID], deselectOthers=True, ensureVisible=True)
@@ -256,34 +277,15 @@ class ListView(FastObjectListView):
         import xpy.outils.xexport
         xpy.outils.xexport.ExportExcel(self, titre=self.titreImpression, autoriseSelections=False)
 
-class TrackGeneral(object):
-    #    Cette classe va transformer une ligne en objet selon les listes de colonnes et valeurs par défaut(setter)
-    def __init__(self, donnees,codesColonnes, nomsColonnes, setterValues):
-        self.donnees = donnees
-        if not(len(donnees) == len(codesColonnes)== len(nomsColonnes) == len(setterValues)):
-            wx.MessageBox("Problème de nombre d'occurences!\n%d donnees, %d codes, %d colonnes et %d valeurs défaut"
-                          %(len(donnees), len(codesColonnes), len(nomsColonnes), len(setterValues)))
-        for ix in range(len(donnees)):
-            donnee = donnees[ix]
-            if setterValues[ix]:
-                if (donnee is None):
-                    donnee = setterValues[ix]
-                else:
-                    if not isinstance(donnee,type(setterValues[ix])):
-                        try:
-                            if type(setterValues[ix]) in (int,float):
-                                donnee = float(donnee)
-                            elif type(setterValues[ix]) == str:
-                                donnee = str(donnee)
-                        except : pass
-            self.__setattr__(codesColonnes[ix], donnee)
-
 # ------------------------------------------------------------------------------------------------------------------
 
 class PNL_tableau(wx.Panel):
-    #panel olv avec habillage optionnel pour des boutons actions (à droite) des infos (bas gauche) et boutons sorties
+    #panel olv avec habillage optionnel pour des infos (bas gauche) et boutons sorties
     def __init__(self, parent, dicOlv,*args, **kwds):
+        self.parent = parent
+
         dicBandeau = dicOlv.pop('dicBandeau',None)
+        autoSizer = dicOlv.pop('autoSizer',True)
         self.lstBtns = kwds.pop('lstBtns',None)
         self.dicOnClick = kwds.pop('dicOnClick',None)
         if (not self.lstBtns) :
@@ -299,6 +301,13 @@ class PNL_tableau(wx.Panel):
         if dicBandeau:
             self.bandeau = xbandeau.Bandeau(self,**dicBandeau)
         else:self.bandeau = None
+
+        if 'recherche' in dicOlv:
+            self.avecRecherche = dicOlv['recherche']
+        else : self.avecRecherche = True
+
+
+        #récup des seules clés possibles pour dicOLV
         lstParamsOlv = ['id',
                         'style',
                         'listeColonnes',
@@ -313,24 +322,27 @@ class PNL_tableau(wx.Panel):
                         'imprimer',
                         'titreImpression',
                         'orientationImpression',
+                        'cellEditMode',
                         ]
-        if 'recherche' in dicOlv: self.barreRecherche = dicOlv['recherche']
-        else : self.barreRecherche = True
-        self.parent = parent
-
-        #récup des seules clés possibles pour dicOLV
         dicOlvOut = {}
         for key,valeur in dicOlv.items():
             if key in lstParamsOlv:
                  dicOlvOut[key] = valeur
 
         self.ctrlOlv = ListView(self,**dicOlvOut)
-        self.barreRecherche = BarreRecherche(self, listview=self.ctrlOlv,texteDefaut=u"Saisir une partie de mot à rechercher ...",
-                                             style=wx.TE_LEFT|wx.TE_PROCESS_ENTER)
-        self.barreRecherche.Bind(wx.EVT_CHAR,self.OnRechercheChar)
-        self.ctrlOlv.MAJ()
-        self.Sizer()
-        self.barreRecherche.SetFocus()
+
+        if self.avecRecherche:
+            self.barreRecherche = BarreRecherche(self, listview=self.ctrlOlv,texteDefaut=u"Saisir une partie de mot à rechercher ...",
+                                                 style=wx.TE_LEFT|wx.TE_PROCESS_ENTER)
+            self.barreRecherche.Bind(wx.EVT_CHAR,self.OnRechercheChar)
+
+
+        # Le pnlPied est un spécifique alimenté par les descendants
+        self.pnlPied = (200,10)
+        # Sizer différé pour les descendants avec spécificités modifiant le panel
+        if autoSizer:
+            self.ProprietesOlv()
+            self.Sizer()
 
     def Sizer(self):
         #composition de l'écran selon les composants
@@ -342,14 +354,25 @@ class PNL_tableau(wx.Panel):
 
         sizerbase.Add(sizerhaut, 10, wx.EXPAND, 10)
         sizerbase.Add(wx.StaticLine(self), 0, wx.TOP| wx.EXPAND, 3)
-        sizerpied = wx.BoxSizer(wx.HORIZONTAL)
-        sizerpied.Add(self.barreRecherche, 1, wx.EXPAND|wx.ALIGN_CENTRE_VERTICAL|wx.ALL, 10)
-        sizerpied.Add((300,10),0,wx.BOTTOM|wx.LEFT|wx.EXPAND,3)
+        sizerpied = wx.FlexGridSizer(rows=1, cols=10, vgap=0, hgap=0)
+        if self.avecRecherche:
+            sizerpied.Add(self.barreRecherche, 10, wx.EXPAND|wx.ALIGN_CENTRE_VERTICAL|wx.ALL, 10)
+
+        sizerpied.Add(self.pnlPied, 20, wx.EXPAND|wx.ALIGN_LEFT, 0)
+
         if self.lstBtns:
             self.itemsBtns = self.GetItemsBtn(self.lstBtns)
             sizerpied.AddMany(self.itemsBtns)
+        sizerpied.AddGrowableCol(0)
         sizerbase.Add(sizerpied,0,wx.EXPAND,5)
         self.SetSizerAndFit(sizerbase)
+        if self.avecRecherche:
+            self.barreRecherche.SetFocus()
+
+    def ProprietesOlv(self):
+        self.ctrlOlv.Bind(wx.EVT_CONTEXT_MENU, self.ctrlOlv.OnContextMenu)
+        self.ctrlOlv.Bind(wx.EVT_LEFT_DCLICK, self.OnBoutonOK)
+        self.ctrlOlv.Bind(wx.EVT_COMMAND_ENTER, self.OnBoutonOK)
 
     def GetItemsBtn(self,lstBtns):
         # décompactage des paramètres de type bouton
@@ -399,15 +422,16 @@ class DLG_tableau(wx.Dialog):
         self.parent = parent
         largeur = dicOlv.pop("largeur", 800)
         hauteur = dicOlv.pop("hauteur", 700)
+        pnlTableau = dicOlv.pop("pnlTableau",PNL_tableau )
         listArbo=os.path.abspath(__file__).split("\\")
         titre = listArbo[-1:][0] + "/" + self.__class__.__name__
         wx.Dialog.__init__(self,None, title=titre, size=(largeur,hauteur),style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
         self.SetBackgroundColour(wx.WHITE)
         self.marge = 10
-        self.pnl = PNL_tableau(self, dicOlv,  **kwds )
+        self.pnl = pnlTableau(self, dicOlv,  **kwds )
         self.ctrlOlv = self.pnl.ctrlOlv
         self.CenterOnScreen()
-        self.Layout()
+        #self.Layout()
 
     def GetSelection(self):
         return self.pnl.ctrlOlv.GetSelectedObject()
@@ -432,7 +456,7 @@ def GetDonnees(matrice,filtre = ""):
 
 liste_Colonnes = [
     ColumnDefn("clé", 'left', 10, "cle",valueSetter=1,isSpaceFilling = True,),
-    ColumnDefn("mot d'ici", 'left', 200, "mot",valueSetter='',isEditable=False),
+    ColumnDefn("mot d'ici", 'left', 200, "mot",valueSetter=''),
     ColumnDefn("nbre", 'right', -1, "nombre",isSpaceFilling = True, valueSetter=0.0, stringConverter=xpy.outils.xformat.FmtDecimal),
     ColumnDefn("prix", 'left', 80, "prix",valueSetter=0.0,isSpaceFilling = True, stringConverter=xpy.outils.xformat.FmtMontant),
     ColumnDefn("date", 'center', 80, "date",valueSetter=wx.DateTime.FromDMY(1,0,1900),isSpaceFilling = True,  stringConverter=xpy.outils.xformat.FmtDate),

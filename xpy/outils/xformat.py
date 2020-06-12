@@ -94,6 +94,14 @@ def DatetimeToStr(dte,iso=False):
         else: return "%s/%s/%s"%(dte.day,dte.month,dte.year)
     else: return str(dte)
 
+def SetBgColour(self,montant):
+    if montant > 0.0:
+        self.SetBackgroundColour(wx.Colour(200, 240, 255))  # Bleu
+    elif montant < 0.0:
+        self.SetBackgroundColour(wx.Colour(255, 170, 200))  # Rose
+    else:
+        self.SetBackgroundColour(wx.Colour(200, 255, 180))  # Vert
+
 def FmtDecimal(montant):
     if isinstance(montant,str): montant.replace(',','.')
     if montant == None or montant == '' or float(montant) == 0:
@@ -137,8 +145,11 @@ def FmtDate(date):
         return ''
     if isinstance(date,str):
         tpldate = date.split('/')
-        if len(tpldate)!=3: return ''
-        strdate = tpldate[0]+'/'+tpldate[1]+'/'+tpldate[2]
+        if len(tpldate)==3:
+            strdate = tpldate[0]+'/'+tpldate[1]+'/'+tpldate[2]
+        tpldate = date.split('-')
+        if len(tpldate) == 3:
+            strdate = tpldate[2] + '/' + tpldate[1] + '/' + tpldate[0]
     else:
         strdate = DatetimeToStr(date)
     return strdate
@@ -150,13 +161,14 @@ def FmtCheck(value):
         return 'O'
     return ''
 
-def FmtMontant(montant):
-    if isinstance(montant,str): montant.replace(',','.')
-    if montant == None or montant == '' or float(montant) == 0.0:
-        return ""
-    strMtt = '{:,.2f} '.format(float(montant))
-    strMtt = strMtt.replace(',',' ')+ SYMBOLE
-    return strMtt
+def FmtMontant(montant,prec=2):
+    if isinstance(montant,str):
+        montant.replace(',','.')
+        try: montant = float(montant)
+        except: pass
+    if not isinstance(montant,(int,float)): return ""
+    if int(montant) == 0: return ""
+    return "{: ,.{prec}f} {:} ".format(montant,SYMBOLE,prec=prec).replace(',', ' ')
 
 def FmtSolde(montant):
     if isinstance(montant,str):montant.replace(',','.')

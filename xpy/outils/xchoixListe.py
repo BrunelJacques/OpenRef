@@ -7,72 +7,12 @@
 # Permet un choix dans une liste et retourne l'indice
 #------------------------------------------------------------------------
 
-
 import wx, copy
 from xpy.outils.ObjectListView import FastObjectListView, ColumnDefn, Filter, CTRL_Outils
 import xpy.xGestionDB           as xdb
 import xpy.outils.xbandeau      as xbd
 import xpy.xGestion_Tableau     as xgt
-
-def FormateMontant(montant):
-    if montant == None or montant == "": return ""
-    if int(montant) == 0: return ""
-    return u"%.2f " % (montant)
-
-def LettreSuivante(lettre=''):
-    if not isinstance(lettre,str): lettre = 'A'
-    if lettre == '': lettre = 'A'
-    # incrémentation d'un lettrage
-    lastcar = lettre[-1]
-    precars = lettre[:-1]
-    if ord(lastcar) in (90,122):
-        if len(precars) == 0:
-            precars = chr(ord(lastcar)-25)
-        else:
-            precars= LettreSuivante(precars)
-        new = precars + chr(ord(lastcar)-25)
-    else:
-        new = precars + chr(ord(lastcar) + 1)
-    return new
-
-class CTRL_Solde(wx.Panel):
-    def __init__(self, parent,**kwds):
-        if not kwds:
-            kwds = {'name':"panel_solde", 'style':wx.SUNKEN_BORDER | wx.TAB_TRAVERSAL,'size':(100, 40)}
-            sizeFont = 11
-        else:
-            sizeFont = kwds.pop('sizeFont',11)
-        wx.Panel.__init__(self, parent, id=-1, **kwds)
-        self.parent = parent
-
-        # Solde
-        self.ctrl_solde = wx.StaticText(self, -1, u"0.00 ")
-        font = wx.Font(sizeFont, wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL,False)
-        self.ctrl_solde.SetFont(font)
-
-        # Layout
-        grid_sizer_base = wx.FlexGridSizer(rows=1, cols=1, vgap=5, hgap=5)
-        grid_sizer_base.Add(self.ctrl_solde, 1, wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 10)
-        self.SetSizer(grid_sizer_base)
-        grid_sizer_base.Fit(self)
-        grid_sizer_base.AddGrowableCol(0)
-        grid_sizer_base.AddGrowableRow(0)
-        self.ctrl_solde.SetToolTip(u"Solde")
-
-    def SetSolde(self, montant=0.0):
-        """ MAJ integrale du controle avec MAJ des donnees """
-        if montant > 0.0:
-            label = u"+ %.2f " % (montant)
-            self.SetBackgroundColour("#C4BCFC")  # Bleu
-        elif montant == 0.0:
-            label = u"0.00 "
-            self.SetBackgroundColour("#5DF020")  # Vert
-        else:
-            label = u"- %.2f " % (-montant,)
-            self.SetBackgroundColour("#F81515")  # Rouge
-        self.ctrl_solde.SetLabel(label)
-        self.Layout()
-        self.Refresh()
+from xpy.outils import xformat
 
 class Track(object):
     def __init__(self, donnees,champs):
@@ -84,121 +24,9 @@ class Track(object):
                 commande = "self.%s = donnees[ix]"%(champ)
             exec(commande)
 
-class DialogVentile(wx.Dialog):
-    def __init__(self, parent,LargeurCode=80,LargeurLib=100,minSize=(650, 350),
-                 listeOriginale=[("Choix1","Texte1",125.54),("Choix2","Texte2",),],
-                 columnSort=1,
-                 titre=u"Faites un choix !",
-                 intro=u"Double Clic sur la ou les réponses souhaitées...",
-                 imageBandeau = "xpy/Images/32x32/Python.png"):
-        wx.Dialog.__init__(self, parent, -1, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER|wx.MAXIMIZE_BOX|wx.MINIMIZE_BOX)
-
-        self.SetTitle("xchoixListe.DialogVentile")
-        self.columnSort = columnSort
-        self.choix= None
-        self.parent = parent
-        self.minSize = minSize
-        self.wCode = LargeurCode
-        self.wLib = LargeurLib
-        self.liste = []
-        self.nbColonnes=0
-        for item in listeOriginale :
-            if isinstance(item,(list,tuple)):
-                self.nbColonnes = len(item)
-            else:
-                self.nbColonnes = 1
-                item = (str(item),)
-            self.liste.append(item)
-
-        # Bandeau
-        self.ctrl_bandeau = xbd.Bandeau(self, titre=titre, texte=intro,  hauteur=15, nomImage=imageBandeau)
-        # conteneur des données
-        self.listview = FastObjectListView(self)
-        # Boutons
-        self.bouton_ok = wx.Button(self, label=u"Valider" )
-        self.bouton_ok.SetBitmap(wx.Bitmap("xpy/Images/32x32/Valider.png"))
-        self.bouton_fermer = wx.Button(self, label=u"Annuler")
-        self.bouton_fermer.SetBitmap(wx.Bitmap("xpy/Images/32x32/Annuler.png"))
-
-        self.__set_properties()
-        self.__do_layout()
-        # Binds
-        self.Bind(wx.EVT_BUTTON, self.OnClicOk, self.bouton_ok)
-        self.Bind(wx.EVT_BUTTON, self.OnClicFermer, self.bouton_fermer)
-        self.listview.Bind(wx.EVT_LIST_ITEM_ACTIVATED,self.OnDblClic)
-
-    def __set_properties(self):
-        self.SetMinSize(self.minSize)
-        self.bouton_fermer.SetToolTip(u"Cliquez ici pour fermer")
-        self.listview.SetToolTip(u"Double Cliquez pour choisir")
-        # Couleur en alternance des lignes
-        self.listview.oddRowsBackColor = "#F0FBED"
-        self.listview.evenRowsBackColor = wx.Colour(255, 255, 255)
-        self.listview.useExpansionColumn = True
-
-        if self.nbColonnes >1:
-            filCode = False
-        else: filCode = True
-        lstColumns = [
-            ColumnDefn("Code", "left", 0, 0),
-            ColumnDefn("Code", "left", self.wCode, 0,isSpaceFilling=filCode),]
-        if self.nbColonnes >1:
-            texte = "Libelle (non modifiables)"
-            for ix in range(1,self.nbColonnes):
-                lstColumns.append(ColumnDefn(texte, "left", self.wLib, ix, isSpaceFilling=True))
-                texte = "-"
-
-        self.listview.SetColumns(lstColumns)
-        self.listview.SetSortColumn(self.columnSort)
-        self.listview.CreateCheckStateColumn(0)
-        self.listview.SetObjects(self.liste)
-
-    def __do_layout(self):
-        gridsizer_base = wx.FlexGridSizer(rows=6, cols=1, vgap=0, hgap=0)
-
-        gridsizer_base.Add(self.ctrl_bandeau, 1, wx.EXPAND, 0)
-        gridsizer_base.Add(self.listview, 5, wx.LEFT|wx.RIGHT|wx.EXPAND, 0)
-        gridsizer_base.Add((5, 5), 0, wx.LEFT|wx.RIGHT|wx.EXPAND, 0)
-
-        # Boutons
-        gridsizer_boutons = wx.FlexGridSizer(rows=1, cols=3, vgap=0, hgap=0)
-        gridsizer_boutons.Add((20, 20), 1, wx.ALIGN_BOTTOM, 0)
-        gridsizer_boutons.Add(self.bouton_ok, 1, wx.EXPAND, 0)
-        gridsizer_boutons.Add(self.bouton_fermer, 1, wx.EXPAND, 0)
-        gridsizer_boutons.AddGrowableCol(0)
-        gridsizer_base.Add(gridsizer_boutons, 1, wx.RIGHT|wx.BOTTOM|wx.EXPAND, 10)
-        self.SetSizer(gridsizer_base)
-        gridsizer_base.Fit(self)
-        gridsizer_base.AddGrowableRow(1)
-        gridsizer_base.AddGrowableCol(0)
-        self.Layout()
-        self.CenterOnScreen()
-
-    def OnClicFermer(self, event):
-        self.choix = []
-        self.EndModal(wx.ID_CANCEL)
-
-    def OnClicOk(self, event):
-        self.choix = self.listview.GetCheckedObjects()
-        if len(self.choix) == 0:
-            dlg = wx.MessageDialog(self, u"Pas de sélection faite !\nIl faut choisir ou cliquer sur annuler", u"Accord Impossible", wx.OK | wx.ICON_EXCLAMATION)
-            dlg.ShowModal()
-            dlg.Destroy()
-        else:
-            if self.nbColonnes == 1:
-                self.choix = [x[0] for x in self.choix]
-            self.EndModal(wx.ID_OK)
-
-    def OnDblClic(self, event):
-        state = self.listview.GetCheckState(self.listview.GetSelectedObject())
-        if state :
-            state = False
-        else : state = True
-        self.listview.SetCheckState(self.listview.GetSelectedObject(),state)
-        self.listview.Refresh()
-
 class DialogLettrage(wx.Dialog):
-    # Gestion d'un lettrage à partir de deux dictionnaires, mots clés des champs : montant en dernière position
+    # Non encore utilisé en python3 cf xGestion_TableauVentilation déjà implémenté
+    #Gestion d'un lettrage à partir de deux dictionnaires, mots clés des champs : montant en dernière position
     # La première colonne sera l'ID suivi du sens (origine fichier) et lettre. La suite sera les champs
     def __init__(self, parent,dicList1={},lstChamps1=[],dicList2={},lstChamps2=[],lstLettres=[],columnSort=3,
                  LargeurCode=80,LargeurLib=100,minSize=(350, 350),titre=u"Lettrage des montants",
@@ -270,6 +98,7 @@ class DialogLettrage(wx.Dialog):
             for key,item in dic.items():
                 donnee=[sens,key,""] + ([""]*(self.nbValeurs-1)) + [0.0,0.0]
                 ixVal = 3
+                valMtt = None
                 for i in range(nbval):
                     if u"montant" in champs[i].lower():
                         valMtt = item[i]
@@ -334,9 +163,9 @@ class DialogLettrage(wx.Dialog):
             code = self.lstCodes[ix]
             lstColumns.append(ColumnDefn(self.lstLibels[ix], justif, width=self.lstWidth[ix], valueGetter=code,
                                          maximumWidth=self.lstWidth[ix],isEditable=False,isSpaceFilling=True,))
-        lstColumns.append(ColumnDefn(self.lstLibels[-2],'right',maximumWidth=80,valueGetter="debits",stringConverter=FormateMontant,
+        lstColumns.append(ColumnDefn(self.lstLibels[-2],'right',maximumWidth=80,valueGetter="debits",stringConverter=xformat.FmtMontant,
                                      isEditable=False,isSpaceFilling=True))
-        lstColumns.append(ColumnDefn(self.lstLibels[-1],'right',maximumWidth=80,valueGetter="credits",stringConverter=FormateMontant,
+        lstColumns.append(ColumnDefn(self.lstLibels[-1],'right',maximumWidth=80,valueGetter="credits",stringConverter=xformat.FmtMontant,
                                      isEditable=False,isSpaceFilling=True))
         self.listview.SetColumns(lstColumns)
         self.listview.SetSortColumn(self.columnSort)
@@ -396,7 +225,7 @@ class DialogLettrage(wx.Dialog):
                 self.dicLettres[(+1,ID1)] = lettre
                 self.dicLettres[(-1,ID2)] = lettre
                 let3 = lettre
-                lettre = LettreSuivante(lettre)
+                lettre = self.LettreSuivante(lettre)
             for let9 in (let1,let2,let3):
                 if let9 and (not let9 in self.dicEquiLet):
                     self.dicEquiLet[let9] = 0.0
@@ -450,6 +279,22 @@ class DialogLettrage(wx.Dialog):
         for item in lstSupprimer:
             self.lstLettres.remove(item)
         return lstID1,lstID2
+
+    def LettreSuivante(self,lettre=''):
+        if not isinstance(lettre, str): lettre = 'A'
+        if lettre == '': lettre = 'A'
+        # incrémentation d'un lettrage
+        lastcar = lettre[-1]
+        precars = lettre[:-1]
+        if ord(lastcar) in (90, 122):
+            if len(precars) == 0:
+                precars = chr(ord(lastcar) - 25)
+            else:
+                precars = self.LettreSuivante(precars)
+            new = precars + chr(ord(lastcar) - 25)
+        else:
+            new = precars + chr(ord(lastcar) + 1)
+        return new
 
     def OnClicLettrer(self, event):
         choix = self.listview.GetCheckedObjects()
@@ -613,8 +458,12 @@ class DialogCoches(wx.Dialog):
         self.listview.Refresh()
 
 class DialogAffiche(wx.Dialog):
-    def __init__(self, titre="Ici mon titre", intro="et mes explications", lstDonnees=[("a",2),("b",10)],
-                 lstColonnes=["let","nbre"],lstWcol=None,size=(600,600)):
+    def __init__(self, titre="Ici mon titre",
+                 intro="et mes explications",
+                 lstDonnees=[("a",2),("b",10)],
+                 lstColonnes=["let","nbre"],
+                 lstWcol=None,
+                 size=(600,600)):
         wx.Dialog.__init__(self, None, -1, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
         self.SetMinSize(size)
         mess = None
@@ -745,16 +594,14 @@ if __name__ == u"__main__":
     dialog_1 = DialogAffiche()
     app.SetTopWindow(dialog_1)
 
-    dialog_2 = DialogCoches(None,listeOriginale=["choix1","text1","suite1","choix2","text2","suite2"])
+    dialog_2 = DialogCoches(None)
     app.SetTopWindow(dialog_2)
 
     dialog_3 = DialogLettrage(None,{12456:[u"choïx 1",15]},[u"libellé1",u"Montant"],{6545:[u"éssai",50,25]},[u"libellé2",u"libellé1","montant"],[(12456,None),])
     app.SetTopWindow(dialog_3)
 
-    dialog_4 = DialogVentile(None)
-    app.SetTopWindow(dialog_3)
-
-    print(dialog_4.ShowModal())
-    print(dialog_4.choix)
+    #print(xformat.FmtMontant(-124566.45765,prec=3))
+    print(dialog_1.ShowModal())
+    print(dialog_1.choix)
     app.MainLoop()
 

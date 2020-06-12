@@ -271,5 +271,6 @@ if __name__ == '__main__':
     #print(GetBanquesNne())
     #print(GetFamille(None))
     #print(GetPayeurs(1))
-    print(GetArticle('debour'))
+    art = Article('debour')
+    print(art.GetArticle())
     app.MainLoop()

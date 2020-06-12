@@ -16,6 +16,28 @@ from xpy.outils.xconst import *
 
 # ------------------------------------------------------------------------------------------------------------------
 
+class TrackGeneral(object):
+    #    Cette classe va transformer une ligne en objet selon les listes de colonnes et valeurs par défaut(setter)
+    def __init__(self, donnees,codesColonnes, nomsColonnes, setterValues):
+        self.donnees = donnees
+        if not(len(donnees) == len(codesColonnes)== len(nomsColonnes) == len(setterValues)):
+            wx.MessageBox("Problème de nombre d'occurences!\n%d donnees, %d codes, %d colonnes et %d valeurs défaut"
+                          %(len(donnees), len(codesColonnes), len(nomsColonnes), len(setterValues)))
+        for ix in range(len(donnees)):
+            donnee = donnees[ix]
+            if setterValues[ix]:
+                if (donnee is None):
+                    donnee = setterValues[ix]
+                else:
+                    if not isinstance(donnee,type(setterValues[ix])):
+                        try:
+                            if type(setterValues[ix]) in (int,float):
+                                donnee = float(donnee)
+                            elif type(setterValues[ix]) == str:
+                                donnee = str(donnee)
+                        except : pass
+            self.__setattr__(codesColonnes[ix], donnee)
+
 class ListView(FastObjectListView):
     """
     Lors de l'instanciation de cette classe vous pouvez y passer plusieurs parametres :
@@ -415,28 +437,6 @@ class PanelListView(wx.Panel):
 
     def GetListview(self):
         return self.ctrl_listview
-
-class TrackGeneral(object):
-    #    Cette classe va transformer une ligne en objet selon les listes de colonnes et valeurs par défaut(setter)
-    def __init__(self, donnees,codesColonnes, nomsColonnes, setterValues):
-        self.donnees = donnees
-        if not(len(donnees) == len(codesColonnes)== len(nomsColonnes) == len(setterValues)):
-            wx.MessageBox("Problème de nombre d'occurences!\n%d donnees, %d codes, %d colonnes et %d valeurs défaut"
-                          %(len(donnees), len(codesColonnes), len(nomsColonnes), len(setterValues)))
-        for ix in range(len(donnees)):
-            donnee = donnees[ix]
-            if setterValues[ix]:
-                if (donnee is None):
-                    donnee = setterValues[ix]
-                else:
-                    if not isinstance(donnee,type(setterValues[ix])):
-                        try:
-                            if type(setterValues[ix]) in (int,float):
-                                donnee = float(donnee)
-                            elif type(setterValues[ix]) == str:
-                                donnee = str(donnee)
-                        except : pass
-            self.__setattr__(codesColonnes[ix], donnee)
 
 # ------------------------------------------------------------------------------------------------------------------
 

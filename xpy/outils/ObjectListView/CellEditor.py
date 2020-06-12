@@ -254,7 +254,7 @@ class EditorRegistry(object):
 
     @staticmethod
     def _MakeStringEditor(olv, rowIndex, subItemIndex):
-        return BaseCellTextEditor(olv, subItemIndex)
+        return BaseCellTextEditor(olv,rowIndex,subItemIndex)
 
     @staticmethod
     def _MakeBoolEditor(olv, rowIndex, subItemIndex):
@@ -262,19 +262,19 @@ class EditorRegistry(object):
 
     @staticmethod
     def _MakeIntegerEditor(olv, rowIndex, subItemIndex):
-        return IntEditor(olv, subItemIndex, validator=NumericValidator())
+        return IntEditor(olv,rowIndex, subItemIndex, validator=NumericValidator())
 
     @staticmethod
     def _MakeLongEditor(olv, rowIndex, subItemIndex):
-        return LongEditor(olv, subItemIndex, validator=NumericValidator())
+        return LongEditor(olv,rowIndex, subItemIndex, validator=NumericValidator())
 
     @staticmethod
     def _MakeFloatEditor(olv, rowIndex, subItemIndex):
-        return FloatEditor(olv, subItemIndex, validator=NumericValidator("0123456789-+eE."))
+        return FloatEditor(olv,rowIndex, subItemIndex, validator=NumericValidator("0123456789-+eE."))
 
     @staticmethod
     def _MakeDateTimeEditor(olv, rowIndex, subItemIndex):
-        dte = DateTimeEditor(olv, subItemIndex)
+        dte = DateTimeEditor(olv,rowIndex, subItemIndex)
 
         column = olv.columns[subItemIndex]
         if isinstance(column.stringConverter, basestring):
@@ -294,7 +294,7 @@ class EditorRegistry(object):
 
     @staticmethod
     def _MakeTimeEditor(olv, rowIndex, subItemIndex):
-        editor = TimeEditor(olv, subItemIndex)
+        editor = TimeEditor(olv,rowIndex, subItemIndex)
 
         column = olv.columns[subItemIndex]
         if isinstance(column.stringConverter, basestring):
@@ -415,7 +415,7 @@ class DateEditor(wx.adv.DatePickerCtrl):
 class BaseCellTextEditor(wx.TextCtrl):
     """This is a base text editor for text-like editors used in an ObjectListView"""
 
-    def __init__(self, olv, subItemIndex, **kwargs):
+    def __init__(self, olv, row, subItemIndex, **kwargs):
         style = wx.TE_PROCESS_ENTER | wx.TE_PROCESS_TAB
         # Allow for odd case where parent isn't an ObjectListView
         if hasattr(olv, "columns"):
