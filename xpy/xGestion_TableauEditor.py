@@ -719,19 +719,19 @@ class PNL_Pied(wx.Panel):
         self.Sizer()
 
     def Sizer(self,reinit = False):
+        self.itemsBtns = self.GetItemsBtn(self.lstBtns)
+        self.itemsInfos = self.CreateItemsInfos(self.lstInfos)
+        nbinfos = len(self.itemsInfos)
+        nbcol=(len(self.itemsBtns)+len(self.itemsInfos)+1)
         #composition de l'écran selon les composants
-        sizerpied = wx.BoxSizer(wx.HORIZONTAL)
+        sizerpied = wx.FlexGridSizer(rows=1, cols=nbcol, vgap=0, hgap=0)
         if self.lstInfos:
-            sizerinfos = wx.StaticBoxSizer(wx.HORIZONTAL,self,label="")
-            self.itemsInfos = self.CreateItemsInfos(self.lstInfos)
-            sizerinfos.AddMany(self.itemsInfos)
-            sizerpied.Add(sizerinfos,11,wx.BOTTOM|wx.LEFT|wx.EXPAND,3)
-        else:
-            sizerpied.Add((10,10),1,wx.BOTTOM|wx.EXPAND,3)
+            sizerpied.AddMany(self.itemsInfos)
+        sizerpied.Add((10,10),1,wx.ALL|wx.EXPAND,5)
         if self.lstBtns:
-            self.itemsBtns = self.GetItemsBtn(self.lstBtns)
             sizerpied.AddMany(self.itemsBtns)
-        self.SetSizerAndFit(sizerpied)
+        sizerpied.AddGrowableCol(nbinfos)
+        self.SetSizer(sizerpied)
 
     def GetItemsBtn(self,lstBtns):
         # décompactage des paramètres de type bouton, différents constructeurs
@@ -757,7 +757,7 @@ class PNL_Pied(wx.Panel):
                             fonction = lambda evt,code=code: eval(self.dicOnClick[code])
                         else: fonction = self.dicOnClick[code]
                         bouton.Bind(wx.EVT_BUTTON, fonction)
-                    lstWxBtns.append((bouton, 0, wx.ALL | wx.ALIGN_RIGHT, 5))
+                    lstWxBtns.append((bouton, 0, wx.ALL, 5))
                 except:
                     bouton = wx.Button(self, wx.ID_ANY, 'Erreur\nparam!')
                     lstWxBtns.append((bouton, 0, wx.ALL, 5))
@@ -767,18 +767,22 @@ class PNL_Pied(wx.Panel):
         return lstWxBtns
 
     def CreateItemsInfos(self,lstInfos):
-        # seulement une image et un texte sont retenus
+        # images ou texte sont retenus
         self.infosImage = None
         self.infosTexte = None
+        lstItems = [(7,7)]
         for item in lstInfos:
             if isinstance(item,wx.Bitmap):
                 self.infosImage = wx.StaticBitmap(self, wx.ID_ANY, item)
+                lstItems.append((self.infosImage,0,wx.ALIGN_LEFT|wx.TOP,10))
             elif isinstance(item,str):
                 self.infosTexte = wx.StaticText(self,wx.ID_ANY,item)
-        return [self.infosImage,(7,7),self.infosTexte]
+                lstItems.append((self.infosTexte,10,wx.ALIGN_LEFT|wx.ALL|wx.EXPAND,5))
+            lstItems.append((7,7))
+        return lstItems
 
     def SetItemsInfos(self,text=None,image=None,):
-        # après create  permet de modifier l'info du pied
+        # après create  permet de modifier l'info du pied pour dernière image et dernier texte
         if image:
             self.infosImage.SetBitmap(image)
         if text:
@@ -802,7 +806,7 @@ class DLG_tableau(wx.Dialog):
         sizer_base = wx.FlexGridSizer(rows=3, cols=1, vgap=0, hgap=0)
         sizer_base.Add(self.pnlParams, 1, wx.TOP| wx.EXPAND, 3)
         sizer_base.Add(self.pnlOlv, 1, wx.TOP| wx.EXPAND, 3)
-        sizer_base.Add(self.pnlPied, 0, wx.ALIGN_RIGHT|wx.ALL|wx.EXPAND, 3)
+        sizer_base.Add(self.pnlPied, 0,wx.ALL|wx.EXPAND, 3)
         sizer_base.AddGrowableCol(0)
         sizer_base.AddGrowableRow(1)
         self.CenterOnScreen()
@@ -858,7 +862,8 @@ if __name__ == '__main__':
                ('BtnPrec2',-1, "Ecran\nprécédent", "Retour à l'écran précédent next"),
                ('BtnOK', -1, wx.Bitmap("xpy/Images/100x30/Bouton_fermer.png", wx.BITMAP_TYPE_ANY),"Cliquez ici pour fermer la fenêtre")
                ]
-    lstInfos = [wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)),
+    lstInfos = [wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, ),
+                wx.Bitmap("xpy/Images/16x16/Magique.png", wx.BITMAP_TYPE_PNG),
                 "Autre\nInfo"]
 
     def modifLstInfos(self):

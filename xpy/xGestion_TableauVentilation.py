@@ -11,6 +11,10 @@ import xpy.xGestion_TableauRecherche as xgtr
 from xpy.outils.ObjectListView import FastObjectListView, ColumnDefn,CellEditor,OLVEvent
 from xpy.outils import xformat
 
+def Nz(valeur,prec=6):
+    if not isinstance(valeur,(float,int,bool)):
+        return 0.0
+    return round(valeur,prec)
 # ------------------------------------------------------------------------------------------------------------------
 
 class PNL_pied(wx.Panel):
@@ -42,12 +46,14 @@ class PNL_pied(wx.Panel):
         for txt in (self.txtSolde,self.ctrlSolde):
             txt.SetFont(fontsld)
             txt.SetToolTip(self.tooltip)
+        self.__complete_layout()
 
+    def __complete_layout(self):
         # Layout
         grid_sizer_base = wx.FlexGridSizer(rows=1, cols=5, vgap=5, hgap=0)
         grid_sizer_base.Add(self.txtMontant, 1, wx.ALIGN_RIGHT | wx.ALIGN_CENTRE_VERTICAL | wx.ALL, 3)
-        grid_sizer_base.Add(self.ctrlMontant, 1, wx.ALIGN_RIGHT | wx.ALIGN_CENTER | wx.ALL, 3)
-        grid_sizer_base.Add((10,45), 1, wx.ALIGN_RIGHT | wx.ALIGN_CENTER | wx.ALL, 3)
+        grid_sizer_base.Add(self.ctrlMontant, 1, wx.ALIGN_CENTRE | wx.ALL, 3)
+        grid_sizer_base.Add((10,45), 1, wx.ALIGN_CENTRE | wx.ALL, 3)
         grid_sizer_base.Add(self.txtSolde, 1, wx.ALIGN_CENTER | wx.ALL, 3)
         grid_sizer_base.Add(self.ctrlSolde, 1, wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 3)
         self.SetSizerAndFit(grid_sizer_base)
@@ -73,30 +79,92 @@ class PNL_pied(wx.Panel):
 
 class PNL_tableau(xgtr.PNL_tableau):
     def __init__(self, parent, dicOlv,*args, **kwds):
-        self.montant = kwds.pop('montant',1)
-        self.solde = self.montant
+        # le montant sera affecté sur les lignes de données de dicOlv sur la colonne éditable
+        self.montant = kwds.pop('montant',1000)
+        dicOlv['autoSizer'] = False
         dicOlv['recherche'] = False
+        dicOlv['useAlternateBackColors'] = True
         dicOlv['cellEditMode'] = FastObjectListView.CELLEDIT_SINGLECLICK
         dicOlv['style'] =  wx.LC_REPORT|wx.NO_BORDER|wx.LC_HRULES|wx.LC_VRULES| wx.LC_SINGLE_SEL
         xgtr.PNL_tableau.__init__(self, parent, dicOlv, *args,  **kwds)
 
+        ixmtt = self.ctrlOlv.lstCodesColonnes.index('montant')
+        ixrst = self.ctrlOlv.lstCodesColonnes.index('reste')
+        ixaff = self.ctrlOlv.lstCodesColonnes.index('affecte')
+        lstDonneesOrigine = dicOlv['getDonnees'](dicOlv)
+        self.lstValeursOrigine = [[x[ixmtt],x[ixrst],x[ixaff]] for x in lstDonneesOrigine]
+
         # spécificités pour ventilation
         self.flagSkipEdit = False
+        self.solde = self.montant
         self.pnlPied = PNL_pied(self,montant=self.montant)
         self.pnlPied.SetSolde(self.solde)
         self.ctrlOlv.CreateCheckStateColumn(0)
-        self.ProprietesOlv()
         self.ctrlOlv.MAJ()
-        self.Sizer()
+        self.SetVentilation()
+        self.ProprietesOlv()
+        self.__do_layout()
 
     def ProprietesOlv(self):
         self.ctrlOlv.Bind(wx.EVT_CONTEXT_MENU, self.ctrlOlv.OnContextMenu)
         self.ctrlOlv.Bind(OLVEvent.EVT_CELL_EDIT_FINISHING,self.OnEditFinishing)
         #self.ctrlOlv.Bind(OLVEvent.EVT_CELL_EDIT_STARTED,self.OnEditStarted)
+        self.ctrlOlv.Bind(wx.EVT_COMMAND_LEFT_CLICK,self.OnActivate)
+        self.ctrlOlv.Bind(wx.EVT_LEFT_DCLICK,self.OnClic)
+        self.ctrlOlv.Bind(wx.EVT_LIST_ITEM_ACTIVATED,self.OnActivate)
+
 
     def SetVentilation(self):
         # Recalcule la répartition
-        pass
+        solde = self.montant
+        ix = 0
+        for track in self.ctrlOlv.modelObjects:
+            if not track.affecte: track.affecte = 0.0
+            solde -= Nz(track.affecte)
+            track.reste = Nz(track.montant) - Nz(self.lstValeursOrigine[ix][1]) - Nz(track.affecte)
+            if track.affecte == 0.0:
+                self.ctrlOlv.SetCheckState(track, False)
+            else: self.ctrlOlv.SetCheckState(track, True)
+            ix += 1
+        self.pnlPied.SetSolde(solde)
+
+
+    def OnClic(self,evt):
+        evt.Skip()
+        track = self.ctrlOlv.GetSelectedObject()
+        if not track : return
+        row = self.ctrlOlv.modelObjects.index(track)
+        if self.ctrlOlv.IsChecked(track):
+            # la ligne est cochée
+            if Nz(track.affecte) != 0.0:
+                return
+            else:
+                # la coche sur une situation vierge affecte une partie du solde
+                track.affecte = min(Nz(track.montant) - Nz(self.lstValeursOrigine[row][1]),self.solde)
+        else:
+            # non cochée la ligne est remise à zéro
+            track.affecte = 0.0
+        self.SetVentilation()
+
+    def OnActivate(self,evt):
+        evt.Skip()
+        track = self.ctrlOlv.GetSelectedObject()
+        row = self.ctrlOlv.modelObjects.index(track)
+        item = self.ctrlOlv.GetItem(row)
+        item.SetBackgroundColour(self.ctrlOlv.newRowsBackColor)
+        if not self.ctrlOlv.IsChecked(track):
+            # la ligne sera cochée
+            self.ctrlOlv.SetCheckState(track, True)
+            if Nz(track.affecte) != 0.0:
+                return
+            else:
+                # la coche sur une situation vierge affecte une partie du solde
+                track.affecte = min(Nz(track.montant) - Nz(self.lstValeursOrigine[row][1]),self.solde)
+        else:
+            # elle sera non cochée la ligne est remise à zéro
+            self.ctrlOlv.SetCheckState(track, False)
+            track.affecte = 0.0
+        self.SetVentilation()
 
     def OnEditFinishing(self,event):
         if self.flagSkipEdit : return
@@ -128,9 +196,9 @@ class DLG_tableau(xgtr.DLG_tableau):
 
 def GetDonnees(matrice,filtre = ""):
     donnees = [
-                [None,wx.DateTime.FromDMY(15, 11, 2018),'2019-04-09',"Bonjour", -1230.05939, -1230.05939, 0.0,],
-                [None, wx.DateTime.FromDMY(18, 3, 2019), '20/06/2019', "jourwin", 12045.039, 1293.9, 0.0, ],
-                [None, wx.DateTime.FromDMY(18, 3, 2019), '2019-06-20', "sqljourbon", None, 1293.9, 125.65, ],
+                [None,wx.DateTime.FromDMY(15, 11, 2018),'2019-04-09',"Bonjour", -30.05939, -10.05939, 0.0,],
+                [None, wx.DateTime.FromDMY(18, 3, 2019), '20/06/2019', "jourwin", 12045.039, 1293.9, 20.40, ],
+                [None, wx.DateTime.FromDMY(18, 3, 2019), '2019-06-20', "sqljourbon", 11/3, 5/7, 0, ],
                 [None, wx.DateTime.FromDMY(1, 5, 2018), '2019-05-30', "bye", 25.1, 25.1, 0.0, ],
     ]
     donneesFiltrees = [x for x in donnees if filtre.upper() in x[3].upper() ]
@@ -143,8 +211,8 @@ liste_Colonnes = [
     ColumnDefn("date SQL", 'center', 80, "datesql", valueSetter='2000-01-01',isSpaceFilling = True,
                stringConverter=xformat.FmtDate,isEditable=False),
     ColumnDefn("mot d'ici", 'left', 200, "mot",valueSetter=0.0,
-               stringConverter=xformat.FmtMontant,isEditable=False,),
-    ColumnDefn("montant", 'right', 80, "montant", valueSetter=0,isSpaceFilling=True,
+               isEditable=False,),
+    ColumnDefn("montant", 'right', 80, "montant", valueSetter=0.0,isSpaceFilling=True,
                stringConverter=xformat.FmtMontant,isEditable=False,),
     ColumnDefn("à régler", 'right', 80, "reste",valueSetter=0.0,isSpaceFilling=True,
                stringConverter=xformat.FmtMontant,isEditable=False),

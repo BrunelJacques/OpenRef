@@ -167,7 +167,7 @@ def FmtMontant(montant,prec=2):
         try: montant = float(montant)
         except: pass
     if not isinstance(montant,(int,float)): return ""
-    if int(montant) == 0: return ""
+    if float(montant) == 0.0: return ""
     return "{: ,.{prec}f} {:} ".format(montant,SYMBOLE,prec=prec).replace(',', ' ')
 
 def FmtSolde(montant):

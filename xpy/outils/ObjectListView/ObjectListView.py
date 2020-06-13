@@ -327,9 +327,9 @@ class ObjectListView(wx.ListCtrl):
         self.stEmptyListMsg.SetFont(
             wx.Font(
                 24,
-                wx.DEFAULT,
-                wx.NORMAL,
-                wx.NORMAL,
+                wx.FONTFAMILY_DEFAULT,
+                wx.FONTSTYLE_NORMAL,
+                wx.FONTWEIGHT_NORMAL,
                 0,
                 ""))
 
@@ -379,19 +379,19 @@ class ObjectListView(wx.ListCtrl):
         info = wx.ListItem()
 
         if 'phoenix' in wx.PlatformInfo:
-            info.Mask = wx.LIST_MASK_TEXT | wx.LIST_MASK_FORMAT
-            if info.Image != -1:
+            info.SetMask(wx.LIST_MASK_TEXT | wx.LIST_MASK_FORMAT)
+            if info.GetImage() != -1:
                 if isinstance(
                         defn.headerImage,
                         six.string_types) and self.smallImageList is not None:
-                    info.Image = self.smallImageList.GetImageIndex(
-                        defn.headerImage)
+                    info.SetImage(self.smallImageList.GetImageIndex(
+                        defn.headerImage))
                 else:
-                    info.Image = defn.headerImage
-                info.Mask = info.Mask | wx.LIST_MASK_IMAGE
-            info.Align = defn.GetAlignment()
-            info.Text = defn.title
-            info.Width = defn.width
+                    info.SetImage(defn.headerImage)
+                info.SetMask(info.GetMask() | wx.LIST_MASK_IMAGE)
+            info.SetAlign(defn.GetAlignment())
+            info.SetText(defn.title)
+            info.SetWidth(defn.width)
             self.InsertColumn(len(self.columns) - 1, info)
             #self.AppendColumn( info.Text, info.Align, width=info.Width)
         else:
@@ -1490,7 +1490,7 @@ class ObjectListView(wx.ListCtrl):
             return False
 
         if evt.GetKeyCode() in (wx.WXK_BACK, wx.WXK_DELETE):
-            if self.cellEditMode == self.CELLEDIT_NONE:
+            if self.cellEditMode == self.CELLEDIT_NONE or not self.autoAddRow:
                 return False
             self.searchPrefix = ""
             nb = len(self.GetSelectedObjects())
@@ -1508,7 +1508,7 @@ class ObjectListView(wx.ListCtrl):
                 return False
 
         if evt.GetKeyCode() == wx.WXK_INSERT:
-            if self.cellEditMode == self.CELLEDIT_NONE:
+            if self.cellEditMode == self.CELLEDIT_NONE or not self.autoAddRow:
                 return False
             self.searchPrefix = ""
             dlg = wx.MessageDialog(self,"Confirmez-vous l'insertion d'une ligne!\n\n<Entrée> ou <esc>",
@@ -2683,7 +2683,7 @@ class AbstractVirtualObjectListView(ObjectListView):
         # We have to keep a reference to the ListItemAttr or the garbage collector
         # will clear it up immeditately, before the ListCtrl has time to
         # process it.
-        self.listItemAttr = wx.ListItemAttr()
+        self.listItemAttr = wx.ItemAttr()
         self._FormatOneItem(
             self.listItemAttr,
             itemIdx,

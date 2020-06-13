@@ -135,11 +135,11 @@ class PNL_params(wx.Panel):
                                   self.ctrlRef])
 
         sz_banque = wx.StaticBoxSizer(wx.VERTICAL, self, " Destinataire ")
-        sz_banque.Add(boxBanque,1,wx.EXPAND|wx.ALL|wx.ALIGN_CENTRE_HORIZONTAL,3)
-        sz_banque.Add(self.ctrlSsDepot,1,wx.ALL|wx.ALIGN_CENTRE_HORIZONTAL,3)
+        sz_banque.Add(boxBanque,1,wx.EXPAND|wx.ALL,3)
+        sz_banque.Add(self.ctrlSsDepot,1,wx.ALL|wx.ALIGN_CENTRE,3)
 
         sz_bordereau = wx.StaticBoxSizer(wx.VERTICAL, self, " Bordereau ")
-        sz_bordereau.Add(boxBordereau,1,wx.ALL|wx.ALIGN_CENTRE_HORIZONTAL,3)
+        sz_bordereau.Add(boxBordereau,1,wx.ALL|wx.ALIGN_CENTRE,3)
 
         sizer_base = wx.FlexGridSizer(rows=1, cols=3, vgap=0, hgap=20)
         sizer_base.Add(sz_banque,1,wx.LEFT|wx.BOTTOM|wx.EXPAND,3)
@@ -259,7 +259,7 @@ class Dialog(wx.Dialog):
         sizer_base.Add(self.pnlBandeau, 1, wx.TOP | wx.EXPAND, 3)
         sizer_base.Add(self.pnlParams, 1, wx.TOP | wx.EXPAND, 3)
         sizer_base.Add(self.pnlOlv, 1, wx.TOP | wx.EXPAND, 3)
-        sizer_base.Add(self.pnlPied, 0, wx.ALIGN_RIGHT | wx.ALL | wx.EXPAND, 3)
+        sizer_base.Add(self.pnlPied, 0, wx.ALL | wx.EXPAND, 3)
         sizer_base.AddGrowableCol(0)
         sizer_base.AddGrowableRow(1)
         self.CenterOnScreen()

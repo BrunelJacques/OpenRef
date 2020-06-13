@@ -323,6 +323,7 @@ class PNL_tableau(wx.Panel):
                         'titreImpression',
                         'orientationImpression',
                         'cellEditMode',
+                        'useAlternateBackColors',
                         ]
         dicOlvOut = {}
         for key,valeur in dicOlv.items():
@@ -342,9 +343,9 @@ class PNL_tableau(wx.Panel):
         # Sizer différé pour les descendants avec spécificités modifiant le panel
         if autoSizer:
             self.ProprietesOlv()
-            self.Sizer()
+            self.__do_layout()
 
-    def Sizer(self):
+    def __do_layout(self):
         #composition de l'écran selon les composants
         sizerbase = wx.BoxSizer(wx.VERTICAL)
         sizerhaut = wx.BoxSizer(wx.VERTICAL)
