@@ -113,7 +113,6 @@ class PNL_tableau(xgtr.PNL_tableau):
         self.ctrlOlv.Bind(wx.EVT_LEFT_DCLICK,self.OnClic)
         self.ctrlOlv.Bind(wx.EVT_LIST_ITEM_ACTIVATED,self.OnActivate)
 
-
     def SetVentilation(self):
         # Recalcule la répartition
         solde = self.montant
@@ -127,7 +126,6 @@ class PNL_tableau(xgtr.PNL_tableau):
             else: self.ctrlOlv.SetCheckState(track, True)
             ix += 1
         self.pnlPied.SetSolde(solde)
-
 
     def OnClic(self,evt):
         evt.Skip()
@@ -150,8 +148,9 @@ class PNL_tableau(xgtr.PNL_tableau):
         evt.Skip()
         track = self.ctrlOlv.GetSelectedObject()
         row = self.ctrlOlv.modelObjects.index(track)
-        item = self.ctrlOlv.GetItem(row)
-        item.SetBackgroundColour(self.ctrlOlv.newRowsBackColor)
+        if row:
+            item = self.ctrlOlv.GetItem(row)
+            item.SetBackgroundColour(self.ctrlOlv.newRowsBackColor)
         if not self.ctrlOlv.IsChecked(track):
             # la ligne sera cochée
             self.ctrlOlv.SetCheckState(track, True)

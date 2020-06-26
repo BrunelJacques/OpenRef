@@ -606,7 +606,12 @@ class CTRL_Ventilation(gridlib.Grid):
         LEFT JOIN categories_tarifs ON tarifs.IDcategorie_tarif = categories_tarifs.IDcategorie_tarif
         LEFT JOIN factures ON prestations.IDfacture = factures.IDfacture
         WHERE prestations.IDcompte_payeur = %d 
-        GROUP BY prestations.IDprestation
+        GROUP BY prestations.IDprestation, prestations.IDcompte_payeur, date, categorie, label, prestations.montant, 
+                prestations.IDactivite, activites.nom,
+                prestations.IDtarif, noms_tarifs.nom, categories_tarifs.nom, 
+                prestations.IDfacture, factures.numero, factures.date_edition,
+                IDfamille, prestations.IDindividu, 
+                individus.nom, individus.prenom
         ORDER BY date
         ;""" % self.IDcompte_payeur
         DB.ExecuterReq(req)
@@ -619,8 +624,17 @@ class CTRL_Ventilation(gridlib.Grid):
             montant = montant
             if montantVentilation == None: montantVentilation = 0.0
             if num_facture == None : num_facture = 0
-            if (montant >= 0.0 and montantVentilation < montant) or (montant < 0.0) and montantVentilation > montant or \
-                    (IDprestation in self.dictVentilation.keys()) :
+            # Vérif cohérence
+            if (montant >= 0.0 and montantVentilation > montant) \
+                    or (montant < 0.0 and montantVentilation < montant)\
+                    or ((montant * montantVentilation) < 0.0):
+                montant,montantVentilation = self.CorrigeVentilation(IDprestation)
+
+            # Composition des données OLV
+            if (montant >= 0.0 and montantVentilation < montant) \
+                    or (montant < 0.0 and montantVentilation > montant) \
+                    or IDprestation in self.dictVentilation.keys() :
+                # On garde cette prestation pour pouvoir affecter le règlement
                 date = DateEngEnDateDD(date)
                 if IDprestation in self.dictVentilation.keys() :
                     montantVentilation = montantVentilation - self.dictVentilation[IDprestation] 
@@ -635,6 +649,50 @@ class CTRL_Ventilation(gridlib.Grid):
                 ligne_prestation = Ligne_prestation(grid=self, donnees=dictTemp)
                 listeLignesPrestations.append(ligne_prestation)
         return listeLignesPrestations
+
+    def CorrigeVentilation(self,IDprestation):
+        DB = db.DB()
+        # suppression de ventilations orphelines de leur réglement
+        req = """DELETE ventilation
+                FROM ventilation 
+                    LEFT JOIN reglements ON ventilation.IDreglement = reglements.IDreglement
+                WHERE ((reglements.IDreglement Is Null) AND (ventilation.IDprestation= %d))
+                ;"""% IDprestation
+        DB.ExecuterReq(req,mess="CTRL_Ventilation.CorrigeVentil1")
+        DB.Close()
+        DB = db.DB()
+
+        # appel du détail des ventilations.
+        req = """SELECT ventilation.IDventilation,ventilation.montant, prestations.montant, reglements.IDreglement
+                FROM (  ventilation 
+                        LEFT JOIN reglements ON ventilation.IDreglement = reglements.IDreglement) 
+                        INNER JOIN prestations ON ventilation.IDprestation = prestations.IDprestation
+                WHERE ventilation.IDprestation=%d
+                ORDER BY reglements.date_saisie
+                ;""" % IDprestation
+        DB.ExecuterReq(req,mess="CTRL_Ventilation.CorrigeVentil2")
+        listeDonnees = DB.ResultatReq()
+        DB.Close()
+        lstSupprime = []
+        mttcum = 0.0
+        montant = 0.0
+        for IDventilation, ventile, montant, IDreglement in listeDonnees:
+            # suppression de ventilation de signe inversé
+            if (montant * ventile) < 0:
+                lstSupprime.append(IDventilation)
+                continue
+            # suppression d'excédent d'affectation
+            elif abs(montant) < abs(mttcum + ventile):
+                lstSupprime.append(IDventilation)
+                continue
+            mttcum += ventile
+        DB.Close()
+
+        for IDventilation in lstSupprime:
+            DB = db.DB()
+            ret = DB.ReqDEL('ventilation','IDventilation',IDventilation,mess=True)
+            DB.Close()
+        return montant,mttcum
 
     def OnLeftClick(self, event):
         numLigne = event.GetRow()

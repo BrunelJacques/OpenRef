@@ -310,8 +310,8 @@ def ChampsToLstAdresse(rue,cp,ville):
     lstRue = lstRue[-4:]
     lstVille = ville.split("\n") + [""] * 2
     lstAdresse = lstRue + [cp] + lstVille[:2]
-    lstAdresse = TransposeAdresse(lstAdresse)
-    lstAdresse = Normalisation(lstAdresse)
+    #lstAdresse = TransposeAdresse(lstAdresse)
+    #lstAdresse = Normalisation(lstAdresse)
     return lstAdresse
 
 def LstAdresseToChamps(lstAdresse):
@@ -457,7 +457,7 @@ def SetDBcorrespondant(dicCorrespondant):
                     ("adresse_individu", dicCorrespondant['IDindividu'])]
     # envoi dans la base de donnée
     DB=xdb.DB()
-    ret = DB.ReqMAJ("familles",lstDonnees,"IDfamille",dicCorrespondant['IDfamille'],MsgBox="Insert familles Correspondant")
+    ret = DB.ReqMAJ("familles",lstDonnees,"IDfamille",dicCorrespondant['IDfamille'],mess="Insert familles Correspondant")
     return ret
 
 def SetDBoldAdresse(DB,IDindividu=None,adresse = "\n\n\n\n\n\n\n"):

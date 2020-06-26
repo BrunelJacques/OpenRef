@@ -63,7 +63,7 @@ class CTRL_champ(wx.Panel):
             gridsizer_base.Add(self.bouton, 0, wx.ALIGN_CENTRE_VERTICAL| wx.ALIGN_RIGHT | wx.TOP|wx.RIGHT, 5)
         else:
             gridsizer_base.Add((10,10), 0, wx.TOP | wx.RIGHT, 5)
-        gridsizer_base.Add(self.ctrl, 1, wx.ALIGN_CENTRE_VERTICAL| wx.ALIGN_RIGHT | wx.TOP| wx.RIGHT | wx.EXPAND, 5)
+        gridsizer_base.Add(self.ctrl, 1, wx.TOP| wx.RIGHT | wx.EXPAND, 5)
         gridsizer_base.AddGrowableCol(2)
         gridsizer_base.AddGrowableRow(0)
         self.SetSizer(gridsizer_base)
@@ -470,17 +470,19 @@ class DlgAdresses_saisie(wx.Dialog):
 
     def OnClicOk(self, event):
         event.Skip()
+        forcer = self.lstCtrl[self.lstNomsChamps.index("forcer")].ctrl.Value
         mess = ""
         saisie = self.panelAdresse.GetAdresse()
-        self.lstAdresse = nua.TransposeAdresse(saisie)
-        self.panelAdresse.SetAdresse(self.lstAdresse)
+        if not forcer:
+            self.lstAdresse = nua.TransposeAdresse(saisie)
+            self.panelAdresse.SetAdresse(self.lstAdresse)
+        else: self.lstAdresse = saisie
         if self.mode == 'familles':
             self.dicCorrespondant = self.panelAdresse.dicCorrespondant
         nonmodifiee=True
         for i in range(len(saisie)):
             if saisie[i].upper() != self.lstAdresse[i].upper():
                 nonmodifiee = False
-        forcer = self.lstCtrl[self.lstNomsChamps.index("forcer")].ctrl.Value
         validee = False
         if not forcer:
             mess = nua.Validation(self.lstAdresse)
