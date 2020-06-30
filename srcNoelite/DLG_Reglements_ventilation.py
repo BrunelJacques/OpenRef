@@ -1,15 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #-----------------------------------------------------------
-# Application :    Noethys Matthania
-# Site internet :  www.noethys.com
-# Auteur:           Ivan LUCAS, Jacques Brunel
+# Application :    NoeLITE, ventilation des Reglements
+# Usage: affecte des parts de règlements à des prestations
+# Auteur:           Ivan LUCAS orgine Noethys CTRL_Ventilation,
+#                   Jacques Brunel, adapté aCTRL_Ventilation
 # Copyright:       (c) 2010-11 Ivan LUCAS
 # Licence:         Licence GNU GPL
 #-----------------------------------------------------------
 
 import wx
 import wx.grid as gridlib
+import xpy.xGestion_TableauEditor       as xgte
 import wx.lib.agw.hyperlink as Hyperlink
 import datetime
 import decimal
@@ -28,7 +30,17 @@ COULEUR_CASE_MODIFIABLE_INACTIVE = (230, 230, 230)
 COULEUR_NUL = (255, 0, 0)
 COULEUR_PARTIEL = (255, 193, 37)
 COULEUR_TOTAL = (0, 238, 0)
-            
+
+
+def GetBoutons(dlg):
+    return  [
+                {'name': 'btnAbort', 'label': "Abandon",
+                    'toolTip': "Cliquez ici pour renoncer à affecter le règlement a des prestations",
+                    'size': (110, 27), 'image':"xpy/Images/32x32/Annuler.png",'onBtn':dlg.OnAbort},
+                {'name':'btnOK','ID':wx.ID_ANY,'label':"Validez",'toolTip':"Cliquez ici pour enregistrer la ventilation",
+                    'size':(100,30),'image':"xpy/Images/32x32/Valider.png",'onBtn':dlg.OnBoutonOK}
+            ]
+
 def DateEngFr(textDate):
     text = str(textDate[8:10]) + u"/" + str(textDate[5:7]) + u"/" + str(textDate[:4])
     return text
@@ -504,6 +516,7 @@ class EditeurMontant(gridlib.GridCellEditor):
 class CTRL_Ventilation(gridlib.Grid): 
     def __init__(self, parent, IDcompte_payeur=None, IDreglement=None): 
         gridlib.Grid.__init__(self, parent, -1, style=wx.WANTS_CHARS)
+        self.lstRequetes = []
         self.parent = parent
         self.IDcompte_payeur = IDcompte_payeur
         self.IDreglement = IDreglement
@@ -522,7 +535,6 @@ class CTRL_Ventilation(gridlib.Grid):
         
         # Binds
         self.Bind(gridlib.EVT_GRID_CELL_LEFT_CLICK, self.OnLeftClick)
-##        self.Bind(gridlib.EVT_GRID_CELL_RIGHT_CLICK, self.OnRightClick)
         self.GetGridWindow().Bind(wx.EVT_MOTION, self.OnMouseOver)
     
     def InitGrid(self):
@@ -554,7 +566,7 @@ class CTRL_Ventilation(gridlib.Grid):
             self.SetColLabelValue(numColonne, label)
             self.SetColSize(numColonne, largeur)
             numColonne += 1
-        
+
         # Importation des données
         self.listeLignesPrestations = self.Importation()
         
@@ -719,7 +731,11 @@ class CTRL_Ventilation(gridlib.Grid):
         if self.GetNumberRows() > 0 : 
             self.DeleteRows(0, self.GetNumberRows())
         self.Remplissage()
-        self.Thaw() 
+        self.Thaw()
+        nbcol = self.GetNumberCols()
+        for ix in range(nbcol-3):
+            self.AutoSizeColumn(ix)
+        self.Refresh()
 
     def Remplissage(self):
         # Regroupement
@@ -859,9 +875,14 @@ class CTRL_Ventilation(gridlib.Grid):
         
         return True
 
+class PNL_Pied(xgte.PNL_Pied):
+    #panel infos (gauche) et boutons sorties(droite)
+    def __init__(self, parent, dicPied, **kwds):
+        xgte.PNL_Pied.__init__(self,parent, dicPied, **kwds)
+
 # ---------------------------------------------------------------------------------------------------------------------
 
-class CTRL(wx.Panel):
+class Panel(wx.Panel):
     def __init__(self, parent, IDcompte_payeur=None, IDreglement=None):
         wx.Panel.__init__(self, parent, id=-1, style=wx.TAB_TRAVERSAL)
         self.parent = parent
@@ -901,8 +922,7 @@ class CTRL(wx.Panel):
         self.ctrl_image = wx.StaticBitmap(self, -1, self.imgAddition)
         
         self.ctrl_info = wx.StaticText(self, -1, ("Vous pouvez encore ventiler ---- €"))
-        self.ctrl_info.SetFont(wx.Font(10, wx.SWISS, wx.NORMAL, wx.BOLD))
-        
+        self.ctrl_info.SetFont(wx.Font(10, wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD, False))
         self.__do_layout()
         
         self.Bind(wx.EVT_RADIOBUTTON, self.OnRadioRegroupement, self.radio_periode)
@@ -1109,42 +1129,44 @@ class CTRL(wx.Panel):
             ligne.SetEtat(False, majTotaux=False)
         self.ctrl_ventilation.MAJtotaux()
 
-# ---------------------------------------------------------------------------------------------------------------------
+class Dialog(wx.Dialog):
+    def __init__(self, *args,IDcompte_payeur=None, IDreglement=None,mttReglement=0.0, **kwds):
 
-class MyFrame(wx.Frame):
-    def __init__(self, *args, **kwds):
-        wx.Frame.__init__(self, *args, **kwds)
-        panel = wx.Panel(self, -1, name="test1")
-        sizer_1 = wx.BoxSizer(wx.VERTICAL)
-        sizer_1.Add(panel, 1, wx.ALL|wx.EXPAND)
-        self.SetSizer(sizer_1)
-        
-        #self.ctrl = CTRL(panel, IDcompte_payeur=281, IDreglement=19978)
-        self.ctrl = CTRL(panel, IDcompte_payeur=281, IDreglement=26513)
-        self.ctrl.SetMontantReglement(1069.35)
-    
-        self.bouton_test = wx.Button(panel, -1, ("Bouton de test"))
-        self.Bind(wx.EVT_BUTTON, self.OnBoutonTest, self.bouton_test)
-        
-        sizer_2 = wx.BoxSizer(wx.VERTICAL)
-        sizer_2.Add(self.ctrl, 1, wx.ALL|wx.EXPAND, 4)
-        sizer_2.Add(self.bouton_test, 0, wx.ALL|wx.EXPAND, 4)
-        panel.SetSizer(sizer_2)
-        self.SetSize((900, 500))
+        wx.Dialog.__init__(self, *args, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER,**kwds)
+        txtInfos = "Ventilation non obligatoire\nAffectez ce règlement aux prestations auquelles il se rapporte"
+        lstInfos = [wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)), txtInfos]
+        dicPied = {'lstBtns': GetBoutons(self), "lstInfos": lstInfos}
+        self.pnlPied = PNL_Pied(self,dicPied)
+
+        self.panel = Panel(self, IDcompte_payeur=IDcompte_payeur, IDreglement=IDreglement)
+        self.panel.SetMontantReglement(mttReglement)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(self.panel, 1, wx.ALL|wx.EXPAND)
+        sizer.Add(self.pnlPied, 0, wx.ALL|wx.EXPAND, 4)
+
+        self.SetSize((1050, 500))
+        self.SetSizer(sizer)
+
         self.Layout()
         self.CenterOnScreen()
     
-    def OnBoutonTest(self, event):
-        """ Bouton de test """
-        self.ctrl.VentilationAuto()
-                    
-        
+    def OnBoutonOK(self, event):
+        if self.panel.validation != "ok":
+            txt = "Vous n'avez pas ventilé exactement\n\nVous pouvez saisir un montant exact dans la colonne de droite"
+            txt += "\nConfirmez-vous la validation?"
+            if wx.YES != wx.MessageBox(txt,style=wx.YES_NO):
+                return
+        self.EndModal(wx.ID_OK)
+
+    def OnAbort(self,event):
+        self.EndModal(wx.ID_CANCEL)
 
 if __name__ == '__main__':
     app = wx.App(0)
     import os
     os.chdir("..")
-    frame_1 = MyFrame(None, -1, "OL TEST")
-    app.SetTopWindow(frame_1)
-    frame_1.Show()
+    kwds = {'IDcompte_payeur': 281, 'IDreglement' : None, 'mttReglement' : 1069.35}
+    dlg = Dialog(None, -1, "OL TEST",**kwds)
+    app.SetTopWindow(dlg)
+    print(dlg.ShowModal())
     app.MainLoop()

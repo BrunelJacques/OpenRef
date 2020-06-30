@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 # -------------------------------------------------------------
 # Application :    NoeLITE, gestion des Reglements en lot
-# Auteur:           Jacques BRUNEL
+# Usage : Gestion de réglements créant éventuellement la prestation associée et le dépot des règlements
+# Auteur:          Jacques BRUNEL
 # Licence:         Licence GNU GPL
 # -------------------------------------------------------------
 
@@ -11,6 +12,7 @@ import os
 import xpy.xGestion_TableauEditor       as xgte
 import srcNoelite.UTILS_Utilisateurs    as nuu
 import srcNoelite.UTILS_Reglements      as nur
+import srcNoelite.DLG_Reglements_ventilation      as ndrv
 from xpy.outils.ObjectListView  import ColumnDefn, CellEditor
 from xpy.outils                 import xformat,xbandeau
 
@@ -164,11 +166,19 @@ class PNL_corpsReglements(xgte.PNL_corps):
         self.flagSkipEdit = False
 
     def OnEditStarted(self,code):
+        # affichage de l'aide
         if code in DIC_INFOS.keys():
             self.parent.pnlPied.SetItemsInfos( DIC_INFOS[code],
                                                wx.ArtProvider.GetBitmap(wx.ART_FIND, wx.ART_OTHER, (16, 16)))
         else:
             self.parent.pnlPied.SetItemsInfos( "-",wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
+        # reprise de la valeur 'ùmode' de la ligne précédente
+        row, col = self.ctrlOlv.cellBeingEdited
+        if row > 0:
+            trackN0 = self.ctrlOlv.GetObjectAt(row)
+            if len(trackN0.mode) == 0:
+                trackN1 = self.ctrlOlv.GetObjectAt(row - 1)
+                trackN0.mode = trackN1.mode
 
     def OnEditFinishing(self,code=None,value=None):
         self.parent.pnlPied.SetItemsInfos( "-",wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
@@ -198,11 +208,11 @@ class PNL_corpsReglements(xgte.PNL_corps):
             else:
                 self.ctrlOlv.lastGetObject.article = ""
                 self.ctrlOlv.lastGetObject.creer = False
-            if code == 'montant':
-                if self.ctrlOlv.lastGetObject.nature in ('Règlement','Ne pas créer'):
-                    # appel des ventilations
-                    obj = nur.Ventilation(value)
-                    self.ctrlOlv.lastGetObject.ventilation = obj.GetVentilation()
+        if code == 'montant':
+            if self.ctrlOlv.lastGetObject.nature in ('Règlement','Ne pas créer'):
+                # appel des ventilations
+                dlg = ndrv.Di(value)
+                self.ctrlOlv.lastGetObject.ventilation = obj.GetVentilation()
 
         # enlève l'info de bas d'écran
         self.parent.pnlPied.SetItemsInfos( "-",wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))

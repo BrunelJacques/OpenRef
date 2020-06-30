@@ -589,7 +589,7 @@ class PanelListView(wx.Panel):
         return
 
     # Handlers niveau cell Editor
-    def OnEditStarted(self, event):
+    def OnEditStarted(self,event):
         row, col = self.ctrl_listview.cellBeingEdited
         code = self.ctrl_listview.lstCodesColonnes[col]
         # appel des éventuels spécifiques
@@ -771,6 +771,7 @@ class PNL_Pied(wx.Panel):
         self.infosImage = None
         self.infosTexte = None
         lstItems = [(7,7)]
+        if not lstInfos: lstInfos = []
         for item in lstInfos:
             if isinstance(item,wx.Bitmap):
                 self.infosImage = wx.StaticBitmap(self, wx.ID_ANY, item)
