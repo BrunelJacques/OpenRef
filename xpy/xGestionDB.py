@@ -283,6 +283,22 @@ class DB():
         finally:
             return self.retourReq
 
+    def Executermany(self, req="", listeDonnees=[], commit=True):
+        """ Executemany pour local ou réseau """
+        """ Exemple de req : "INSERT INTO table (IDtable, nom) VALUES (?, ?)" """
+        """ Exemple de listeDonnees : [(1, 2), (3, 4), (5, 6)] """
+        # Adaptation réseau/local
+        if self.isNetwork == True :
+            # Version MySQL
+            req = req.replace("?", "%s")
+        else:
+            # Version Sqlite
+            req = req.replace("%s", "?")
+        # Executemany
+        self.cursor.executemany(req, listeDonnees)
+        if commit == True :
+            self.connexion.commit()
+
     def ResultatReq(self):
         if self.echec == 1 : return []
         resultat = []

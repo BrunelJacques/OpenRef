@@ -663,16 +663,13 @@ class CTRL_Ventilation(gridlib.Grid):
         return listeLignesPrestations
 
     def CorrigeVentilation(self,IDprestation):
-        DB = db.DB()
         # suppression de ventilations orphelines de leur réglement
         req = """DELETE ventilation
                 FROM ventilation 
                     LEFT JOIN reglements ON ventilation.IDreglement = reglements.IDreglement
                 WHERE ((reglements.IDreglement Is Null) AND (ventilation.IDprestation= %d))
                 ;"""% IDprestation
-        DB.ExecuterReq(req,mess="CTRL_Ventilation.CorrigeVentil1")
-        DB.Close()
-        DB = db.DB()
+        self.lstRequetes.append(('ExecuterReq',req))
 
         # appel du détail des ventilations.
         req = """SELECT ventilation.IDventilation,ventilation.montant, prestations.montant, reglements.IDreglement
@@ -682,6 +679,7 @@ class CTRL_Ventilation(gridlib.Grid):
                 WHERE ventilation.IDprestation=%d
                 ORDER BY reglements.date_saisie
                 ;""" % IDprestation
+        DB = db.DB()
         DB.ExecuterReq(req,mess="CTRL_Ventilation.CorrigeVentil2")
         listeDonnees = DB.ResultatReq()
         DB.Close()
@@ -701,9 +699,7 @@ class CTRL_Ventilation(gridlib.Grid):
         DB.Close()
 
         for IDventilation in lstSupprime:
-            DB = db.DB()
-            ret = DB.ReqDEL('ventilation','IDventilation',IDventilation,mess=True)
-            DB.Close()
+            self.lstRequetes.append('ReqDEL',('ventilation','IDventilation',IDventilation))
         return montant,mttcum
 
     def OnLeftClick(self, event):
@@ -843,8 +839,7 @@ class CTRL_Ventilation(gridlib.Grid):
     
     def Sauvegarde(self, IDreglement=None):
         """ Sauvegarde des données """
-        DB = db.DB()
-        
+
         for ligne in self.listeLignesPrestations :
             IDprestation = ligne.IDprestation
             montant = float(ligne.ventilationActuelle)
@@ -863,16 +858,13 @@ class CTRL_Ventilation(gridlib.Grid):
                         ("montant", montant),
                     ]
                 if IDventilation == None :
-                    IDventilation = DB.ReqInsert("ventilation", listeDonnees)
+                    self.lstRequetes.append('ReqInsert',("ventilation", listeDonnees))
                 else:
-                    DB.ReqMAJ("ventilation", listeDonnees, "IDventilation", IDventilation)
+                    self.lstRequetes.append("ReqMAJ",("ventilation", listeDonnees, "IDventilation", IDventilation))
             else :
                 # Suppression
                 if IDventilation != None :
-                    DB.ReqDEL("ventilation", "IDventilation", IDventilation)
-        
-        DB.Close()
-        
+                    self.lstRequetes.append("ReqDEL",("ventilation", "IDventilation", IDventilation))
         return True
 
 class PNL_Pied(xgte.PNL_Pied):
@@ -1130,9 +1122,12 @@ class Panel(wx.Panel):
         self.ctrl_ventilation.MAJtotaux()
 
 class Dialog(wx.Dialog):
-    def __init__(self, *args,IDcompte_payeur=None, IDreglement=None,mttReglement=0.0, **kwds):
+    def __init__(self,parent,ID,titre,IDcompte_payeur=None, IDreglement=None,mttReglement=0.0, **kwds):
+        if (not IDcompte_payeur) or IDcompte_payeur == 0: return
+        if not ID: ID = -1
+        if not titre: titre = "DLG_Reglements_ventilation"
+        wx.Dialog.__init__(self, parent,ID,titre, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER,**kwds)
 
-        wx.Dialog.__init__(self, *args, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER,**kwds)
         txtInfos = "Ventilation non obligatoire\nAffectez ce règlement aux prestations auquelles il se rapporte"
         lstInfos = [wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)), txtInfos]
         dicPied = {'lstBtns': GetBoutons(self), "lstInfos": lstInfos}
@@ -1161,12 +1156,15 @@ class Dialog(wx.Dialog):
     def OnAbort(self,event):
         self.EndModal(wx.ID_CANCEL)
 
+    def GetLstRequetes(self):
+        return self.panel.ctrl_ventilation.lstRequetes
+
 if __name__ == '__main__':
     app = wx.App(0)
     import os
     os.chdir("..")
     kwds = {'IDcompte_payeur': 281, 'IDreglement' : None, 'mttReglement' : 1069.35}
-    dlg = Dialog(None, -1, "OL TEST",**kwds)
+    dlg = Dialog(None, None,None,**kwds)
     app.SetTopWindow(dlg)
     print(dlg.ShowModal())
     app.MainLoop()

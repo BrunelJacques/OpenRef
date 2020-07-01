@@ -12,6 +12,7 @@ import os
 import xpy.xGestion_TableauEditor       as xgte
 import srcNoelite.UTILS_Utilisateurs    as nuu
 import srcNoelite.UTILS_Reglements      as nur
+import xpy.xGestionDB                   as db
 import srcNoelite.DLG_Reglements_ventilation      as ndrv
 from xpy.outils.ObjectListView  import ColumnDefn, CellEditor
 from xpy.outils                 import xformat,xbandeau
@@ -22,7 +23,7 @@ TITRE = "Bordereau de réglements: création, modification"
 INTRO = "Définissez la banque, choisissez un numéro si c'est pour une reprise, puis saisissez les règlements dans le tableau"
 DIC_INFOS = {'dateregl':"C'est la date de réception du règlement, qui sera la date comptable",
             'IDfamille':    "<F4> Choix d'une famille, ou saisie directe du no famille",
-            'emetteur':     "<F4> Gestion des émetteurs, <UP> <DOWN> pour défiler l'existant",
+            'payeur':     "<F4> Gestion des payeurs, <UP> <DOWN> pour défiler l'existant",
             'mode':         "<UP> <DOWN> pour défiler les possibles ou première lettre, \nChèques, Chèques non déposés, Virements,Espèces",
             'numero':       "Derniers caractères du numéro du moyen de paiement ou référence externe",
             'nature':       "<UP> <DOWN> pour défiler les nature d'affectation du reglement,\n"+
@@ -45,15 +46,15 @@ def GetBoutons(dlg):
 def GetOlvColonnes(dlg):
     # retourne la liste des colonnes de l'écran principal
     return [
-            ColumnDefn("ID", 'centre', 0, 'IDregl',
+            ColumnDefn("ID", 'centre', 0, 'IDreglement',
                             isEditable=False),
-            ColumnDefn("date", 'center', 80, 'dateregl', valueSetter=wx.DateTime.Today(),isSpaceFilling=False,
+            ColumnDefn("date", 'center', 80, 'date', valueSetter=wx.DateTime.Today(),isSpaceFilling=False,
                             stringConverter=xformat.FmtDate),
             ColumnDefn("famille", 'centre', 50, 'IDfamille', valueSetter=0,isSpaceFilling=False,
                             stringConverter=xformat.FmtIntNoSpce),
             ColumnDefn("désignation famille", 'left', 180, 'designation',valueSetter='',isSpaceFilling=True,
                             isEditable=False),
-            ColumnDefn("émetteur", 'left', 80, "emetteur", valueSetter='', isSpaceFilling=True,
+            ColumnDefn("payeur", 'left', 80, "payeur", valueSetter='', isSpaceFilling=True,
                             cellEditorCreator=CellEditor.ComboEditor),
             ColumnDefn("mode", 'centre', 50, 'mode', valueSetter='',choices=['VRT virement', 'CHQ chèque',
                                                     'ESP espèces'], isSpaceFilling=False,
@@ -88,8 +89,9 @@ class PNL_params(wx.Panel):
     #panel de paramètres de l'application
     def __init__(self, parent, **kwds):
         wx.Panel.__init__(self, parent, **kwds)
-        self.dicBanques = nur.GetBanquesNne()
-        lstBanques = [x['nom'] for x in self.dicBanques if x['code_nne'][:2]!='47']
+        self.ldBanques = nur.GetBanquesNne()
+        lstBanques = [x['nom'] for x in self.ldBanques if x['code_nne'][:2]!='47']
+        self.lstIDbanques = [x['IDcompte'] for x in self.ldBanques if x['code_nne'][:2]!='47']
         self.lblBanque = wx.StaticText(self,-1, label="Banque Noethys:  ",size=(130,20),style=wx.ALIGN_RIGHT)
         self.ctrlBanque = wx.Choice(self,size=(220,20),choices=lstBanques)
         self.ctrlBanque.Bind(wx.EVT_KILL_FOCUS,self.OnKillFocusBanque)
@@ -163,6 +165,7 @@ class PNL_corpsReglements(xgte.PNL_corps):
     def __init__(self, parent, dicOlv,*args, **kwds):
         xgte.PNL_corps.__init__(self,parent,dicOlv,*args,**kwds)
         self.ctrlOlv.Choices={}
+        self.lstNewReglements = []
         self.flagSkipEdit = False
 
     def OnEditStarted(self,code):
@@ -172,18 +175,25 @@ class PNL_corpsReglements(xgte.PNL_corps):
                                                wx.ArtProvider.GetBitmap(wx.ART_FIND, wx.ART_OTHER, (16, 16)))
         else:
             self.parent.pnlPied.SetItemsInfos( "-",wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
-        # reprise de la valeur 'ùmode' de la ligne précédente
         row, col = self.ctrlOlv.cellBeingEdited
+        track = self.ctrlOlv.GetObjectAt(row)
+        # Le premier accès sur la ligne va attribuer un ID, la sauvegarde se fera après la saisie du montant != 0.0
+        if track.IDreglement in (None, 0):
+            track.IDreglement = nur.GetNewIDreglement(self.lstNewReglements)
+            self.lstNewReglements.append(track.IDreglement)
+            track.ventilation = []
         if row > 0:
-            trackN0 = self.ctrlOlv.GetObjectAt(row)
-            if len(trackN0.mode) == 0:
+            # reprise de la valeur 'mode' de la ligne précédente
+            if len(track.mode) == 0:
                 trackN1 = self.ctrlOlv.GetObjectAt(row - 1)
-                trackN0.mode = trackN1.mode
+                track.mode = trackN1.mode
 
     def OnEditFinishing(self,code=None,value=None):
         self.parent.pnlPied.SetItemsInfos( "-",wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
+        # flagSkipEdit permet d'occulter les évènements redondants. True durant la durée du traitement
         if self.flagSkipEdit : return
         self.flagSkipEdit = True
+        track = self.ctrlOlv.lastGetObject
         if code == 'IDfamille':
             try:
                 value = int(value)
@@ -191,28 +201,36 @@ class PNL_corpsReglements(xgte.PNL_corps):
                 self.flagSkipEdit = False
                 return
             designation = nur.GetDesignationFamille(value)
-            self.ctrlOlv.lastGetObject.designation = designation
+            track.designation = designation
             payeurs = nur.GetPayeurs(value)
             if len(payeurs)==0: payeurs.append(designation)
             payeur = payeurs[0]
-            self.ctrlOlv.lastGetObject.emetteur = payeur
-            self.ctrlOlv.dicChoices[self.ctrlOlv.lstCodesColonnes.index('emetteur')]=payeurs
+            track.payeur = payeur
+            self.ctrlOlv.dicChoices[self.ctrlOlv.lstCodesColonnes.index('payeur')]=payeurs
         if code == 'nature':
             if value.lower() in ('don','debour') :
                 # Seuls les dons et débours vont générer la prestation selon l'article
-                self.ctrlOlv.lastGetObject.creer = True
+                track.creer = True
                 # Choix article - code comptable
                 obj = nur.Article(value)
                 compte = obj.GetArticle()
-                self.ctrlOlv.lastGetObject.article = compte
+                track.article = compte
             else:
-                self.ctrlOlv.lastGetObject.article = ""
-                self.ctrlOlv.lastGetObject.creer = False
+                track.article = ""
+                track.creer = False
         if code == 'montant':
-            if self.ctrlOlv.lastGetObject.nature in ('Règlement','Ne pas créer'):
-                # appel des ventilations
-                dlg = ndrv.Di(value)
-                self.ctrlOlv.lastGetObject.ventilation = obj.GetVentilation()
+            # l'enregistrement de la ligne se fait au sortir des deux champs montant et différé
+            track.montant = value
+            ok = self.SetReglement(track)
+            if ok and track.nature in ('Règlement','Ne pas créer') and value != 0.0:
+                # appel de l'écran ventilations
+                dlg = ndrv.Dialog(self,-1,None,track.IDfamille,track.IDreglement,track.montant)
+                ret = dlg.ShowModal()
+                if ret == wx.ID_OK:
+                    # --- Sauvegarde de la ventilation ---
+                    for action, params in dlg.GetLstRequetes():
+                        print(action, params)
+                dlg.Destroy()
 
         # enlève l'info de bas d'écran
         self.parent.pnlPied.SetItemsInfos( "-",wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
@@ -227,6 +245,9 @@ class PNL_corpsReglements(xgte.PNL_corps):
             self.OnEditFinishing('IDfamille',IDfamille)
             self.ctrlOlv.lastGetObject.IDfamille = IDfamille
 
+    def SetReglement(self,track):
+        ret = nur.SetReglement(self.parent,track)
+
 class PNL_Pied(xgte.PNL_Pied):
     #panel infos (gauche) et boutons sorties(droite)
     def __init__(self, parent, dicPied, **kwds):
@@ -239,12 +260,36 @@ class Dialog(wx.Dialog):
         titre = listArbo[-1:][0] + "/" + self.__class__.__name__
         wx.Dialog.__init__(self, None,-1,title=titre, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
 
-        if not nuu.VerificationDroitsUtilisateurActuel('reglements_depots','creer'):
+        self.IDutilisateur = nuu.GetIDutilisateur()
+        if (not self.IDutilisateur) or not nuu.VerificationDroitsUtilisateurActuel('reglements_depots','creer'):
             self.OnClose(None)
 
         # définition de l'OLV
         self.dicOlv = {'lstColonnes': GetOlvColonnes(self)}
         self.dicOlv.update(GetOlvOptions(self))
+
+        # récup des modesReglements nécessaires pour passer du texte à un ID d'un mode ayant un mot en commun
+        choices = []
+        for colonne in self.dicOlv['lstColonnes']:
+            if 'mode' in colonne.valueGetter:
+                choices = colonne.choices
+                break
+        self.dicModesRegl = {}
+        ldModesDB = nur.GetModesReglements()
+        for item in choices:
+            # les descriptifs de modes de règlements ne doivent pas avoir des mots en commun
+            lstMots = item.split(' ')
+            self.dicModesRegl[item]={'lstMots':lstMots}
+            ok = False
+            for dicMode in ldModesDB:
+                for mot in lstMots:
+                    if mot.lower() in dicMode['label'].lower():
+                        self.dicModesRegl[item] : dicMode
+                        ok = True
+                        break
+                if ok: break
+            if not ok:
+                wx.MessageBox("Problème mode de règlement\n\n'%s' n'a aucun mot commun avec un mode de règlement paramétré!"%item)
 
         # boutons de bas d'écran - infos: texte ou objet window.  Les infos sont  placées en bas à gauche
         self.txtInfo =  "Ici de l'info apparaîtra selon le contexte de la grille de saisie"
@@ -277,6 +322,10 @@ class Dialog(wx.Dialog):
         self.CenterOnScreen()
 
     # ------------------- Gestion des actions -----------------------
+    def GetIDbanque(self):
+        ix = self.pnlParams.ctrlBanque.GetSelection()
+        return self.pnlParams.lstIDbanques[ix]
+
     def OnSsDepot(self,event):
         # cas d'une saisie différée, la grille est modifiée
         if event:

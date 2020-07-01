@@ -9,10 +9,15 @@
 #------------------------------------------------------------------------
 
 import wx
+import srcNoelite.UTILS_Historique  as nuh
 import xpy.xGestionDB               as xdb
 import xpy.xGestion_TableauEditor   as xgte
 import xpy.xGestion_TableauRecherche as xgtr
 import xpy.xUTILS_SaisieParams      as xusp
+import xpy.outils.xformat           as xfor
+import datetime
+
+SYMBOLE = "€"
 
 def GetMatriceFamilles():
     dicBandeau = {'titre':"Recherche d'une famille",
@@ -126,6 +131,27 @@ def GetBanquesNne(where = 'code_nne IS NOT NULL'):
         lstBanques.append(dicBanque)
     return lstBanques
 
+def GetModesReglements():
+    db = xdb.DB()
+    ldModesRegls = []
+    lstChamps = ['IDmode','label','numero_piece','nbre_chiffres','type_comptable','code_compta']
+    req = """   SELECT %s
+                FROM modes_reglements
+                ;"""%",".join(lstChamps)
+    retour = db.ExecuterReq(req, mess='UTILS_Reglements.GetModesReglements' )
+    recordset = ()
+    if retour == "ok":
+        recordset = db.ResultatReq()
+        if len(recordset) == 0:
+            wx.MessageBox("Aucun mode de règlements")
+    db.Close()
+    for record in recordset:
+        dicModeRegl = {}
+        for ix in range(len(lstChamps)):
+            dicModeRegl[lstChamps[ix]] = record[ix]
+        ldModesRegls.append(dicModeRegl)
+    return ldModesRegls
+
 def GetDesignationFamille(IDfamille):
     db = xdb.DB()
     req = """   SELECT adresse_intitule
@@ -158,6 +184,109 @@ def GetPayeurs(IDfamille):
         lstPayeurs = [GetDesignationFamille(IDfamille),]
     db.Close()
     return lstPayeurs
+
+def GetNewIDreglement(lstID):
+    # Recherche le prochain ID reglement après ceux de la base et éventuellement déjà dans la liste ID préaffectés
+    DB = xdb.DB()
+    req = """SELECT MAX(IDreglement) 
+            FROM reglements;"""
+    DB.ExecuterReq(req)
+    recordset = DB.ResultatReq()
+    ID = recordset[0][0] + 1
+    while ID in lstID:
+        ID += 1
+    return ID
+
+def ValideLigne(self,track):
+    # vérification des éléments saisis
+    if not len(GetDesignationFamille(track.IDfamille)) > 0:
+        wx.MessageBox("Ligne incomplète\n\nLa famille n'est pas identifiée")
+        return False
+    if track.montant == 0.0:
+        wx.MessageBox("Ligne incomplète\n\nLe montant est à zéro")
+        return False
+    if track.IDreglement in (None,0) :
+        wx.MessageBox("Ligne incomplète\n\nL'ID reglement n'est pas été déterminé à l'entrée du montant")
+        return False
+
+    # Date
+    if track.date == None or not isinstance(track.date,wx.DateTime):
+        dlg = wx.MessageBox( ("Erreur de saisie\n\nVous devez obligatoirement saisir une date d'émission du règlement !"),
+                               wx.OK | wx.ICON_EXCLAMATION)
+        return False
+
+    # Mode
+    if track.mode == None:
+        dlg = wx.MessageBox( ("Erreur de saisie\n\nVous devez obligatoirement sélectionner un mode de règlement !"),
+                               wx.OK | wx.ICON_EXCLAMATION)
+        return False
+
+    # Payeur
+    if track.payeur == None:
+        dlg = wx.MessageBox( ("Erreur de saisie\n\nVous devez obligatoirement sélectionner un payeur dans la liste !"),
+                               wx.OK | wx.ICON_EXCLAMATION)
+        return False
+
+    return True
+
+def SetReglement(dlg,track):
+    # --- Sauvegarde du règlement ---
+    IDmode = dlg.dicModesRegl[track.mode]
+    listeDonnees = [
+        ("IDreglement", track.IDreglement),
+        ("IDcompte_payeur", track.payeur),
+        ("date", xfor.DatetimeToStr(track.date)),
+        ("IDmode", IDmode),
+        ("numero_piece", track.numero),
+        ("montant", track.montant),
+        ("IDpayeur", track.IDpayeur),
+        ("observations", track.observations),
+        ("IDcompte", dlg.GetIDbanque()),
+        ("date_differe", xfor.DatetimeToStr(track.date_differe)),
+        ("date_saisie", xfor.DatetimeToStr(datetime.date.today())),
+        ("IDutilisateur", dlg.IDutilisateur),
+    ]
+    if hasattr(track,'differe'):
+        attente = 0
+        if len(track.differe) > 0:
+            attente = 1
+        listeDonnees.append(("encaissement_attente",attente))
+
+    DB = xdb.DB()
+    if track.IDreglement in dlg.pnlOlv.lstNewReglements:
+        nouveauReglement = True
+        ret = DB.ReqInsert("reglements", listeDonnees)
+        dlg.pnlOlv.lstNewReglements.remove(track.IDreglement)
+    else:
+        nouveauReglement = False
+        DB.ReqMAJ("reglements", listeDonnees, "IDreglement", track.IDreglement)
+    DB.Close()
+
+    # --- Mémorise l'action dans l'historique ---
+    if nouveauReglement == True:
+        IDcategorie = 6
+        categorie = ("Saisie")
+    else:
+        IDcategorie = 7
+        categorie = "Modification"
+    texteMode = track.mode.GetStringSelection()
+    if track.numero.GetValue() != "":
+        texteNumpiece = u" n°%s" % track.numero
+    else:
+        texteNumpiece = u""
+    if texteNumpiece == "":
+        texteDetail = u""
+    else:
+        texteDetail = u"- %s - " % (texteNumpiece)
+    montant = u"%.2f %s" % (track.montant, SYMBOLE)
+    textePayeur = track.payeur.GetStringSelection()
+    nuh.InsertActions([{
+        "IDfamille": track.IDfamille,
+        "IDcategorie": IDcategorie,
+        "action": ("Noelite %s du règlement ID%d : %s en %s %spayé par %s") % (
+        categorie, track.IDreglement, montant, texteMode, texteDetail, textePayeur),
+    }, ])
+    return True
 
 class Article(object):
     def __init__(self,nature):

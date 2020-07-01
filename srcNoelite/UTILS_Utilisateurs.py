@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #------------------------------------------------------------------------
-# Application :    Noethys, gestion multi-activités
-# Site internet :  www.noethys.com
-# Auteur:           Ivan LUCAS
+# Application :    NoeLITE, ventilation des Reglements
+# Usage:           trace les actions dans la table historique
+# Auteur:           Ivan LUCAS, traduit python3 Jacques BRUNEL
 # Copyright:       (c) 2010-13 Ivan LUCAS
 # Licence:         Licence GNU GPL
 #------------------------------------------------------------------------
@@ -81,6 +81,48 @@ def VerificationDroitsUtilisateurActuel(categorie="", action="", IDactivite="", 
         return resultat
     return True
 
+def GetIDutilisateur(afficheMessage=True):
+    try :
+        topWindow = wx.GetApp().GetTopWindow()
+        dictUtilisateur = topWindow.dicUser
+    except :
+        dictUtilisateur = None
+    if not dictUtilisateur:
+        try :
+            import xpy.xUTILS_Config as xucfg
+            cfg = xucfg.ParamUser()
+            dictUtilisateur = cfg.GetDict(groupe='USER')
+        except:
+            pass
+    if dictUtilisateur:
+        # Si la frame 'General' est chargée, on y récupère le dict de config
+        return dictUtilisateur['id']
+    else:
+        if afficheMessage == True :
+            wx.MessageBox("Vous n'êtes pas identifiés\n\nrepassez par l'entrée",style=wx.ICON_AUTH_NEEDED)
+    return None
+
+def GetDictUtilisateur(afficheMessage=True):
+    try :
+        topWindow = wx.GetApp().GetTopWindow()
+        dictUtilisateur = topWindow.dicUser
+    except :
+        dictUtilisateur = None
+    if not dictUtilisateur:
+        try :
+            import xpy.xUTILS_Config as xucfg
+            cfg = xucfg.ParamUser()
+            dictUtilisateur = cfg.GetDict(groupe='USER')
+        except:
+            pass
+    if dictUtilisateur:
+        # Si la frame 'General' est chargée, on y récupère le dict de config
+        return dictUtilisateur
+    else:
+        if afficheMessage == True :
+            wx.MessageBox("Vous n'êtes pas identifiés\n\nrepassez par l'entrée",style=wx.ICON_AUTH_NEEDED)
+    return None
+
 class CTRL_Bouton_image(wx.Button):
     # La classe xGestion_TableauEditor.Button reprend le concept de manière plus large
     def __init__(self, parent, id=wx.ID_APPLY, texte="", cheminImage=None):
@@ -97,3 +139,4 @@ if __name__ == '__main__':
     print(VerificationDroits({'IDutilisateur': 2, 'nom': 'LORIOL', 'prenom': 'Isabelle', 'sexe': 'F', 'mdp': 'lor', 'profil': 'administrateur', 'actif': 1, 'droits': None},
                              "parametrage_modes_reglements", "supprimer"))
     print(VerificationDroitsUtilisateurActuel("parametrage_modes_reglements", "supprimer"))
+    print(GetIDutilisateur())

@@ -4456,8 +4456,7 @@ class TrackVierge(object):
                 value = column.valueSetter
             if value == None and hasattr(olv,'lstSetterValue'):
                 value = olv.lstSetterValue[olv.columns.index(column)]
-            if value != None:
-                self.__setattr__(column.valueGetter, value)
+            self.__setattr__(column.valueGetter, value)
             self.donnees.append(value)
         return
 
