@@ -112,13 +112,13 @@ def GetFamille():
 
 def GetBanquesNne(where = 'code_nne IS NOT NULL'):
     db = xdb.DB()
-    lstBanques = []
+    ldBanques = []
     lstChamps = ['IDcompte','nom','defaut','code_nne','iban','bic']
     req = """   SELECT %s
                 FROM comptes_bancaires
                 WHERE %s
                 """ % (",".join(lstChamps),where)
-    retour = db.ExecuterReq(req, mess='UTILS_Reglements.GetBanques' )
+    retour = db.ExecuterReq(req, mess='UTILS_Reglements.GetBanquesNne' )
     if retour == "ok":
         recordset = db.ResultatReq()
         if len(recordset) == 0:
@@ -128,8 +128,8 @@ def GetBanquesNne(where = 'code_nne IS NOT NULL'):
         dicBanque = {}
         for ix in range(len(lstChamps)):
             dicBanque[lstChamps[ix]] = record[ix]
-        lstBanques.append(dicBanque)
-    return lstBanques
+        ldBanques.append(dicBanque)
+    return ldBanques
 
 def GetModesReglements():
     db = xdb.DB()
@@ -158,7 +158,7 @@ def GetDesignationFamille(IDfamille):
                 FROM familles
                 WHERE IDfamille = %d
                 """ % (IDfamille)
-    retour = db.ExecuterReq(req, mess='UTILS_Reglements.GetPayeurs' )
+    retour = db.ExecuterReq(req, mess='UTILS_Reglements.GetDesignationFamille' )
     if retour == "ok":
         recordset = db.ResultatReq()
     designation = ''
@@ -169,21 +169,32 @@ def GetDesignationFamille(IDfamille):
 
 def GetPayeurs(IDfamille):
     db = xdb.DB()
-    lstPayeurs = []
-    req = """   SELECT nom
+    ldPayeurs = []
+    lstChamps = ['IDpayeur','IDcompte_payeur','nom']
+    req = """   SELECT %s
                 FROM payeurs
                 WHERE IDcompte_payeur = %d
-                """ % (IDfamille)
-    retour = db.ExecuterReq(req, mess='UTILS_Reglements.GetPayeurs' )
+                """ % (",".join(lstChamps),IDfamille)
+    retour = db.ExecuterReq(req, mess='UTILS_Reglements.GetPayeurs')
+    recordset = ()
     if retour == "ok":
         recordset = db.ResultatReq()
-
     for record in recordset:
-        lstPayeurs.append(record[0])
-    if len(lstPayeurs) == 0:
-        lstPayeurs = [GetDesignationFamille(IDfamille),]
+        dicPayeur = {}
+        for ix in range(len(lstChamps)):
+            dicPayeur[lstChamps[ix]] = record[ix]
+        ldPayeurs.append(dicPayeur)
     db.Close()
-    return lstPayeurs
+    return ldPayeurs
+
+def SetPayeur(IDcompte_payeur,nom):
+    listeDonnees = [('IDcompte_payeur',IDcompte_payeur),
+                    ('nom',nom)]
+    DB = xdb.DB()
+    DB.ReqInsert("payeurs", lstDonnees=listeDonnees,mess="UTILS_Reglements.SetPayeur")
+    ID = DB.newID
+    DB.Close()
+    return ID
 
 def GetNewIDreglement(lstID):
     # Recherche le prochain ID reglement après ceux de la base et éventuellement déjà dans la liste ID préaffectés
@@ -216,8 +227,15 @@ def ValideLigne(self,track):
         return False
 
     # Mode
-    if track.mode == None:
+    if track.mode == None or len(track.mode) == 0:
         dlg = wx.MessageBox( ("Erreur de saisie\n\nVous devez obligatoirement sélectionner un mode de règlement !"),
+                               wx.OK | wx.ICON_EXCLAMATION)
+        return False
+
+    # Numero de piece
+    if track.mode[:3].upper() == 'CHQ':
+        if not track.numero or len(track.numero)<4:
+            dlg = wx.MessageBox( ("Erreur de saisie\n\nVous devez saisir un numéro de chèque !"),
                                wx.OK | wx.ICON_EXCLAMATION)
         return False
 
@@ -227,27 +245,38 @@ def ValideLigne(self,track):
                                wx.OK | wx.ICON_EXCLAMATION)
         return False
 
+    # libelle pour chèques
+    if track.libelle == '':
+        pass
     return True
 
 def SetReglement(dlg,track):
     # --- Sauvegarde du règlement ---
-    IDmode = dlg.dicModesRegl[track.mode]
+    IDmode = dlg.dicModesRegl[track.mode]['IDmode']
+    IDpayeur = None
+    for dicPayeur in dlg.pnlOlv.ldPayeurs:
+        if track.payeur in dicPayeur['nom']:
+            IDpayeur = dicPayeur['IDpayeur']
+            break
+    if not IDpayeur:
+        IDpayeur = SetPayeur(track.IDfamille,track.payeur)
+
     listeDonnees = [
         ("IDreglement", track.IDreglement),
-        ("IDcompte_payeur", track.payeur),
-        ("date", xfor.DatetimeToStr(track.date)),
+        ("IDcompte_payeur", IDpayeur),
+        ("date", xfor.DatetimeToStr(track.date,iso=True)),
         ("IDmode", IDmode),
         ("numero_piece", track.numero),
         ("montant", track.montant),
-        ("IDpayeur", track.IDpayeur),
-        ("observations", track.observations),
+        ("IDpayeur", IDpayeur),
+        ("observations", track.libelle),
         ("IDcompte", dlg.GetIDbanque()),
-        ("date_differe", xfor.DatetimeToStr(track.date_differe)),
-        ("date_saisie", xfor.DatetimeToStr(datetime.date.today())),
+        ("date_saisie", xfor.DatetimeToStr(datetime.date.today(),iso=True)),
         ("IDutilisateur", dlg.IDutilisateur),
     ]
     if hasattr(track,'differe'):
         attente = 0
+        listeDonnees.append(("date_differe", xfor.DatetimeToStr(track.differe,iso=True)))
         if len(track.differe) > 0:
             attente = 1
         listeDonnees.append(("encaissement_attente",attente))
@@ -255,7 +284,7 @@ def SetReglement(dlg,track):
     DB = xdb.DB()
     if track.IDreglement in dlg.pnlOlv.lstNewReglements:
         nouveauReglement = True
-        ret = DB.ReqInsert("reglements", listeDonnees)
+        ret = DB.ReqInsert("reglements",lstDonnees= listeDonnees, mess="UTILS_Reglements.SetReglement")
         dlg.pnlOlv.lstNewReglements.remove(track.IDreglement)
     else:
         nouveauReglement = False
@@ -269,8 +298,8 @@ def SetReglement(dlg,track):
     else:
         IDcategorie = 7
         categorie = "Modification"
-    texteMode = track.mode.GetStringSelection()
-    if track.numero.GetValue() != "":
+    texteMode = track.mode
+    if track.numero != "":
         texteNumpiece = u" n°%s" % track.numero
     else:
         texteNumpiece = u""
@@ -279,7 +308,7 @@ def SetReglement(dlg,track):
     else:
         texteDetail = u"- %s - " % (texteNumpiece)
     montant = u"%.2f %s" % (track.montant, SYMBOLE)
-    textePayeur = track.payeur.GetStringSelection()
+    textePayeur = track.payeur
     nuh.InsertActions([{
         "IDfamille": track.IDfamille,
         "IDcategorie": IDcategorie,

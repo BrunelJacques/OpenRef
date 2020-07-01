@@ -167,6 +167,7 @@ class PNL_corpsReglements(xgte.PNL_corps):
         self.ctrlOlv.Choices={}
         self.lstNewReglements = []
         self.flagSkipEdit = False
+        self.oldRow = None
 
     def OnEditStarted(self,code):
         # affichage de l'aide
@@ -177,6 +178,12 @@ class PNL_corpsReglements(xgte.PNL_corps):
             self.parent.pnlPied.SetItemsInfos( "-",wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
         row, col = self.ctrlOlv.cellBeingEdited
         track = self.ctrlOlv.GetObjectAt(row)
+        if not self.oldRow: self.oldRow = row
+        if row != self.oldRow:
+            test = wx.MessageBox("Vérification de la ligne %d"%self.oldRow,style=wx.YES_NO)
+            if test == wx.ID_YES: track.valide = True
+        track.valide = False
+
         # Le premier accès sur la ligne va attribuer un ID, la sauvegarde se fera après la saisie du montant != 0.0
         if track.IDreglement in (None, 0):
             track.IDreglement = nur.GetNewIDreglement(self.lstNewReglements)
@@ -202,7 +209,8 @@ class PNL_corpsReglements(xgte.PNL_corps):
                 return
             designation = nur.GetDesignationFamille(value)
             track.designation = designation
-            payeurs = nur.GetPayeurs(value)
+            self.ldPayeurs = nur.GetPayeurs(value)
+            payeurs = [x['nom'] for x in self.ldPayeurs]
             if len(payeurs)==0: payeurs.append(designation)
             payeur = payeurs[0]
             track.payeur = payeur
@@ -270,10 +278,12 @@ class Dialog(wx.Dialog):
 
         # récup des modesReglements nécessaires pour passer du texte à un ID d'un mode ayant un mot en commun
         choices = []
+        self.libelleDefaut = ''
         for colonne in self.dicOlv['lstColonnes']:
             if 'mode' in colonne.valueGetter:
                 choices = colonne.choices
-                break
+            if 'libelle' in colonne.valueGetter:
+                self.libelleDefaut = colonne.valueSetter
         self.dicModesRegl = {}
         ldModesDB = nur.GetModesReglements()
         for item in choices:
@@ -284,7 +294,7 @@ class Dialog(wx.Dialog):
             for dicMode in ldModesDB:
                 for mot in lstMots:
                     if mot.lower() in dicMode['label'].lower():
-                        self.dicModesRegl[item] : dicMode
+                        self.dicModesRegl[item].update(dicMode)
                         ok = True
                         break
                 if ok: break
