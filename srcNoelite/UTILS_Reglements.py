@@ -208,49 +208,52 @@ def GetNewIDreglement(lstID):
         ID += 1
     return ID
 
-def ValideLigne(self,track):
+def ValideLigne(track):
+    track.ligneValide = True
+    track.messageRefus = "Saisie incomplète\n\n"
+
     # vérification des éléments saisis
     if not len(GetDesignationFamille(track.IDfamille)) > 0:
-        wx.MessageBox("Ligne incomplète\n\nLa famille n'est pas identifiée")
-        return False
+        track.messageRefus += "La famille n'est pas identifiée\n"
+
+    # montant null
     if track.montant == 0.0:
-        wx.MessageBox("Ligne incomplète\n\nLe montant est à zéro")
-        return False
+        track.messageRefus += "Le montant est à zéro\n"
+
+    # IDreglement manquant
     if track.IDreglement in (None,0) :
-        wx.MessageBox("Ligne incomplète\n\nL'ID reglement n'est pas été déterminé à l'entrée du montant")
-        return False
+        track.messageRefus += "L'ID reglement n'est pas été déterminé à l'entrée du montant\n"
 
     # Date
     if track.date == None or not isinstance(track.date,wx.DateTime):
-        dlg = wx.MessageBox( ("Erreur de saisie\n\nVous devez obligatoirement saisir une date d'émission du règlement !"),
-                               wx.OK | wx.ICON_EXCLAMATION)
-        return False
+        track.messageRefus += "Vous devez obligatoirement saisir une date d'émission du règlement !\n"
 
     # Mode
     if track.mode == None or len(track.mode) == 0:
-        dlg = wx.MessageBox( ("Erreur de saisie\n\nVous devez obligatoirement sélectionner un mode de règlement !"),
-                               wx.OK | wx.ICON_EXCLAMATION)
-        return False
+        track.messageRefus += "Vous devez obligatoirement sélectionner un mode de règlement !\n"
 
     # Numero de piece
     if track.mode[:3].upper() == 'CHQ':
         if not track.numero or len(track.numero)<4:
-            dlg = wx.MessageBox( ("Erreur de saisie\n\nVous devez saisir un numéro de chèque !"),
-                               wx.OK | wx.ICON_EXCLAMATION)
-        return False
+            track.messageRefus += "Vous devez saisir un numéro de chèque !\n"
+        # libelle pour chèques
+        if track.libelle == '':
+            track.messageRefus += "Vous devez saisir la banque émettrice du chèque !\n"
 
     # Payeur
     if track.payeur == None:
-        dlg = wx.MessageBox( ("Erreur de saisie\n\nVous devez obligatoirement sélectionner un payeur dans la liste !"),
-                               wx.OK | wx.ICON_EXCLAMATION)
-        return False
+        track.messageRefus += "Vous devez obligatoirement sélectionner un payeur dans la liste !\n"
 
-    # libelle pour chèques
-    if track.libelle == '':
-        pass
-    return True
+
+    # envoi de l'erreur
+    if track.messageRefus != "Saisie incomplète\n\n":
+        track.ligneValide = False
+    else: track.messageRefus = ""
+    return
 
 def SetReglement(dlg,track):
+    if not track.ligneValide:
+        return False
     # --- Sauvegarde du règlement ---
     IDmode = dlg.dicModesRegl[track.mode]['IDmode']
     IDpayeur = None
@@ -274,12 +277,13 @@ def SetReglement(dlg,track):
         ("date_saisie", xfor.DatetimeToStr(datetime.date.today(),iso=True)),
         ("IDutilisateur", dlg.IDutilisateur),
     ]
+    attente = 0
     if hasattr(track,'differe'):
-        attente = 0
+
         listeDonnees.append(("date_differe", xfor.DatetimeToStr(track.differe,iso=True)))
         if len(track.differe) > 0:
             attente = 1
-        listeDonnees.append(("encaissement_attente",attente))
+    listeDonnees.append(("encaissement_attente",attente))
 
     DB = xdb.DB()
     if track.IDreglement in dlg.pnlOlv.lstNewReglements:

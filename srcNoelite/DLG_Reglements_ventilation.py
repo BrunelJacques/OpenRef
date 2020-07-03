@@ -600,7 +600,7 @@ class CTRL_Ventilation(gridlib.Grid):
             self.dictVentilation[IDprestation] = montant
             self.dictVentilationInitiale[IDprestation] = IDventilation
 
-        # Importation des données
+        # Importation des prestations de la famille et leurs parts réglées
         req = """
         SELECT prestations.IDprestation, prestations.IDcompte_payeur, date, categorie, label, prestations.montant, 
         prestations.IDactivite, activites.nom,

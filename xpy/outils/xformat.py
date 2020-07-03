@@ -90,6 +90,9 @@ def DatetimeToStr(dte,iso=False):
         if iso: return dte.Format('%Y-%m-%d')
         else: return dte.Format('%d/%m/%Y')
     elif isinstance(dte, datetime.date):
+        dd = ("00" + str(dte.day))[-2:]
+        mm = ("00" + str(dte.month))[-2:]
+        dd = ("0000" + str(dte.year))[-4:]
         if iso: return "%s-%s-%s"%(dte.year,dte.month,dte.day)
         else: return "%s/%s/%s"%(dte.day,dte.month,dte.year)
     else: return str(dte)

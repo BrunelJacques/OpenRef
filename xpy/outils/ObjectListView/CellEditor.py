@@ -62,27 +62,44 @@ import wx.adv
 
 _cellEditorRegistrySingleton = None
 
+def GetValideLigne(track):
+    # permet de quitter la ligne ou pas selon la validité de la saisie testée par ValideLigne en sortie de cellEditor
+    descend = 1
+    if track:
+        # création d'un message par défaut
+        if not hasattr(track,'messageRefus'):
+            track.messageRefus = "Il faut revoir la saisie,\n\n la ligne n'est pas valide\ndixit CellEditor.GetValideLigne"
+        if not hasattr(track,'ligneValide'):
+            track.ligneValide = True
+        if not track.ligneValide:
+            wx.MessageBox(track.messageRefus,style=wx.ICON_ERROR)
+            descend = 0
+    return descend
+
 def EnterAction(event,finish = True):
     # Touche enter on détourne l'usage pour un équivalent tab sauf en fin de ligne on passe à la suivante
     olv = event.EventObject.Parent
     row, col = olv.cellBeingEdited
     if finish:
         olv.FinishCellEdit()
+    # avancement d'une colonne
     for ix in range(col+1,olv.ColumnCount):
         # saute une cellule non éditable
         if olv.columns[ix].isEditable:
             olv._PossibleStartCellEdit(row,ix)
             break
         col = ix
+    # fin de ligne, on passe à la suivante si la ligne est valide
     if col == olv.ColumnCount - 1:
-        # fin de ligne, on passe à la suivante
+        # ajout éventuel d'une nouvelle ligne
         if row == len(olv.innerList)-1:
             if olv.autoAddRow:
                 olv.AutoAddRow()
                 olv.RepopulateList()
             else:
                 row -=1
-        row += 1
+        track = olv.GetSelectedObject()
+        row += GetValideLigne(track)
         coldefn = olv.GetPrimaryColumn()
         col = olv.columns.index(coldefn)-1
         olv._SelectAndFocus(row)
@@ -94,11 +111,12 @@ def UpDownAction(event):
     olv = event.EventObject.Parent
     row, col = olv.cellBeingEdited
     olv.FinishCellEdit()
+    track = olv.GetSelectedObject()
     if row != len(olv.innerList)-1 and not keyup:
         # on passe à la ligne suivante
-        row += 1
+        row += GetValideLigne(track)
     elif row != 0 and keyup:
-        row -=1
+        row -= GetValideLigne(track)
     olv._SelectAndFocus(row)
     olv._PossibleStartCellEdit(row, col)
     return
@@ -126,6 +144,8 @@ def EscapeAction(event):
         if track.old_data:
             event.EventObject.SetValue(track.old_data)
     olv.FinishCellEdit()
+    if hasattr(event.EventObject.GrandParent, 'OnEditStarted'):
+        GetValideLigne(track)
     return
 
 def FunctionKeys(event):

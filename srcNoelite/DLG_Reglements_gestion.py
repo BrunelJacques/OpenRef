@@ -201,6 +201,7 @@ class PNL_corpsReglements(xgte.PNL_corps):
         if self.flagSkipEdit : return
         self.flagSkipEdit = True
         track = self.ctrlOlv.lastGetObject
+        nur.ValideLigne(track)
         if code == 'IDfamille':
             try:
                 value = int(value)

@@ -517,6 +517,7 @@ class PanelListView(wx.Panel):
         self.SetFooter(reinit=False)
         self.ctrl_listview.Bind(wx.EVT_CHAR,self.OnChar)
         self.ctrl_listview.Bind(OLVEvent.EVT_CELL_EDIT_FINISHING,self.OnEditFinishing)
+        self.ctrl_listview.Bind(OLVEvent.EVT_CELL_EDIT_FINISHED,self.OnEditFinished)
         self.ctrl_listview.Bind(OLVEvent.EVT_CELL_EDIT_STARTED,self.OnEditStarted)
 
         # Layout
@@ -604,6 +605,11 @@ class PanelListView(wx.Panel):
         track.old_data = track.donnees[col]
         event.Skip()
 
+    def ValideLigne(self,track):
+        # Cette procédure peut générer deux attributs track.valide track.message interceptés par CellEditor.
+        if hasattr(self.Parent, 'ValideLigne'):
+            self.parent.ValideLigne(track)
+
     def OnEditFinishing(self, event):
         # gestion des actions de sortie
         row, col = self.ctrl_listview.cellBeingEdited
@@ -616,6 +622,12 @@ class PanelListView(wx.Panel):
         # stockage de la nouvelle saisie
         track.__setattr__(code, new_data)
         track.donnees[col] = new_data
+        event.Skip()
+
+    def OnEditFinished(self, event):
+        row, col = self.ctrl_listview.cellBeingEdited
+        track = self.ctrl_listview.GetObjectAt(row)
+        self.ValideLigne(track)
         event.Skip()
 
     def OnEditFunctionKeys(self, event):
