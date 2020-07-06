@@ -600,9 +600,10 @@ class PanelListView(wx.Panel):
         #print(sys.exc_info())
         # stockage de la valeur initiale de la dernière cellule éditée
         olv = self.ctrl_listview
-        row, col = olv.cellBeingEdited
-        track = olv.GetObjectAt(row)
-        track.old_data = track.donnees[col]
+        if olv.cellBeingEdited:
+            row, col = olv.cellBeingEdited
+            track = olv.GetObjectAt(row)
+            track.old_data = track.donnees[col]
         event.Skip()
 
     def ValideLigne(self,track):
@@ -625,21 +626,23 @@ class PanelListView(wx.Panel):
         event.Skip()
 
     def OnEditFinished(self, event):
-        row, col = self.ctrl_listview.cellBeingEdited
-        track = self.ctrl_listview.GetObjectAt(row)
-        self.ValideLigne(track)
+        if self.ctrl_listview.cellBeingEdited:
+            row, col = self.ctrl_listview.cellBeingEdited
+            track = self.ctrl_listview.GetObjectAt(row)
+            self.ValideLigne(track)
         event.Skip()
 
     def OnEditFunctionKeys(self, event):
         # Fonction appelée par CellEditor.Validator lors de l'activation d'une touche de fonction
         if self.ctrl_listview.cellBeingEdited:
-            try:
-                self.parent.OnEditFunctionKeys(event)
-                event.Skip()
-            except:
+            #try:
+            self.parent.OnEditFunctionKeys(event)
+            event.Skip()
+            """except:
                 row, col = self.ctrl_listview.cellBeingEdited
                 wx.MessageBox(u"Touche <F%d> pressée sur cell (%d,%d)\n\n'error: %s'" % (event.GetKeyCode() - wx.WXK_F1 + 1,
-                                                                                         row, col, sys.exc_info()[0]))
+                                                                                     row, col, sys.exc_info()[0]))
+            """
 
 # ----------- Composition de l'écran -------------------------------------------------------
 class PNL_params(wx.Panel):

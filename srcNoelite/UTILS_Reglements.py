@@ -110,6 +110,97 @@ def GetFamille():
     dlg.Destroy()
     return IDfamille
 
+def GetMatriceBordereaux():
+    dicBandeau = {'titre':"Recherche d'un bordereau",
+                  'texte':"les mots clés du champ en bas permettent de filtrer d'autres lignes et d'affiner la recherche",
+                  'hauteur':15, 'nomImage':"xpy/Images/32x32/Matth.png"}
+
+    # Composition de la matrice de l'OLV bordereaux, retourne un dictionnaire
+
+    lstChamps = ['0','bordereaux.IDbordereau','bordereaux.adresse_intitule','individus_1.cp_resid','individus_1.ville_resid',
+                 'individus.nom','individus.prenom']
+
+    lstNomsColonnes = ["0","IDfam","désignation","cp","ville","noms","prénoms"]
+
+    lstTypes = ['INTEGER','INTEGER','VARCHAR(80)','VARCHAR(30)','VARCHAR(100)',
+                'VARCHAR(90)','VARCHAR(120)']
+    lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstNomsColonnes]
+    lstValDefColonnes = xgte.ValeursDefaut(lstNomsColonnes, lstTypes)
+    lstLargeurColonnes = xgte.LargeursDefaut(lstNomsColonnes, lstTypes)
+    lstColonnes = xusp.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
+    return   {
+                'listeColonnes': lstColonnes,
+                'listeChamps':lstChamps,
+                'listeNomsColonnes':lstNomsColonnes,
+                'listeCodesColonnes':lstCodesColonnes,
+                'getDonnees': GetBordereaux,
+                'dicBandeau': dicBandeau,
+                'colonneTri': 2,
+                'style': wx.LC_SINGLE_SEL|wx.LC_HRULES|wx.LC_VRULES,
+                'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
+                }
+
+def GetBordereaux(matriceOlv, filtre = None, limit=100):
+    # ajoute les données à la matrice pour la recherche d'un bordereau
+    where = ""
+    if filtre:
+        where = """WHERE bordereaux.adresse_intitule LIKE '%%%s%%'
+                        OR individus_1.ville_resid LIKE '%%%s%%'
+                        OR individus.nom LIKE '%%%s%%'
+                        OR individus.prenom LIKE '%%%s%%' """%(filtre,filtre,filtre,filtre,)
+
+    lstChamps = matriceOlv['listeChamps']
+    lstCodesColonnes = matriceOlv['listeCodesColonnes']
+
+    db = xdb.DB()
+    req = """   SELECT %s 
+                FROM ((bordereaux 
+                LEFT JOIN rattachements ON bordereaux.IDbordereau = rattachements.IDbordereau) 
+                LEFT JOIN individus ON rattachements.IDindividu = individus.IDindividu) 
+                LEFT JOIN individus AS individus_1 ON bordereaux.adresse_individu = individus_1.IDindividu
+                %s
+                LIMIT %d ;""" % (",".join(lstChamps),where,limit)
+    retour = db.ExecuterReq(req, mess='GetBordereaux' )
+    recordset = ()
+    if retour == "ok":
+        recordset = db.ResultatReq()
+    db.Close()
+    # composition des données du tableau à partir du recordset, regroupement par bordereau
+    dicBordereaux = {}
+    # zero,IDbordereau,designation,cp,ville,categ,nom,prenom
+    ixID = lstCodesColonnes.index('idfam')
+    for record in recordset:
+        if not record[ixID] in dicBordereaux.keys():
+            dicBordereaux[record[ixID]] = {}
+            for ix in range(len(lstCodesColonnes)):
+                dicBordereaux[record[ixID]][lstCodesColonnes[ix]] = record[ix]
+        else:
+            # ajout de noms et prénoms si non encore présents
+            if not record[-2] in dicBordereaux[record[ixID]]['noms']:
+                dicBordereaux[record[ixID]]['noms'] += "," + record[-2]
+            if not record[-1] in dicBordereaux[record[ixID]]['prenoms']:
+                dicBordereaux[record[ixID]]['prenoms'] += "," + record[-1]
+
+    lstDonnees = []
+    for key, dic in dicBordereaux.items():
+        ligne = []
+        for code in lstCodesColonnes:
+            ligne.append(dic[code])
+        lstDonnees.append(ligne)
+    dicOlv =  matriceOlv
+    dicOlv['listeDonnees']=lstDonnees
+    return lstDonnees
+
+def GetBordereau():
+    dicOlv = GetMatriceBordereaux()
+    dlg = xgtr.DLG_tableau(None,dicOlv=dicOlv)
+    ret = dlg.ShowModal()
+    if ret == wx.OK:
+        IDbordereau = dlg.GetSelection().donnees[1]
+    else: IDbordereau = None
+    dlg.Destroy()
+    return IDbordereau
+
 def GetBanquesNne(where = 'code_nne IS NOT NULL'):
     db = xdb.DB()
     ldBanques = []
@@ -153,6 +244,7 @@ def GetModesReglements():
     return ldModesRegls
 
 def GetDesignationFamille(IDfamille):
+    if not isinstance(IDfamille,int): return ""
     db = xdb.DB()
     req = """   SELECT adresse_intitule
                 FROM familles
@@ -243,7 +335,6 @@ def ValideLigne(track):
     # Payeur
     if track.payeur == None:
         track.messageRefus += "Vous devez obligatoirement sélectionner un payeur dans la liste !\n"
-
 
     # envoi de l'erreur
     if track.messageRefus != "Saisie incomplète\n\n":

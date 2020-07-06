@@ -21,7 +21,7 @@ from xpy.outils                 import xformat,xbandeau
 
 TITRE = "Bordereau de réglements: création, modification"
 INTRO = "Définissez la banque, choisissez un numéro si c'est pour une reprise, puis saisissez les règlements dans le tableau"
-DIC_INFOS = {'dateregl':"C'est la date de réception du règlement, qui sera la date comptable",
+DIC_INFOS = {'date':"Flèche droite pour le mois et l'année, Entrée pour valider.\nC'est la date de réception du règlement, qui sera la date comptable",
             'IDfamille':    "<F4> Choix d'une famille, ou saisie directe du no famille",
             'payeur':     "<F4> Gestion des payeurs, <UP> <DOWN> pour défiler l'existant",
             'mode':         "<UP> <DOWN> pour défiler les possibles ou première lettre, \nChèques, Chèques non déposés, Virements,Espèces",
@@ -33,6 +33,8 @@ DIC_INFOS = {'dateregl':"C'est la date de réception du règlement, qui sera la 
             'montant':      "Montant en €",
             'differe':     "Date future pour le dépot du chèque ou la promesse de règlement",
              }
+
+INFO_OLV = "<Suppr> <Inser> <Ctrl C> <Ctrl V>"
 
 def GetBoutons(dlg):
     return  [
@@ -88,18 +90,25 @@ def GetOlvOptions(dlg):
 class PNL_params(wx.Panel):
     #panel de paramètres de l'application
     def __init__(self, parent, **kwds):
+        self.parent = parent
         wx.Panel.__init__(self, parent, **kwds)
+
         self.ldBanques = nur.GetBanquesNne()
         lstBanques = [x['nom'] for x in self.ldBanques if x['code_nne'][:2]!='47']
         self.lstIDbanques = [x['IDcompte'] for x in self.ldBanques if x['code_nne'][:2]!='47']
         self.lblBanque = wx.StaticText(self,-1, label="Banque Noethys:  ",size=(130,20),style=wx.ALIGN_RIGHT)
+
         self.ctrlBanque = wx.Choice(self,size=(220,20),choices=lstBanques)
         self.ctrlBanque.Bind(wx.EVT_KILL_FOCUS,self.OnKillFocusBanque)
+
         self.btnBanque = wx.Button(self, label="...",size=(40,22))
         self.btnBanque.SetBitmap(wx.ArtProvider.GetBitmap(wx.ART_FIND,size=(16,16)))
+
         self.ctrlSsDepot = wx.CheckBox(self,-1," _Sans dépôt immédiat, (saisie d'encaissements futurs)")
+
         self.btnBordereau = wx.Button(self, label="Rechercher \nun borderau")
         self.btnBordereau.SetBitmap(wx.ArtProvider.GetBitmap(wx.ART_FIND,size=(22,22)))
+        self.btnBordereau.Bind(wx.EVT_BUTTON,self.OnGetBordereau)
 
         self.lblDate = wx.StaticText(self,-1, label="Date de saisie:  ",size=(85,20),style=wx.ALIGN_RIGHT)
         self.ctrlDate = wx.adv.DatePickerCtrl(self,-1,size=(90,20),style=wx.ALIGN_CENTRE_HORIZONTAL)
@@ -152,6 +161,12 @@ class PNL_params(wx.Panel):
         sizer_base.AddGrowableCol(0)
         self.SetSizer(sizer_base)
 
+    def OnGetBordereau(self,event):
+        if self.parent.IsSaisie():
+            if wx.MessageBox("Confirmez !\n\nLe bordereau en cours ne sera pas mis à jour!",style=wx.YES_NO) != wx.YES:
+                return
+        nur.GetBordereau()
+
     def OnKillFocusBanque(self,event):
         if self.ctrlBanque.GetSelection() == -1:
             mess = "Choix de la banque obligatoire\n\n'OK' pourchoisir, 'Annuler' pour sortir"
@@ -175,7 +190,7 @@ class PNL_corpsReglements(xgte.PNL_corps):
             self.parent.pnlPied.SetItemsInfos( DIC_INFOS[code],
                                                wx.ArtProvider.GetBitmap(wx.ART_FIND, wx.ART_OTHER, (16, 16)))
         else:
-            self.parent.pnlPied.SetItemsInfos( "-",wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
+            self.parent.pnlPied.SetItemsInfos( INFO_OLV,wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
         row, col = self.ctrlOlv.cellBeingEdited
         track = self.ctrlOlv.GetObjectAt(row)
         if not self.oldRow: self.oldRow = row
@@ -196,12 +211,18 @@ class PNL_corpsReglements(xgte.PNL_corps):
                 track.mode = trackN1.mode
 
     def OnEditFinishing(self,code=None,value=None):
-        self.parent.pnlPied.SetItemsInfos( "-",wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
+        self.parent.pnlPied.SetItemsInfos( INFO_OLV,wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
         # flagSkipEdit permet d'occulter les évènements redondants. True durant la durée du traitement
         if self.flagSkipEdit : return
         self.flagSkipEdit = True
         track = self.ctrlOlv.lastGetObject
+        # anticipe l'enregistrement du champ montant pour réussir la validation
+        if code == 'montant' and value:
+            track.montant = value
         nur.ValideLigne(track)
+        if not value:
+            self.flagSkipEdit = False
+            return
         if code == 'IDfamille':
             try:
                 value = int(value)
@@ -230,19 +251,19 @@ class PNL_corpsReglements(xgte.PNL_corps):
         if code == 'montant':
             # l'enregistrement de la ligne se fait au sortir des deux champs montant et différé
             track.montant = value
-            ok = self.SetReglement(track)
+            ok = nur.SetReglement(self.parent,track)
             if ok and track.nature in ('Règlement','Ne pas créer') and value != 0.0:
                 # appel de l'écran ventilations
                 dlg = ndrv.Dialog(self,-1,None,track.IDfamille,track.IDreglement,track.montant)
-                ret = dlg.ShowModal()
-                if ret == wx.ID_OK:
-                    # --- Sauvegarde de la ventilation ---
-                    for action, params in dlg.GetLstRequetes():
-                        print(action, params)
+                if dlg.ok:
+                    ret = dlg.ShowModal()
+                    if ret == wx.ID_OK:
+                        # --- Sauvegarde de la ventilation ---
+                        dlg.panel.Sauvegarde(track.IDreglement)
                 dlg.Destroy()
 
         # enlève l'info de bas d'écran
-        self.parent.pnlPied.SetItemsInfos( "-",wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
+        self.parent.pnlPied.SetItemsInfos( INFO_OLV,wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
         self.flagSkipEdit = False
 
     def OnEditFunctionKeys(self,event):
@@ -253,9 +274,6 @@ class PNL_corpsReglements(xgte.PNL_corps):
             IDfamille = nur.GetFamille()
             self.OnEditFinishing('IDfamille',IDfamille)
             self.ctrlOlv.lastGetObject.IDfamille = IDfamille
-
-    def SetReglement(self,track):
-        ret = nur.SetReglement(self.parent,track)
 
 class PNL_Pied(xgte.PNL_Pied):
     #panel infos (gauche) et boutons sorties(droite)
@@ -276,6 +294,8 @@ class Dialog(wx.Dialog):
         # définition de l'OLV
         self.dicOlv = {'lstColonnes': GetOlvColonnes(self)}
         self.dicOlv.update(GetOlvOptions(self))
+        self.bordereauOrigine = []
+        self.ctrlOlv = None
 
         # récup des modesReglements nécessaires pour passer du texte à un ID d'un mode ayant un mot en commun
         choices = []
@@ -333,6 +353,24 @@ class Dialog(wx.Dialog):
         self.CenterOnScreen()
 
     # ------------------- Gestion des actions -----------------------
+    def IsSaisie(self):
+        # Une seule ligne a été crée
+        if len(self.bordereauOrigine) == 0 and len(self.ctrlOlv.innerList) ==1:
+            # la saisie d'un champ a initialisé la validation
+            if not hasattr(self.ctrlOlv.innerList[0],'valide'):
+                return False
+            else : return True
+        # Cas d'une reprise de bordereau
+        if len(self.ctrlOlv.innerList) != len(self.bordereauOrigine):
+            return True
+        saisie = False
+        # test de la modif de chaque ligne
+        for ix in range(len(self.bordereauOrigine)):
+            if self.ctrlOlv.innerList[ix].donnees != self.bordereauOrigine[ix]:
+                saisie = True
+                break
+        return saisie
+
     def GetIDbanque(self):
         ix = self.pnlParams.ctrlBanque.GetSelection()
         return self.pnlParams.lstIDbanques[ix]

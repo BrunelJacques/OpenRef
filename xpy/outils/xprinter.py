@@ -367,7 +367,7 @@ class ObjectListViewPrinter(object):
         frame = wx.GetApp().GetTopWindow()
         preview_window = wx.PreviewFrame(printPreview, None, "Aperçu avant impression")
         preview_window.Initialize()
-        preview_window.MakeModal(False)
+        #preview_window.MakeModal(False)
         preview_window.SetPosition(frame.GetPosition())
         preview_window.SetSize(frame.GetSize())
         preview_window.Show(True)

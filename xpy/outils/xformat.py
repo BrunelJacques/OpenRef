@@ -92,9 +92,9 @@ def DatetimeToStr(dte,iso=False):
     elif isinstance(dte, datetime.date):
         dd = ("00" + str(dte.day))[-2:]
         mm = ("00" + str(dte.month))[-2:]
-        dd = ("0000" + str(dte.year))[-4:]
-        if iso: return "%s-%s-%s"%(dte.year,dte.month,dte.day)
-        else: return "%s/%s/%s"%(dte.day,dte.month,dte.year)
+        yyyy = ("0000" + str(dte.year))[-4:]
+        if iso: return "%s-%s-%s"%(yyyy,mm,dd)
+        else: return "%s/%s/%s"%(dd,mm,yyyy)
     else: return str(dte)
 
 def SetBgColour(self,montant):

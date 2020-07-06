@@ -343,6 +343,7 @@ class DB():
         if lstDonnees:
             lsttemp=[]
             lstChamps=[]
+            lstlstDonnees = []
             for (champ,donnee) in lstDonnees:
                 lstChamps.append(champ)
                 lsttemp.append(donnee)

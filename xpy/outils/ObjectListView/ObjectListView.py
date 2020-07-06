@@ -2226,8 +2226,10 @@ class ObjectListView(wx.ListCtrl):
             defaultEditor)
         self.GetEventHandler().ProcessEvent(evt)
 
-        self.cellEditor.Show()
-        self.cellEditor.Raise()
+        if self.cellEditor:
+            self.cellEditor.Show()
+            self.cellEditor.Raise()
+        else: print("Echec CellEditor=None in cell: %s %s"%(str(rowIndex),str(subItemIndex)))
 
     def _ConfigureCellEditor(self, editor, bounds, rowIndex, subItemIndex):
         """

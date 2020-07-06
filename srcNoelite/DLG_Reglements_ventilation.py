@@ -12,6 +12,7 @@
 import wx
 import wx.grid as gridlib
 import xpy.xGestion_TableauEditor       as xgte
+import xpy.xGestionDB                   as xdb
 import wx.lib.agw.hyperlink as Hyperlink
 import datetime
 import decimal
@@ -59,7 +60,6 @@ def PeriodeComplete(mois, annee):
     listeMois = (("Janvier"), ("Février"), ("Mars"), ("Avril"), ("Mai"), ("Juin"), ("Juillet"), ("Août"), ("Septembre"), ("Octobre"), ("Novembre"), ("Décembre"))
     periodeComplete = u"%s %d" % (listeMois[mois-1], annee)
     return periodeComplete
-
 
 class CTRL_Saisie_euros(wx.TextCtrl):
     def __init__(self, parent, font=None, size=(-1, -1), style=wx.TE_RIGHT):
@@ -390,15 +390,13 @@ class Ligne_prestation(object):
         # Attribue uniquement du crédit encore disponible
         if etat == True :
             montant = self.grid.GetCreditAventiler()
-            """
             if self.grid.parent.negatif:
                 if montant < self.resteAVentiler or self.grid.bloquer_ventilation == False :
                     montant = self.resteAVentiler
-            """
             if not self.grid.parent.negatif:
                 if montant > self.resteAVentiler or self.grid.bloquer_ventilation == False :
-                    montant = self.resteAVentiler
-                
+                    montant = min(montant,self.resteAVentiler)
+
         # Modifie la ligne
         self.SetEtat(etat, montant)
         
@@ -569,7 +567,7 @@ class CTRL_Ventilation(gridlib.Grid):
 
         # Importation des données
         self.listeLignesPrestations = self.Importation()
-        
+
         # MAJ de l'affichage de la grid
         self.MAJ() 
         
@@ -587,7 +585,7 @@ class CTRL_Ventilation(gridlib.Grid):
             IDreglement = self.IDreglement
         
         # Importation des ventilations de ce règlement
-        DB = db.DB()
+        DB = xdb.DB()
         req = """SELECT IDventilation, IDprestation, montant
         FROM ventilation
         WHERE IDreglement=%d
@@ -663,13 +661,14 @@ class CTRL_Ventilation(gridlib.Grid):
         return listeLignesPrestations
 
     def CorrigeVentilation(self,IDprestation):
+        DB = xdb.DB()
         # suppression de ventilations orphelines de leur réglement
-        req = """DELETE ventilation
-                FROM ventilation 
-                    LEFT JOIN reglements ON ventilation.IDreglement = reglements.IDreglement
-                WHERE ((reglements.IDreglement Is Null) AND (ventilation.IDprestation= %d))
-                ;"""% IDprestation
-        self.lstRequetes.append(('ExecuterReq',req))
+        req = """   DELETE ventilation 
+                    FROM (ventilation LEFT JOIN reglements ON ventilation.IDreglement = reglements.IDreglement)
+                    WHERE ((reglements.IDreglement Is Null) AND (ventilation.IDprestation= %d))
+                    ;"""% IDprestation
+        DB.ExecuterReq(req,mess="DLG_Reglements_ventilation.CorrigeVentilation")
+        self.lstRequetes.append(('ExecuterReq',(req)))
 
         # appel du détail des ventilations.
         req = """SELECT ventilation.IDventilation,ventilation.montant, prestations.montant, reglements.IDreglement
@@ -679,10 +678,8 @@ class CTRL_Ventilation(gridlib.Grid):
                 WHERE ventilation.IDprestation=%d
                 ORDER BY reglements.date_saisie
                 ;""" % IDprestation
-        DB = db.DB()
         DB.ExecuterReq(req,mess="CTRL_Ventilation.CorrigeVentil2")
         listeDonnees = DB.ResultatReq()
-        DB.Close()
         lstSupprime = []
         mttcum = 0.0
         montant = 0.0
@@ -696,10 +693,11 @@ class CTRL_Ventilation(gridlib.Grid):
                 lstSupprime.append(IDventilation)
                 continue
             mttcum += ventile
-        DB.Close()
 
         for IDventilation in lstSupprime:
-            self.lstRequetes.append('ReqDEL',('ventilation','IDventilation',IDventilation))
+            DB.ReqDEL('ventilation','IDventilation',IDventilation)
+
+        DB.Close()
         return montant,mttcum
 
     def OnLeftClick(self, event):
@@ -839,7 +837,7 @@ class CTRL_Ventilation(gridlib.Grid):
     
     def Sauvegarde(self, IDreglement=None):
         """ Sauvegarde des données """
-
+        DB = xdb.DB()
         for ligne in self.listeLignesPrestations :
             IDprestation = ligne.IDprestation
             montant = float(ligne.ventilationActuelle)
@@ -858,14 +856,16 @@ class CTRL_Ventilation(gridlib.Grid):
                         ("montant", montant),
                     ]
                 if IDventilation == None :
-                    self.lstRequetes.append('ReqInsert',("ventilation", listeDonnees))
+                    DB.ReqInsert("ventilation", lstDonnees=listeDonnees,mess="DLG_Reglements_ventilation.Sauvegarde Insert")
                 else:
-                    self.lstRequetes.append("ReqMAJ",("ventilation", listeDonnees, "IDventilation", IDventilation))
+                    DB.ReqMAJ("ventilation",listeDonnees,"IDventilation", IDventilation,
+                              mess="DLG_Reglements_ventilation.Sauvegarde Maj")
             else :
                 # Suppression
                 if IDventilation != None :
-                    self.lstRequetes.append("ReqDEL",("ventilation", "IDventilation", IDventilation))
-        return True
+                    DB.ReqDEL("ventilation", "IDventilation", IDventilation,mess="DLG_Reglements_ventilation.Sauvegarde Del")
+        DB.Close()
+        return
 
 class PNL_Pied(xgte.PNL_Pied):
     #panel infos (gauche) et boutons sorties(droite)
@@ -906,7 +906,7 @@ class Panel(wx.Panel):
         
         # Liste de la ventilation
         self.ctrl_ventilation = CTRL_Ventilation(self, IDcompte_payeur, IDreglement)
-        
+
         # Etat de la ventilation
         self.imgOk = wx.Bitmap("xpy/Images/16x16/Ok4.png", wx.BITMAP_TYPE_PNG)
         self.imgErreur = wx.Bitmap("xpy/Images/16x16/Interdit2.png", wx.BITMAP_TYPE_PNG)
@@ -1059,9 +1059,9 @@ class Panel(wx.Panel):
             dlg.Destroy()
             return False
         return True
-        
+
     def Sauvegarde(self, IDreglement=None):
-        self.ctrl_ventilation.Sauvegarde(IDreglement) 
+        self.ctrl_ventilation.Sauvegarde(IDreglement)
 
     def SelectionneFacture(self, IDfacture=None):
         self.radio_facture.SetValue(True)
@@ -1144,7 +1144,12 @@ class Dialog(wx.Dialog):
 
         self.Layout()
         self.CenterOnScreen()
-    
+        # Décrochement si rien à ventiler
+        if len(self.panel.ctrl_ventilation.dictLignes) == 0:
+            wx.MessageBox("Pas de prestations non réglées dans Noethys! \nCe règlement n'est-il pas plutôt un acompte?",style=wx.ICON_INFORMATION)
+            self.ok = False
+        else: self.ok = True
+
     def OnBoutonOK(self, event):
         if self.panel.validation != "ok":
             txt = "Vous n'avez pas ventilé exactement\n\nVous pouvez saisir un montant exact dans la colonne de droite"
@@ -1156,15 +1161,13 @@ class Dialog(wx.Dialog):
     def OnAbort(self,event):
         self.EndModal(wx.ID_CANCEL)
 
-    def GetLstRequetes(self):
-        return self.panel.ctrl_ventilation.lstRequetes
-
 if __name__ == '__main__':
     app = wx.App(0)
     import os
     os.chdir("..")
-    kwds = {'IDcompte_payeur': 281, 'IDreglement' : None, 'mttReglement' : 1069.35}
+    kwds = {'IDcompte_payeur': 9, 'IDreglement' : 26571, 'mttReglement' :300.00}
     dlg = Dialog(None, None,None,**kwds)
     app.SetTopWindow(dlg)
-    print(dlg.ShowModal())
+    if dlg:
+        print(dlg.ShowModal())
     app.MainLoop()
