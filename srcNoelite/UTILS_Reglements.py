@@ -110,21 +110,20 @@ def GetFamille():
     dlg.Destroy()
     return IDfamille
 
-def GetMatriceBordereaux():
-    dicBandeau = {'titre':"Recherche d'un bordereau",
+def GetMatriceDepots():
+    dicBandeau = {'titre':"Recherche d'un depot",
                   'texte':"les mots clés du champ en bas permettent de filtrer d'autres lignes et d'affiner la recherche",
                   'hauteur':15, 'nomImage':"xpy/Images/32x32/Matth.png"}
 
-    # Composition de la matrice de l'OLV bordereaux, retourne un dictionnaire
+    # Composition de la matrice de l'OLV depots, retourne un dictionnaire
 
-    lstChamps = ['0','bordereaux.IDbordereau','bordereaux.adresse_intitule','individus_1.cp_resid','individus_1.ville_resid',
-                 'individus.nom','individus.prenom']
+    lstChamps = ['0','IDdepot', 'depots.date', 'depots.nom',
+                    'comptes_bancaires.nom', 'observations']
 
-    lstNomsColonnes = ["0","IDfam","désignation","cp","ville","noms","prénoms"]
+    lstNomsColonnes = ['0','numéro', 'date', 'nomDépôt', 'banque', 'nbre', 'total', 'détail', 'observations']
 
-    lstTypes = ['INTEGER','INTEGER','VARCHAR(80)','VARCHAR(30)','VARCHAR(100)',
-                'VARCHAR(90)','VARCHAR(120)']
-    lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstNomsColonnes]
+    lstTypes = ['INTEGER','INTEGER','VARCHAR(10)','VARCHAR(80)','VARCHAR(130)','VARCHAR(10)','VARCHAR(10)','VARCHAR(170)','VARCHAR(170)']
+    lstCodesColonnes = [xusp.SupprimeAccents(x).lower() for x in lstNomsColonnes]
     lstValDefColonnes = xgte.ValeursDefaut(lstNomsColonnes, lstTypes)
     lstLargeurColonnes = xgte.LargeursDefaut(lstNomsColonnes, lstTypes)
     lstColonnes = xusp.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
@@ -133,57 +132,85 @@ def GetMatriceBordereaux():
                 'listeChamps':lstChamps,
                 'listeNomsColonnes':lstNomsColonnes,
                 'listeCodesColonnes':lstCodesColonnes,
-                'getDonnees': GetBordereaux,
+                'getDonnees': GetDepots,
                 'dicBandeau': dicBandeau,
                 'colonneTri': 2,
+                'sensTri' : False,
                 'style': wx.LC_SINGLE_SEL|wx.LC_HRULES|wx.LC_VRULES,
                 'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
                 }
 
-def GetBordereaux(matriceOlv, filtre = None, limit=100):
-    # ajoute les données à la matrice pour la recherche d'un bordereau
+def GetDepots(matriceOlv, filtre = None, limit=100):
+    # ajoute les données à la matrice pour la recherche d'un depot
     where = ""
     if filtre:
-        where = """WHERE bordereaux.adresse_intitule LIKE '%%%s%%'
-                        OR individus_1.ville_resid LIKE '%%%s%%'
-                        OR individus.nom LIKE '%%%s%%'
-                        OR individus.prenom LIKE '%%%s%%' """%(filtre,filtre,filtre,filtre,)
+        where = """WHERE IDdepot LIKE '%%%s%%'
+                        OR depots.date LIKE '%%%s%%'
+                        OR depots.nom LIKE '%%%s%%'
+                        OR comptes_bancaires.nom LIKE '%%%s%%'
+                        OR observations LIKE '%%%s%%' """%(filtre,filtre,filtre,filtre,filtre)
 
     lstChamps = matriceOlv['listeChamps']
     lstCodesColonnes = matriceOlv['listeCodesColonnes']
 
     db = xdb.DB()
-    req = """   SELECT %s 
-                FROM ((bordereaux 
-                LEFT JOIN rattachements ON bordereaux.IDbordereau = rattachements.IDbordereau) 
-                LEFT JOIN individus ON rattachements.IDindividu = individus.IDindividu) 
-                LEFT JOIN individus AS individus_1 ON bordereaux.adresse_individu = individus_1.IDindividu
-                %s
+    req = """   SELECT %s
+                FROM depots
+                LEFT JOIN comptes_bancaires ON comptes_bancaires.IDcompte = depots.IDcompte
+                %s 
+                ORDER BY depots.date DESC
                 LIMIT %d ;""" % (",".join(lstChamps),where,limit)
-    retour = db.ExecuterReq(req, mess='GetBordereaux' )
+    retour = db.ExecuterReq(req, mess='GetDepots' )
+    recordset = ()
+    if retour == "ok":
+        recordset = db.ResultatReq()
+
+    # composition des données du tableau à partir du recordset
+    dicDepots = {}
+    ixID = lstCodesColonnes.index('numero')
+    for record in recordset:
+        dicDepots[record[ixID]] = {}
+        for ix in range(len(lstChamps)-1):
+            dicDepots[record[ixID]][lstCodesColonnes[ix]] = record[ix]
+        # champ observation relégué en fin
+        dicDepots[record[ixID]][lstCodesColonnes[-1]] = record[-1]
+        dicDepots[record[ixID]]['lstModes'] = []
+
+    # appel des compléments d'informations sur les règlements associés au dépôt
+    lstIDdepot = [x for x in dicDepots.keys()]
+    req = """SELECT reglements.IDdepot, reglements.IDmode, modes_reglements.label,
+                SUM(reglements.montant), COUNT(reglements.IDreglement)
+                FROM reglements 
+                LEFT JOIN modes_reglements ON modes_reglements.IDmode = reglements.IDmode
+                WHERE reglements.IDdepot IN (%s)
+                GROUP BY reglements.IDdepot, reglements.IDmode, modes_reglements.label
+                ;"""% str(lstIDdepot)[1:-1]
+    retour = db.ExecuterReq(req, mess='GetDepots' )
     recordset = ()
     if retour == "ok":
         recordset = db.ResultatReq()
     db.Close()
-    # composition des données du tableau à partir du recordset, regroupement par bordereau
-    dicBordereaux = {}
-    # zero,IDbordereau,designation,cp,ville,categ,nom,prenom
-    ixID = lstCodesColonnes.index('idfam')
-    for record in recordset:
-        if not record[ixID] in dicBordereaux.keys():
-            dicBordereaux[record[ixID]] = {}
-            for ix in range(len(lstCodesColonnes)):
-                dicBordereaux[record[ixID]][lstCodesColonnes[ix]] = record[ix]
-        else:
-            # ajout de noms et prénoms si non encore présents
-            if not record[-2] in dicBordereaux[record[ixID]]['noms']:
-                dicBordereaux[record[ixID]]['noms'] += "," + record[-2]
-            if not record[-1] in dicBordereaux[record[ixID]]['prenoms']:
-                dicBordereaux[record[ixID]]['prenoms'] += "," + record[-1]
 
+    # Ajout des compléments au dictionnaire
+    for IDdepot, IDmode, label, somme, nombre in recordset:
+        if not 'nbre' in dicDepots[IDdepot]:
+            dicDepots[IDdepot]['nbre'] = 0
+            dicDepots[IDdepot]['total'] = 0.0
+        dicDepots[IDdepot]['nbre'] += nombre
+        dicDepots[IDdepot]['total'] += somme
+        dicDepots[IDdepot][IDmode] = {}
+        dicDepots[IDdepot][IDmode]['nbre'] = nombre
+        dicDepots[IDdepot][IDmode]['label'] = label
+        dicDepots[IDdepot]['lstModes'].append(IDmode)
+
+    # composition des données
     lstDonnees = []
-    for key, dic in dicBordereaux.items():
+    for IDdepot, dic in dicDepots.items():
+        if not 'nbre' in dic.keys(): continue
         ligne = []
+        dic['detail'] = ""
+        for IDmode in dic['lstModes']:
+            dic['detail'] += "%d %s, "%(dic[IDmode]["nbre"], dic[IDmode]["label"])
         for code in lstCodesColonnes:
             ligne.append(dic[code])
         lstDonnees.append(ligne)
@@ -191,15 +218,15 @@ def GetBordereaux(matriceOlv, filtre = None, limit=100):
     dicOlv['listeDonnees']=lstDonnees
     return lstDonnees
 
-def GetBordereau():
-    dicOlv = GetMatriceBordereaux()
+def GetDepot():
+    dicOlv = GetMatriceDepots()
     dlg = xgtr.DLG_tableau(None,dicOlv=dicOlv)
     ret = dlg.ShowModal()
     if ret == wx.OK:
-        IDbordereau = dlg.GetSelection().donnees[1]
-    else: IDbordereau = None
+        IDdepot = dlg.GetSelection().donnees[1]
+    else: IDdepot = None
     dlg.Destroy()
-    return IDbordereau
+    return IDdepot
 
 def GetBanquesNne(where = 'code_nne IS NOT NULL'):
     db = xdb.DB()
@@ -524,6 +551,7 @@ if __name__ == '__main__':
     #print(GetBanquesNne())
     #print(GetFamille(None))
     #print(GetPayeurs(1))
-    art = Article('debour')
-    print(art.GetArticle())
+    #art = Article('debour')
+    #print(art.GetArticle())
+    print(GetDepot())
     app.MainLoop()

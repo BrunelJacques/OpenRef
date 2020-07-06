@@ -19,7 +19,7 @@ from xpy.outils                 import xformat,xbandeau
 
 #---------------------- Matrices de paramétres -------------------------------------
 
-TITRE = "Bordereau de réglements: création, modification"
+TITRE = "Bordereau d'un dépôt de réglements: création, modification"
 INTRO = "Définissez la banque, choisissez un numéro si c'est pour une reprise, puis saisissez les règlements dans le tableau"
 DIC_INFOS = {'date':"Flèche droite pour le mois et l'année, Entrée pour valider.\nC'est la date de réception du règlement, qui sera la date comptable",
             'IDfamille':    "<F4> Choix d'une famille, ou saisie directe du no famille",
@@ -38,8 +38,8 @@ INFO_OLV = "<Suppr> <Inser> <Ctrl C> <Ctrl V>"
 
 def GetBoutons(dlg):
     return  [
-                {'name': 'btnImp', 'label': "Imprimer\nle bordereau",
-                    'toolTip': "Cliquez ici pour imprimer et enregistrer le bordereau",
+                {'name': 'btnImp', 'label': "Imprimer\npour dépôt",
+                    'toolTip': "Cliquez ici pour imprimer et enregistrer le bordereau pour un dépôt",
                     'size': (120, 35), 'image': wx.ART_PRINT,'onBtn':dlg.OnImprimer},
                 {'name':'btnOK','ID':wx.ID_ANY,'label':"Quitter",'toolTip':"Cliquez ici pour fermer la fenêtre",
                     'size':(120,35),'image':"xpy/Images/32x32/Quitter.png",'onBtn':dlg.OnClose}
@@ -106,9 +106,9 @@ class PNL_params(wx.Panel):
 
         self.ctrlSsDepot = wx.CheckBox(self,-1," _Sans dépôt immédiat, (saisie d'encaissements futurs)")
 
-        self.btnBordereau = wx.Button(self, label="Rechercher \nun borderau")
-        self.btnBordereau.SetBitmap(wx.ArtProvider.GetBitmap(wx.ART_FIND,size=(22,22)))
-        self.btnBordereau.Bind(wx.EVT_BUTTON,self.OnGetBordereau)
+        self.btnDepot = wx.Button(self, label="Rechercher \nun dépôt antérieur")
+        self.btnDepot.SetBitmap(wx.ArtProvider.GetBitmap(wx.ART_FIND,size=(22,22)))
+        self.btnDepot.Bind(wx.EVT_BUTTON,self.OnGetDepot)
 
         self.lblDate = wx.StaticText(self,-1, label="Date de saisie:  ",size=(85,20),style=wx.ALIGN_RIGHT)
         self.ctrlDate = wx.adv.DatePickerCtrl(self,-1,size=(90,20),style=wx.ALIGN_CENTRE_HORIZONTAL)
@@ -125,7 +125,7 @@ class PNL_params(wx.Panel):
         self.ctrlSsDepot.SetToolTip("Les encaissementes seront constatés plus tard dans la compta, "+
                                     "mais ces règlements vont créditer les clients dans Noethys")
         self.btnBanque.SetToolTip("Amélioration prévue pour consulter les comptes bancaires")
-        self.btnBordereau.SetToolTip("Recherche d'un bordereau existant pour consultation ou modification")
+        self.btnDepot.SetToolTip("Recherche d'un dépôt existant pour consultation ou modification")
 
         self.lblDate.SetToolTip("Cette date de saisie servira de date de dépôt s'il est généré par validation")
         self.ctrlDate.SetToolTip("Cette date de saisie servira de date de dépôt s'il est généré par validation")
@@ -157,15 +157,15 @@ class PNL_params(wx.Panel):
         sizer_base = wx.FlexGridSizer(rows=1, cols=3, vgap=0, hgap=20)
         sizer_base.Add(sz_banque,1,wx.LEFT|wx.BOTTOM|wx.EXPAND,3)
         sizer_base.Add(sz_bordereau,1,wx.LEFT|wx.BOTTOM|wx.EXPAND,3)
-        sizer_base.Add(self.btnBordereau,0,wx.ALL|wx.ALIGN_CENTRE,10)
+        sizer_base.Add(self.btnDepot,0,wx.ALL|wx.ALIGN_CENTRE,10)
         sizer_base.AddGrowableCol(0)
         self.SetSizer(sizer_base)
 
-    def OnGetBordereau(self,event):
+    def OnGetDepot(self,event):
         if self.parent.IsSaisie():
-            if wx.MessageBox("Confirmez !\n\nLe bordereau en cours ne sera pas mis à jour!",style=wx.YES_NO) != wx.YES:
+            if wx.MessageBox("Confirmez !\n\nLe bordereau de dépôt en cours ne sera pas mis à jour!",style=wx.YES_NO) != wx.YES:
                 return
-        nur.GetBordereau()
+        nur.GetDepot()
 
     def OnKillFocusBanque(self,event):
         if self.ctrlBanque.GetSelection() == -1:
@@ -294,7 +294,7 @@ class Dialog(wx.Dialog):
         # définition de l'OLV
         self.dicOlv = {'lstColonnes': GetOlvColonnes(self)}
         self.dicOlv.update(GetOlvOptions(self))
-        self.bordereauOrigine = []
+        self.depotOrigine = []
         self.ctrlOlv = None
 
         # récup des modesReglements nécessaires pour passer du texte à un ID d'un mode ayant un mot en commun
@@ -355,18 +355,18 @@ class Dialog(wx.Dialog):
     # ------------------- Gestion des actions -----------------------
     def IsSaisie(self):
         # Une seule ligne a été crée
-        if len(self.bordereauOrigine) == 0 and len(self.ctrlOlv.innerList) ==1:
+        if len(self.depotOrigine) == 0 and len(self.ctrlOlv.innerList) ==1:
             # la saisie d'un champ a initialisé la validation
             if not hasattr(self.ctrlOlv.innerList[0],'valide'):
                 return False
             else : return True
-        # Cas d'une reprise de bordereau
-        if len(self.ctrlOlv.innerList) != len(self.bordereauOrigine):
+        # Cas d'une reprise de bordereau - depôt
+        if len(self.ctrlOlv.innerList) != len(self.depotOrigine):
             return True
         saisie = False
         # test de la modif de chaque ligne
-        for ix in range(len(self.bordereauOrigine)):
-            if self.ctrlOlv.innerList[ix].donnees != self.bordereauOrigine[ix]:
+        for ix in range(len(self.depotOrigine)):
+            if self.ctrlOlv.innerList[ix].donnees != self.depotOrigine[ix]:
                 saisie = True
                 break
         return saisie
