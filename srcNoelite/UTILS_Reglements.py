@@ -111,7 +111,7 @@ def GetFamille():
     return IDfamille
 
 def GetMatriceDepots():
-    dicBandeau = {'titre':"Recherche d'un depot",
+    dicBandeau = {'titre':"Rappel d'un depot existant",
                   'texte':"les mots clés du champ en bas permettent de filtrer d'autres lignes et d'affiner la recherche",
                   'hauteur':15, 'nomImage':"xpy/Images/32x32/Matth.png"}
 
@@ -219,14 +219,16 @@ def GetDepots(matriceOlv, filtre = None, limit=100):
     return lstDonnees
 
 def GetDepot():
+    dicDepot = {}
     dicOlv = GetMatriceDepots()
     dlg = xgtr.DLG_tableau(None,dicOlv=dicOlv)
     ret = dlg.ShowModal()
     if ret == wx.OK:
-        IDdepot = dlg.GetSelection().donnees[1]
-    else: IDdepot = None
+        donnees = dlg.GetSelection().donnees
+        for ix in range(len(donnees)):
+            dicDepot[dicOlv['listeCodesColonnes'][ix]] = donnees[ix]
     dlg.Destroy()
-    return IDdepot
+    return dicDepot
 
 def GetBanquesNne(where = 'code_nne IS NOT NULL'):
     db = xdb.DB()
@@ -315,13 +317,43 @@ def SetPayeur(IDcompte_payeur,nom):
     DB.Close()
     return ID
 
+def GetReglements(IDdepot):
+    listeDonnees = []
+    db = xdb.DB()
+    #            IDreglement,date,IDfamille,designation,payeur,labelmode,numero,libelle,montant,IDpiece in recordset
+    lstChamps = ['reglements.IDreglement', 'reglements.date', 'reglements.IDcompte_payeur', 'familles.adresse_intitule',
+                 'payeurs.nom', 'modes_reglements.label', 'reglements.numero_piece', 'reglements.observations', 
+                 'reglements.montant', 'reglements.IDpiece']
+
+    req = """   SELECT %s
+                FROM (( reglements 
+                        LEFT JOIN modes_reglements ON reglements.IDmode = modes_reglements.IDmode) 
+                        LEFT JOIN payeurs ON reglements.IDpayeur = payeurs.IDpayeur) 
+                        LEFT JOIN familles ON reglements.IDcompte_payeur = familles.IDfamille
+                WHERE ((reglements.IDdepot = %d))
+                ;""" % (",".join(lstChamps),IDdepot)
+
+    retour = db.ExecuterReq(req, mess='UTILS_Reglements.GetReglements')
+    recordset = ()
+    if retour == "ok":
+        recordset = db.ResultatReq()
+
+    for IDreglement,date,IDfamille,designation,payeur,labelmode,numero,libelle,montant,IDpiece in recordset:
+        creer = "N"
+        # la reprise force la non création car déjà potentiellement fait. IDpiece contient l'ID de la prestation créée
+        lstDonneesTrack = [IDreglement, date, IDfamille, designation,payeur, labelmode, numero, "", "", libelle,
+                           montant, creer]
+        listeDonnees.append(lstDonneesTrack)
+    db.Close()
+    return listeDonnees
+
 def GetNewIDreglement(lstID):
     # Recherche le prochain ID reglement après ceux de la base et éventuellement déjà dans la liste ID préaffectés
-    DB = xdb.DB()
+    db = xdb.DB()
     req = """SELECT MAX(IDreglement) 
             FROM reglements;"""
-    DB.ExecuterReq(req)
-    recordset = DB.ResultatReq()
+    db.ExecuterReq(req)
+    recordset = db.ResultatReq()
     ID = recordset[0][0] + 1
     while ID in lstID:
         ID += 1
@@ -357,7 +389,7 @@ def ValideLigne(track):
             track.messageRefus += "Vous devez saisir un numéro de chèque !\n"
         # libelle pour chèques
         if track.libelle == '':
-            track.messageRefus += "Vous devez saisir la banque émettrice du chèque !\n"
+            track.messageRefus += "Veuillez saisir la banque émettrice du chèque dans les observations !\n"
 
     # Payeur
     if track.payeur == None:
@@ -397,21 +429,20 @@ def SetReglement(dlg,track):
     ]
     attente = 0
     if hasattr(track,'differe'):
-
         listeDonnees.append(("date_differe", xfor.DatetimeToStr(track.differe,iso=True)))
         if len(track.differe) > 0:
             attente = 1
     listeDonnees.append(("encaissement_attente",attente))
 
-    DB = xdb.DB()
+    db = xdb.DB()
     if track.IDreglement in dlg.pnlOlv.lstNewReglements:
         nouveauReglement = True
-        ret = DB.ReqInsert("reglements",lstDonnees= listeDonnees, mess="UTILS_Reglements.SetReglement")
+        ret = db.ReqInsert("reglements",lstDonnees= listeDonnees, mess="UTILS_Reglements.SetReglement")
         dlg.pnlOlv.lstNewReglements.remove(track.IDreglement)
     else:
         nouveauReglement = False
-        DB.ReqMAJ("reglements", listeDonnees, "IDreglement", track.IDreglement)
-    DB.Close()
+        db.ReqMAJ("reglements", listeDonnees, "IDreglement", track.IDreglement)
+    db.Close()
 
     # --- Mémorise l'action dans l'historique ---
     if nouveauReglement == True:

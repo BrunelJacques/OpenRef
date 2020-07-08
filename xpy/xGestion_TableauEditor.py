@@ -290,6 +290,9 @@ class ListView(FastObjectListView):
         self.useExpansionColumn = True
         # On définit les colonnes
         self.SetColumns(self.lstColonnes)
+        self.lstCodesColonnes = self.formerCodeColonnes()
+        self.lstNomsColonnes = self.formerNomsColonnes()
+        self.lstSetterValues = self.formerSetterValues()
         if self.checkColonne:
             self.CreateCheckStateColumn(0)
         # On définit le message en cas de tableau vide
@@ -519,7 +522,6 @@ class PanelListView(wx.Panel):
         self.ctrl_listview.Bind(OLVEvent.EVT_CELL_EDIT_FINISHING,self.OnEditFinishing)
         self.ctrl_listview.Bind(OLVEvent.EVT_CELL_EDIT_FINISHED,self.OnEditFinished)
         self.ctrl_listview.Bind(OLVEvent.EVT_CELL_EDIT_STARTED,self.OnEditStarted)
-
         # Layout
 
     def Sizer(self):

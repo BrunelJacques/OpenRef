@@ -12,7 +12,6 @@ import os
 import xpy.xGestion_TableauEditor       as xgte
 import srcNoelite.UTILS_Utilisateurs    as nuu
 import srcNoelite.UTILS_Reglements      as nur
-import xpy.xGestionDB                   as db
 import srcNoelite.DLG_Reglements_ventilation      as ndrv
 from xpy.outils.ObjectListView  import ColumnDefn, CellEditor
 from xpy.outils                 import xformat,xbandeau
@@ -106,18 +105,18 @@ class PNL_params(wx.Panel):
 
         self.ctrlSsDepot = wx.CheckBox(self,-1," _Sans dépôt immédiat, (saisie d'encaissements futurs)")
 
-        self.btnDepot = wx.Button(self, label="Rechercher \nun dépôt antérieur")
+        self.btnDepot = wx.Button(self, label="Rappeler \nun dépôt antérieur")
         self.btnDepot.SetBitmap(wx.ArtProvider.GetBitmap(wx.ART_FIND,size=(22,22)))
-        self.btnDepot.Bind(wx.EVT_BUTTON,self.OnGetDepot)
+        self.btnDepot.Bind(wx.EVT_BUTTON,self.parent.OnGetDepot)
 
         self.lblDate = wx.StaticText(self,-1, label="Date de saisie:  ",size=(85,20),style=wx.ALIGN_RIGHT)
         self.ctrlDate = wx.adv.DatePickerCtrl(self,-1,size=(90,20),style=wx.ALIGN_CENTRE_HORIZONTAL)
-        self.lblRef = wx.StaticText(self,-1, label="Réference:  ",size=(90,20),style=wx.ALIGN_RIGHT)
-        self.ctrlRef = wx.SpinCtrl(self,-1,size=(70,20))
+        self.lblRef = wx.StaticText(self,-1, label="No Bordereau:  ",size=(90,20),style=wx.ALIGN_RIGHT)
+        self.ctrlRef = wx.TextCtrl(self,-1,size=(70,20))
 
         self.ToolTip()
         self.Sizer()
-        self.ctrlBanque.SetFocusFromKbd()
+        self.ctrlBanque.SetFocus()
 
     def ToolTip(self):
         self.lblBanque.SetToolTip("Il s'agit de la banque réceptrice")
@@ -130,7 +129,6 @@ class PNL_params(wx.Panel):
         self.lblDate.SetToolTip("Cette date de saisie servira de date de dépôt s'il est généré par validation")
         self.ctrlDate.SetToolTip("Cette date de saisie servira de date de dépôt s'il est généré par validation")
         self.lblRef.SetToolTip("Numérotation automatique en création, c'est l'identification du lot par cette référence")
-        self.lblRef.Enable(False)
         self.ctrlRef.Enable(False)
 
     def Sizer(self):
@@ -161,19 +159,13 @@ class PNL_params(wx.Panel):
         sizer_base.AddGrowableCol(0)
         self.SetSizer(sizer_base)
 
-    def OnGetDepot(self,event):
-        if self.parent.IsSaisie():
-            if wx.MessageBox("Confirmez !\n\nLe bordereau de dépôt en cours ne sera pas mis à jour!",style=wx.YES_NO) != wx.YES:
-                return
-        nur.GetDepot()
-
     def OnKillFocusBanque(self,event):
         if self.ctrlBanque.GetSelection() == -1:
             mess = "Choix de la banque obligatoire\n\n'OK' pourchoisir, 'Annuler' pour sortir"
             ret = wx.MessageBox(mess,style=wx.OK|wx.CANCEL)
             if ret == wx.OK:
                 self.ctrlBanque.SetFocusFromKbd()
-            else: self.Parent.OnClose(None)
+            else: self.parent.OnClose(None)
 
 class PNL_corpsReglements(xgte.PNL_corps):
     #panel olv avec habillage optionnel pour des boutons actions (à droite) des infos (bas gauche) et boutons sorties
@@ -338,6 +330,7 @@ class Dialog(wx.Dialog):
         self.pnlParams.ctrlSsDepot.Bind(wx.EVT_KILL_FOCUS,self.OnSsDepot)
         self.choicesNonDiffere = self.ctrlOlv.lstColonnes[self.ctrlOlv.lstCodesColonnes.index('mode')].choices
         self.OnSsDepot(None)
+        self.Bind(wx.EVT_CLOSE,self.OnClose)
         self.__Sizer()
 
     def __Sizer(self):
@@ -366,7 +359,7 @@ class Dialog(wx.Dialog):
         saisie = False
         # test de la modif de chaque ligne
         for ix in range(len(self.depotOrigine)):
-            if self.ctrlOlv.innerList[ix].donnees != self.depotOrigine[ix]:
+            if self.ctrlOlv.innerList[ix].donnees != self.depotOrigine[ix].donnees:
                 saisie = True
                 break
         return saisie
@@ -375,34 +368,92 @@ class Dialog(wx.Dialog):
         ix = self.pnlParams.ctrlBanque.GetSelection()
         return self.pnlParams.lstIDbanques[ix]
 
-    def OnSsDepot(self,event):
-        # cas d'une saisie différée, la grille est modifiée
-        if event:
-            value = event.EventObject.GetValue()
-        else:
-            value = False
+    def InitOlv(self,withDiffere):
         self.ctrlOlv.lstColonnes = GetOlvColonnes(self)
         self.ctrlOlv.lstCodesColonnes = self.ctrlOlv.formerCodeColonnes()
         ixMode = self.ctrlOlv.lstCodesColonnes.index('mode')
         ixDiffere= self.ctrlOlv.lstCodesColonnes.index('differe')
-        if not value:
+        if not withDiffere:
             del self.ctrlOlv.lstCodesColonnes[ixDiffere]
             del self.ctrlOlv.lstColonnes[ixDiffere]
             self.ctrlOlv.lstColonnes[ixMode].choices = self.choicesNonDiffere
         else:
             self.ctrlOlv.lstColonnes[ixMode].choices = ['ND non déposés']
-
         self.ctrlOlv.InitObjectListView()
-        self.ctrlOlv.Refresh()
+        self.Refresh()
+
+    def TransposeDonnees(self,lstDonnees):
+        # ajustement des choix possibles selon le contenu du règlement
+        ixmod = self.ctrlOlv.lstCodesColonnes.index('mode')
+        ixnat = self.ctrlOlv.lstCodesColonnes.index('nature')
+        ixdat = self.ctrlOlv.lstCodesColonnes.index('date')
+        for donnees in lstDonnees:
+            # choix du 'mode règlement'
+            ok = False
+            for mode,dicMod in self.dicModesRegl.items():
+                for mot in dicMod['lstMots']:
+                    if mot in donnees[ixmod].lower():
+                        donnees[ixmod] = mode
+                        ok = True
+                        break
+                if ok: break
+            # forcer ne pas créer pour la reprise d'un dépot avec la prestation déjà créée avant
+            donnees[ixnat] = 'Ne pas créer'
+            # date remise en format français
+            donnees[ixdat] = xformat.DateSqlToDatetime(donnees[ixdat])
+        return
+
+    def OnSsDepot(self,event):
+        # cas d'une saisie différée, la grille est modifiée
         if event:
-            event.Skip()
+            value = event.EventObject.GetValue()
+            self.pnlParams.btnDepot.Enable(not(value))
+            self.pnlParams.lblRef.Enable(not(value))
+        else:
+            value = False
+        self.InitOlv(value)
+
+    def OnGetDepot(self,event):
+        # Test si une saisie est en cours
+        if self.IsSaisie():
+            if wx.MessageBox("Confirmez !\n\nLe bordereau de dépôt en cours a été modifié sans réimpression!",style=wx.YES_NO) != wx.YES:
+                return
+        # choix d'un dépôt dans la liste
+        self.Freeze()
+        dicDepot = nur.GetDepot()
+        IDdepot = None
+        if 'numero' in dicDepot.keys():
+            IDdepot = dicDepot['numero']
+        self.pnlParams.ctrlSsDepot.Enable(True)
+        if isinstance(IDdepot,int):
+            lstDonnees = nur.GetReglements(IDdepot)
+            if len(lstDonnees)>0:
+                # transposition mode de règlement
+                self.TransposeDonnees(lstDonnees)
+                # marque dépot non différé car déjà déposé
+                self.pnlParams.ctrlSsDepot.Enable(False)
+                # set date du dépot
+                self.pnlParams.ctrlDate.SetValue(xformat.DateStrToWxdate(dicDepot['date'],iso=True))
+                # set IDdepot en référence
+                self.pnlParams.ctrlRef.SetValue(str(IDdepot))
+                # set le nom de la banque
+                self.pnlParams.ctrlBanque.SetSelection(self.pnlParams.ctrlBanque.FindString(dicDepot['banque']))
+                # place les règlements du dépôt dans la grille
+                self.ctrlOlv.listeDonnees = lstDonnees
+                self.InitOlv(False)
+                # stockage pour test de saisie
+                self.depotOrigine = self.ctrlOlv.innerList
+            else:
+                wx.MessageBox("Aucune écriture:\n\nle dépôt %s est vide ou pb d'accès"%IDdepot)
+        event.Skip()
+        self.Thaw()
 
     def OnImprimer(self,event):
         event.Skip()
         return
 
     def OnClose(self,event):
-        self.Destroy()
+        self.EndModal(wx.ID_CANCEL)
 
 #------------------------ Lanceur de test  -------------------------------------------
 

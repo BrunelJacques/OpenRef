@@ -69,8 +69,9 @@ def DateSqlToDatetime(dateen):
     if isinstance(dateen,datetime.date):
         return dateen
 
-    if isinstance(dateen,str) and len(dateen) < 10:
-        return datetime(int(dateen[:4]),int(dateen[5:7]),int(dateen[8:10]))
+    if isinstance(dateen,str) and len(dateen) >= 10:
+        return datetime.date(int(dateen[:4]),int(dateen[5:7]),int(dateen[8:10]))
+    return dateen
 
 def DateStrToWxdate(date,iso=False):
     # Conversion d'une date chaîne jj-mm-aaaa en wx.datetime

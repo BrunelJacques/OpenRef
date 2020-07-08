@@ -372,7 +372,7 @@ class PNL_tableau(wx.Panel):
 
     def ProprietesOlv(self):
         self.ctrlOlv.Bind(wx.EVT_CONTEXT_MENU, self.ctrlOlv.OnContextMenu)
-        self.ctrlOlv.Bind(wx.EVT_LEFT_DCLICK, self.OnBoutonOK)
+        self.ctrlOlv.Bind(wx.EVT_LEFT_DCLICK, self.OnDblClick)
         self.ctrlOlv.Bind(wx.EVT_COMMAND_ENTER, self.OnBoutonOK)
 
     def GetItemsBtn(self,lstBtns):
@@ -403,6 +403,9 @@ class PNL_tableau(wx.Panel):
                 bouton = wx.Button(self, wx.ID_ANY, 'Erreur!')
                 lstBtn.append((bouton, 0, wx.ALL, 5))
         return lstBtn
+
+    def OnDblClick(self,event):
+        self.OnBoutonOK(None)
 
     def OnBoutonOK(self,event):
         if not self.ctrlOlv.GetSelectedObject():
@@ -439,7 +442,6 @@ class DLG_tableau(wx.Dialog):
 
     def Close(self):
         self.EndModal(wx.OK)
-
 # -- pour tests -----------------------------------------------------------------------------------------------------
 
 def GetDonnees(matrice,filtre = ""):
