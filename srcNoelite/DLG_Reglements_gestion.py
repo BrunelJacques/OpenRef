@@ -419,10 +419,10 @@ class Dialog(wx.Dialog):
             if wx.MessageBox("Confirmez !\n\nLe bordereau de dépôt en cours a été modifié sans réimpression!",style=wx.YES_NO) != wx.YES:
                 return
         # lancement de la recherche d'un dépot
+        self.ctrlOlv.cellEditMode = self.ctrlOlv.CELLEDIT_NONE
         dicDepot = nur.GetDepot()
-        print(self.ctrlOlv.GetId(),self.ctrlOlv.GetEventHandler(),self.ctrlOlv.GetPreviousHandler(),self.ctrlOlv.GetNextHandler())
         IDdepot = None
-        # gestion du retour du choix dépot
+        self.ctrlOlv.cellEditMode = self.ctrlOlv.CELLEDIT_DOUBLECLICK        # gestion du retour du choix dépot
         if 'numero' in dicDepot.keys():
             IDdepot = dicDepot['numero']
         self.pnlParams.ctrlSsDepot.Enable(True)

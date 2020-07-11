@@ -567,9 +567,6 @@ def GetDepot():
     dicOlv = GetMatriceDepots()
     dlg = xgtr.DLG_tableau(None,dicOlv=dicOlv)
     ret = dlg.ShowModal()
-    print(dlg.GetId(), dlg.GetEventHandler(), dlg.GetPreviousHandler(), dlg.GetNextHandler())
-    print(dlg.ctrlOlv.GetId(), dlg.ctrlOlv.GetEventHandler(), dlg.ctrlOlv.GetPreviousHandler(),
-          dlg.ctrlOlv.GetNextHandler())
     if ret == wx.OK:
         donnees = dlg.GetSelection().donnees
         for ix in range(len(donnees)):
