@@ -418,10 +418,11 @@ class Dialog(wx.Dialog):
         if self.IsSaisie():
             if wx.MessageBox("Confirmez !\n\nLe bordereau de dépôt en cours a été modifié sans réimpression!",style=wx.YES_NO) != wx.YES:
                 return
-        # choix d'un dépôt dans la liste
-        self.Freeze()
+        # lancement de la recherche d'un dépot
         dicDepot = nur.GetDepot()
+        print(self.ctrlOlv.GetId(),self.ctrlOlv.GetEventHandler(),self.ctrlOlv.GetPreviousHandler(),self.ctrlOlv.GetNextHandler())
         IDdepot = None
+        # gestion du retour du choix dépot
         if 'numero' in dicDepot.keys():
             IDdepot = dicDepot['numero']
         self.pnlParams.ctrlSsDepot.Enable(True)
@@ -445,8 +446,6 @@ class Dialog(wx.Dialog):
                 self.depotOrigine = self.ctrlOlv.innerList
             else:
                 wx.MessageBox("Aucune écriture:\n\nle dépôt %s est vide ou pb d'accès"%IDdepot)
-        event.Skip()
-        self.Thaw()
 
     def OnImprimer(self,event):
         event.Skip()

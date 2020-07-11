@@ -218,18 +218,6 @@ def GetDepots(matriceOlv, filtre = None, limit=100):
     dicOlv['listeDonnees']=lstDonnees
     return lstDonnees
 
-def GetDepot():
-    dicDepot = {}
-    dicOlv = GetMatriceDepots()
-    dlg = xgtr.DLG_tableau(None,dicOlv=dicOlv)
-    ret = dlg.ShowModal()
-    if ret == wx.OK:
-        donnees = dlg.GetSelection().donnees
-        for ix in range(len(donnees)):
-            dicDepot[dicOlv['listeCodesColonnes'][ix]] = donnees[ix]
-    dlg.Destroy()
-    return dicDepot
-
 def GetBanquesNne(where = 'code_nne IS NOT NULL'):
     db = xdb.DB()
     ldBanques = []
@@ -573,7 +561,45 @@ class Article(object):
         dlg.Destroy()
         return article
 
+
+def GetDepot():
+    dicDepot = {}
+    dicOlv = GetMatriceDepots()
+    dlg = xgtr.DLG_tableau(None,dicOlv=dicOlv)
+    ret = dlg.ShowModal()
+    print(dlg.GetId(), dlg.GetEventHandler(), dlg.GetPreviousHandler(), dlg.GetNextHandler())
+    print(dlg.ctrlOlv.GetId(), dlg.ctrlOlv.GetEventHandler(), dlg.ctrlOlv.GetPreviousHandler(),
+          dlg.ctrlOlv.GetNextHandler())
+    if ret == wx.OK:
+        donnees = dlg.GetSelection().donnees
+        for ix in range(len(donnees)):
+            dicDepot[dicOlv['listeCodesColonnes'][ix]] = donnees[ix]
+    dlg.Destroy()
+    return dicDepot
+
+class Depot(wx.Dialog):
+    def __init__(self,*args):
+        wx.Dialog.__init__(self,-1,pos=(50, 50), size=(1300, 700))
+        panel = wx.Panel(self)
+        mylistctrl = wx.ListCtrl(panel, id=777, pos=(150, 150), size=(1000, 700))
+        mylistctrl.Bind(wx.EVT_LEFT_DCLICK, OnClick)
+
+    def GetDepot(self):
+        dicDepot = {}
+        dicOlv = GetMatriceDepots()
+        self.dlg = xgtr.DLG_tableau(self,dicOlv=dicOlv)
+        ret = self.dlg.ShowModal()
+        if ret == wx.OK:
+            donnees = self.dlg.GetSelection().donnees
+            for ix in range(len(donnees)):
+                dicDepot[dicOlv['listeCodesColonnes'][ix]] = donnees[ix]
+        self.dlg.Destroy()
+        return dicDepot
+
 #------------------------ Lanceur de test  -------------------------------------------
+def OnClick(event):
+    print("on click")
+    #mydialog.Close()
 
 if __name__ == '__main__':
     app = wx.App(0)
@@ -584,5 +610,18 @@ if __name__ == '__main__':
     #print(GetPayeurs(1))
     #art = Article('debour')
     #print(art.GetArticle())
-    print(GetDepot())
+    dlg = Depot()
+    dlg.Show()
+    depot = dlg.GetDepot()
+    #depot = GetDepot()
+    print(depot)
+    """
+    mydialog = wx.Dialog(None, title = "test", pos=(50,50), size = (1300,700))
+    panel = wx.Panel(mydialog)
+    mylistctrl = wx.ListCtrl(panel, id=wx.ID_ANY, pos=(150,150), size=(1000,700))
+    mylistctrl.Bind(wx.EVT_LEFT_DCLICK,OnClick)
+    mybutton = wx.Button(panel,-1,"bouton")
+    mybutton.Bind(wx.EVT_BUTTON,OnClick)
+    ret = mydialog.Show()
+    """
     app.MainLoop()

@@ -441,7 +441,10 @@ class DLG_tableau(wx.Dialog):
         return self.pnl.ctrlOlv.GetSelectedObject()
 
     def Close(self):
-        self.EndModal(wx.OK)
+        if self.IsModal():
+            self.EndModal(wx.OK)
+        else:
+            self.Close()
 # -- pour tests -----------------------------------------------------------------------------------------------------
 
 def GetDonnees(matrice,filtre = ""):

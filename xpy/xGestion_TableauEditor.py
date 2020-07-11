@@ -598,6 +598,7 @@ class PanelListView(wx.Panel):
         # appel des éventuels spécifiques
         if hasattr(self.Parent, 'OnEditStarted'):
             self.parent.OnEditStarted(code)
+
         #except:
         #print(sys.exc_info())
         # stockage de la valeur initiale de la dernière cellule éditée
