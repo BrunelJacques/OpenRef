@@ -574,9 +574,9 @@ def GetDepot():
     dlg.Destroy()
     return dicDepot
 
-class Depot(wx.Dialog):
-    def __init__(self,*args):
-        wx.Dialog.__init__(self,-1,pos=(50, 50), size=(1300, 700))
+class zzDepot(wx.Dialog):
+    def __init__(self,parent,*args,**kwds):
+        wx.Dialog.__init__(self,parent,-1,**kwds)
         panel = wx.Panel(self)
         mylistctrl = wx.ListCtrl(panel, id=777, pos=(150, 150), size=(1000, 700))
         mylistctrl.Bind(wx.EVT_LEFT_DCLICK, OnClick)
@@ -607,18 +607,5 @@ if __name__ == '__main__':
     #print(GetPayeurs(1))
     #art = Article('debour')
     #print(art.GetArticle())
-    dlg = Depot()
-    dlg.Show()
-    depot = dlg.GetDepot()
-    #depot = GetDepot()
-    print(depot)
-    """
-    mydialog = wx.Dialog(None, title = "test", pos=(50,50), size = (1300,700))
-    panel = wx.Panel(mydialog)
-    mylistctrl = wx.ListCtrl(panel, id=wx.ID_ANY, pos=(150,150), size=(1000,700))
-    mylistctrl.Bind(wx.EVT_LEFT_DCLICK,OnClick)
-    mybutton = wx.Button(panel,-1,"bouton")
-    mybutton.Bind(wx.EVT_BUTTON,OnClick)
-    ret = mydialog.Show()
-    """
+    print(GetDepot())
     app.MainLoop()
