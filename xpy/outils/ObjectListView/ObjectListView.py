@@ -8,7 +8,7 @@
 #----------------------------------------------------------------------------
 # Change log:
 # 2019-09-10  JB    - Adaptations pour tris possibles de valeurs null
-# 2019-08-15  JB    - Adaptations pour footer et filtres personnalisés
+# 2019-08-15  JB    - Adaptations pour filtres personnalisés
 # 2009-06-09  JPP   - AutoSizeColumns() now updates space filling columns
 #                   - FastObjectListView.RepopulateList() now uses Freeze/Thaw
 #                   - Fixed bug with virtual lists being clearws when scrolled vertically
@@ -2199,7 +2199,6 @@ class ObjectListView(wx.ListCtrl):
         self.DeselectAll()
         self.cellEditor = evt.newEditor or evt.editor
         self.cellBeingEdited = (rowIndex, subItemIndex)
-
         # If we aren't using the default editor, destroy it
         if self.cellEditor != defaultEditor:
             defaultEditor.Destroy()
@@ -2225,11 +2224,11 @@ class ObjectListView(wx.ListCtrl):
             cellBounds,
             defaultEditor)
         self.GetEventHandler().ProcessEvent(evt)
-
         if self.cellEditor:
             self.cellEditor.Show()
             self.cellEditor.Raise()
-        else: print("Echec CellEditor=None in cell: %s %s"%(str(rowIndex),str(subItemIndex)))
+        else:
+            print("Echec CellEditor=None in cell: %s %s"%(str(rowIndex),str(subItemIndex)))
 
     def _ConfigureCellEditor(self, editor, bounds, rowIndex, subItemIndex):
         """
@@ -2416,7 +2415,6 @@ class ObjectListView(wx.ListCtrl):
             self.SetFilter(Filter.Chain(self.filtrerAndNotOr,*listeFiltres))
         else: self.SetFilter(Filter.Chain(True,*listeFiltres))
         self.RepopulateList()
-        #self.MAJ_footer()
         self.Refresh()
         #self.OnCheck(None)
 

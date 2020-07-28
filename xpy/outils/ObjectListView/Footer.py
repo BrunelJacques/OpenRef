@@ -43,10 +43,13 @@ class Footer(wx.Control):
                             self.dictTotaux[nomColonne] = 0
                         if total != None :
                             self.dictTotaux[nomColonne] += total
-
-    def zzMAJ(self):
-        self.MAJ_totaux()
-        self.MAJ_affichage()
+                if dictColonne["mode"] == "nombre" :
+                    if hasattr(track, nomColonne) :
+                        valeur = getattr(track, nomColonne)
+                        if not nomColonne in self.dictTotaux:
+                            self.dictTotaux[nomColonne] = 0
+                        if valeur != None and len(str(valeur)) > 0:
+                            self.dictTotaux[nomColonne] += 1
 
     def DrawColonne(self, dc, x, largeur, label="", alignement=None, couleur=None, font=None):
         """ Dessine une colonne """
@@ -98,16 +101,23 @@ class Footer(wx.Control):
                 
                 # Valeur : NOMBRE
                 if mode == "nombre" :
-                    if not "singulier" in infoColonne: infoColonne["singulier"] = "ligne"
-                    if not "pluriel" in infoColonne: infoColonne["pluriel"] = "lignes"
+                    singulier = u"ligne cochée"
+                    pluriel = u"lignes cochées"
+                    if "singulier" in infoColonne:  singulier = infoColonne["singulier"]
+                    if "pluriel" in infoColonne:    pluriel   = infoColonne["pluriel"]
                     objects = self.listview.GetCheckedObjects()
-                    if len(objects) == 0:
-                        objects = self.listview.innerList
                     nombre = len(objects)
+                    if len(objects) == 0:
+                        if not "singulier" in infoColonne:  singulier = u"ligne non nulle"
+                        if not "pluriel" in infoColonne:    pluriel   = u"lignes non nulles"
+                        if nom in self.dictTotaux:
+                            nombre = self.dictTotaux[nom]
+                        else:
+                            nombre = 0
                     if nombre > 1 :
-                        texte = u"%d %s" % (nombre, infoColonne["pluriel"])
+                        texte = u"%d %s" % (nombre, pluriel)
                     else :
-                        texte = u"%d %s" % (nombre, infoColonne["singulier"])
+                        texte = u"%d %s" % (nombre, singulier)
                         
                 # Valeur : TEXTE
                 if mode == "texte" :

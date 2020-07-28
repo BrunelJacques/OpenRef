@@ -599,9 +599,6 @@ class PanelListView(wx.Panel):
         if hasattr(self.Parent, 'OnEditStarted'):
             self.parent.OnEditStarted(code)
 
-        #except:
-        #print(sys.exc_info())
-        # stockage de la valeur initiale de la dernière cellule éditée
         olv = self.ctrl_listview
         if olv.cellBeingEdited:
             row, col = olv.cellBeingEdited
@@ -869,12 +866,10 @@ if __name__ == '__main__':
               'largeur': 650,
               'checkColonne': False,
               'recherche': True,
-              'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",}
-    """
+              'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
               'dictColFooter': {"nombre": {"mode": "total", "alignement": wx.ALIGN_RIGHT},
                                 "mot": {"mode": "nombre", "alignement": wx.ALIGN_CENTER},}
               }
-    """
 
     # boutons de bas d'écran - infos: texte ou objet window.  Les infos sont  placées en bas à gauche
     lstBtns = [('BtnPrec',-1, wx.ArtProvider.GetBitmap(wx.ART_GO_BACK, wx.ART_OTHER, (42, 22)),"Cliquez ici pour test info"),

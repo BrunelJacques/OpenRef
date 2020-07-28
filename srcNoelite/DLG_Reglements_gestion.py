@@ -82,7 +82,8 @@ def GetOlvOptions(dlg):
             'largeur': 850,
             'checkColonne': False,
             'recherche': True,
-            }
+            'dictColFooter': {"designation": {"mode": "nombre", "alignement": wx.ALIGN_CENTER}, }
+    }
 
 #----------------------- Parties de l'écrans -----------------------------------------
 
@@ -184,12 +185,16 @@ class PNL_corpsReglements(xgte.PNL_corps):
         else:
             self.parent.pnlPied.SetItemsInfos( INFO_OLV,wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
         row, col = self.ctrlOlv.cellBeingEdited
-        track = self.ctrlOlv.GetObjectAt(row)
         if not self.oldRow: self.oldRow = row
         if row != self.oldRow:
-            test = wx.MessageBox("Vérification de la ligne %d"%self.oldRow,style=wx.YES_NO)
-            if test == wx.ID_YES: track.valide = True
-        track.valide = False
+            track = self.ctrlOlv.GetObjectAt(self.oldRow)
+            test = nur.ValideLigne(track)
+            if test:
+                track.valide = True
+                self.oldRow = row
+            else:
+                track.valide = False
+        track = self.ctrlOlv.GetObjectAt(row)
 
         # Le premier accès sur la ligne va attribuer un ID, la sauvegarde se fera après la saisie du montant != 0.0
         if track.IDreglement in (None, 0):
@@ -427,7 +432,13 @@ class Dialog(wx.Dialog):
             IDdepot = dicDepot['numero']
         self.pnlParams.ctrlSsDepot.Enable(True)
         if isinstance(IDdepot,int):
-            lstDonnees = nur.GetReglements(IDdepot)
+            lstDonnees = [rec[:-1] for rec in  nur.GetReglements(IDdepot)]
+            lstEnCompta = [rec[:-1] for rec in  nur.GetReglements(IDdepot) if rec[-1]]
+            # présence de lignes déjà transférées compta
+            if len(lstEnCompta) >0:
+                self.ctrlOlv.cellEditMode = self.ctrlOlv.CELLEDIT_NONE
+                self.pnlPied.SetItemsInfos("Non modifiable: Transféré en compta", wx.ArtProvider.GetBitmap(wx.ART_ERROR, wx.ART_OTHER, (16, 16)))
+
             if len(lstDonnees)>0:
                 # transposition mode de règlement
                 self.TransposeDonnees(lstDonnees)

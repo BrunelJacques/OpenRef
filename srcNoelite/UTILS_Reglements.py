@@ -311,7 +311,7 @@ def GetReglements(IDdepot):
     #            IDreglement,date,IDfamille,designation,payeur,labelmode,numero,libelle,montant,IDpiece in recordset
     lstChamps = ['reglements.IDreglement', 'reglements.date', 'reglements.IDcompte_payeur', 'familles.adresse_intitule',
                  'payeurs.nom', 'modes_reglements.label', 'reglements.numero_piece', 'reglements.observations', 
-                 'reglements.montant', 'reglements.IDpiece']
+                 'reglements.montant', 'reglements.IDpiece','reglements.compta']
 
     req = """   SELECT %s
                 FROM (( reglements 
@@ -326,11 +326,11 @@ def GetReglements(IDdepot):
     if retour == "ok":
         recordset = db.ResultatReq()
 
-    for IDreglement,date,IDfamille,designation,payeur,labelmode,numero,libelle,montant,IDpiece in recordset:
+    for IDreglement,date,IDfamille,designation,payeur,labelmode,numero,libelle,montant,IDpiece,compta in recordset:
         creer = "N"
         # la reprise force la non création car déjà potentiellement fait. IDpiece contient l'ID de la prestation créée
         lstDonneesTrack = [IDreglement, date, IDfamille, designation,payeur, labelmode, numero, "", "", libelle,
-                           montant, creer]
+                           montant, creer, compta]
         listeDonnees.append(lstDonneesTrack)
     db.Close()
     return listeDonnees
@@ -561,7 +561,6 @@ class Article(object):
         dlg.Destroy()
         return article
 
-
 def GetDepot():
     dicDepot = {}
     dicOlv = GetMatriceDepots()
@@ -573,25 +572,6 @@ def GetDepot():
             dicDepot[dicOlv['listeCodesColonnes'][ix]] = donnees[ix]
     dlg.Destroy()
     return dicDepot
-
-class zzDepot(wx.Dialog):
-    def __init__(self,parent,*args,**kwds):
-        wx.Dialog.__init__(self,parent,-1,**kwds)
-        panel = wx.Panel(self)
-        mylistctrl = wx.ListCtrl(panel, id=777, pos=(150, 150), size=(1000, 700))
-        mylistctrl.Bind(wx.EVT_LEFT_DCLICK, OnClick)
-
-    def GetDepot(self):
-        dicDepot = {}
-        dicOlv = GetMatriceDepots()
-        self.dlg = xgtr.DLG_tableau(self,dicOlv=dicOlv)
-        ret = self.dlg.ShowModal()
-        if ret == wx.OK:
-            donnees = self.dlg.GetSelection().donnees
-            for ix in range(len(donnees)):
-                dicDepot[dicOlv['listeCodesColonnes'][ix]] = donnees[ix]
-        self.dlg.Destroy()
-        return dicDepot
 
 #------------------------ Lanceur de test  -------------------------------------------
 def OnClick(event):
