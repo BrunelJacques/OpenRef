@@ -549,7 +549,7 @@ class PNL_tableau(wx.Panel):
                         fonction = lambda evt,code=code: eval(self.dicOnClick[code])
                     else: fonction = self.dicOnClick[code]
                     bouton.Bind(wx.EVT_BUTTON, fonction)
-                lstBtn.append((bouton, 0, wx.ALL | wx.ALIGN_RIGHT, 5))
+                lstBtn.append((bouton, 0, wx.ALL , 5))
 
             except:
                 bouton = wx.Button(self, wx.ID_ANY, 'Erreur!')

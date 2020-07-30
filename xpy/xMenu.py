@@ -21,7 +21,6 @@ class Accueil(wx.Frame):
         self.CreateStatusBar()
         self.SetStatusText("xPY roule pour vous!")
 
-
     def makeMenuBar(self):
         """
         A menu bar is composed of menus, which are composed of menu items.
@@ -64,7 +63,6 @@ class Accueil(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnAction12, action12)
         self.Bind(wx.EVT_MENU, self.OnExit,  exitItem)
         self.Bind(wx.EVT_MENU, self.OnAbout, aboutItem)
-
 
     def OnExit(self, event):
         """Close the frame, terminating the application."""

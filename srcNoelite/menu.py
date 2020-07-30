@@ -53,6 +53,28 @@ class MENU():
         ]
         return menu
 
+    def CouleurFondBureau(self):
+        return wx.Colour(96,73,123)
+
+    def ParamBureau(self):
+        #appelé pour construire une page d'accueil, même structure que les items du menu pour gérer des boutons
+        lstItems = [
+            {"code": "modifAdresses", "label": ("&Modification d'adresses Individus\tCtrl-I"),
+             "infobulle": (u"Gestion de l'adresses de rattachement des personnes (soit la leur soit celle de leur hébergeur"),
+             "image": "Images/16x16/Editeur_email.png",
+             "action": "On_Adresses_individus", "genre": wx.ITEM_NORMAL},
+            {"code": "modifAdressesF", "label": ("&Modification d'adresses Familles\tCtrl-F"),
+             "infobulle": (u"Gestion des adresses des familles, mais pas de tous les individus de la famille"),
+             "image": "Images/16x16/Editeur_email.png",
+             "action": "On_Adresses_familles", "genre": wx.ITEM_NORMAL},
+            "-",
+            {"code": "gestionReglements", "label": ("&Gestion des règlements\tCtrl-R"),
+             "infobulle": (u"Gestion de bordereau de règlements : remise de chèques, arrivée de virements, de dons..."),
+             "image": "Images/16x16/Impayes.png",
+             "action": "On_reglements_bordereau", "genre": wx.ITEM_NORMAL},
+        ]
+        return lstItems
+
     def On_Adresses_individus(self, event):
         dlg = ndga.Dialog(mode='individus',titre="Choisissez un individu")
         dlg.ShowModal()

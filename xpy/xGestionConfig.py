@@ -152,9 +152,9 @@ class DLG_identification(wx.Dialog):
             topbox.Add(self.ctrlConfig, 0, wx.ALIGN_TOP, 0)
             topbox.Add((40,40), 0, wx.ALIGN_TOP, 0)
             piedbox = wx.BoxSizer(wx.HORIZONTAL)
-            piedbox.Add(self.btnTest, 0, wx.ALIGN_RIGHT, 0)
-            piedbox.Add(self.btn, 0, wx.RIGHT|wx.ALIGN_RIGHT, 11)
-            topbox.Add(piedbox, 0, wx.ALIGN_RIGHT, 0)
+            piedbox.Add(self.btnTest, 0, 0, 0)
+            piedbox.Add(self.btn, 0, wx.RIGHT, 11)
+            topbox.Add(piedbox, 0, 0, 0)
 
         AffichID()
         self.SetSizerAndFit(topbox)

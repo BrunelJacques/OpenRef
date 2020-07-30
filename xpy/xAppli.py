@@ -41,6 +41,8 @@ class MainFrame(wx.Frame):
         #       enregistrées dans des fichiers  soit dans profilUser ou dans Data selon xUTILS_Config
         self.config = None
         self.dictMenu = None
+        self.lstBtnBureau = None
+        self.couleur_fond = wx.Colour(240,240,240)
 
     def xInit(self):
         print("Lancement %s"%self.dictAppli["NOM_APPLICATION"])
@@ -81,6 +83,29 @@ class MainFrame(wx.Frame):
         font.PointSize += 5
         font = font.Bold()
         self.topContenu.SetFont(font)
+
+    def MakeBureau(self,pnlTitre=None,pnlBtnActions=None):
+        # Construction du bureau à partir de menu.ParamBureau() présent dans les sources de l'appli
+        if not self.lstBtnBureau:
+            try:
+                import menu
+                self.menuClass = menu.MENU(self)
+                self.lstBtnBureau = menu.MENU.ParamBureau(self)
+            except:
+                wx.MessageBox("Echec de l'ouverture de l'objet : 'MENU.ParamBureau'\ndans %s"%self.pathSrcAppli+"\menu.py",
+                              'Lancement impossible', wx.OK | wx.ICON_STOP)
+
+        # personalisation possible de la couleur de fond d'accueil
+        self.SetForegroundColour(self.couleur_fond)
+
+        # création du topannel et composition de l'accueil
+        if not hasattr(self,"topPanel"):
+            self.topPanel = wx.Panel(self)
+            if pnlTitre:
+                self.pnlTitre = pnlTitre
+            if pnlBtnActions:
+                self.pnlBtnActions = pnlBtnActions
+        self.CentreOnScreen()
 
     def MakeMenuBar(self):
         # Construction de la barre de menu à partir du fichier menu.py présent dans les sources de l'appli
