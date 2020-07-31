@@ -12,7 +12,124 @@ import wx
 import wx.html as html
 import datetime
 
-COULEUR_FOND = wx.Colour(96,73,123)
+COULEUR_FOND = wx.Colour(176,153,203)
+
+class Button(wx.Button):
+    # Enrichissement du wx.Button par l'image, nom, toolTip et Bind
+    def __init__(self, parent,**kwds):
+        # image en bitmap ou ID de artProvider sont possibles
+        ID = kwds.pop('ID',None)
+        label = kwds.pop('label',None)
+        code = kwds.pop('code',None)
+        image = kwds.pop('image',None)
+        infobulle = kwds.pop('infobulle',None)
+        action = kwds.pop('action',None)
+        size = kwds.pop('size',(80,80))
+        sizeFont = kwds.pop('sizeFont',12)
+        sizeBmp = kwds.pop('sizeBmp',(16,16))
+
+        if not ID : ID = wx.ID_ANY
+
+        # récupère le label
+        if not label : label = ""
+        if "\n" in label:
+            sizeFont = int(sizeFont*0.75)
+        else:
+            lstMots = label.split(" ")
+            label = ""
+            for mot in lstMots:
+                if label == "":
+                    label += mot
+                else:
+                    label += "\n%s"%mot
+
+        wx.Button.__init__(self,parent,ID,label,size=size,style=wx.BU_BOTTOM)
+        font = wx.Font(sizeFont, wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL,False)
+        self.SetFont(font)
+        self.SetBackgroundColour(COULEUR_FOND)
+
+        # ajout de l'image. Le code de wx.ART_xxxx est de type bytes et peut être mis en lieu de l'image
+        if  isinstance(image,bytes):
+            # image ArtProvider
+            if sizeBmp:
+                self.SetBitmap(wx.ArtProvider.GetBitmap(image,wx.ART_BUTTON,wx.Size(sizeBmp)))
+            else:
+                self.SetBitmap(wx.ArtProvider.GetBitmap(image,wx.ART_BUTTON))
+        elif isinstance(image,wx.Bitmap):
+            # image déjà en format wx
+            self.SetBitmap(image)
+        elif isinstance(image,str):
+            # image en bitmap pointée par son adresse
+            self.SetBitmap(wx.Bitmap(image))
+        self.SetBitmapPosition(wx.TOP)
+        # ajustement de la taille si non précisée
+        if not size :
+            self.SetInitialSize()
+
+        # Compléments d'actions
+        self.SetToolTip(infobulle)
+        self.code = code
+
+        # implémente les fonctions bind transmises, soit par le pointeur soit par eval du texte
+        if action:
+            if isinstance(action, str):
+                fonction = lambda evt, code=code: eval(action)
+            else:
+                fonction = action
+            self.Bind(wx.EVT_BUTTON, fonction)
+
+class CTRL_btnAction(wx.Panel):
+    # Bouton personnalisé
+    def __init__(self, parent,**kwds):
+        # image en bitmap ou ID de artProvider sont possibles
+        ID = kwds.pop('ID',None)
+        label = kwds.pop('label',None)
+        code = kwds.pop('code',None)
+        image = kwds.pop('image',None)
+        infobulle = kwds.pop('infobulle',None)
+        action = kwds.pop('action',None)
+        size = kwds.pop('size',None)
+        sizeFont = kwds.pop('sizeFont',14)
+        sizeBmp = kwds.pop('sizeFont',14)
+        if not ID : ID = wx.ID_ANY
+        # récupère le label
+        if not label : label = ""
+        if "\n" in label: sizeFont = int(sizeFont*0.75)
+
+        wx.Button.__init__(self,parent,ID,label,wx.BU_EXACTFIT)
+        font = wx.Font(sizeFont, wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL,False)
+        self.SetFont(font)
+
+
+        # ajout de l'image. Le code de wx.ART_xxxx est de type bytes et peut être mis en lieu de l'image
+        if  isinstance(image,bytes):
+            # image ArtProvider
+            if sizeBmp:
+                self.SetBitmap(wx.ArtProvider.GetBitmap(image,wx.ART_BUTTON,wx.Size(sizeBmp)))
+            else:
+                self.SetBitmap(wx.ArtProvider.GetBitmap(image,wx.ART_BUTTON))
+        elif isinstance(image,wx.Bitmap):
+            # image déjà en format wx
+            self.SetBitmap(image)
+        elif isinstance(image,str):
+            # image en bitmap pointée par son adresse
+            self.SetBitmap(wx.Bitmap(image))
+
+        # ajustement de la taille si non précisée
+        if not size :
+            self.SetInitialSize()
+
+        # Compléments d'actions
+        self.SetToolTip(infobulle)
+        self.code = code
+
+        # implémente les fonctions bind transmises, soit par le pointeur soit par eval du texte
+        if action:
+            if isinstance(action, str):
+                fonction = lambda evt, code=code: eval(action)
+            else:
+                fonction = action
+            self.Bind(wx.EVT_BUTTON, fonction)
 
 class CTRL_html(html.HtmlWindow):
     def __init__(self, parent):
@@ -32,8 +149,10 @@ class CTRL_html(html.HtmlWindow):
             pass
 
 class Panel_Titre(wx.Panel):
-    def __init__(self, parent, size=(1500, 145),pos=(0,0),image="xpy/Images/Globe.ico",posImage=(20, 10),
-                 texte="monAppli...",posLabel=(160, 40),tailleFont=18,couleurFond=None):
+    def __init__(self, parent, pos=(0,0),image="xpy/Images/Globe.ico",posImage=(20, 10),
+                 texte="monAppli..."*5,posLabel=(160, 40),tailleFont=18,couleurFond=None):
+        size = parent.GetSize()
+        size[1] = 145
         wx.Panel.__init__(self, parent, name="panel_titre", id=-1, size=size, pos=pos, style=wx.TAB_TRAVERSAL)
         
         self.image_titre = wx.StaticBitmap(self, -1, wx.Bitmap(image, wx.BITMAP_TYPE_ANY), pos=posImage)
@@ -43,66 +162,100 @@ class Panel_Titre(wx.Panel):
         self.label.SetFont(wx.Font(tailleFont, wx.DEFAULT, wx.NORMAL, wx.NORMAL, 0, ""))
 
 class Panel_Buttons(wx.Panel):
-    def __init__(self, parent,lstButtons=[], size=(-1, -1),tailleFont=18,couleurFond=None,
-                 sizeBtn=(80,80)):
+    def __init__(self, parent,lstButtons=[],sizeFont=12,sizeBmp=80,couleurFond=None,
+                 sizeBtn=(140,140)):
+        size = parent.GetSize()
+        size[1] -= 145
         wx.Panel.__init__(self, parent, name="panel_accueil", id=-1, size=size, style=wx.TAB_TRAVERSAL)
 
-        self.image_gauche_haut = wx.StaticBitmap(self, -1, wx.Bitmap("xpy/Images/Noethys.png", wx.BITMAP_TYPE_PNG))
-        self.image_gauche_bas = wx.StaticBitmap(self, -1, wx.Bitmap("xpy/Images/Noethys.png", wx.BITMAP_TYPE_PNG))
-        self.image_droit_bas = wx.StaticBitmap(self, -1, wx.Bitmap("xpy/Images/Noethys.png", wx.BITMAP_TYPE_PNG))
-
-        # self.bouton = wx.Button(self.topPanel,-1,label = "action",pos=(100,300),size=sizeBtn)
+        self.parent = parent
+        self.lstCtrlBtns = []
+        self.couleurFond = couleurFond
+        if not couleurFond: self.couleurFond = COULEUR_FOND
+        for dicBtn in lstButtons:
+            if not isinstance(dicBtn,dict): continue
+            dicBtn['size'] = sizeBtn
+            dicBtn['sizeFont'] = sizeFont
+            dicBtn['sizeBmp'] = sizeBmp
+            self.lstCtrlBtns.append(Button(self,**dicBtn))
+        (lg,ht) = self.GetSize()
+        self.nbBtnOnRow = int((lg -40)/ (sizeBtn[0]+30))
+        if self.nbBtnOnRow == 0:
+            self.nbBtnOnRow = 1
 
         self.__set_properties()
         self.__do_layout()
 
     def __set_properties(self):
-        self.SetBackgroundColour(COULEUR_FOND)
+        self.SetBackgroundColour(self.couleurFond)
 
     def __do_layout(self):
-        grid_sizer = wx.FlexGridSizer(rows=1, cols=3, vgap=30, hgap=30)
-        #grid_sizer.Add((1, 1), 0, wx.EXPAND, 0)
-        grid_sizer.Add(self.image_gauche_bas, 1, wx.ALL, 40)
-        grid_sizer.Add(self.image_gauche_haut, 1, wx.ALL, 0)
-        grid_sizer.Add(self.image_droit_bas, 1, wx.ALL, 20)
+        grid_sizer = wx.FlexGridSizer(rows=5, cols=self.nbBtnOnRow, vgap=30, hgap=30)
+        for ctrlBtn in self.lstCtrlBtns:
+            grid_sizer.Add(ctrlBtn, 1, wx.ALL, 10)
         self.SetSizer(grid_sizer)
-        grid_sizer.AddGrowableRow(0)
-        grid_sizer.AddGrowableCol(0)
+        #grid_sizer.AddGrowableRow(0)
+        #grid_sizer.AddGrowableCol(0)
 
-class Panel_General(wx.Panel):
-    def __init__(self, parent,size=(-1, -1),lstButtons = None):
-        wx.Panel.__init__(self, parent, name="panel_general", id=-1, size=size, style=wx.TAB_TRAVERSAL)
-        self.SetForegroundColour(COULEUR_FOND)
-        self.image_titre = Panel_Titre(self)
-        self.ctrl= Panel_Buttons(self)
+class Panel_Accueil(wx.Panel):
+    def __init__(self, parent,pnlTitre=None,pnlBtnActions=None):
+        wx.Panel.__init__(self, parent, name="panel_general", id=-1, style=wx.TAB_TRAVERSAL)
+        self.pnlBtnActions = None
+        if pnlTitre:
+            self.pnlTitre = pnlTitre
+        if pnlBtnActions:
+            self.pnlBtnActions = pnlBtnActions
+        self.Sizer()
+        self.EnableBoutons(False)
+
+    def Sizer(self):
         sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(self.image_titre, 0, wx.EXPAND, 0)
-        if lstButtons:
-            sizer.Add(self.ctrl, 1, wx.ALIGN_TOP|wx.ALL, 0)
-        self.SetSizer(sizer)
+        if hasattr(self,'pnlTitre'):
+            sizer.Add(self.pnlTitre, 0, wx.EXPAND, 0)
+        if self.pnlBtnActions:
+            sizer.Add(self.pnlBtnActions, 1, wx.ALL|wx.EXPAND, 20)
+        self.SetSizerAndFit(sizer)
         self.Layout()
+
+    def EnableBoutons(self,etat=False):
+        if self.pnlBtnActions:
+            for button in self.pnlBtnActions.lstCtrlBtns:
+                button.Enable(etat)
+
+    def OnResize(self,evt):
+        wx.MessageBox("coucou")
 
 # -------------------------- pour tests -------------------------------------------------------------------------------
 class MyFrame(wx.Frame):
     def __init__(self, *args, **kwds):
-        wx.Frame.__init__(self, *args, **kwds)
+        wx.Frame.__init__(self, *args, )
+        self.SetSize((500, 700))
         lstButtons = [
-            {"code": "modifAdresses", "label": ("&Modification d'adresses Individus\tCtrl-I"),
+            {"code": "modifAdresses", "label": ("&Modification d'adresses Individus"),
              "infobulle": (u"Gestion de l'adresses de rattachement des personnes (soit la leur soit celle de leur hébergeur"),
-             "image": "Images/16x16/Editeur_email.png",
-             "action": "On_Adresses_individus", "genre": wx.ITEM_NORMAL},
-            {"code": "modifAdressesF", "label": ("&Modification d'adresses Familles\tCtrl-F"),
+             "image": "xpy/Images/80x80/Adresse.png",
+             "action": self.OnAction, "genre": wx.ITEM_NORMAL},
+            {"code": "modifAdressesF", "label": ("&Modification d'adresses Familles"),
              "infobulle": (u"Gestion des adresses des familles, mais pas de tous les individus de la famille"),
-             "image": "Images/16x16/Editeur_email.png",
-             "action": "On_Adresses_familles", "genre": wx.ITEM_NORMAL},
+             "image": "xpy/Images/80x80/Adresse-famille.jpg",
+             "action": self.OnAction, "genre": wx.ITEM_NORMAL},
             "-",
-            {"code": "gestionReglements", "label": ("&Gestion des règlements\tCtrl-R"),
+            {"code": "gestionReglements", "label": ("&Gestion des règlements"),
              "infobulle": (u"Gestion de bordereau de règlements : remise de chèques, arrivée de virements, de dons..."),
-             "image": "Images/16x16/Impayes.png",
-             "action": "On_reglements_bordereau", "genre": wx.ITEM_NORMAL},
+             "image": "xpy/Images/16x16/Impayes.png",
+             "action": self.OnAction, "genre": wx.ITEM_NORMAL},
         ]
-        panel = Panel_General(self,lstButtons=lstButtons)
-        self.SetSize((1200, 700))
+        pnlTitre= Panel_Titre(self, texte="Mon appli ...\n\n%s"%("mais encore! "*5,), pos=(20, 30))
+        pnlBtnActions = Panel_Buttons(self, lstButtons)
+        self.panel = Panel_Accueil(self,pnlTitre=pnlTitre,pnlBtnActions=pnlBtnActions)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(self.panel, 0, wx.EXPAND, 0)
+        self.SetSizerAndFit(sizer)
+
+
+    def OnAction(self,event):
+        wx.MessageBox("Voici mon action !!")
+
 
 if __name__ == '__main__':
     app = wx.App(0)

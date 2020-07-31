@@ -843,7 +843,7 @@ class DLG_ligne(wx.Dialog):
         btnbox = wx.BoxSizer(wx.HORIZONTAL)
         btnbox.Add(self.btnEsc, 0,  wx.RIGHT, 40)
         btnbox.Add(self.btn, 0,  wx.RIGHT, 40)
-        topbox.Add(btnbox, 0, wx.ALIGN_RIGHT)
+        topbox.Add(btnbox, 0,0)
         topbox.SetSizeHints(self)
         self.SetSizer(topbox)
 

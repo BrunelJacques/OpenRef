@@ -126,9 +126,10 @@ class CTRL_mdp(wx.SearchCtrl):
                 cfg = xucfg.ParamUser()
                 self.choix = cfg.GetDict(groupe='USER')
                 self.choix['pseudo'] =  dictUtilisateur['prenom'] + " " + dictUtilisateur['nom']
-                self.choix['nom'] = self.choix['pseudo']
+                self.choix['nom'] = dictUtilisateur['nom']
+                self.choix['prenom'] = dictUtilisateur['prenom']
                 self.choix['mpuser'] = dictUtilisateur['mdp']
-                self.choix['id'] =  dictUtilisateur['IDutilisateur']
+                self.choix['IDutilisateur'] =  dictUtilisateur['IDutilisateur']
                 self.choix['droits'] = dictUtilisateur['droits']
                 self.choix['profil'] = dictUtilisateur['profil']
                 cfg.SetDict(self.choix, groupe='USER')
@@ -164,7 +165,6 @@ class Dialog(wx.Dialog):
         self.echec = False
         DB.Close()
         self.listeUtilisateurs = GetListeUsers()
-
 
         self.dictUtilisateur = None
 

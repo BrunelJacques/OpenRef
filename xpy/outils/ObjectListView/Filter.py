@@ -195,7 +195,7 @@ class DLG_saisiefiltre(wx.Dialog):
         gridsizer = wx.FlexGridSizer(1, 2, 0, 0)
         gridsizer.Add(self.btnOK)
         gridsizer.Add(self.btnAbort)
-        sizer.Add(gridsizer, 0, wx.ALL | wx.ALIGN_RIGHT, self.marge)
+        sizer.Add(gridsizer, 0, wx.ALL , self.marge)
         sizer.SetSizeHints(self)
         self.SetSizer(sizer)
         self.Layout()

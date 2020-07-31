@@ -13,6 +13,7 @@ import os
 import sys
 import xpy.xUTILS_RapportBugs
 import xpy.xUTILS_Config
+import xpy.outils.xaccueil as xaccueil
 
 def CrashReport(dictAppli):
     # Crash report
@@ -32,7 +33,7 @@ def CrashReport(dictAppli):
 
 class MainFrame(wx.Frame):
     def __init__(self, *args, **kw):
-        super().__init__(*args, name="general", style=wx.DEFAULT_FRAME_STYLE, **kw)
+        super().__init__(*args, name='general', style=wx.DEFAULT_FRAME_STYLE, **kw)
         # Vérifie le path xpy
         self.pathXpy = os.path.dirname(os.path.abspath(__file__))
         if not self.pathXpy in sys.path:
@@ -42,10 +43,10 @@ class MainFrame(wx.Frame):
         self.config = None
         self.dictMenu = None
         self.lstBtnBureau = None
-        self.couleur_fond = wx.Colour(240,240,240)
+        self.couleur_fond = wx.Colour(0,240,240)
 
     def xInit(self):
-        print("Lancement %s"%self.dictAppli["NOM_APPLICATION"])
+        print("Lancement %s"%self.dictAppli['NOM_APPLICATION'])
 
         print(self.pathXpy)
         os.chdir(self.pathXpy)
@@ -56,6 +57,8 @@ class MainFrame(wx.Frame):
         self.pathSrcAppli = pathCourant +"\\%s"%self.dictAppli['REP_SOURCES']
         # teste la présence de sources
         lstFiles = os.listdir(self.pathSrcAppli)
+        self.CentreOnScreen()
+        # vérif de la présence de modules dans le répertoire visé
         nbModules = 0
         for nom in lstFiles:
             if nom[-3:] == '.py':
@@ -77,6 +80,7 @@ class MainFrame(wx.Frame):
             return wx.OK
 
     def MakeHello(self,message):
+        # affichage d'un écran simple rappelant un message
         self.topPanel = wx.Panel(self)
         self.topContenu = wx.StaticText(self.topPanel, label=message, pos=(25, 25))
         font = self.topContenu.GetFont()
@@ -85,27 +89,11 @@ class MainFrame(wx.Frame):
         self.topContenu.SetFont(font)
 
     def MakeBureau(self,pnlTitre=None,pnlBtnActions=None):
-        # Construction du bureau à partir de menu.ParamBureau() présent dans les sources de l'appli
-        if not self.lstBtnBureau:
-            try:
-                import menu
-                self.menuClass = menu.MENU(self)
-                self.lstBtnBureau = menu.MENU.ParamBureau(self)
-            except:
-                wx.MessageBox("Echec de l'ouverture de l'objet : 'MENU.ParamBureau'\ndans %s"%self.pathSrcAppli+"\menu.py",
-                              'Lancement impossible', wx.OK | wx.ICON_STOP)
-
-        # personalisation possible de la couleur de fond d'accueil
-        self.SetForegroundColour(self.couleur_fond)
-
-        # création du topannel et composition de l'accueil
-        if not hasattr(self,"topPanel"):
-            self.topPanel = wx.Panel(self)
-            if pnlTitre:
-                self.pnlTitre = pnlTitre
-            if pnlBtnActions:
-                self.pnlBtnActions = pnlBtnActions
-        self.CentreOnScreen()
+        # Construction du bureau composé d'un titre et d'un aligment de boutons d'actions du menu choisies
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        self.panelAccueil = xaccueil.Panel_Accueil(self,pnlTitre=pnlTitre,pnlBtnActions=pnlBtnActions)
+        sizer.Add(self.panelAccueil, 0, wx.EXPAND, 0)
+        self.SetSizerAndFit(sizer)
 
     def MakeMenuBar(self):
         # Construction de la barre de menu à partir du fichier menu.py présent dans les sources de l'appli
@@ -136,38 +124,38 @@ class MainFrame(wx.Frame):
                 eval(action)
 
             id = wx.NewId()
-            if "genre" in item.keys():
-                genre = item["genre"]
+            if 'genre' in item.keys():
+                genre = item['genre']
             else :
                 genre = wx.ITEM_NORMAL
-            itemMenu = wx.MenuItem(parentMenu=menuParent, id = id, text = item["label"], helpString=item["infobulle"], kind = genre)
-            if "actif" in item.keys() :
-                itemMenu.Enable(item["actif"])
-            if "image" in item.keys() :
-                ptImage = (str(self.pathXpy) + "/" + str(item["image"])).replace("\\","/")
+            itemMenu = wx.MenuItem(parentMenu=menuParent, id = id, text = item['label'], helpString=item['infobulle'], kind = genre)
+            if 'actif' in item.keys() :
+                itemMenu.Enable(item['actif'])
+            if 'image' in item.keys():
+                ptImage = (str(self.pathXpy) + "/" + str(item['image'])).replace('\\','/')
                 itemMenu.SetBitmap(wx.Bitmap(ptImage, wx.BITMAP_TYPE_PNG))
             ctrl = menuParent.Append(itemMenu)
             self.Bind(wx.EVT_MENU, OnAction, id=id)
 
-            self.dictInfosMenu[item["code"]] = {"id" : id, "ctrl" : ctrl}
-            self.dictMenuActions[id] = item["action"]
+            self.dictInfosMenu[item['code']] = {'id' : id, 'ctrl' : ctrl}
+            self.dictMenuActions[id] = item['action']
 
         # Déroulé des branches du menu
         def CreationMenu(menuParent, item, sousmenu=False):
             menu = wx.Menu()
             id = wx.NewId()
-            for sousitem in item["items"]:
-                if sousitem == "-":
+            for sousitem in item['items']:
+                if sousitem == '-':
                     menu.AppendSeparator()
-                elif "items" in sousitem.keys():
+                elif 'items' in sousitem.keys():
                     CreationMenu(menu, sousitem, sousmenu=True)
                 else:
                     CreationItem(menu, sousitem)
             if sousmenu == True:
-                ctrl = menuParent.AppendSubMenu( menu, item["label"])
+                ctrl = menuParent.AppendSubMenu( menu, item['label'])
             else:
-                ctrl = menuParent.Append(menu, item["label"])
-            self.dictInfosMenu[item["code"]] = {"id": id, "ctrl": ctrl}
+                ctrl = menuParent.Append(menu, item['label'])
+            self.dictInfosMenu[item['code']] = {'id': id, 'ctrl': ctrl}
 
         # Racine du menu
         self.menu = wx.MenuBar()

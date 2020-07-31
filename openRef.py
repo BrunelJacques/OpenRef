@@ -29,6 +29,7 @@ class MyFrame(xAppli.MainFrame):
         self.xInit()
         # Crée 'topPanel' et 'topContenu' destroyables
         self.MakeHello("Application de gestion : " + self.dictAppli['NOM_APPLICATION'])
+
         # Activer le menu décrit dans  PATH_SOURCES/menu.py
         self.MakeMenuBar()
         # Crée un message initial de bas de fenêtre status bar

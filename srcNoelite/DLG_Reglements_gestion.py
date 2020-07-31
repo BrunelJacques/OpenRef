@@ -161,12 +161,15 @@ class PNL_params(wx.Panel):
         self.SetSizer(sizer_base)
 
     def OnKillFocusBanque(self,event):
-        if self.ctrlBanque.GetSelection() == -1:
-            mess = "Choix de la banque obligatoire\n\n'OK' pourchoisir, 'Annuler' pour sortir"
-            ret = wx.MessageBox(mess,style=wx.OK|wx.CANCEL)
-            if ret == wx.OK:
-                self.ctrlBanque.SetFocusFromKbd()
-            else: self.parent.OnClose(None)
+        event.Skip()
+        # le test de renseignement de la banque n'est passé que si on n'est pas en train de sortir
+        if event.Window and self.ctrlBanque.GetSelection() == -1:
+             if event.Window.Name != 'btnOK':
+                mess = "Choix de la banque obligatoire\n\n'OK' pourchoisir, 'Annuler' pour abandonner"
+                ret = wx.MessageBox(mess,style=wx.OK|wx.CANCEL)
+                if ret == wx.OK:
+                    self.ctrlBanque.SetFocusFromKbd()
+                else: self.parent.OnClose(event)
 
 class PNL_corpsReglements(xgte.PNL_corps):
     #panel olv avec habillage optionnel pour des boutons actions (à droite) des infos (bas gauche) et boutons sorties
@@ -286,57 +289,59 @@ class Dialog(wx.Dialog):
 
         self.IDutilisateur = nuu.GetIDutilisateur()
         if (not self.IDutilisateur) or not nuu.VerificationDroitsUtilisateurActuel('reglements_depots','creer'):
-            self.OnClose(None)
+            self.Destroy()
+        else: self.Init()
 
-        # définition de l'OLV
-        self.dicOlv = {'lstColonnes': GetOlvColonnes(self)}
-        self.dicOlv.update(GetOlvOptions(self))
-        self.depotOrigine = []
-        self.ctrlOlv = None
+    def Init(self):
+            # définition de l'OLV
+            self.dicOlv = {'lstColonnes': GetOlvColonnes(self)}
+            self.dicOlv.update(GetOlvOptions(self))
+            self.depotOrigine = []
+            self.ctrlOlv = None
 
-        # récup des modesReglements nécessaires pour passer du texte à un ID d'un mode ayant un mot en commun
-        choices = []
-        self.libelleDefaut = ''
-        for colonne in self.dicOlv['lstColonnes']:
-            if 'mode' in colonne.valueGetter:
-                choices = colonne.choices
-            if 'libelle' in colonne.valueGetter:
-                self.libelleDefaut = colonne.valueSetter
-        self.dicModesRegl = {}
-        ldModesDB = nur.GetModesReglements()
-        for item in choices:
-            # les descriptifs de modes de règlements ne doivent pas avoir des mots en commun
-            lstMots = item.split(' ')
-            self.dicModesRegl[item]={'lstMots':lstMots}
-            ok = False
-            for dicMode in ldModesDB:
-                for mot in lstMots:
-                    if mot.lower() in dicMode['label'].lower():
-                        self.dicModesRegl[item].update(dicMode)
-                        ok = True
-                        break
-                if ok: break
-            if not ok:
-                wx.MessageBox("Problème mode de règlement\n\n'%s' n'a aucun mot commun avec un mode de règlement paramétré!"%item)
+            # récup des modesReglements nécessaires pour passer du texte à un ID d'un mode ayant un mot en commun
+            choices = []
+            self.libelleDefaut = ''
+            for colonne in self.dicOlv['lstColonnes']:
+                if 'mode' in colonne.valueGetter:
+                    choices = colonne.choices
+                if 'libelle' in colonne.valueGetter:
+                    self.libelleDefaut = colonne.valueSetter
+            self.dicModesRegl = {}
+            ldModesDB = nur.GetModesReglements()
+            for item in choices:
+                # les descriptifs de modes de règlements ne doivent pas avoir des mots en commun
+                lstMots = item.split(' ')
+                self.dicModesRegl[item]={'lstMots':lstMots}
+                ok = False
+                for dicMode in ldModesDB:
+                    for mot in lstMots:
+                        if mot.lower() in dicMode['label'].lower():
+                            self.dicModesRegl[item].update(dicMode)
+                            ok = True
+                            break
+                    if ok: break
+                if not ok:
+                    wx.MessageBox("Problème mode de règlement\n\n'%s' n'a aucun mot commun avec un mode de règlement paramétré!"%item)
 
-        # boutons de bas d'écran - infos: texte ou objet window.  Les infos sont  placées en bas à gauche
-        self.txtInfo =  "Ici de l'info apparaîtra selon le contexte de la grille de saisie"
-        lstInfos = [ wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)),self.txtInfo]
-        dicPied = {'lstBtns': GetBoutons(self), "lstInfos": lstInfos}
+            # boutons de bas d'écran - infos: texte ou objet window.  Les infos sont  placées en bas à gauche
+            self.txtInfo =  "Ici de l'info apparaîtra selon le contexte de la grille de saisie"
+            lstInfos = [ wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)),self.txtInfo]
+            dicPied = {'lstBtns': GetBoutons(self), "lstInfos": lstInfos}
 
-        # lancement de l'écran en blocs principaux
-        self.pnlBandeau = xbandeau.Bandeau(self,TITRE,INTRO,nomImage="xpy/Images/32x32/Matth.png")
-        self.pnlParams = PNL_params(self)
-        self.pnlOlv = PNL_corpsReglements(self, self.dicOlv)
-        self.pnlPied = PNL_Pied(self, dicPied)
-        self.ctrlOlv = self.pnlOlv.ctrlOlv
+            # lancement de l'écran en blocs principaux
+            self.pnlBandeau = xbandeau.Bandeau(self,TITRE,INTRO,nomImage="xpy/Images/32x32/Matth.png")
+            self.pnlParams = PNL_params(self)
+            self.pnlOlv = PNL_corpsReglements(self, self.dicOlv)
+            self.pnlPied = PNL_Pied(self, dicPied)
+            self.ctrlOlv = self.pnlOlv.ctrlOlv
 
-        # la grille est modifiée selon la coche sans dépôt
-        self.pnlParams.ctrlSsDepot.Bind(wx.EVT_KILL_FOCUS,self.OnSsDepot)
-        self.choicesNonDiffere = self.ctrlOlv.lstColonnes[self.ctrlOlv.lstCodesColonnes.index('mode')].choices
-        self.OnSsDepot(None)
-        self.Bind(wx.EVT_CLOSE,self.OnClose)
-        self.__Sizer()
+            # la grille est modifiée selon la coche sans dépôt
+            self.pnlParams.ctrlSsDepot.Bind(wx.EVT_KILL_FOCUS,self.OnSsDepot)
+            self.choicesNonDiffere = self.ctrlOlv.lstColonnes[self.ctrlOlv.lstCodesColonnes.index('mode')].choices
+            self.OnSsDepot(None)
+            self.Bind(wx.EVT_CLOSE,self.OnClose)
+            self.__Sizer()
 
     def __Sizer(self):
         sizer_base = wx.FlexGridSizer(rows=4, cols=1, vgap=0, hgap=0)
@@ -463,7 +468,13 @@ class Dialog(wx.Dialog):
         return
 
     def OnClose(self,event):
-        self.EndModal(wx.ID_CANCEL)
+        wx.MessageBox("Traitement de sortie")
+        if event:
+            event.Skip()
+        if self.IsModal():
+            self.EndModal(wx.ID_CANCEL)
+        else:
+            self.Close()
 
 #------------------------ Lanceur de test  -------------------------------------------
 

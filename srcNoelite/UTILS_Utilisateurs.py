@@ -94,9 +94,9 @@ def GetIDutilisateur(afficheMessage=True):
             dictUtilisateur = cfg.GetDict(groupe='USER')
         except:
             pass
-    if dictUtilisateur:
+    if 'IDutilisateur' in dictUtilisateur.keys():
         # Si la frame 'General' est chargée, on y récupère le dict de config
-        return dictUtilisateur['id']
+        return dictUtilisateur['IDutilisateur']
     else:
         if afficheMessage == True :
             wx.MessageBox("Vous n'êtes pas identifiés\n\nrepassez par l'entrée",style=wx.ICON_AUTH_NEEDED)
