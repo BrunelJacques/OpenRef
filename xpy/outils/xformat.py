@@ -18,6 +18,9 @@ CHOIX_FILTRES = {float:[
                             ('INFEGAL','inférieur ou égal à '),
                             ('SUP','supérieur à '),
                             ('SUPEGAL','supérieur ou égal à ')],
+                 bool:[
+                            ('EGAL','égal à '),
+                            ('DIFFERENT','différent de '),],
                  wx.DateTime: [
                             ('EGAL', 'égal à '),
                             ('DIFFERENT', 'différent de '),

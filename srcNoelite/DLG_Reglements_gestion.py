@@ -161,7 +161,6 @@ class PNL_params(wx.Panel):
         self.SetSizer(sizer_base)
 
     def OnKillFocusBanque(self,event):
-        event.Skip()
         # le test de renseignement de la banque n'est passé que si on n'est pas en train de sortir
         if event.Window and self.ctrlBanque.GetSelection() == -1:
              if event.Window.Name != 'btnOK':
@@ -378,7 +377,7 @@ class Dialog(wx.Dialog):
         ix = self.pnlParams.ctrlBanque.GetSelection()
         return self.pnlParams.lstIDbanques[ix]
 
-    def InitOlv(self,withDiffere):
+    def InitOlv(self,withDiffere=False):
         self.ctrlOlv.lstColonnes = GetOlvColonnes(self)
         self.ctrlOlv.lstCodesColonnes = self.ctrlOlv.formerCodeColonnes()
         ixMode = self.ctrlOlv.lstCodesColonnes.index('mode')
@@ -421,7 +420,7 @@ class Dialog(wx.Dialog):
             self.pnlParams.lblRef.Enable(not(value))
         else:
             value = False
-        self.InitOlv(value)
+        self.InitOlv(withDiffere=value)
 
     def OnGetDepot(self,event):
         # Test si une saisie est en cours
@@ -457,15 +456,15 @@ class Dialog(wx.Dialog):
                 self.pnlParams.ctrlBanque.SetSelection(self.pnlParams.ctrlBanque.FindString(dicDepot['banque']))
                 # place les règlements du dépôt dans la grille
                 self.ctrlOlv.listeDonnees = lstDonnees
-                self.InitOlv(False)
+                self.InitOlv(withDiffere=False)
                 # stockage pour test de saisie
                 self.depotOrigine = self.ctrlOlv.innerList
             else:
                 wx.MessageBox("Aucune écriture:\n\nle dépôt %s est vide ou pb d'accès"%IDdepot)
 
     def OnImprimer(self,event):
-        event.Skip()
-        return
+        self.ctrlOlv.Apercu(None)
+        self.isImpress = True
 
     def OnClose(self,event):
         wx.MessageBox("Traitement de sortie")

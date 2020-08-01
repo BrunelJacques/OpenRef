@@ -2487,6 +2487,22 @@ class ObjectListView(wx.ListCtrl):
                 if choix == "INFEGAL":
                     filtre = "track.%s <= %s" % (code, criteres)
 
+            # Bool
+            if typeDonnee == bool:
+                criteres = str(criteres)
+                if choix == "EGAL":
+                    filtre = "track.%s == %s" % (code, criteres)
+                if choix == "DIFFERENT":
+                    filtre = "track.%s != %s" % (code, criteres)
+                if choix == "SUP":
+                    filtre = "track.%s > %s" % (code, criteres)
+                if choix == "SUPEGAL":
+                    filtre = "track.%s >= %s" % (code, criteres)
+                if choix == "INF":
+                    filtre = "track.%s < %s" % (code, criteres)
+                if choix == "INFEGAL":
+                    filtre = "track.%s <= %s" % (code, criteres)
+
             # Date
             if typeDonnee in (datetime.date,wx.DateTime,datetime.datetime):
                 crit = "%s%s%s" %(criteres[-4:],criteres[3:5],criteres[:2])

@@ -27,7 +27,7 @@ to this observation.
 
 import wx
 import wx.propgrid as wxpg
-import xpy.outils.xformat as xpof
+import xpy.outils.xformat as xformat
 
 def Predicate(predicate):
     """
@@ -145,7 +145,10 @@ class CTRL_property(wxpg.PropertyGrid):
         values = self.GetPropertyValues()
         ddDonnees = {}
         for nom, valeur in values.items():
-            label = self.dicProperties[nom].GetValueString()
+            if self.dicProperties[nom].ClassName == 'wxEnumProperty':
+                label = self.dicProperties[nom].GetDisplayedString()
+            else:
+                label = self.dicProperties[nom].GetValue()
             ddDonnees[nom] = label
         return ddDonnees
 
@@ -173,11 +176,9 @@ class DLG_saisiefiltre(wx.Dialog):
                                 'lignes': [{'genre': 'Enum', 'name': 'colonne', 'label': 'Colonne à filtrer :',
                                             'value': self.idxdefault, 'help': 'Choisir par le triangle noir',
                                             'labels': self.lstNomsColonnes}], }
-
-            self.tip = type(self.lstSetterValues[self.idxdefault])
-            self.choixactions = xpof.CHOIX_FILTRES[self.tip]
+            choixactions = self.GetChoixActions(self.idxdefault)
             values = []
-            for (code, label) in self.choixactions:
+            for (code, label) in choixactions:
                 values.append(label)
             self.dictMatrice['lignes'].append({'genre': 'Enum', 'name': 'action', 'label': 'Type de filtre :',
                                                'labels': values})
@@ -202,8 +203,10 @@ class DLG_saisiefiltre(wx.Dialog):
 
     def OnBtnOK(self,evt):
         values = self.ctrl.GetValeurs()
-        self.colonne = values['colonne']
-        self.codeColonne = self.lstCodesColonnes[self.lstNomsColonnes.index(self.colonne)]
+        nomColonne = values['colonne']
+        ix = self.lstNomsColonnes.index(nomColonne)
+        self.colonne = ix
+        self.codeColonne = self.lstCodesColonnes[ix]
         self.action = values['action']
         self.valeur = values['valeur']
         self.etape = ['colonne','action','valeur'].index(self.ctrl.dicProperties[self.ctrl.GetSelection()])+1
@@ -221,17 +224,22 @@ class DLG_saisiefiltre(wx.Dialog):
     def OnBtnAbort(self,evt):
         self.EndModal(wx.ID_CANCEL)
 
+    def GetChoixActions(self,ixColonne):
+        choixactions = []
+        self.tip = type(self.lstSetterValues[ixColonne])
+        if not self.tip in xformat.CHOIX_FILTRES.keys():
+            nomColonne = self.lstNomsColonnes[ixColonne]
+            wx.MessageBox("Le type '%s' de la colonne '%s' n'est pas 'keys()' de xformat.CHOIX_FILTRES"%(str(self.tip),nomColonne))
+            self.tip = str
+        choixactions = xformat.CHOIX_FILTRES[self.tip]
+        return choixactions
+
     def Etape2(self):
-        idx = self.lstNomsColonnes.index(self.colonne)
-        self.tip = type(self.lstSetterValues[idx])
-        self.choixactions = xpof.CHOIX_FILTRES[self.tip]
-        if not self.tip: self.tip = str
-        if not self.tip in xpof.CHOIX_FILTRES:
-            wx.MessageBox("Le genre '%s' de la colonne '%' n'est pas connu dans CHOIX_FILTRES")
-            self.EndModal(wx.ID_CANCEL)
+        idx = self.colonne
+        choixactions = self.GetChoixActions(idx)
         #recomposition des choix d'action
         labels = []
-        for (code,label) in self.choixactions:
+        for (code,label) in choixactions:
             labels.append(label)
         values = list(range(0, len(labels)))
         choix = wxpg.PGChoices(labels, values=values)
@@ -241,7 +249,7 @@ class DLG_saisiefiltre(wx.Dialog):
 
     def GetDonnees(self):
         codechoix = 'None'
-        for (code,label) in xpof.CHOIX_FILTRES[self.tip]:
+        for (code,label) in xformat.CHOIX_FILTRES[self.tip]:
             if label == self.action:
                 codechoix = code
                 break
@@ -250,7 +258,7 @@ class DLG_saisiefiltre(wx.Dialog):
                    'criteres': self.valeur,
                    'choix': codechoix,
                    'code': self. codeColonne,
-                   'titre': self.colonne}
+                   'titre': self.codeColonne}
         return filtre
 
 #**************************************************************************************************

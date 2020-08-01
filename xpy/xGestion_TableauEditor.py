@@ -216,7 +216,7 @@ class ListView(FastObjectListView):
 
         # Choix du mode d'impression
         self.titreImpression = kwds.pop("titreImpression", "Tableau récapitulatif")
-        self.orientationImpression = kwds.pop("orientationImpression", True)
+        self.orientationImpression = kwds.pop("orientationImpression", False)
         self.selectionID = None
         self.selectionTrack = None
         self.criteres = ""
@@ -435,7 +435,6 @@ class ListView(FastObjectListView):
 
     def Apercu(self, event):
         import xpy.outils.xprinter
-        # Je viens de voir dans la fonction concernée, le format n'est pas utilisé et il vaut "A" par défaut donc rien ne change
         prt = xpy.outils.xprinter.ObjectListViewPrinter(self, titre=self.titreImpression,
                                                         orientation=self.GetOrientationImpression())
         prt.Preview()
