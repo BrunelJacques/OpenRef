@@ -364,7 +364,7 @@ def ValideLigne(track):
         track.messageRefus += "L'ID reglement n'est pas été déterminé à l'entrée du montant\n"
 
     # Date
-    if track.date == None or not isinstance(track.date,wx.DateTime):
+    if track.date == None or not isinstance(track.date,(wx.DateTime,datetime.date)):
         track.messageRefus += "Vous devez obligatoirement saisir une date d'émission du règlement !\n"
 
     # Mode
@@ -389,12 +389,67 @@ def ValideLigne(track):
     else: track.messageRefus = ""
     return
 
-def SetReglement(dlg,track):
+def SauveLigne(dlg,track):
     if not track.ligneValide:
         return False
+    # --- Sauvegarde des différents éléments associés à la ligne ---
+    db = xdb.DB()
+
+    # gestion de l'ID depot si withDepot
+    if not hasattr(dlg,"IDdepot") and dlg.withDepot:
+        dlg.IDdepot = SetDepot(dlg,db)
+
+    # gestion du réglement
+    ret = SetReglement(dlg,track,db)
+
+    # gestion de la prestation associée
+    if ret and track.creer:
+        ret = SetPrestation(dlg,track,db)
+    db.Close()
+    return ret
+
+def SetPrestation(dlg,track,db):
+    # --- Sauvegarde de la prestation ---
+    listeDonnees = [
+        ("date", xfor.DatetimeToStr(datetime.date.today(),iso=True)),
+        ("categorie", track.nature),
+        ("label", track.libelle),
+        ("montant_initial", track.montant),
+        ("montant", track.montant),
+        ("IDcompte_payeur", track.IDfamille),
+        ("code_compta", track.article),
+        ("IDfamille", track.IDfamille),
+        ("IDindividu", 0),
+    ]
+
+    if not hasattr(track,"IDprestation"):
+        ret = db.ReqInsert("prestations",lstDonnees= listeDonnees, mess="UTILS_Reglements.SetPrestation",)
+        IDcategorie = 6
+        categorie = ("Saisie")
+        if ret == 'ok':
+           track.IDprestation = db.newID
+    else:
+        ret = db.ReqMAJ("prestations", listeDonnees, "IDprestation", track.IDprestation)
+        IDcategorie = 7
+        categorie = "Modification"
+
+    # --- Mémorise l'action dans l'historique ---
+    if ret == 'ok':
+        texteMode = track.mode
+        montant = u"%.2f %s" % (track.montant, SYMBOLE)
+        nuh.InsertActions([{
+            "IDfamille": track.IDfamille,
+            "IDcategorie": IDcategorie,
+            "action": "Noelite %s de prestation associée regl ID%d : %s en %s "%(categorie, track.IDprestation, montant, track.libelle),
+            }, ])
+    return True
+
+def SetReglement(dlg,track,db):
     # --- Sauvegarde du règlement ---
     IDmode = dlg.dicModesRegl[track.mode]['IDmode']
     IDpayeur = None
+    if not hasattr(dlg.pnlOlv,'ldPayeurs'):
+        dlg.pnlOlv.ldPayeurs = GetPayeurs(track.IDfamille)
     for dicPayeur in dlg.pnlOlv.ldPayeurs:
         if track.payeur in dicPayeur['nom']:
             IDpayeur = dicPayeur['IDpayeur']
@@ -404,7 +459,7 @@ def SetReglement(dlg,track):
 
     listeDonnees = [
         ("IDreglement", track.IDreglement),
-        ("IDcompte_payeur", IDpayeur),
+        ("IDcompte_payeur", track.IDfamille),
         ("date", xfor.DatetimeToStr(track.date,iso=True)),
         ("IDmode", IDmode),
         ("numero_piece", track.numero),
@@ -415,6 +470,8 @@ def SetReglement(dlg,track):
         ("date_saisie", xfor.DatetimeToStr(datetime.date.today(),iso=True)),
         ("IDutilisateur", dlg.IDutilisateur),
     ]
+    if dlg.withDepot:
+        listeDonnees.append(("IDdepot",dlg.IDdepot))
     attente = 0
     if hasattr(track,'differe'):
         listeDonnees.append(("date_differe", xfor.DatetimeToStr(track.differe,iso=True)))
@@ -422,40 +479,39 @@ def SetReglement(dlg,track):
             attente = 1
     listeDonnees.append(("encaissement_attente",attente))
 
-    db = xdb.DB()
     if track.IDreglement in dlg.pnlOlv.lstNewReglements:
         nouveauReglement = True
         ret = db.ReqInsert("reglements",lstDonnees= listeDonnees, mess="UTILS_Reglements.SetReglement")
         dlg.pnlOlv.lstNewReglements.remove(track.IDreglement)
     else:
         nouveauReglement = False
-        db.ReqMAJ("reglements", listeDonnees, "IDreglement", track.IDreglement)
-    db.Close()
+        ret = db.ReqMAJ("reglements", listeDonnees, "IDreglement", track.IDreglement)
 
     # --- Mémorise l'action dans l'historique ---
-    if nouveauReglement == True:
-        IDcategorie = 6
-        categorie = ("Saisie")
-    else:
-        IDcategorie = 7
-        categorie = "Modification"
-    texteMode = track.mode
-    if track.numero != "":
-        texteNumpiece = u" n°%s" % track.numero
-    else:
-        texteNumpiece = u""
-    if texteNumpiece == "":
-        texteDetail = u""
-    else:
-        texteDetail = u"- %s - " % (texteNumpiece)
-    montant = u"%.2f %s" % (track.montant, SYMBOLE)
-    textePayeur = track.payeur
-    nuh.InsertActions([{
-        "IDfamille": track.IDfamille,
-        "IDcategorie": IDcategorie,
-        "action": ("Noelite %s du règlement ID%d : %s en %s %spayé par %s") % (
-        categorie, track.IDreglement, montant, texteMode, texteDetail, textePayeur),
-    }, ])
+    if ret == 'ok':
+        if nouveauReglement == True:
+            IDcategorie = 6
+            categorie = ("Saisie")
+        else:
+            IDcategorie = 7
+            categorie = "Modification"
+        texteMode = track.mode
+        if track.numero != "":
+            texteNumpiece = u" n°%s" % track.numero
+        else:
+            texteNumpiece = u""
+        if texteNumpiece == "":
+            texteDetail = u""
+        else:
+            texteDetail = u"- %s - " % (texteNumpiece)
+        montant = u"%.2f %s" % (track.montant, SYMBOLE)
+        textePayeur = track.payeur
+        nuh.InsertActions([{
+            "IDfamille": track.IDfamille,
+            "IDcategorie": IDcategorie,
+            "action": ("Noelite %s du règlement ID%d : %s en %s %spayé par %s") % (
+            categorie, track.IDreglement, montant, texteMode, texteDetail, textePayeur),
+        }, ])
     return True
 
 class Article(object):
@@ -561,7 +617,25 @@ class Article(object):
         dlg.Destroy()
         return article
 
+def SetDepot(dlg,db):
+    # cas d'un nouveau depot à créer, retourne l'IDdepot
+    IDdepot = None
+    listeDonnees = [
+        ("date", xfor.DatetimeToStr(datetime.date.today(), iso=True)),
+        ("nom", "Saisie règlements via Noelite"),
+        ("IDcompte", dlg.GetIDbanque()),
+    ]
+    if not hasattr(dlg, "IDdepot"):
+        ret = db.ReqInsert("depots", lstDonnees=listeDonnees, mess="UTILS_Reglements.SetDepot", )
+        if ret == 'ok':
+            IDdepot = db.newID
+
+    # affichage de l'IDdepot créé
+    dlg.pnlParams.ctrlRef.SetValue(str(IDdepot))
+    return IDdepot
+
 def GetDepot():
+    # appel des dépots existants pour reprise d'un dépot
     dicDepot = {}
     dicOlv = GetMatriceDepots()
     dlg = xgtr.DLG_tableau(None,dicOlv=dicOlv)

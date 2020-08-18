@@ -203,11 +203,18 @@ class PNL_corpsReglements(xgte.PNL_corps):
             track.IDreglement = nur.GetNewIDreglement(self.lstNewReglements)
             self.lstNewReglements.append(track.IDreglement)
             track.ventilation = []
+
+        # reprise de la valeur 'mode' de la ligne précédente
         if row > 0:
-            # reprise de la valeur 'mode' de la ligne précédente
             if len(track.mode) == 0:
                 trackN1 = self.ctrlOlv.GetObjectAt(row - 1)
                 track.mode = trackN1.mode
+
+        # conservation de l'ancienne valeur
+        track.oldValue = None
+        try:
+            eval("track.oldValue = track.%s"%code)
+        except: pass
 
     def OnEditFinishing(self,code=None,value=None):
         self.parent.pnlPied.SetItemsInfos( INFO_OLV,wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
@@ -215,13 +222,23 @@ class PNL_corpsReglements(xgte.PNL_corps):
         if self.flagSkipEdit : return
         self.flagSkipEdit = True
         track = self.ctrlOlv.lastGetObject
+
+        # si pas de saisie on passe
+        if (not value) or track.oldValue == value:
+            self.flagSkipEdit = False
+            return
+
         # anticipe l'enregistrement du champ montant pour réussir la validation
         if code == 'montant' and value:
             track.montant = value
         nur.ValideLigne(track)
-        if not value:
-            self.flagSkipEdit = False
-            return
+
+        # l'enregistrement de la ligne se fait à chaque saisie pour gérer les montées et descentes
+        okSauve = False
+        if track.ligneValide:
+            okSauve = nur.SauveLigne(self.parent, track)
+
+        # Traitement des spécificités selon les zones
         if code == 'IDfamille':
             try:
                 value = int(value)
@@ -237,6 +254,7 @@ class PNL_corpsReglements(xgte.PNL_corps):
             track.payeur = payeur
             self.ctrlOlv.dicChoices[self.ctrlOlv.lstCodesColonnes.index('payeur')]=payeurs
         if code == 'nature':
+            # actualisation du flag créer
             if value.lower() in ('don','debour') :
                 # Seuls les dons et débours vont générer la prestation selon l'article
                 track.creer = True
@@ -248,11 +266,9 @@ class PNL_corpsReglements(xgte.PNL_corps):
                 track.article = ""
                 track.creer = False
         if code == 'montant':
-            # l'enregistrement de la ligne se fait au sortir des deux champs montant et différé
-            track.montant = value
-            ok = nur.SetReglement(self.parent,track)
-            if ok and track.nature in ('Règlement','Ne pas créer') and value != 0.0:
-                # appel de l'écran ventilations
+            #print(okSauve, track.ligneValide, track.messageRefus)
+            if okSauve and track.nature in ('Règlement','Ne pas créer') and value != 0.0:
+                # cas du règlement d'une prestation antérieure: appel de l'écran ventilations
                 dlg = ndrv.Dialog(self,-1,None,track.IDfamille,track.IDreglement,track.montant)
                 if dlg.ok:
                     ret = dlg.ShowModal()
@@ -297,7 +313,7 @@ class Dialog(wx.Dialog):
             self.dicOlv.update(GetOlvOptions(self))
             self.depotOrigine = []
             self.ctrlOlv = None
-
+            self.withDepot = True
             # récup des modesReglements nécessaires pour passer du texte à un ID d'un mode ayant un mot en commun
             choices = []
             self.libelleDefaut = ''
@@ -420,6 +436,7 @@ class Dialog(wx.Dialog):
             self.pnlParams.lblRef.Enable(not(value))
         else:
             value = False
+        self.withDepot = not value
         self.InitOlv(withDiffere=value)
 
     def OnGetDepot(self,event):
@@ -459,8 +476,11 @@ class Dialog(wx.Dialog):
                 self.InitOlv(withDiffere=False)
                 # stockage pour test de saisie
                 self.depotOrigine = self.ctrlOlv.innerList
+                self.IDdepot = IDdepot
+                self.withDepot = True
             else:
                 wx.MessageBox("Aucune écriture:\n\nle dépôt %s est vide ou pb d'accès"%IDdepot)
+                self.IDdepot = None
 
     def OnImprimer(self,event):
         self.ctrlOlv.Apercu(None)
