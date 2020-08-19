@@ -165,7 +165,7 @@ class EcranOlv(object):
         self.ctrlolv.recordset = self.recordset
         if len(self.lstDonnees) > 0 and len(self.lstDonnees)> self.ixsel:
             # selection de la ligne
-            self.ctrlolv.SelectObject(self.ctrlolv.donnees[self.ixsel+1])
+            self.ctrlolv.SelectObject(self.ctrlolv.listeDonnees[self.ixsel+1])
         ret = self.dlgolv.ShowModal()
         return ret
 

@@ -733,8 +733,8 @@ class BoxPanel(wx.Panel):
         return
 
 class TopBoxPanel(wx.Panel):
-    #gestion de pluieurs BoxPanel juxtaposées horisontalement
-    def __init__(self, parent, topWin, *args, matrice={}, donnees={}, lblbox="Paramètres top", **kwds):
+    #gestion de pluieurs BoxPanel juxtaposées horizontalement
+    def __init__(self, parent, *args, matrice={}, donnees={}, lblbox="Paramètres top", **kwds):
         wx.Panel.__init__(self,parent,*args, **kwds)
         self.parent = parent
 
@@ -833,7 +833,7 @@ class DLG_listCtrl(wx.Dialog):
         if self.gestionProperty:
             dlgGest.pnl = PNL_property(dlgGest, self, matrice=self.dldMatrice, lblbox='Ajout d\'une ligne')
         else:
-            dlgGest.pnl = TopBoxPanel(dlgGest, self, matrice=self.dldMatrice, lblbox='Ajout d\'une ligne')
+            dlgGest.pnl = TopBoxPanel(dlgGest, matrice=self.dldMatrice, lblbox='Ajout d\'une ligne')
         dlgGest.Sizer(dlgGest.pnl)
         ret = dlgGest.ShowModal()
         if ret == wx.OK:
@@ -857,7 +857,7 @@ class DLG_listCtrl(wx.Dialog):
         if self.gestionProperty:
             dlgGest.pnl = PNL_property(dlgGest, self, matrice=self.dldMatrice)
         else:
-            dlgGest.pnl = TopBoxPanel(dlgGest, self, matrice=self.dldMatrice, lblbox='Modification d\'une ligne')
+            dlgGest.pnl = TopBoxPanel(dlgGest, matrice=self.dldMatrice, lblbox='Modification d\'une ligne')
         dlgGest.pnl.SetValeurs(ddDonnees)
         dlgGest.Sizer(dlgGest.pnl)
         ret = dlgGest.ShowModal()
@@ -883,7 +883,7 @@ class DLG_listCtrl(wx.Dialog):
         if self.gestionProperty:
             dlgGest.pnl = PNL_property(dlgGest, self, matrice=self.dldMatrice)
         else:
-            dlgGest.pnl = TopBoxPanel(dlgGest, self, matrice=self.dldMatrice, lblbox='Modification d\'une ligne')
+            dlgGest.pnl = TopBoxPanel(dlgGest, matrice=self.dldMatrice, lblbox='Modification d\'une ligne')
         dlgGest.pnl.SetValeurs(ddDonnees)
         dlgGest.Sizer(dlgGest.pnl)
         ret = dlgGest.ShowModal()
@@ -983,7 +983,7 @@ class DLG_monoLigne(wx.Dialog):
         if self.gestionProperty:
             self.pnl = PNL_property(self, self, matrice=self.dldMatrice, lblbox=lblbox)
         else:
-            self.pnl = TopBoxPanel(self, self, matrice=self.dldMatrice, lblbox=lblbox)
+            self.pnl = TopBoxPanel(self, matrice=self.dldMatrice, lblbox=lblbox)
         self.pnl.MinSize = self.minSize
         self.Sizer()
         self.pnl.SetValeurs(self.ddDonnees)
@@ -1065,7 +1065,6 @@ class xFrame(wx.Frame):
     def OnBoutonAction(self, event):
         #Bouton Test
         print("Bonjour l'action OnBoutonAction de l'appli")
-
 
 class FramePanels(wx.Frame):
     def __init__(self, *args, **kwds):
@@ -1168,6 +1167,7 @@ if __name__ == '__main__':
 # Lancement des tests
     """
     """
+
     frame_4 = DLG_listCtrl(None,dldMatrice=dictMatrice, dlColonnes={'bd_reseau':['serveur','choix','localisation','nombre'],'ident':['utilisateur']},
                 lddDonnees=[dictDonnees,{"bd_reseau":{'serveur': 'serveur3'}}])
     frame_4.Init()
@@ -1179,6 +1179,7 @@ if __name__ == '__main__':
     frame_3.Sizer(pnl)
     app.SetTopWindow(frame_3)
     frame_3.Show()
+
     frame_2 = FramePanels(None, )
     frame_2.Position = (500,300)
     frame_2.Show()
@@ -1187,11 +1188,10 @@ if __name__ == '__main__':
     app.SetTopWindow(frame_1)
     frame_1.Position = (50,50)
     frame_1.Show()
+
     frame_5 = DLG_monoLigne(None,dldMatrice=dictMatrice,
                 ddDonnees=dictDonnees,gestionProperty=False,minSize=(400,300))
     app.SetTopWindow(frame_5)
     frame_5.Position = (200,20)
     frame_5.Show()
-    """
-    """
     app.MainLoop()

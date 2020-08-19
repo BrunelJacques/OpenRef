@@ -83,7 +83,6 @@ class ListView(FastObjectListView):
         self.lstNomsColonnes = self.formerNomsColonnes()
         self.lstSetterValues = self.formerSetterValues()
         self.dictColFooter = kwds.pop("dictColFooter", {})
-        #self.formerTracks()
 
         # Choix des options du 'tronc commun' du menu contextuel
         self.exportExcel = kwds.pop("exportExcel", True)

@@ -289,8 +289,7 @@ class DLG_saisieConfig(xusp.DLG_listCtrl):
         return choix
 
 class DLG_saisieParams(xusp.DLG_listCtrl):
-    # Ecran de saisie de paramètres en dialog, permet l'affichage, la gestion des lignes de tables
-    # entre __init__() et init() remplir dldMatrice, lddDonnees et dlColonnes(pour ne pas les afficher toutes)
+    # Ecran de saisie de paramètres multilignes, permet l'affichage, la gestion des lignes de tables
     def __init__(self, parent, *args, **kwds):
         super().__init__(parent, *args, **kwds)
         self.parent = parent
@@ -301,6 +300,7 @@ class DLG_saisieParams(xusp.DLG_listCtrl):
         self.gestionProperty = False
         self.ok = False
 
+    # entre __init__() et init() remplir dldMatrice, lddDonnees et dlColonnes(pour ne pas les afficher toutes)
     def init(self):
         self.dldMatrice = self.matrice
         # paramètres pour self.pnl contenu principal de l'écran
@@ -354,18 +354,70 @@ class DLG_saisieParams(xusp.DLG_listCtrl):
             dic[don] = ligne
         return dic
 
+class PNL_paramsLocaux(xusp.TopBoxPanel):
+    # Ecran de saisie de paramètres mono écran repris du disque de la station
+    def __init__(self, parent, *args, **kwds):
+        kwdsTopBox = {}
+        for key in ('pos','size','style','name','matrice','donnees','lblbox'):
+            if key in kwds.keys(): kwdsTopBox[key] = kwds[key]
+        super().__init__(parent, *args, **kwdsTopBox)
+        self.pathData = kwds.pop('pathData',"")
+        self.nomFichier = kwds.pop('nomFichier',"params")
+        self.nomGroupe = kwds.pop('nomGroupe',"paramLocal")
+        self.parent = parent
+
+    # Init doit être lancé après l'initialisation du super() qui alimente les champs par défaut
+    def Init(self):
+        # choix de la configuration prise dans paramUser
+        self.paramsFile = xucfg.ParamFile(nomFichier=self.nomFichier, path=self.pathData)
+        self.Bind(wx.EVT_KILL_FOCUS,self.OnKillFocus)
+        self.dicParams = self.paramsFile.GetDict(dictDemande=None, groupe=self.nomGroupe, close=False)
+        if self.dicParams:
+            # pose dans la grille la valeur de la dernière valeur utilisée
+            self.SetValeurs(self.dicParams)
+
+    def OnKillFocus(self,event):
+        # permet l'enregistrement à chaque killFocus du pannel param,
+        self.SauveParams()
+
+    def SauveParams(self,close=False):
+        # peut être lancé avec close forcé du shelve
+        dicValeurs = self.GetValeurs()
+        self.paramsFile.SetDict(dictEnvoi=dicValeurs,groupe=self.nomGroupe,close=close )
 
 
 #************************   Pour Test ou modèle  *********************************
 
-#dictAPPLI = {'NOM_APPLICATION': 'myAppli', 'REP_SOURCES': 'srcMyAppli', 'NOM_FICHIER_LOG': 'testLOG', 'OPTIONSCONFIG': ['db_reseau', 'db_locale']}
+class xFrame(wx.Frame):
+    # reçoit les controles à gérer sous la forme d'un ensemble de paramètres
+    def __init__(self, *args, matrice={}, donnees={}, lblbox="Paramètres xf"):
+        listArbo=os.path.abspath(__file__).split("\\")
+        self.parent = None
+        self.pathData = 'c:\\Temp'
+        titre = listArbo[-1:][0] + "/" + self.__class__.__name__
+        wx.Frame.__init__(self,*args, title=titre, name = titre)
+        self.topPnl = PNL_paramsLocaux(self,wx.ID_ANY, matrice=matrice, donnees=donnees, lblbox=lblbox)
+        self.topPnl.Init()
+        self.btn0 = wx.Button(self, wx.ID_ANY, "Action Frame")
+        self.btn0.Bind(wx.EVT_BUTTON,self.OnBoutonAction)
+        self.marge = 10
+        sizer_1 = wx.BoxSizer(wx.VERTICAL)
+        sizer_1.Add(self.topPnl, 0, wx.LEFT|wx.EXPAND,self.marge)
+        sizer_1.Add(self.btn0, 0, wx.RIGHT,self.marge)
+        self.SetSizerAndFit(sizer_1)
+        self.CentreOnScreen()
+
+    def OnBoutonAction(self, event):
+        #Bouton Test: sauvegarde les params, pallie l'absence de kill focus
+        self.topPnl.SauveParams()
 
 if __name__ == '__main__':
     app = wx.App(0)
     os.chdir("..")
-    frame_1 = DLG_identification(None)
-    frame_1.Position = (50,50)
+    #frame_1 = DLG_identification(None)
+    frame_1 = xFrame(None, matrice=MATRICE_CONFIGS)
     app.SetTopWindow(frame_1)
+    frame_1.Position = (50,50)
     frame_1.Show()
     app.MainLoop()
 

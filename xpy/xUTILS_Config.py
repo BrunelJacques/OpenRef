@@ -90,7 +90,7 @@ class ParamFile():
             if nomWindow :
                 # il y a une frame en top windows on va l'utiliser comme tampon mémoire
                 if not 'config' in topWindow.__dir__():
-                    topWindow.config = {}
+                    topWindow.config = {self.versus:{}}
                 self.dictMem = topWindow.config[self.versus]
                 self.topWin = True
         except : pass
