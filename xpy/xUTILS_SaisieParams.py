@@ -350,6 +350,9 @@ class CTRL_property(wxpg.PropertyGrid):
                             elif genre == 'dir':
                                 propriete = wxpg.DirProperty(name)
 
+                            elif genre == 'dirfile':
+                                propriete = wxpg.FileProperty(name)
+
                             else:
                                 commande = "wxpg." + genre.upper()[:1] + genre.lower()[1:] + "Property(label= label, name=name, value=value)"
                                 propriete = eval(commande)
@@ -461,14 +464,15 @@ class PNL_ctrl(wx.Panel):
     """ et en option (code) un bouton d'action permettant de contrôler les saisies
         GetValue retourne la valeur choisie dans le ctrl avec action possible par bouton à droite"""
     def __init__(self, parent, *args, genre='string', name=None, label=None, value= None, labels=[], values=[], help=None,
-                 btnLabel=None, btnHelp=None, btnAction='', ctrlAction='', enable=True, **kwds):
+                 btnLabel=None, btnHelp=None, btnAction='', ctrlAction='', enable=True, size=None, **kwds):
         wx.Panel.__init__(self,parent,*args, **kwds)
         self.value = value
         if btnLabel :
             self.avecBouton = True
         else: self.avecBouton = False
-
-        self.MaxSize = (2000, 30)
+        if not size:
+            size = (2000, 30)
+        self.MaxSize = size
         self.txt = wx.StaticText(self, wx.ID_ANY, label + " :")
         self.txt.MinSize = (110, 25)
 
@@ -516,11 +520,14 @@ class PNL_ctrl(wx.Panel):
             if help:
                 self.ctrl.SetToolTip(help)
                 self.txt.SetToolTip(help)
-            if lgenre == 'dir':
+            if lgenre in ('dir','dirfile'):
                 self.avecBouton = True
                 if not btnLabel: btnLabel = '...'
                 self.btn = wx.Button(self, wx.ID_ANY, btnLabel, size=(30, 20))
-                self.btn.Bind(wx.EVT_BUTTON, self.OnDir)
+                if lgenre == 'dirfile':
+                    self.btn.Bind(wx.EVT_BUTTON, self.OnDirfile)
+                else:
+                    self.btn.Bind(wx.EVT_BUTTON, self.OnDir)
             elif self.avecBouton:
                 self.btn = wx.Button(self, wx.ID_ANY, btnLabel, size=(30, 20))
                 if btnHelp:
@@ -553,12 +560,21 @@ class PNL_ctrl(wx.Panel):
         self.ctrl.Set(values)
 
     def OnDir(self,event):
-        """ Open a file"""
+        """ Open a dir"""
         self.dirname = ''
         dlg = wx.DirDialog(self, "Choisissez un emplacement", self.dirname)
         if dlg.ShowModal() == wx.ID_OK:
             self.ctrl.SetValue(dlg.GetPath())
         dlg.Destroy()
+
+    def OnDirfile(self,event):
+        """ Open a file"""
+        self.dirname = ''
+        dlg = wx.FileDialog(self, "Choisissez un fichier", self.dirname)
+        if dlg.ShowModal() == wx.ID_OK:
+            self.ctrl.SetValue(dlg.GetPath())
+        dlg.Destroy()
+
 
 #**********************************************************************************
 #                   GESTION des COMPOSITIONS DE CONTROLES
@@ -681,7 +697,7 @@ class BoxPanel(wx.Panel):
                     if ligne['enable'] == False:
                         panel.ctrl.Enable(False)
                         panel.txt.Enable(False)
-                    if panel.avecBouton and ligne['genre'].lower() != 'dir' :
+                    if panel.avecBouton and ligne['genre'].lower()[:3] != 'dir' :
                         panel.btn.nameBtn = codename
                         panel.btn.labelBtn = ligne['btnLabel']
                         panel.btn.actionBtn = ligne['btnAction']
@@ -1130,7 +1146,7 @@ if __name__ == '__main__':
                                  'bdReseau':False,
                                  'utilisateur' : 'moi-meme',
                                  'config': DDstrdate2wxdate('2020-02-28',iso=True),
-                                 'localisation': "élevé ailleurs",
+                                 'localisation': "ailleurs",
                                  'choix': 12,'multi':[12, 13],
                                 'nombre': 456.45,
                                  },
@@ -1154,7 +1170,7 @@ if __name__ == '__main__':
             ],
         ("bd_reseau", "Base de donnée réseau"):
             [
-                {'genre': 'Dir', 'name': 'localisation', 'label': 'Répertoire de localisation',
+                {'genre': 'Dirfile', 'name': 'localisation', 'label': 'Fichier',
                         'value': True,
                         'help': "Il faudra connaître les identifiants d'accès à cette base"},
                 {'genre': 'String', 'name': 'serveur', 'label': 'Nom du serveur', 'value': 'monServeur',

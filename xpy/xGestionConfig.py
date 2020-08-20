@@ -361,24 +361,19 @@ class PNL_paramsLocaux(xusp.TopBoxPanel):
         for key in ('pos','size','style','name','matrice','donnees','lblbox'):
             if key in kwds.keys(): kwdsTopBox[key] = kwds[key]
         super().__init__(parent, *args, **kwdsTopBox)
-        self.pathData = kwds.pop('pathData',"")
-        self.nomFichier = kwds.pop('nomFichier',"params")
-        self.nomGroupe = kwds.pop('nomGroupe',"paramLocal")
+        self.pathData = kwds.pop('pathdata',"")
+        self.nomFichier = kwds.pop('nomfichier',"params")
+        self.nomGroupe = kwds.pop('nomgroupe',"paramLocal")
         self.parent = parent
 
     # Init doit être lancé après l'initialisation du super() qui alimente les champs par défaut
     def Init(self):
         # choix de la configuration prise dans paramUser
         self.paramsFile = xucfg.ParamFile(nomFichier=self.nomFichier, path=self.pathData)
-        self.Bind(wx.EVT_KILL_FOCUS,self.OnKillFocus)
         self.dicParams = self.paramsFile.GetDict(dictDemande=None, groupe=self.nomGroupe, close=False)
         if self.dicParams:
             # pose dans la grille la valeur de la dernière valeur utilisée
             self.SetValeurs(self.dicParams)
-
-    def OnKillFocus(self,event):
-        # permet l'enregistrement à chaque killFocus du pannel param,
-        self.SauveParams()
 
     def SauveParams(self,close=False):
         # peut être lancé avec close forcé du shelve

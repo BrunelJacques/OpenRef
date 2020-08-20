@@ -72,11 +72,12 @@ class Footer(wx.Control):
         self.MAJ_totaux()
         for (indexColonne, col) in enumerate(self.listview.columns):
             texte = ""
-            font = wx.Font(8, wx.SWISS, wx.NORMAL, wx.NORMAL)
+            font = wx.Font(8, wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
             couleur = wx.Colour(140, 140, 140)
             largeur = self.listview.GetColumnWidth(indexColonne)
             converter = col.stringConverter
             nom = str(col.valueGetter)
+            alignement = wx.ALIGN_CENTER
             if col.align == "left" : alignement = wx.ALIGN_LEFT
             if col.align == "centre" : alignement = wx.ALIGN_CENTER
             if col.align == "right" : alignement = wx.ALIGN_RIGHT

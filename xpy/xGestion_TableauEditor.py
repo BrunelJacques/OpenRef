@@ -687,7 +687,9 @@ class PNL_corps(wx.Panel):
                         'inverserSelection',
                         'titreImpression',
                         'orientationImpression',
-                        'dictColFooter']
+                        'dictColFooter',
+                        'autoAddRow',
+                        ]
         self.avecFooter = ("dictColFooter" in dicOlv)
         if not self.avecFooter : lstParamsOlv.remove('dictColFooter')
         if 'recherche' in dicOlv: self.barreRecherche = dicOlv['recherche']

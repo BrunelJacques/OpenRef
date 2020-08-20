@@ -487,7 +487,7 @@ class Dialog(wx.Dialog):
         self.isImpress = True
 
     def OnClose(self,event):
-        wx.MessageBox("Traitement de sortie")
+        #wx.MessageBox("Traitement de sortie")
         if event:
             event.Skip()
         if self.IsModal():

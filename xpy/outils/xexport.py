@@ -517,12 +517,12 @@ class ListView(FastObjectListView):
             return u"%.2f %s" % (montant, SYMBOLE)
 
         self.SetColumns([
-            ColumnDefn(u"ID", "left", 50, "ID", typeDonnee="entier"),
-            ColumnDefn(u"Texte", "left", 100, "texte", typeDonnee="texte"),
-            ColumnDefn(u"Entier", "left", 100, "entier", typeDonnee="entier"),
-            ColumnDefn(u"Date", "left", 100, "date", stringConverter=FormateDate, typeDonnee="date"),
-            ColumnDefn(u"Montant", "left", 100, "montant", stringConverter=FormateMontant, typeDonnee="montant"),
-            ColumnDefn(u"Heure", "left", 100, "heure", typeDonnee="texte"),
+            ColumnDefn(u"ID", "left", 50, "ID", ),
+            ColumnDefn(u"Texte", "left", 100, "texte", ),
+            ColumnDefn(u"Entier", "left", 100, "entier",),
+            ColumnDefn(u"Date", "left", 100, "date", ),
+            ColumnDefn(u"Montant", "left", 100, "montant", stringConverter=FormateMontant, ),
+            ColumnDefn(u"Heure", "left", 100, "heure", ),
         ])
 
         self.SetObjects(self.donnees)
