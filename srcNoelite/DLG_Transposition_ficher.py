@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # -------------------------------------------------------------
-# Application :    NoeLITE, gestion des Reglements en lot
-# Usage : Gestion de réglements créant éventuellement la prestation associée et le dépot des règlements
+# Application :    Noelite, transposition de fichier
+# Usage : Permet de réécrire un fichier dans un formatage différent utilisant des fonctions de transposition
 # Auteur:          Jacques BRUNEL
 # Licence:         Licence GNU GPL
 # -------------------------------------------------------------
@@ -13,7 +13,6 @@ import xpy.xGestion_TableauEditor       as xgte
 import xpy.xGestionConfig               as xgc
 from xpy.outils.ObjectListView  import ColumnDefn, CellEditor
 from xpy.outils                 import xformat,xbandeau,xfichiers
-
 
 #---------------------- Matrices de paramétres -------------------------------------
 
@@ -27,6 +26,7 @@ DIC_INFOS = {'date':"Flèche droite pour le mois et l'année, Entrée pour valid
 # Info par défaut
 INFO_OLV = "<Suppr> <Inser> <Ctrl C> <Ctrl V>"
 
+# Description des paramètres du haut d'écran
 MATRICE_PARAMS = {
 ("fichiers","Paramètres fichiers"): [
     {'genre': 'dirfile', 'name': 'path', 'label': "Fichier d'origine",'value': "*.csv",

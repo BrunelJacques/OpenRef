@@ -1,20 +1,28 @@
 #!/usr/bin/env python
-# -*- coding: iso-8859-15 -*-
+# -*- coding: utf-8 -*-
 #-----------------------------------------------------------
-# Application :    Noethys, gestion multi-activités
+# Application :    Noethys, gestion multi-activitÃ©s
 # Site internet :  www.noethys.com
 # Auteur:           Ivan LUCAS
 # Copyright:       (c) 2010-11 Ivan LUCAS
 # Licence:         Licence GNU GPL
 #-----------------------------------------------------------
 
+import sys
 import wx
 import xpy.xGestionDB as xdb
 import xpy.outils.xchoixListe as xcl
 import xpy.xUTILS_Config as xucfg
 
 def GetListeUsers():
-    """ Récupère la liste des utilisateurs et de leurs droits """
+    """ RÃ©cupÃ¨re la liste des utilisateurs et de leurs droits """
+    argStart = sys.argv
+    # lancement avec des arguments, le premier est l'user
+    if len(argStart)>1:
+        user = argStart[1]
+        return [{"IDutilisateur": "local", "nom": user, "prenom": "en Local", "sexe": "M", "mdp": "local",
+                        "profil": "", "actif": True, "droits": {}},]
+
     DB = xdb.DB()
     if DB.echec:
         return False
@@ -67,7 +75,7 @@ class AfficheUsers():
     def __init__(self):
         lstUsers = GetListeUsers()
         lstAffiche = [[x['nom'],x['prenom'],x['profil']] for x in lstUsers]
-        lstColonnes = ["Nom", "Prénom", "Profil"]
+        lstColonnes = ["Nom", "PrÃ©nom", "Profil"]
         dlg = xcl.DialogAffiche( titre="Liste des utilisateurs",intro="pour consultation seulement",lstDonnees=lstAffiche,
                                  lstColonnes=lstColonnes )
         dlg.ShowModal()
@@ -87,7 +95,7 @@ class CTRL_mdp(wx.SearchCtrl):
         self.parent = parent
         self.listeUtilisateurs = listeUtilisateurs
         self.modeDLG = modeDLG
-        self.SetDescriptiveText(u"   ")
+        self.SetDescriptiveText(u"code_perso")
         
         # Options
         self.ShowSearchButton(True)
@@ -154,29 +162,34 @@ class Dialog(wx.Dialog):
     def __init__(self, parent, id=-1, title="Identification"):
         wx.Dialog.__init__(self, parent, id, title, name="DLG_mdp")
         self.parent = parent
-        self.dictUtilisateur = {}
-        DB = xdb.DB()
-        if DB.echec:
-            self.parent.SaisieConfig()
+        self.echec = False
+        self.dictUtilisateur = None
+        argStart = sys.argv
+        # lancement avec des arguments, le premier est l'user
+        if len(argStart) > 1:
+            self.listeUtilisateurs = GetListeUsers()
+            self.dictUtilisateur = self.listeUtilisateurs[0]
+        else:
             DB = xdb.DB()
             if DB.echec:
-                self.echec = True
-                return
-        self.echec = False
-        DB.Close()
-        self.listeUtilisateurs = GetListeUsers()
+                self.parent.SaisieConfig()
+                DB = xdb.DB()
+                if DB.echec:
+                    self.echec = True
+                    return
+            DB.Close()
+            self.listeUtilisateurs = GetListeUsers()
+            self.dictUtilisateur = None
 
-        self.dictUtilisateur = None
+            self.staticbox = wx.StaticBox(self, -1, "")
+            self.label = wx.StaticText(self, -1, "Veuillez saisir votre code d'identification personnel ou 'local' :")
+            self.ctrl_mdp = CTRL_mdp(self, listeUtilisateurs=self.listeUtilisateurs, modeDLG=True)
+        
+            self.bouton_annuler = CTRL_Bouton_image(self, id=wx.ID_CANCEL, texte="Annuler", cheminImage="xpy/Images/32x32/Annuler.png")
 
-        self.staticbox = wx.StaticBox(self, -1, "")
-        self.label = wx.StaticText(self, -1, "Veuillez saisir votre code d'identification personnel :")
-        self.ctrl_mdp = CTRL_mdp(self, listeUtilisateurs=self.listeUtilisateurs, modeDLG=True)
-        
-        self.bouton_annuler = CTRL_Bouton_image(self, id=wx.ID_CANCEL, texte="Annuler", cheminImage="xpy/Images/32x32/Annuler.png")
-        
-        self.__set_properties()
-        self.__do_layout()
-        self.ctrl_mdp.SetFocus() 
+            self.__set_properties()
+            self.__do_layout()
+            self.ctrl_mdp.SetFocus()
         
     def __set_properties(self):
         self.bouton_annuler.SetToolTip("Cliquez ici pour annuler")
@@ -211,9 +224,9 @@ class Dialog(wx.Dialog):
 
     def ChargeUtilisateur(self, dictUtilisateur={}):
         self.dictUtilisateur = dictUtilisateur
-        # Fermeture de la fenêtre
+        # Fermeture de la fenÃªtre
         self.EndModal(wx.ID_OK)
-    
+
     def GetDictUtilisateur(self):
         return self.dictUtilisateur
     

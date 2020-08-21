@@ -10,8 +10,9 @@
 
 import wx
 import srcNoelite.DLG_Adresses_gestion as ndga
-import srcNoelite.DLG_Reglements_gestion as nrg
-import srcNoelite.CTRL_Identification as nident
+import srcNoelite.DLG_Reglements_gestion as ndrg
+import srcNoelite.DLG_Transposition_ficher as ndtf
+import srcNoelite.CTRL_Identification as ncident
 
 """ Paramétrage de la construction de la barre de menus """
 class MENU():
@@ -22,7 +23,7 @@ class MENU():
         """ appelé pour Construire la barre de menus """
         menu = [
         # Première colonne
-        {"code": "&params\tCtrl-P", "label": ("Paramètres"), "items": [
+        {"code": "&params\tCtrl-P", "label": ("Paramètres_et_outils"), "items": [
             {"code": "config", "label": ("&Accès Base de données\tCtrl-A"),
              "infobulle": (u"Reconfigurer l'accès à la base de données principale"),
              "image": "Images/16x16/Utilisateur_reseau.png",
@@ -31,11 +32,15 @@ class MENU():
         {"code": "utilisateurs", "label": (u"Utilisateurs"), "infobulle": (u"Paramétrage des utilisateurs"),
          "image": "Images/16x16/Personnes.png", "action": "On_utilisateurs"},
         "-",
+        {"code": "transpose", "label": (u"Transposition fichier"),
+                "infobulle": (u"Outil de reformatage d'un fichier pour la compta"),
+         "image": "Images/16x16/Conversion.png", "action": "On_transpose"},
+        "-",
         {"code": "quitter", "label": (u"Quitter"), "infobulle": (u"Fin de travail Noelite"),
          "image": "Images/16x16/Quitter.png", "action": "xQuitter"},
         ]},
         # deuxième colonne
-        {"code": "&params\tCtrl-P", "label": ("Actions"), "items": [
+        {"code": "&params\tCtrl-P", "label": ("Actions_Noethys"), "items": [
             {"code": "modifAdresses", "label": ("&Modification d'adresses Individus\tCtrl-I"),
              "infobulle": (u"Gestion de l'adresses de rattachement des personnes (soit la leur soit celle de leur hébergeur"),
              "image": "Images/16x16/Editeur_email.png",
@@ -84,7 +89,7 @@ class MENU():
         dlg.ShowModal()
 
     def On_reglements_bordereau(self, event):
-        dlg = nrg.Dialog()
+        dlg = ndrg.Dialog()
         dlg.ShowModal()
 
     def On_config(self,event):
@@ -92,7 +97,11 @@ class MENU():
         self.parent.SaisieConfig()
 
     def On_utilisateurs(self,event):
-        nident.AfficheUsers()
+        ncident.AfficheUsers()
+
+    def On_transpose(self,event):
+        dlg = ndtf.Dialog()
+        dlg.ShowModal()
 
 if __name__ == "__main__":
     """ Affichage du menu"""

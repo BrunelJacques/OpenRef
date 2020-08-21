@@ -8,7 +8,7 @@ import os
 import wx
 import xpy.xAppli as xAppli
 import xpy.outils.xaccueil as xaccueil
-import srcNoelite.CTRL_Identification as nid
+import srcNoelite.CTRL_Identification as ncident
 import srcNoelite.menu as menu
 
 # Variables incontournables pour xpy
@@ -55,19 +55,23 @@ class MyFrame(xAppli.MainFrame):
 
         self.SetStatusText("Noelite est lancé!")
         self.Show()
-        dlg = nid.Dialog(self)
+        dlg = ncident.Dialog(self)
         if dlg.echec:
             self.Destroy()
             return
-        ret = dlg.ShowModal()
+        etat = False
         self.dicUser = dlg.GetDictUtilisateur()
+        if not self.dicUser:
+            ret = dlg.ShowModal()
+            self.dicUser = dlg.GetDictUtilisateur()
+            if self.dicUser:
+                etat = True
         dlg.Destroy()
-        if self.dicUser:
-            etat = True
-        else: etat = False
         for numMenu in range(1,2):
             self.menu.EnableTop(numMenu, etat)
         self.panelAccueil.EnableBoutons(etat)
+        if not etat:
+            self.SetStatusText("Noelite est lancé sans accès à Noethys!")
 
 class MyApp(wx.App):
     def OnInit(self):
