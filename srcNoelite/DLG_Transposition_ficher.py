@@ -12,9 +12,9 @@ import os
 import xpy.xGestion_TableauEditor       as xgte
 import xpy.xGestionConfig               as xgc
 from xpy.outils.ObjectListView  import ColumnDefn, CellEditor
-from xpy.outils                 import xformat,xbandeau,xfichiers
+from xpy.outils                 import xformat,xbandeau,xfichiers,xexport
 
-#---------------------- Matrices de paramétres -------------------------------------
+#---------------------- Paramètres du programme -------------------------------------
 
 TITRE = "Transposition de ficher avec intervention possible"
 INTRO = "Importez un fichier, puis complétez l'information dans le tableau avant de l'exporter dans un autre format"
@@ -23,19 +23,96 @@ DIC_INFOS = {'date':"Flèche droite pour le mois et l'année, Entrée pour valid
             'libelle':     "S'il est connu, précisez l'affectation (objet) du règlement",
             'montant':      "Montant en €",
              }
+
 # Info par défaut
 INFO_OLV = "<Suppr> <Inser> <Ctrl C> <Ctrl V>"
 
-# Description des paramètres du haut d'écran
+# Fonctions de transposition entrée et sortie à gérer pour chaque item FORMAT_xxxx pour les spécificités
+def ComposeFuncImp(dicParams,donnees,champsOut):
+    # 'in' est le fichier entrée, 'out' est l'OLV
+    lstOut = []
+    formatIn = dicParams['fichiers']['formatin']
+    noPiece = dicParams['compta']['lastpiece']
+    champsIn = FORMATS_IMPORT[formatIn]['champs']
+    nblent = FORMATS_IMPORT[formatIn]['lignesentete']
+    # teste la cohérence de la première ligne importée
+    if len(champsIn) != len(donnees[nblent]):
+        wx.MessageBox("Problème de fichier d'origine\n\nLe paramétrage attend les colonnes suivantes:\n\t%s"%str(champsIn) \
+                        + "\mais la ligne %d comporte %d champs :\n%s"%(nblent,len(donnees[nblent]),donnees[nblent]))
+        return []
+    for ligne in donnees[nblent:]:
+        if len(champsIn) != len(ligne):
+            # ligne batarde ignorée
+            continue
+        noPiece = xformat.IncrementeRef(noPiece)
+        ligneOut = []
+        for champ in champsOut:
+            valeur = None
+            if champ    == 'date':
+                if 'date' in champsIn:
+                    valeur = xformat.FinDeMois(ligne[champsIn.index(champ)])
+            elif champ == 'piece':
+                    valeur = noPiece
+            elif champ  == 'libelle':
+                if 'date' in champsIn and 'libelle' in champsIn:
+                    prefixe = ligne[champsIn.index('date')].strip()[:5]+' '
+                    valeur = prefixe + ligne[champsIn.index('libelle')]
+            # récupération des champs homonymes
+            elif champ in champsIn:
+                valeur = ligne[champsIn.index(champ)]
+            ligneOut.append(valeur)
+        lstOut.append(ligneOut)
+    return lstOut
+
+def ComposeFuncExp(dicParams,donnees,champsIn):
+    # 'in' est l'OLV, 'out' est le fichier de sortie
+    lstOut = []
+    formatOut = dicParams['fichiers']['formatexp']
+    champsOut = FORMATS_EXPORT[formatOut]['champs']
+    for ligne in donnees:
+        ligneOut = []
+        typePiece = "B" # peut varier selon formatOut
+        for champ in champsOut:
+            valeur = None
+            #journal	typepiece	debit	credit	nopiece	contrepartie
+            if champ    == 'journal':   valeur = dicParams['compta']['journal']
+            elif champ  == 'typepiece': valeur = typePiece
+            elif champ  == 'contrepartie': valeur = dicParams['compta']['contrepartie']
+            elif champ  == 'debit':
+                montant = float(ligne.donnees[champsIn.index("montant")].replace(",","."))
+                if montant < 0.0: valeur = -montant
+                else: valeur = 0.0
+            elif champ  == 'credit':
+                montant = float(ligne.donnees[champsIn.index("montant")].replace(",","."))
+                if montant >= 0.0: valeur = montant
+                else: valeur = 0.0
+            # récupération des champs homonymes
+            elif champ in champsIn:
+                valeur = ligne.donnees[champsIn.index(champ)]
+            ligneOut.append(valeur)
+        lstOut.append(ligneOut)
+    return lstOut
+
+# formats possibles des fichiers en entrées et sortie, utiliser les mêmes codes des champs pour les 'ComposeFunc'
+FORMATS_IMPORT = {"LCL carte":{ 'champs':['date','montant','mode',None,'libelle',None,None,'codenat','nature',],
+                                'lignesentete':3,
+                                'fonction':ComposeFuncImp}}
+FORMATS_EXPORT = {"Compta via Excel":{'champs':['journal','date','compte','typepiece','libelle','debit','credit',
+                                                'piece','contrepartie'],
+                                      'fonction':ComposeFuncExp}}
+
+# Description des paramètres à choisir en haut d'écran
 MATRICE_PARAMS = {
 ("fichiers","Paramètres fichiers"): [
     {'genre': 'dirfile', 'name': 'path', 'label': "Fichier d'origine",'value': "*.csv",
      'help': "Pointez le fichier contenant les valeurs à transposer"},
-    {'name': 'formatimp', 'genre': 'Enum', 'label': 'Format import',
-                    'help': "Le choix est limité par la programmation", 'value':0, 'values':['LCL CB',],
+    {'name': 'formatin', 'genre': 'Enum', 'label': 'Format import',
+                    'help': "Le choix est limité par la programmation", 'value':0,
+                    'values':[x for x in FORMATS_IMPORT.keys()],
                     'size':(250,30)},
     {'name': 'formatexp', 'genre': 'Enum', 'label': 'Format export',
-                    'help': "Le choix est limité par la programmation", 'value':0, 'values':['compta csv',],
+                    'help': "Le choix est limité par la programmation", 'value':0,
+                    'values':[x for x in FORMATS_EXPORT.keys()],
                     'size':(250,30)},
     ],
 ("compta", "Paramètres comptables"): [
@@ -43,11 +120,13 @@ MATRICE_PARAMS = {
                     'help': "Code journal utilisé dans la compta",'size':(180,30)},
     {'name': 'contrepartie', 'genre': 'String', 'label': 'Contrepartie',
                     'help': "Code comptable du compte de contrepartie de la banque",'size':(250,30)},
+    {'name': 'lastpiece', 'genre': 'String', 'label': 'Dernier no de pièce',
+                    'help': "Préciser avant l'import le dernier numéro de pièce à incrémenter",'size':(250,30)},
     ]
 }
 
+# description des boutons en pied d'écran et de leurs actions
 def GetBoutons(dlg):
-    # description des boutons en pied d'écran et de leurs actions
     return  [
                 {'name': 'btnImp', 'label': "Importer\nfichier",
                     'toolTip': "Cliquez ici pour lancer l'importation du fichier selon les paramètres que vous avez défini",
@@ -59,26 +138,26 @@ def GetBoutons(dlg):
                     'size':(120,35),'image':"xpy/Images/32x32/Quitter.png",'onBtn':dlg.OnClose}
             ]
 
+# description des colonnes de l'OLV (données affichées)
 def GetOlvColonnes(dlg):
     # retourne la liste des colonnes de l'écran principal
     return [
-            ColumnDefn("date", 'center', 80, 'date', valueSetter=wx.DateTime.Today(),isSpaceFilling=False,
+            ColumnDefn("Date", 'center', 80, 'date', valueSetter=wx.DateTime.Today(),isSpaceFilling=False,
                             stringConverter=xformat.FmtDate),
-            ColumnDefn("compte", 'left', 80, 'compte',valueSetter='',isSpaceFilling=False,
+            ColumnDefn("Compte", 'left', 80, 'compte',valueSetter='',isSpaceFilling=False,
                             isEditable=True),
-            ColumnDefn("mode", 'centre', 50, 'mode', valueSetter='',choices=['CB carte', 'CHQ chèque',
+            ColumnDefn("Mode", 'centre', 50, 'mode', valueSetter='',choices=['CB carte', 'CHQ chèque',
                                                     'ESP espèces'], isSpaceFilling=False,
                             cellEditorCreator=CellEditor.ChoiceEditor),
-            ColumnDefn("piece", 'left', 50, 'piece', isSpaceFilling=False),
-            ColumnDefn("libelle", 'left', 200, 'libelle', valueSetter='à saisir', isSpaceFilling=True),
-            ColumnDefn("montant", 'right',110, "montant", isSpaceFilling=False, valueSetter=0.0,
+            ColumnDefn("NoPièce", 'left', 50, 'piece', isSpaceFilling=False),
+            ColumnDefn("Libelle", 'left', 200, 'libelle', valueSetter='à saisir', isSpaceFilling=True),
+            ColumnDefn("Montant", 'right',110, "montant", isSpaceFilling=False, valueSetter=0.0,
                             stringConverter=xformat.FmtDecimal),
-            ColumnDefn("nature", 'centre', 50, 'Nature', valueSetter='', isSpaceFilling=False,
-                            cellEditorCreator=CellEditor.ChoiceEditor),
+            ColumnDefn("Nature", 'left', 150, 'nature', valueSetter='à saisir', isSpaceFilling=True),
             ]
 
+# paramètre les options de l'OLV
 def GetOlvOptions(dlg):
-    # retourne les paramètres de l'OLV del'écran général
     return {
             'hauteur': 400,
             'largeur': 600,
@@ -206,8 +285,6 @@ class Dialog(wx.Dialog):
         self.pnlPied = PNL_Pied(self, dicPied)
         self.ctrlOlv = self.pnlOlv.ctrlOlv
 
-        # la grille est modifiée selon la coche sans dépôt
-        self.choicesNonDiffere = self.ctrlOlv.lstColonnes[self.ctrlOlv.lstCodesColonnes.index('mode')].choices
         self.Bind(wx.EVT_CLOSE,self.OnClose)
         self.__Sizer()
 
@@ -225,23 +302,44 @@ class Dialog(wx.Dialog):
 
     # ------------------- Gestion des actions -----------------------
     def InitOlv(self):
+        self.pnlParams.GetValeurs()
         self.ctrlOlv.lstColonnes = GetOlvColonnes(self)
         self.ctrlOlv.lstCodesColonnes = self.ctrlOlv.formerCodeColonnes()
         self.ctrlOlv.InitObjectListView()
         self.Refresh()
 
-    def GetDonnees(self):
+    def GetDonneesIn(self):
         dic = self.pnlParams.GetValeurs()
         nomFichier = dic['fichiers']['path']
-        return xfichiers.GetFichierCsv(nomFichier)
+        entrees = xfichiers.GetFichierCsv(nomFichier)
+        return entrees
 
     def OnImporter(self,event):
-        self.ctrlOlv.listeDonnees = self.GetDonnees()
+        dicParams = self.pnlParams.GetValeurs()
+        formatIn = dicParams['fichiers']['formatin']
+        self.ctrlOlv.listeDonnees = FORMATS_IMPORT[formatIn]['fonction'](dicParams,
+                                                           self.GetDonneesIn(),
+                                                           self.ctrlOlv.lstCodesColonnes)
         self.InitOlv()
 
     def OnExporter(self,event):
-        pass
-
+        dic = self.pnlParams.GetValeurs()
+        formatExp = dic['fichiers']['formatexp']
+        champs = FORMATS_EXPORT[formatExp]['champs']
+        lstColonnes = [[x,None,80,x] for x in champs]
+        lstValeurs = FORMATS_EXPORT[formatExp]['fonction'](self.pnlParams.GetValeurs(),
+                                                           self.ctrlOlv.innerList,
+                                                           self.ctrlOlv.lstCodesColonnes)
+        xexport.ExportExcel(listeColonnes=lstColonnes,
+                            listeValeurs=lstValeurs,
+                            titre=formatExp)
+        if 'piece' in champs:
+            ixp = champs.index('piece')
+            lastPiece = lstValeurs[-1][ixp]
+            self.pnlParams.lstBoxes[1].SetOneValue('compta.lastpiece',lastPiece)
+            #dic = self.pnlParams.GetValeurs()
+            self.pnlParams.Refresh()
+        
     def OnClose(self,event):
         self.pnlParams.SauveParams(close=True)
         if self.IsModal():

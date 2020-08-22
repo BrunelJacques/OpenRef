@@ -73,7 +73,7 @@ def GetValeursGrid(grid=None):
 
 def ExportTexte(listview=None, grid=None, titre=u"", listeColonnes=None, listeValeurs=None, autoriseSelections=True):
     """ Export de la liste au format texte """
-    if (listview != None and len(listview.donnees) == 0) or (
+    if (listview != None and len(listview.innerList) == 0) or (
             grid != None and (grid.GetNumberRows() == 0 or grid.GetNumberCols() == 0)):
         dlg = wx.MessageDialog(None, "Il n'y a aucune donnée dans la liste !", "Erreur", wx.OK | wx.ICON_ERROR)
         dlg.ShowModal()
@@ -179,7 +179,7 @@ def ExportExcel(listview=None, grid=None, titre="Liste", listeColonnes=None, lis
     autoriseSelections = False
 
     # Vérifie si données bien présentes
-    if (listview != None and len(listview.donnees) == 0) or (
+    if (listview != None and len(listview.innerList) == 0) or (
             grid != None and (grid.GetNumberRows() == 0 or grid.GetNumberCols() == 0)):
         dlg = wx.MessageDialog(None, "Il n'y a aucune donnée dans la liste !", "Erreur", wx.OK | wx.ICON_ERROR)
         dlg.ShowModal()
@@ -394,10 +394,10 @@ def ExportExcel(listview=None, grid=None, titre="Liste", listeColonnes=None, lis
                     valeur = u""
 
                 # Recherche s'il y a un format de nombre ou de montant
-                if listview != None:
-                    valeur, format = RechercheFormat(valeur)  # RechercheFormatFromChaine(valeur)
+                if isinstance(valeur,str):
+                    valeur, format = RechercheFormatFromChaine(valeur)  # RechercheFormatFromChaine(valeur)
                 else:
-                    valeur, format = RechercheFormatFromChaine(valeur)
+                    valeur, format = RechercheFormat(valeur)
 
                 # Enregistre la valeur
                 if format != None:

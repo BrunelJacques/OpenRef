@@ -281,20 +281,8 @@ class DialogLettrage(wx.Dialog):
         return lstID1,lstID2
 
     def LettreSuivante(self,lettre=''):
-        if not isinstance(lettre, str): lettre = 'A'
-        if lettre == '': lettre = 'A'
-        # incrémentation d'un lettrage
-        lastcar = lettre[-1]
-        precars = lettre[:-1]
-        if ord(lastcar) in (90, 122):
-            if len(precars) == 0:
-                precars = chr(ord(lastcar) - 25)
-            else:
-                precars = self.LettreSuivante(precars)
-            new = precars + chr(ord(lastcar) - 25)
-        else:
-            new = precars + chr(ord(lastcar) + 1)
-        return new
+        # Fonction déplacée
+        return xformat.LettreSuivante(lettre)
 
     def OnClicLettrer(self, event):
         choix = self.listview.GetCheckedObjects()
