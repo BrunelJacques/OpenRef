@@ -444,11 +444,11 @@ class DLG_Choix_action(wx.Dialog):
         # Bandeau
         intro = "Vous pouvez enregistrer le fichier généré dans le répertoire souhaité."
         titre = "Exporter vers Excel"
-        self.ctrl_bandeau = xbandeau.Bandeau(self, titre=titre, texte=intro, hauteurHtml=30,
-                                                 nomImage=EXCEL_32X32_IMG)
+        self.ctrl_bandeau = xbandeau.Bandeau(self, titre=titre, texte=intro,hauteur=30,
+                                                 nomImage=EXCEL_16X16_IMG)
 
         self.bouton_enregistrer = xctrlbi.CTRL(self, texte="Enregistrer sous",
-                                               cheminImage= SAUVEGARDER_48X48_IMG,
+                                               cheminImage= SAUVEGARDER_16X16_IMG,
                                                tailleImage=(48, 48), margesImage=(40, 20, 40, 0),
                                                positionImage=wx.TOP, margesTexte=(10, 10))
         self.bouton_enregistrer.SetToolTip(wx.ToolTip("Enregistrer le fichier Excel"))
@@ -488,7 +488,7 @@ class DLG_Choix_action(wx.Dialog):
         self.CenterOnScreen()
 
     def OnBoutonEnregistrer(self, event):
-        self.EndModal(100)
+        self.Close()
 
 
 # ------------------------- POUR LES TESTS ---------------------------------------------
@@ -565,8 +565,11 @@ class MyFrame(wx.Frame):
 
 if __name__ == '__main__':
     app = wx.App(0)
+    os.chdir("..")
+    os.chdir("..")
     # wx.InitAllImageHandlers()
-    frame_1 = MyFrame(None, -1, "OL Test Export")
+    #frame_1 = MyFrame(None, -1, "OL Test Export")
+    frame_1 = DLG_Choix_action( None,)
     app.SetTopWindow(frame_1)
     frame_1.Show()
     app.MainLoop()

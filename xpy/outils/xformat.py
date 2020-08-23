@@ -196,14 +196,18 @@ def FmtCheck(value):
         return 'O'
     return ''
 
-def FmtMontant(montant,prec=2):
+def FmtMontant(montant,prec=2,lg=None):
+    out = ''
     if isinstance(montant,str):
         montant = montant.replace(',','.')
         try: montant = float(montant)
         except: pass
-    if not isinstance(montant,(int,float)): return ""
-    if float(montant) == 0.0: return ""
-    return "{: ,.{prec}f} {:} ".format(montant,SYMBOLE,prec=prec).replace(',', ' ')
+    if not isinstance(montant,(int,float)): montant = 0.0
+    if float(montant) != 0.0:
+        out = "{: ,.{prec}f} {:} ".format(montant,SYMBOLE,prec=prec).replace(',', ' ')
+    if lg:
+        out = (' '*lg + out)[-lg:]
+    return out
 
 def FmtSolde(montant):
     if isinstance(montant,str):montant = montant.replace(',','.')

@@ -71,10 +71,10 @@ def ComposeFuncExp(dicParams,donnees,champsIn):
     champsOut = FORMATS_EXPORT[formatOut]['champs']
     for ligne in donnees:
         ligneOut = []
-        typePiece = "B" # peut varier selon formatOut
+        typePiece = "B" # cas par défaut B comme carte Bancaire
         for champ in champsOut:
             valeur = None
-            #journal	typepiece	debit	credit	nopiece	contrepartie
+            # composition des champs sortie
             if champ    == 'journal':   valeur = dicParams['compta']['journal']
             elif champ  == 'typepiece': valeur = typePiece
             elif champ  == 'contrepartie': valeur = dicParams['compta']['contrepartie']
@@ -86,20 +86,29 @@ def ComposeFuncExp(dicParams,donnees,champsIn):
                 montant = float(ligne.donnees[champsIn.index("montant")].replace(",","."))
                 if montant >= 0.0: valeur = montant
                 else: valeur = 0.0
-            # récupération des champs homonymes
+            # récupération des champs homonymes (date, compte, libelle, piece...)
             elif champ in champsIn:
                 valeur = ligne.donnees[champsIn.index(champ)]
             ligneOut.append(valeur)
         lstOut.append(ligneOut)
+        # ajout de la contrepartie banque
+        ligneBanque = [x for x in ligneOut]
+        ligneBanque[champsOut.index('contrepartie')]    = ligneOut[champsOut.index('compte')]
+        ligneBanque[champsOut.index('compte')]          = dicParams['compta']['contrepartie']
+        ligneBanque[champsOut.index('debit')]    = ligneOut[champsOut.index('credit')]
+        ligneBanque[champsOut.index('credit')]    = ligneOut[champsOut.index('debit')]
+        lstOut.append(ligneBanque)
     return lstOut
 
 # formats possibles des fichiers en entrées et sortie, utiliser les mêmes codes des champs pour les 'ComposeFunc'
 FORMATS_IMPORT = {"LCL carte":{ 'champs':['date','montant','mode',None,'libelle',None,None,'codenat','nature',],
                                 'lignesentete':3,
                                 'fonction':ComposeFuncImp}}
-FORMATS_EXPORT = {"Compta via Excel":{'champs':['journal','date','compte','typepiece','libelle','debit','credit',
+
+FORMATS_EXPORT = {"Compta via Excel":{  'champs':['journal','date','compte','typepiece','libelle','debit','credit',
                                                 'piece','contrepartie'],
-                                      'fonction':ComposeFuncExp}}
+                                        'widths':[40, 80, 60, 25, 240, 60, 60, 60, 60],
+                                        'fonction':ComposeFuncExp}}
 
 # Description des paramètres à choisir en haut d'écran
 MATRICE_PARAMS = {
@@ -149,11 +158,11 @@ def GetOlvColonnes(dlg):
             ColumnDefn("Mode", 'centre', 50, 'mode', valueSetter='',choices=['CB carte', 'CHQ chèque',
                                                     'ESP espèces'], isSpaceFilling=False,
                             cellEditorCreator=CellEditor.ChoiceEditor),
-            ColumnDefn("NoPièce", 'left', 50, 'piece', isSpaceFilling=False),
-            ColumnDefn("Libelle", 'left', 200, 'libelle', valueSetter='à saisir', isSpaceFilling=True),
-            ColumnDefn("Montant", 'right',110, "montant", isSpaceFilling=False, valueSetter=0.0,
+            ColumnDefn("NoPièce", 'left', 70, 'piece', isSpaceFilling=False),
+            ColumnDefn("Libelle", 'left', 220, 'libelle', valueSetter='à saisir', isSpaceFilling=True),
+            ColumnDefn("Montant", 'right',90, "montant", isSpaceFilling=False, valueSetter=0.0,
                             stringConverter=xformat.FmtDecimal),
-            ColumnDefn("Nature", 'left', 150, 'nature', valueSetter='à saisir', isSpaceFilling=True),
+            ColumnDefn("Nature", 'left', 140, 'nature', valueSetter='à saisir', isSpaceFilling=True),
             ]
 
 # paramètre les options de l'OLV
@@ -167,6 +176,10 @@ def GetOlvOptions(dlg):
             'msgIfEmpty':"Fichier non encore importé!",
             'dictColFooter': {"libelle": {"mode": "nombre", "alignement": wx.ALIGN_CENTER}, }
     }
+
+class CptaQuadra(object):
+    def __init__(self, parent, **kwds):
+        pass
 
 #----------------------- Parties de l'écrans -----------------------------------------
 
@@ -326,20 +339,37 @@ class Dialog(wx.Dialog):
         dic = self.pnlParams.GetValeurs()
         formatExp = dic['fichiers']['formatexp']
         champs = FORMATS_EXPORT[formatExp]['champs']
-        lstColonnes = [[x,None,80,x] for x in champs]
+        widths = FORMATS_EXPORT[formatExp]['widths']
+        lstColonnes = [[x,None,widths[champs.index(x)],x] for x in champs]
+        # calcul des débit et crédit des pièces
+        totDebits, totCredits = 0.0, 0.0
+        for ligne in self.ctrlOlv.innerList:
+            montant = float(ligne.montant.replace(',','.'))
+            if montant > 0.0:
+                totCredits += montant
+            else:
+                totDebits -= montant
+
+        # transposition des lignes par l'appel de la fonction 'ComposeFuncExp'
         lstValeurs = FORMATS_EXPORT[formatExp]['fonction'](self.pnlParams.GetValeurs(),
                                                            self.ctrlOlv.innerList,
                                                            self.ctrlOlv.lstCodesColonnes)
+        # envois dans un fichier excel
         xexport.ExportExcel(listeColonnes=lstColonnes,
                             listeValeurs=lstValeurs,
                             titre=formatExp)
+        # mise à jour du dernier numero de pièce affiché avant d'être sauvegardé
         if 'piece' in champs:
             ixp = champs.index('piece')
             lastPiece = lstValeurs[-1][ixp]
             self.pnlParams.lstBoxes[1].SetOneValue('compta.lastpiece',lastPiece)
-            #dic = self.pnlParams.GetValeurs()
-            self.pnlParams.Refresh()
-        
+
+        # affichage résultat
+        solde = xformat.FmtMontant(totDebits - totCredits,lg=12)
+        wx.MessageBox("Fin de transfert\n\nDébits: %s\nCrédits:%s"%(xformat.FmtMontant(totDebits,lg=12),
+                                                                     xformat.FmtMontant(totCredits,lg=12))+
+                      "\nSolde:   %s"%solde)
+
     def OnClose(self,event):
         self.pnlParams.SauveParams(close=True)
         if self.IsModal():

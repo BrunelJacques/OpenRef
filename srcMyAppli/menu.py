@@ -10,6 +10,7 @@
 
 import wx
 
+# Exemple de matrice de configuration d'un panel à envoyer à xGestionConfig
 MATRICE_CONFIG = {
     # Chapitre  = categorie ou box verticale
     ("Mémorisation","Chapitre de mémorisation"): [
@@ -113,7 +114,7 @@ class MENU():
 
 if __name__ == "__main__":
     """ Affichage du menu"""
-    menu = MENU().ParamMenu()
+    menu = MENU(None).ParamMenu()
     for dictColonne in menu:
         print(dictColonne['code'], dictColonne['label'])
         for ligne in dictColonne['items']:
@@ -130,4 +131,3 @@ if __name__ == "__main__":
                     #print("action", dictligne['code'])
                     act = "MENU."+dictligne['action']+"(None)"
                     print(act + "\t action >>\t", end='')
-                    eval(act)
