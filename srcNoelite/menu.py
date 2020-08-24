@@ -24,7 +24,7 @@ class MENU():
         menu = [
         # Première colonne
         {"code": "&params\tCtrl-P", "label": ("Paramètres_et_outils"), "items": [
-            {"code": "config", "label": ("&Accès Base de données\tCtrl-A"),
+            {"code": "config", "label": ("&Accès aux Bases de données\tCtrl-A"),
              "infobulle": (u"Reconfigurer l'accès à la base de données principale"),
              "image": "Images/16x16/Utilisateur_reseau.png",
              "action": "On_config", "genre": wx.ITEM_NORMAL},

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf8 -*-
+# -*- coding: utf-8 -*-
 
 #------------------------------------------------------------------------
 # Application :    xPY, Gestion des bases de données
@@ -10,6 +10,8 @@
 
 import os
 import wx
+import sys
+import subprocess
 import mysql.connector
 import win32com.client
 import sqlite3
@@ -128,12 +130,17 @@ class DB():
                 if self.connexion: self.echec = 0
 
     def Ping(self,serveur):
-        if serveur :
-            if len(serveur)>2:
-                wx.MessageBox("Testez l'accès au serveur '%s'\n\nlancez cmd puis 'ping %s'"%(serveur,serveur))
+        option = '-n' if sys.platform != 'win32' else ''
+        if not serveur or len(serveur) < 3 :
+            raise NameError('Pas de nom de serveur fourni dans la commande PING')
+        ret = subprocess.run(['ping', '-n', '1', '-w', '100', serveur]).returncode
+        if ret != 0:
+            raise NameError("Pas de réponse du serveur %s à la commande PING"%serveur)
+        return True
 
     def ConnexionFichierReseau(self,config):
         self.connexion = None
+        self.echec = 1
         try:
             etape = 'Décompactage de la config'
             host = config['serveur']
@@ -145,6 +152,8 @@ class DB():
             self.mpUtilisateur = config['mpuser']
             self.utilisateur = os.environ['USERNAME']
             self.domaine =  os.environ['USERDOMAIN']
+            etape = 'Ping %s'%(host)
+            ret = self.Ping(host)
             etape = 'Création du connecteur %s - %s - %s - %s'%(host,user,passwd, port)
             if self.typeDB == 'mysql':
                 self.connexion = mysql.connector.connect(host=host, user=user, passwd=passwd, port=int(port))
@@ -155,20 +164,18 @@ class DB():
                 listeBases = self.cursor.fetchall()
                 # Utilisation
                 self.cursor.execute("USE %s;" % nomFichier)
-                self.echec = 0
             else:
                 wx.MessageBox('Accès BD non développé pour %s' %self.typeDB)
         except Exception as err:
             wx.MessageBox("La connexion MYSQL a echoué à l'étape: %s, sur l'erreur :\n\n%s" %(etape,err))
             self.erreur = err
-            if 'connect' in etape:
-                self.Ping(config['serveur'])
         if self.connexion:
             if not (nomFichier,) in listeBases:
                 lstBases = str(listeBases)
                 wx.MessageBox("La base '%s' n'est pas sur le serveur qui porte les bases :\n\n %s" % (nomFichier, lstBases ), style=wx.ICON_STOP)
                 self.echec = 1
                 self.connexion = None
+            self.echec = 0
 
     def OuvertureFichierLocal(self, nomFichier):
         """ Version LOCALE avec SQLITE """

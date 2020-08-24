@@ -30,7 +30,8 @@ MATRICE_USER = {
                         'btnLabel':"...", 'btnHelp':"Cliquez pour gérer les configurations",
                         'btnAction' : 'OnBtnChoixConfig'},
     {'name': 'mpUserDB', 'genre': 'Mpass', 'label': 'Mot de Passe Serveur',
-                        'help': 'C\'est le mot de passe connu par la base de donnée'},
+                        'help': "C\'est le mot de passe de l'utilisateur BD défini dans la configuration active," +
+                                "\nce n'est pas celui de votre pseudo, qui vous sera demandé au lancement de l'appli"},
     {'name': 'pseudo', 'genre': 'String', 'label': 'Votre pseudo appli',
                         'help': 'Par défaut c\'est votre Identifiant reconnu dans l\'application'},
     ]
