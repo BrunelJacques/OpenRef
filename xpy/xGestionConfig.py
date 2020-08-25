@@ -14,6 +14,7 @@ import xpy.xUTILS_SaisieParams as xusp
 import xpy.xUTILS_Config as xucfg
 import xpy.xGestionDB as xdb
 
+# Constantes de paramétrage des écrans de configuration et identification
 
 MATRICE_IDENT = {
 ("ident","Votre session"):[
@@ -78,8 +79,6 @@ def AppelLignesMatrice(categ=None, possibles={}):
                     lignes = possibles[(code, labelCategorie)]
                     break
     return code, label, lignes
-
-#************************   Gestion de l'identification initiale *****************
 
 # Ecran d'identification
 class DLG_identification(wx.Dialog):
@@ -288,8 +287,24 @@ class DLG_saisieConfigs(xusp.DLG_listCtrl):
         return choix
 
 # Gestion d'un accès config_base de donnée particulier
-#todo class DLG_saisieUneConfig():
-#
+class DLG_saisieUneConfig(xusp.DLG_vide):
+    def __init__(self,nomConfig=None,**kwds):
+        super().__init__(self, **kwds)
+        # récup de la matrice ayant servi à la gestion des données
+        key = ("db_prim", "Accès Base de donnée")
+        matrice = {key: MATRICE_CONFIGS[key]}
+        # suppose le champ ID en première position
+        matrice[key][0]['value'] = nomConfig
+        # grise le champ ID
+        xusp.SetEnableID(matrice, False)
+        self.pnl = xusp.TopBoxPanel(self, matrice=matrice, lblbox='Ajout d\'un accès pour la compta')
+        self.Sizer(self.pnl)
+
+    def GetValeurs(self):
+        return self.pnl.GetValeurs()
+
+    def GetConfig(self):
+        return self.pnl.GetValeurs()['db_prim']
 
 # Gestion de paramètres à partir d'une liste, la matrice est définie après l'init
 class DLG_saisieParams(xusp.DLG_listCtrl):

@@ -38,10 +38,14 @@ def ValeursDefaut(lstNomsColonnes,lstTypes):
         else: lstValDef.append('')
     return lstValDef
 
-def LargeursDefaut(lstNomsColonnes,lstTypes):
+def LargeursDefaut(lstNomsColonnes,lstTypes,IDcache=True):
     # Evaluation de la largeur nécessaire des colonnes selon le type de donnee et la longueur du champ
-    lstLargDef = [0,]
-    for ix in range(1, len(lstNomsColonnes)):
+    lstLargDef=[]
+    ix =0
+    if IDcache:
+        lstLargDef = [0,]
+        ix = 1
+    for ix in range(ix, len(lstNomsColonnes)):
         tip = lstTypes[ix]
         tip = tip.lower()
         if tip[:3] == 'int': lstLargDef.append(50)

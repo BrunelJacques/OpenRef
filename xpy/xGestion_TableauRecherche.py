@@ -79,7 +79,7 @@ class ListView(FastObjectListView):
         self.lstCodesColonnes = self.formerCodeColonnes()
         self.lstNomsColonnes = self.formerNomsColonnes()
         self.lstSetterValues = self.formerSetterValues()
-        self.matriceColonnes = {'listeChamps':lstChamps,
+        self.matriceOlv = {'listeChamps':lstChamps,
                                 'listeNomsColonnes':self.lstNomsColonnes,
                                 'listeCodesColonnes':self.lstCodesColonnes}
 
@@ -110,7 +110,7 @@ class ListView(FastObjectListView):
         #self.Refresh()
 
     def formerTracks(self):
-        self.listeDonnees = self.getDonnees(self.matriceColonnes,self.filtre)
+        self.listeDonnees = self.getDonnees(matriceOlv=self.matriceOlv,filtre=self.filtre)
         tracks = list()
         if self.listeDonnees is None:
             return tracks
@@ -314,6 +314,7 @@ class PNL_tableau(wx.Panel):
                         'listeChamps',
                         'colonneTri',
                         'getDonnees',
+                        'getDonneesObj',
                         'msgIfEmpty',
                         'sensTri',
                         'exportExcel',

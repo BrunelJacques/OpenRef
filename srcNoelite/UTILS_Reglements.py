@@ -49,7 +49,7 @@ def GetMatriceFamilles():
                 'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
                 }
 
-def GetFamilles(matriceOlv, filtre = None, limit=100):
+def GetFamilles(matriceOlv={}, filtre = None, limit=100):
     # ajoute les données à la matrice pour la recherche d'une famille
     where = ""
     if filtre:
@@ -169,6 +169,7 @@ def GetDepots(matriceOlv, filtre = None, limit=100):
     dicDepots = {}
     ixID = lstCodesColonnes.index('numero')
     for record in recordset:
+        if not record[ixID]: continue
         dicDepots[record[ixID]] = {}
         for ix in range(len(lstChamps)-1):
             dicDepots[record[ixID]][lstCodesColonnes[ix]] = record[ix]
@@ -178,30 +179,33 @@ def GetDepots(matriceOlv, filtre = None, limit=100):
 
     # appel des compléments d'informations sur les règlements associés au dépôt
     lstIDdepot = [x for x in dicDepots.keys()]
-    req = """SELECT reglements.IDdepot, reglements.IDmode, modes_reglements.label,
-                SUM(reglements.montant), COUNT(reglements.IDreglement)
-                FROM reglements 
-                LEFT JOIN modes_reglements ON modes_reglements.IDmode = reglements.IDmode
-                WHERE reglements.IDdepot IN (%s)
-                GROUP BY reglements.IDdepot, reglements.IDmode, modes_reglements.label
-                ;"""% str(lstIDdepot)[1:-1]
-    retour = db.ExecuterReq(req, mess='GetDepots' )
     recordset = ()
-    if retour == "ok":
-        recordset = db.ResultatReq()
-    db.Close()
+    if len(lstIDdepot)>0:
+        where = "WHERE reglements.IDdepot IN (%s)"% str(lstIDdepot)[1:-1]
+        req = """SELECT reglements.IDdepot, reglements.IDmode, modes_reglements.label,
+                    SUM(reglements.montant), COUNT(reglements.IDreglement)
+                    FROM reglements 
+                    LEFT JOIN modes_reglements ON modes_reglements.IDmode = reglements.IDmode
+                    %s                
+                    GROUP BY reglements.IDdepot, reglements.IDmode, modes_reglements.label
+                    ;"""%where
+        retour = db.ExecuterReq(req, mess='GetDepots' )
+        recordset = ()
+        if retour == "ok":
+            recordset = db.ResultatReq()
+        db.Close()
 
-    # Ajout des compléments au dictionnaire
-    for IDdepot, IDmode, label, somme, nombre in recordset:
-        if not 'nbre' in dicDepots[IDdepot]:
-            dicDepots[IDdepot]['nbre'] = 0
-            dicDepots[IDdepot]['total'] = 0.0
-        dicDepots[IDdepot]['nbre'] += nombre
-        dicDepots[IDdepot]['total'] += somme
-        dicDepots[IDdepot][IDmode] = {}
-        dicDepots[IDdepot][IDmode]['nbre'] = nombre
-        dicDepots[IDdepot][IDmode]['label'] = label
-        dicDepots[IDdepot]['lstModes'].append(IDmode)
+        # Ajout des compléments au dictionnaire
+        for IDdepot, IDmode, label, somme, nombre in recordset:
+            if not 'nbre' in dicDepots[IDdepot]:
+                dicDepots[IDdepot]['nbre'] = 0
+                dicDepots[IDdepot]['total'] = 0.0
+            dicDepots[IDdepot]['nbre'] += nombre
+            dicDepots[IDdepot]['total'] += somme
+            dicDepots[IDdepot][IDmode] = {}
+            dicDepots[IDdepot][IDmode]['nbre'] = nombre
+            dicDepots[IDdepot][IDmode]['label'] = label
+            dicDepots[IDdepot]['lstModes'].append(IDmode)
 
     # composition des données
     lstDonnees = []
