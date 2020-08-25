@@ -138,6 +138,17 @@ class DB():
             raise NameError("Pas de réponse du serveur %s à la commande PING"%serveur)
         return True
 
+    def AfficheTestOuverture(self):
+        style = wx.ICON_WARNING
+        try:
+            if self.echec == 0: style = wx.ICON_INFORMATION
+            retour = ['avec succès', '!!!!!!!! SANS SUCCES !!!!!!!\n'][self.echec]
+            mess = "L'accès à la base '%s' s'est réalisé %s" % (self.nomBase, retour)
+        except:
+            mess = "Désolé "
+        wx.MessageBox(mess, style=style)
+
+
     def ConnexionFichierReseau(self,config):
         self.connexion = None
         self.echec = 1

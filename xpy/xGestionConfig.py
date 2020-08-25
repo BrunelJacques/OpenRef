@@ -27,8 +27,7 @@ MATRICE_USER = {
 ("choix_config","Choisissez votre configuration"):[
     {'name': 'config', 'genre': 'Enum', 'label': 'Config active',
                         'help': "Le bouton de droite vous permet de créer une nouvelle configuration",
-                        'btnLabel':"...", 'btnHelp':"Cliquez pour gérer les configurations",
-                        'btnAction' : 'OnBtnChoixConfig'},
+                        'btnLabel':"...", 'btnHelp':"Cliquez pour gérer les configurations BD"},
     {'name': 'mpUserDB', 'genre': 'Mpass', 'label': 'Mot de Passe Serveur',
                         'help': "C\'est le mot de passe de l'utilisateur BD défini dans la configuration active," +
                                 "\nce n'est pas celui de votre pseudo, qui vous sera demandé au lancement de l'appli"},
@@ -38,18 +37,18 @@ MATRICE_USER = {
 }
 # db_prim et db_second pourront être présentes dans dictAPPLI['OPTIONSCONFIG'] et repris dans xGestionDB
 MATRICE_CONFIGS = {
-("db_prim","Base de donnée première"): [
+("db_prim","Accès Base de donnée"): [
     {'name': 'ID', 'genre': 'String', 'label': 'Désignation config', 'value': 'config1',
                     'help': "Désignez de manière unique cette configuration"},
-    {'name': 'serveur', 'genre': 'String', 'label': 'Path - Serveur', 'value':'',
-                    'help': "Répertoire si local - Adresse IP ou nom du serveur "},
-    {'name': 'port', 'genre': 'Int', 'label': 'Port ouvert', 'value': 3306,
-                    'help': "Information disponible aurpès de l'administrateur système"},
+    {'name': 'serveur', 'genre': 'String', 'label': 'Path ou Serveur', 'value':'',
+                    'help': "Répertoire 'c:\...' si local - Adresse IP ou nom du serveur si réseau"},
+    {'name': 'port', 'genre': 'Int', 'label': 'Port ouvert', 'value': 0,
+                    'help': "Pour réseau seulement, information disponible aurpès de l'administrateur système"},
     {'name': 'typeDB', 'genre': 'Enum', 'label': 'Type de Base',
                     'help': "Le choix est limité par la programmation", 'value':0, 'values':['MySql','SqlServer','Access','SQLite'] },
     {'name': 'nameDB', 'genre': 'String', 'label': 'Nom de la Base', 'help': "Base de donnée présente sur le serveur"},
     {'name': 'userDB', 'genre': 'String', 'label': 'Utilisateur BD',
-                    'help': "Utilisateur ayant des droits d'accès à la base de donnée", 'value':'invite'},
+                    'help': "Si nécessaire, utilisateur ayant des droits d'accès à la base de donnée", 'value':'invite'},
     ],
 ("db_second", "Base de donnée seconde"): [
         {'name': 'nomDBlocal', 'genre': 'String', 'label': 'Nom de la  base locale'},
@@ -82,6 +81,7 @@ def AppelLignesMatrice(categ=None, possibles={}):
 
 #************************   Gestion de l'identification initiale *****************
 
+# Ecran d'identification
 class DLG_identification(wx.Dialog):
     # Ecran de saisie de paramètres en dialog
     def __init__(self, parent, *args, **kwds):
@@ -181,7 +181,7 @@ class DLG_identification(wx.Dialog):
 
     def OnBtnAction(self,event):
         # sur clic du bouton pour élargir le choix de la combo
-        sc = DLG_saisieConfig(self)
+        sc = DLG_saisieConfigs(self)
         if sc.ok :
             sc.ShowModal()
             cfg = xucfg.ParamFile()
@@ -194,7 +194,7 @@ class DLG_identification(wx.Dialog):
             cfg.SetDict({'lastConfig': value}, 'CONFIGS')
             cfg = xucfg.ParamUser()
             cfg.SetDict({'config':value}, groupe='USER')
-        else: wx.MessageBox('DLG_saisieConfig : lancement impossible, cf MATRICE_CONFIGS et  OPTIONSCONFIG')
+        else: wx.MessageBox('DLG_saisieConfigs : lancement impossible, cf MATRICE_CONFIGS et  OPTIONSCONFIG')
 
     def OnFermer(self,event):
         # enregistre les valeurs de l'utilisateur
@@ -205,9 +205,6 @@ class DLG_identification(wx.Dialog):
         cfg.SetDict(dic['ident'], groupe='IDENT')
         self.Destroy()
 
-    def OnBtnChoixConfig(self,event):
-        wx.MessageBox('Choix config')
-
     def OnCtrlAction(self,event):
         #action evènement Enter sur le contrôle combo, correspond à un changement de choix
         self.choix = self.ctrlConfig.GetValues()
@@ -216,7 +213,8 @@ class DLG_identification(wx.Dialog):
         cfg = xucfg.ParamFile()
         cfg.SetDict({'lastConfig':self.choix}, 'CONFIGS')
 
-class DLG_saisieConfig(xusp.DLG_listCtrl):
+# Gestion à partir d'une liste des accès aux bases de données en début d'appli
+class DLG_saisieConfigs(xusp.DLG_listCtrl):
     # Ecran de saisie de paramètres en dialog
     def __init__(self, parent, *args, **kwds):
         super().__init__(parent, *args, **kwds)
@@ -289,8 +287,12 @@ class DLG_saisieConfig(xusp.DLG_listCtrl):
         else: choix=''
         return choix
 
+# Gestion d'un accès config_base de donnée particulier
+#todo class DLG_saisieUneConfig():
+#
+
+# Gestion de paramètres à partir d'une liste, la matrice est définie après l'init
 class DLG_saisieParams(xusp.DLG_listCtrl):
-    # Ecran de saisie de paramètres multilignes, permet l'affichage, la gestion des lignes de tables
     def __init__(self, parent, *args, **kwds):
         super().__init__(parent, *args, **kwds)
         self.parent = parent
@@ -355,6 +357,7 @@ class DLG_saisieParams(xusp.DLG_listCtrl):
             dic[don] = ligne
         return dic
 
+# Gestion d'un jeu de paramètres stockés localement, et définis dans kwds
 class PNL_paramsLocaux(xusp.TopBoxPanel):
     # Ecran de saisie de paramètres mono écran repris du disque de la station
     def __init__(self, parent, *args, **kwds):
@@ -381,7 +384,6 @@ class PNL_paramsLocaux(xusp.TopBoxPanel):
         dicValeurs = self.GetValeurs()
         self.paramsFile.SetDict(dictEnvoi=dicValeurs,groupe=self.nomGroupe,close=close )
 
-
 #************************   Pour Test ou modèle  *********************************
 
 class xFrame(wx.Frame):
@@ -392,7 +394,7 @@ class xFrame(wx.Frame):
         self.pathData = 'c:\\Temp'
         titre = listArbo[-1:][0] + "/" + self.__class__.__name__
         wx.Frame.__init__(self,*args, title=titre, name = titre)
-        self.topPnl = PNL_paramsLocaux(self,wx.ID_ANY, matrice=matrice, donnees=donnees, lblbox=lblbox)
+        self.topPnl = PNL_paramsLocaux(self,wx.ID_ANY, nomfichier='test', matrice=matrice, donnees=donnees, lblbox=lblbox)
         self.topPnl.Init()
         self.btn0 = wx.Button(self, wx.ID_ANY, "Action Frame")
         self.btn0.Bind(wx.EVT_BUTTON,self.OnBoutonAction)

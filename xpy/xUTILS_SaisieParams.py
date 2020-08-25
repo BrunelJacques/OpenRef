@@ -18,6 +18,22 @@ import unicodedata
 import xpy.outils.xformat as xfmt
 from xpy.outils.ObjectListView import ColumnDefn
 
+def SetEnableID(matrice,enable=False):
+    trouve = False
+    if isinstance(matrice,dict):
+        if 'name' in matrice.keys() and matrice['name'] == 'ID':
+            matrice['enable']=enable
+            trouve = True
+        if not trouve:
+            for key,item in matrice.items():
+                trouve = SetEnableID(item,enable)
+                if trouve: break
+    elif isinstance(matrice,list):
+        for item in matrice:
+            trouve = SetEnableID(item,enable)
+            if trouve: break
+    return trouve
+
 def DDstrdate2wxdate(date,iso=True):
     if not isinstance(date, str) : date = str(date)
     if len(date) < 10: return None
@@ -177,7 +193,8 @@ def ExtractList(lstin, champDeb=None, champFin=None):
         lstout.append(lstin[ix])
     return lstout
 
-def ComposeMatrice(champDeb=None,champFin=None,lstChamps=[],lstTypes=[],lstHelp=[],record=(),dicOptions={},lstCodes=None):
+def ComposeMatrice(champDeb=None,champFin=None,lstChamps=[],lstTypes=[],lstHelp=[],record=(),
+                   dicOptions={},lstCodes=None):
     # Retourne une matrice (dic[chapitre][champ]) et  donnees (dic[champ][valeur])
     lstNomsColonnes = ExtractList(lstChamps, champDeb=champDeb, champFin=champFin)
     options = {}
@@ -543,7 +560,7 @@ class PNL_ctrl(wx.Panel):
 
     def BoxSizer(self):
         topbox = wx.BoxSizer(wx.HORIZONTAL)
-        topbox.Add(self.txt,0, wx.LEFT|wx.EXPAND|wx.ALIGN_TOP, 4)
+        topbox.Add(self.txt,0, wx.LEFT|wx.TOP|wx.EXPAND|wx.ALIGN_TOP, 5)
         topbox.Add(self.ctrl, 1, wx.ALL | wx.EXPAND, 4)
         if self.avecBouton:
             topbox.Add(self.btn, 0, wx.ALL|wx.EXPAND, 4)
@@ -575,7 +592,6 @@ class PNL_ctrl(wx.Panel):
             self.ctrl.SetValue(dlg.GetPath())
         dlg.Destroy()
 
-
 #**********************************************************************************
 #                   GESTION des COMPOSITIONS DE CONTROLES
 #**********************************************************************************
@@ -600,10 +616,14 @@ class PNL_listCtrl(wx.Panel):
         # Remplissage des valeurs
         self.SetValeurs(llItems,ltColonnes)
 
-        self.bouton_ajouter = BTN_action(self,image=wx.Bitmap("xpy/Images/16x16/Ajouter.png"),help="Créer une nouvelle ligne",action=self.OnAjouter )
-        self.bouton_modifier = BTN_action(self,image=wx.Bitmap("xpy/Images/16x16/Modifier.png"),help="Modifier la ligne selectionnée",action=self.OnModifier )
-        self.bouton_supprimer = BTN_action(self,image=wx.Bitmap("xpy/Images/16x16/Supprimer.png"),help="Supprimer la ligne selectionée",action=self.OnSupprimer )
-        self.bouton_dupliquer = BTN_action(self,image=wx.Bitmap("xpy/Images/16x16/Dupliquer.png"),help="Dupliquer la ligne selectionée",action=self.OnDupliquer )
+        self.bouton_ajouter = BTN_action(self,image=wx.Bitmap("xpy/Images/16x16/Ajouter.png"),
+                                         help="Créer une nouvelle ligne",action=self.OnAjouter )
+        self.bouton_modifier = BTN_action(self,image=wx.Bitmap("xpy/Images/16x16/Modifier.png"),
+                                          help="Modifier la ligne selectionnée",action=self.OnModifier )
+        self.bouton_supprimer = BTN_action(self,image=wx.Bitmap("xpy/Images/16x16/Supprimer.png"),
+                                           help="Supprimer la ligne selectionée",action=self.OnSupprimer )
+        self.bouton_dupliquer = BTN_action(self,image=wx.Bitmap("xpy/Images/16x16/Dupliquer.png"),
+                                           help="Dupliquer la ligne selectionée",action=self.OnDupliquer )
         cadre_staticbox = wx.StaticBox(self,wx.ID_ANY,label=lblbox)
         topbox = wx.StaticBoxSizer(cadre_staticbox,wx.HORIZONTAL)
         topbox.Add(self.ctrl,1,wx.ALL|wx.EXPAND,4)
@@ -701,7 +721,12 @@ class BoxPanel(wx.Panel):
                         panel.btn.nameBtn = codename
                         panel.btn.labelBtn = ligne['btnLabel']
                         panel.btn.actionBtn = ligne['btnAction']
-                        panel.btn.Bind(wx.EVT_BUTTON,self.parent.OnBtnAction)
+                        if panel.btn.actionBtn:
+                            if isinstance(panel.btn.actionBtn,str):
+                                eval("panel.btn.Bind(wx.EVT_BUTTON, self.parent.%s)"%panel.btn.actionBtn)
+                            else: panel.btn.Bind(wx.EVT_BUTTON,panel.btn.actionBtn)
+                        else:
+                            panel.btn.Bind(wx.EVT_BUTTON,self.parent.OnBtnAction)
                     if panel.ctrl.actionCtrl:
                         if panel.ctrl.genreCtrl in ['enum','combo','multichoice']:
                             panel.ctrl.Bind(wx.EVT_COMBOBOX, self.parent.OnCtrlAction)
@@ -764,7 +789,7 @@ class TopBoxPanel(wx.Panel):
                      self.ddDonnees[code] = {}
                 box = BoxPanel(self, wx.ID_ANY, lblbox=label, code = code, lignes=matrice[(code,label)], dictDonnees=self.ddDonnees[code])
                 self.lstBoxes.append(box)
-                self.topbox.Add(box, 1, wx.EXPAND,0)
+                self.topbox.Add(box, 1, wx.EXPAND|wx.TOP,7)
         self.SetSizerAndFit(self.topbox)
 
     def OnCtrlAction(self,event):
@@ -837,9 +862,9 @@ class DLG_listCtrl(wx.Dialog):
         topbox = wx.BoxSizer(wx.VERTICAL)
         topbox.Add(self.pnl, 1,wx.EXPAND | wx.ALL, self.marge)
         btnbox = wx.BoxSizer(wx.HORIZONTAL)
-        btnbox.Add(self.btnEsc, 0,  wx.RIGHT,40)
-        btnbox.Add(self.btn, 0,  wx.RIGHT,40)
-        topbox.Add(btnbox,0,0)
+        btnbox.Add(self.btnEsc, 0, wx.RIGHT,7)
+        btnbox.Add(self.btn, 0, wx.RIGHT,7)
+        topbox.Add(btnbox,0,wx.RIGHT|wx.ALIGN_RIGHT,20)
         topbox.SetSizeHints(self)
         self.SetSizer(topbox)
 
@@ -867,9 +892,8 @@ class DLG_listCtrl(wx.Dialog):
     def OnModifier(self,event, items):
         # documentation dans dupliquer
         dlgGest = DLG_vide(self, )
-        #ddDonnees = copy.deepcopy(self.lddDonnees[items])
         ddDonnees = self.lddDonnees[items]
-
+        ret = SetEnableID(self.dldMatrice)
         if self.gestionProperty:
             dlgGest.pnl = PNL_property(dlgGest, self, matrice=self.dldMatrice)
         else:
@@ -896,6 +920,7 @@ class DLG_listCtrl(wx.Dialog):
     def OnDupliquer(self,event, items):
         dlgGest = DLG_vide(self, )
         ddDonnees = copy.deepcopy(self.lddDonnees[items])
+        ret = SetEnableID(self.dldMatrice,enable=True)
         if self.gestionProperty:
             dlgGest.pnl = PNL_property(dlgGest, self, matrice=self.dldMatrice)
         else:
@@ -918,12 +943,12 @@ class DLG_listCtrl(wx.Dialog):
             self.Destroy()
 
 class DLG_vide(wx.Dialog):
-    # pour la gestion d'une ligne extraite d'un tableau listctrl
+    # pour la gestion d'une ligne extraite d'un tableau listctrl ou toute situation pour gérer la matrice après init
     def __init__(self,parent, *args, **kwds):
         self.parent = parent
         listArbo=os.path.abspath(__file__).split("\\")
         titre = listArbo[-1:][0] + "/" + self.__class__.__name__
-        wx.Dialog.__init__(self,parent,*args, title=titre, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER, **kwds)
+        super().__init__(None, wx.ID_ANY, *args, title=titre,  style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER , **kwds)
         self.SetBackgroundColour(wx.WHITE)
         self.marge = 10
 
@@ -932,27 +957,28 @@ class DLG_vide(wx.Dialog):
         #****************************************************************************
 
     def Bouton(self,parent):
-        self.btnLabel = 'OK'
-        self.btn = wx.Button(self, wx.ID_ANY, self.btnLabel)
-        self.btn.Bind(wx.EVT_BUTTON, parent.OnFermer)
+        # bouton 'ok' par défaut
+        btnLabel = 'OK'
+        btn = wx.Button(self, wx.ID_ANY, btnLabel)
+        btn.Bind(wx.EVT_BUTTON, parent.OnFermer)
+        return btn
 
     def Sizer(self,panel,bouton=None):
         self.pnl = panel
         if bouton:
             self.btn = bouton
-        else: self.Bouton(self)
+        else: self.btn = self.Bouton(self)
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.pnl, 1, wx.EXPAND | wx.ALL, self.marge)
-        sizer.Add(self.btn, 0,  wx.RIGHT,40)
+        sizer.Add(self.btn, 0,  wx.RIGHT|wx.ALIGN_RIGHT,20)
         sizer.SetSizeHints(self)
         self.SetSizer(sizer)
 
     def OnFermer(self, event):
             if self.parent != None:
                 self.EndModal(wx.OK)
-                #self.parent.OnChildAction(event)
             else:
-                print("Bonjour l'Action de DLG_vide")
+                print("Bonjour l'Action fermeture de DLG_vide, pas de parent désigné")
 
     def OnChildSauvegarde(self, event):
             if self.parent != None:
