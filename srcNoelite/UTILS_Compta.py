@@ -58,7 +58,6 @@ class Compta(object):
         self.db = self.DB(parent,compta)
         self.dicTables = MATRICE_COMPTAS[compta]
         self.table = None
-
         if self.db and self.db.echec:
             self.db = None
 
@@ -151,17 +150,62 @@ class Compta(object):
                     }
 
     # Choix d'un enregistrement dans une liste
-    def GetOneItem(self,table='generaux'):
+    def ChoisirItem(self,table='generaux',filtre=''):
         self.table = table
         dicOlv = self.GetDicOlv(table)
         dlg = xgtr.DLG_tableau(None, dicOlv=dicOlv)
+        if len(filtre)>0:
+            dlg.ctrlOlv.Parent.barreRecherche.SetValue(filtre)
+            dlg.ctrlOlv.Filtrer(filtre)
         ret = dlg.ShowModal()
         if ret == wx.OK:
-            IDitem = dlg.GetSelection().donnees[0]
+            item = dlg.GetSelection().donnees
         else:
-            IDitem = None
+            item = None
         dlg.Destroy()
-        return IDitem
+        return item
+
+    # Recherche automatique d'un item
+    def GetOneAuto(self,table='clients',filtre=''):
+        self.table = table
+
+        # fonction recherche un seul items contenant un mot limité à lg caractères puis décroisant
+        def testMatch(mot,lg=10):
+            lstTemp = []
+            match = False
+            for lgtest in range(lg,2,-1):
+                lstTemp = self.GetDonnees(filtre=mot[:lgtest+1])
+                if len(lstTemp) == 0 : continue
+                elif len(lstTemp) == 1 :
+                    match = True
+                    break
+                else:
+                    break
+            return match, lstTemp,lgtest
+
+        # appel avec 10 caractères du filtre puis réduit jusqu'a trouver au moins un item (cible clé d'apppel)
+        match,lstItems,lgtest = testMatch(filtre.replace(' ',''),lg=10)
+        motTest = filtre.replace(' ','')[:lgtest+1]
+        # deuxième tentative avec chaque mot du filtre de + de 3 car (cible libellé)
+        if not match:
+            lstMots = filtre.split(' ')
+            lstIx = []
+            # calcul des longeurs pour traitement par lg décroissante item 'xx0yy' xx = lg yy=ix
+            for ix in range(len(lstMots)):
+                if len(lstMots[ix]) <= 3: continue
+                lstIx.append(1000*len(lstMots[ix])+ix)
+            # appel par mot de longeur décroissante
+            for pointeur in sorted(lstIx,reverse=True):
+                ix = pointeur%1000
+                match, lstItems, lgtest2 = testMatch(lstMots[ix],lg=min(10,len(lstMots[ix])))
+                if len(lstItems)>0 and lgtest2 + 1 > len(motTest):
+                    motTest = lstMots[ix][:lgtest2 + 1]
+                if match: break
+        # proposition de filtre pour recherche manuelle (le radical le plus long donnant plusieurs items)
+        self.filtreTest = motTest
+        item = None
+        if match: item = lstItems[0]
+        return item
 
 # --------------- TESTS ----------------------------------------------------------
 if __name__ == u"__main__":
@@ -169,5 +213,5 @@ if __name__ == u"__main__":
     os.chdir("..")
     app = wx.App(0)
     cpt = Compta(None,compta='quadra')
-    print(cpt.GetOneItem('clients'))
+    print(cpt.GetOneAuto('clients','brunel jacquouille'),cpt.filtreTest)
     app.MainLoop()
