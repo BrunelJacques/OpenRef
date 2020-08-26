@@ -11,6 +11,7 @@ import wx
 import os
 import xpy.xGestion_TableauEditor       as xgte
 import xpy.xGestionConfig               as xgc
+from srcNoelite                 import UTILS_Compta
 from xpy.outils.ObjectListView  import ColumnDefn, CellEditor
 from xpy.outils                 import xformat,xbandeau,xfichiers,xexport
 
@@ -28,7 +29,7 @@ DIC_INFOS = {'date':"Flèche droite pour le mois et l'année, Entrée pour valid
 INFO_OLV = "<Suppr> <Inser> <Ctrl C> <Ctrl V>"
 
 # Fonctions de transposition entrée et sortie à gérer pour chaque item FORMAT_xxxx pour les spécificités
-def ComposeFuncImp(dicParams,donnees,champsOut):
+def ComposeFuncImp(dicParams,donnees,champsOut,compta,table):
     # accès aux comptes
     # 'in' est le fichier entrée, 'out' est l'OLV
     lstOut = []
@@ -41,6 +42,26 @@ def ComposeFuncImp(dicParams,donnees,champsOut):
         wx.MessageBox("Problème de fichier d'origine\n\nLe paramétrage attend les colonnes suivantes:\n\t%s"%str(champsIn) \
                         + "\mais la ligne %d comporte %d champs :\n%s"%(nblent,len(donnees[nblent]),donnees[nblent]))
         return []
+
+    ixLibelle = champsOut.index('libelle')
+    ixCompte = champsOut.index('compte')
+    ixAppel = champsOut.index('appel')
+    ixLibCpt = champsOut.index('libcpt')
+
+    def enrichiLigne(ligne):
+        if len(ligne) != len(champsOut): return
+        # composition des champs en liens avec la compta
+        record = compta.GetOneAuto(table,filtre=ligne[ixLibelle][lgPref:])
+        # la recherche de compte a matché
+        if record:
+            ligne[ixCompte] = record[0]
+            ligne[ixAppel]  = record[1]
+            ligne[ixLibCpt] = record[2]
+        else:
+            ligne[ixAppel] = compta.filtreTest
+
+    # déroulé du fichier entrée
+    lgPref = 6
     for ligne in donnees[nblent:]:
         if len(champsIn) != len(ligne):
             # ligne batarde ignorée
@@ -57,12 +78,14 @@ def ComposeFuncImp(dicParams,donnees,champsOut):
             elif champ  == 'libelle':
                 # ajout du début de date dans le libellé
                 if 'date' in champsIn and 'libelle' in champsIn:
-                    prefixe = ligne[champsIn.index('date')].strip()[:5]+' '
+                    prefixe = ligne[champsIn.index('date')].strip()[:lgPref-1]+' '
                     valeur = prefixe + ligne[champsIn.index('libelle')]
             # récupération des champs homonymes
             elif champ in champsIn:
                 valeur = ligne[champsIn.index(champ)]
             ligneOut.append(valeur)
+        if compta:
+            enrichiLigne(ligneOut)
         lstOut.append(ligneOut)
     return lstOut
 
@@ -105,12 +128,14 @@ def ComposeFuncExp(dicParams,donnees,champsIn):
 # formats possibles des fichiers en entrées et sortie, utiliser les mêmes codes des champs pour les 'ComposeFunc'
 FORMATS_IMPORT = {"LCL carte":{ 'champs':['date','montant','mode',None,'libelle',None,None,'codenat','nature',],
                                 'lignesentete':3,
-                                'fonction':ComposeFuncImp}}
+                                'fonction':ComposeFuncImp,
+                                'table':'fournisseurs'}}
 
-FORMATS_EXPORT = {"Compta via Excel":{  'champs':['journal','date','compte','typepiece','libelle','debit','credit',
+FORMATS_EXPORT = {"Quadra via Excel":{  'champs':['journal','date','compte','typepiece','libelle','debit','credit',
                                                 'piece','contrepartie'],
                                         'widths':[40, 80, 60, 25, 240, 60, 60, 60, 60],
-                                        'fonction':ComposeFuncExp}}
+                                        'fonction':ComposeFuncExp,
+                                        'compta':'quadra'}}
 
 # Description des paramètres à choisir en haut d'écran
 MATRICE_PARAMS = {
@@ -124,6 +149,7 @@ MATRICE_PARAMS = {
     {'name': 'formatexp', 'genre': 'Enum', 'label': 'Format export',
                     'help': "Le choix est limité par la programmation", 'value':0,
                     'values':[x for x in FORMATS_EXPORT.keys()],
+                    'ctrlAction':'OnChoixExport',
                     'size':(250,30)},
     ],
 ("compta", "Paramètres comptables"): [
@@ -181,6 +207,9 @@ def GetOlvOptions(dlg):
             'msgIfEmpty':"Fichier non encore importé!",
             'dictColFooter': {"libelle": {"mode": "nombre", "alignement": wx.ALIGN_CENTER}, }
     }
+
+# fonction d'enrichissement des champs
+
 
 #----------------------- Parties de l'écrans -----------------------------------------
 
@@ -244,6 +273,19 @@ class PNL_corpsOlv(xgte.PNL_corps):
         # l'enregistrement de la ligne se fait à chaque saisie pour gérer les montées et descentes
         okSauve = False
 
+        # Traitement des spécificités selon les zones
+        if code == 'compte':
+            table = self.parent.table
+            record = self.parent.compta.GetOneAuto(table,value)
+            newfiltre = self.parent.compta.filtreTest
+            # tentative de recherche mannuelle
+            if not record:
+                record = self.parent.compta.ChoisirItem('fournisseurs',newfiltre)
+            if record:
+                track.compte = record[0].upper()
+                track.appel = record[1].upper()
+                track.libcpt = record[2]
+
         # enlève l'info de bas d'écran
         self.parent.pnlPied.SetItemsInfos( INFO_OLV,wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
         self.flagSkipEdit = False
@@ -263,16 +305,19 @@ class Dialog(wx.Dialog):
         listArbo = os.path.abspath(__file__).split("\\")
         titre = listArbo[-1:][0] + "/" + self.__class__.__name__
         wx.Dialog.__init__(self, None,-1,title=titre, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
+        self.ctrlOlv = None
+        self.txtInfo =  "Non connecté à une compta"
+        self.dicOlv = self.GetParamsOlv()
         self.Init()
 
-    def Init(self):
+    def GetParamsOlv(self):
         # définition de l'OLV
-        self.dicOlv = {'lstColonnes': GetOlvColonnes(self)}
-        self.dicOlv.update(GetOlvOptions(self))
-        self.ctrlOlv = None
+        dicOlv = {'lstColonnes': GetOlvColonnes(self)}
+        dicOlv.update(GetOlvOptions(self))
+        return dicOlv
 
+    def Init(self):
         # boutons de bas d'écran - infos: texte ou objet window.  Les infos sont  placées en bas à gauche
-        self.txtInfo =  "Ici de l'info apparaîtra selon le contexte de la grille de saisie"
         lstInfos = [ wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)),self.txtInfo]
         dicPied = {'lstBtns': GetBoutons(self), "lstInfos": lstInfos}
 
@@ -282,6 +327,9 @@ class Dialog(wx.Dialog):
         self.pnlOlv = PNL_corpsOlv(self, self.dicOlv)
         self.pnlPied = PNL_Pied(self, dicPied)
         self.ctrlOlv = self.pnlOlv.ctrlOlv
+        # connextion compta et affichage bas d'écran
+        self.compta = self.GetCompta()
+        self.table = self.GetTable()
 
         self.Bind(wx.EVT_CLOSE,self.OnClose)
         self.__Sizer()
@@ -299,6 +347,19 @@ class Dialog(wx.Dialog):
         self.CenterOnScreen()
 
     # ------------------- Gestion des actions -----------------------
+    def OnChildCtrlAction(self, event):
+        # relais des actions sur boutons ou contrôles
+        self.action = 'self.%s()' % event.EventObject.actionCtrl
+        try:
+            eval(self.action)
+        except Exception as err:
+            wx.MessageBox(
+                "Echec sur lancement action sur ctrl: '%s' \nLe retour d'erreur est : \n%s" % (self.action, err))
+
+    def OnChoixExport(self):
+        self.compta = self.GetCompta()
+        self.tabme = self.GetTable()
+
     def InitOlv(self):
         self.pnlParams.GetValeurs()
         self.ctrlOlv.lstColonnes = GetOlvColonnes(self)
@@ -313,12 +374,54 @@ class Dialog(wx.Dialog):
         entrees = xfichiers.GetFichierCsv(nomFichier)
         return entrees
 
+    def GetCompta(self):
+        dic = self.pnlParams.GetValeurs()
+        formatExp = dic['fichiers']['formatexp']
+        compta = None
+        if formatExp in FORMATS_EXPORT.keys() :
+            nomCompta = FORMATS_EXPORT[formatExp]['compta']
+            compta = UTILS_Compta.Compta(self, compta=nomCompta)
+            if not compta.db: compta = None
+        if not compta:
+            txtInfo = "Echec d'accès à la compta associée à %s!!!"%formatExp
+            image = wx.ArtProvider.GetBitmap(wx.ART_ERROR, wx.ART_OTHER, (16, 16))
+        else:
+            txtInfo = "Connecté à la compta %s..."%nomCompta
+            image = wx.ArtProvider.GetBitmap(wx.ART_TIP, wx.ART_OTHER, (16, 16))
+        self.pnlPied.SetItemsInfos(txtInfo,image)
+        return compta
+
+    def GetTable(self):
+        dicParams = self.pnlParams.GetValeurs()
+        formatIn = dicParams['fichiers']['formatin']
+        return FORMATS_IMPORT[formatIn]['table']
+
+
+    def EnrichiTrack(self,ligne,lstCodesColonnes):
+        # composition des champs en liens avec la compta
+        ixLibelle = lstCodesColonnes.index('libelle')
+        ixCompte = lstCodesColonnes.index('compte')
+        ixAppel = lstCodesColonnes.index('appel')
+        ixLibCpt = lstCodesColonnes.index('libcpt')
+        record = self.compta.GetOneAuto(self.table,filtre=ligne[ixLibelle])
+        # la recherche de compte a matché
+        if record:
+            ligne[ixCompte] = record[0]
+            ligne[ixAppel]  = record[1]
+            ligne[ixLibCpt] = record[2]
+        else:
+            ligne[ixCompte] = self.compta.filtreTest
+
     def OnImporter(self,event):
         dicParams = self.pnlParams.GetValeurs()
         formatIn = dicParams['fichiers']['formatin']
+        self.table = FORMATS_IMPORT[formatIn]['table']
         self.ctrlOlv.listeDonnees = FORMATS_IMPORT[formatIn]['fonction'](dicParams,
                                                            self.GetDonneesIn(),
-                                                           self.ctrlOlv.lstCodesColonnes)
+                                                           self.ctrlOlv.lstCodesColonnes,self.compta,self.table)
+        if self.compta and False:
+            for ligne in self.ctrlOlv.listeDonnees:
+                self.EnrichiTrack(ligne,self.ctrlOlv.lstCodesColonnes,self.table)
         self.InitOlv()
 
     def OnExporter(self,event):

@@ -20,7 +20,7 @@ MATRICE_COMPTAS = {'quadra': {
                             'fournisseurs':{'select':'Numero,CleDeux,Intitule',
                                             'from'  :'Comptes',
                                             'where' :"Type = 'F'",
-                                            'filtre':"AND (CleDeux like \"%xxx%\" OR Intitule like \"%xxx%\")"},
+                                            'filtre':"AND (Numero like \"%xxx%\" OR CleDeux like \"%xxx%\" OR Intitule like \"%xxx%\")"},
                             'clients':  {'select': 'Numero,CleDeux,Intitule',
                                             'from'  : 'Comptes',
                                             'where' : "Type = 'C'",
@@ -56,10 +56,13 @@ def GetLstComptas():
 class Compta(object):
     def __init__(self,parent,compta='quadra'):
         self.db = self.DB(parent,compta)
-        self.dicTables = MATRICE_COMPTAS[compta]
+        if compta in MATRICE_COMPTAS:
+            self.dicTables = MATRICE_COMPTAS[compta]
+        else: wx.MessageBox("Les formats de la compta %s , ne sont pas  paramétrés dans le programme"%compta)
         self.table = None
         if self.db and self.db.echec:
             self.db = None
+        self.nameCpta = compta
 
     # connecteur à la base compta
     def DB(self,parent,compta):
@@ -103,6 +106,7 @@ class Compta(object):
         filtre = kwds.pop('filtre','')
         donnees = []
         dicTable = self.dicTables[self.table]
+        firstChamp = dicTable['select'].split(',')[0]
         req = ''
         for segment in ('select','from','where'):
             if segment in dicTable.keys():
@@ -111,7 +115,7 @@ class Compta(object):
             txtfiltre = dicTable['filtre'].replace("xxx","%s"%filtre)
             # ajout du filtre dans la requête
             req += "%s\n"%txtfiltre
-        req += ";"
+        req += "ORDER BY %s;"%firstChamp
         ret = self.db.ExecuterReq(req,mess="UTILS_Compta.GetDonnees %s"%self.table)
         if ret == "ok":
             donnees = self.db.ResultatReq()
@@ -179,6 +183,12 @@ class Compta(object):
                 elif len(lstTemp) == 1 :
                     match = True
                     break
+                elif len(lstTemp) == 2:
+                    # teste l'identité des libellés pos(2) pour comptes en double
+                    if lstTemp[0][2] == lstTemp[1][2]:
+                        lstTemp = lstTemp[1:2]
+                        match = True
+                        break
                 else:
                     break
             return match, lstTemp,lgtest
@@ -213,5 +223,6 @@ if __name__ == u"__main__":
     os.chdir("..")
     app = wx.App(0)
     cpt = Compta(None,compta='quadra')
-    print(cpt.GetOneAuto('clients','brunel jacquouille'),cpt.filtreTest)
+    print(cpt.GetOneAuto('fournisseurs','sncf internet paris'),cpt.filtreTest)
+    cpt.ChoisirItem('fournisseurs','sncfi')
     app.MainLoop()
