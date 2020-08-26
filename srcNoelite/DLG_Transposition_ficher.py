@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # -------------------------------------------------------------
-# Application :    Noelite, transposition de fichier
-# Usage : Permet de réécrire un fichier dans un formatage différent utilisant des fonctions de transposition
+# Application :    Noelite, transposition de fichier comptable
+# Usage : Reécrire dans un formatage différent avec fonctions de transposition
 # Auteur:          Jacques BRUNEL
 # Licence:         Licence GNU GPL
 # -------------------------------------------------------------
@@ -29,6 +29,7 @@ INFO_OLV = "<Suppr> <Inser> <Ctrl C> <Ctrl V>"
 
 # Fonctions de transposition entrée et sortie à gérer pour chaque item FORMAT_xxxx pour les spécificités
 def ComposeFuncImp(dicParams,donnees,champsOut):
+    # accès aux comptes
     # 'in' est le fichier entrée, 'out' est l'OLV
     lstOut = []
     formatIn = dicParams['fichiers']['formatin']
@@ -54,6 +55,7 @@ def ComposeFuncImp(dicParams,donnees,champsOut):
             elif champ == 'piece':
                     valeur = noPiece
             elif champ  == 'libelle':
+                # ajout du début de date dans le libellé
                 if 'date' in champsIn and 'libelle' in champsIn:
                     prefixe = ligne[champsIn.index('date')].strip()[:5]+' '
                     valeur = prefixe + ligne[champsIn.index('libelle')]
@@ -153,33 +155,32 @@ def GetOlvColonnes(dlg):
     return [
             ColumnDefn("Date", 'center', 80, 'date', valueSetter=wx.DateTime.Today(),isSpaceFilling=False,
                             stringConverter=xformat.FmtDate),
-            ColumnDefn("Compte", 'left', 80, 'compte',valueSetter='',isSpaceFilling=False,
+            ColumnDefn("Cpt No", 'left', 70, 'compte',valueSetter='',isSpaceFilling=False,
                             isEditable=True),
-            ColumnDefn("Mode", 'centre', 50, 'mode', valueSetter='',choices=['CB carte', 'CHQ chèque',
-                                                    'ESP espèces'], isSpaceFilling=False,
-                            cellEditorCreator=CellEditor.ChoiceEditor),
+            ColumnDefn("Cpt Appel", 'left', 70, 'appel',valueSetter='',isSpaceFilling=False,
+                            isEditable=False),
+            ColumnDefn("Cpt Libellé ", 'left', 150, 'libcpt',valueSetter='',isSpaceFilling=False,
+                            isEditable=False),
+            ColumnDefn("Mode", 'centre', 60, 'mode', valueSetter='', isSpaceFilling=False,),
             ColumnDefn("NoPièce", 'left', 70, 'piece', isSpaceFilling=False),
-            ColumnDefn("Libelle", 'left', 220, 'libelle', valueSetter='à saisir', isSpaceFilling=True),
-            ColumnDefn("Montant", 'right',90, "montant", isSpaceFilling=False, valueSetter=0.0,
+            ColumnDefn("Libelle", 'left', 220, 'libelle', valueSetter='', isSpaceFilling=True),
+            ColumnDefn("Montant", 'right',70, "montant", isSpaceFilling=False, valueSetter=0.0,
                             stringConverter=xformat.FmtDecimal),
-            ColumnDefn("Nature", 'left', 140, 'nature', valueSetter='à saisir', isSpaceFilling=True),
+            ColumnDefn("Nature", 'left', 100, 'nature', valueSetter='', isSpaceFilling=False,
+                            isEditable=False)
             ]
 
 # paramètre les options de l'OLV
 def GetOlvOptions(dlg):
     return {
             'hauteur': 400,
-            'largeur': 600,
+            'largeur': 900,
             'checkColonne': False,
             'recherche': True,
             'autoAddRow':False,
             'msgIfEmpty':"Fichier non encore importé!",
             'dictColFooter': {"libelle": {"mode": "nombre", "alignement": wx.ALIGN_CENTER}, }
     }
-
-class CptaQuadra(object):
-    def __init__(self, parent, **kwds):
-        pass
 
 #----------------------- Parties de l'écrans -----------------------------------------
 
@@ -199,7 +200,7 @@ class PNL_params(xgc.PNL_paramsLocaux):
         super().__init__(parent, **kwds)
         self.Init()
 
-class PNL_corpsReglements(xgte.PNL_corps):
+class PNL_corpsOlv(xgte.PNL_corps):
     #panel olv avec habillage optionnel pour des boutons actions (à droite) des infos (bas gauche) et boutons sorties
     def __init__(self, parent, dicOlv,*args, **kwds):
         xgte.PNL_corps.__init__(self,parent,dicOlv,*args,**kwds)
@@ -268,23 +269,7 @@ class Dialog(wx.Dialog):
         # définition de l'OLV
         self.dicOlv = {'lstColonnes': GetOlvColonnes(self)}
         self.dicOlv.update(GetOlvOptions(self))
-        self.depotOrigine = []
         self.ctrlOlv = None
-        self.withDepot = True
-        # récup des modesReglements nécessaires pour passer du texte à un ID d'un mode ayant un mot en commun
-        choices = []
-        self.libelleDefaut = ''
-        for colonne in self.dicOlv['lstColonnes']:
-            if 'mode' in colonne.valueGetter:
-                choices = colonne.choices
-            if 'libelle' in colonne.valueGetter:
-                self.libelleDefaut = colonne.valueSetter
-        self.dicModesRegl = {}
-        for item in choices:
-            # les descriptifs de modes de règlements ne doivent pas avoir des mots en commun
-            lstMots = item.split(' ')
-            self.dicModesRegl[item]={'lstMots':lstMots}
-            ok = False
 
         # boutons de bas d'écran - infos: texte ou objet window.  Les infos sont  placées en bas à gauche
         self.txtInfo =  "Ici de l'info apparaîtra selon le contexte de la grille de saisie"
@@ -294,7 +279,7 @@ class Dialog(wx.Dialog):
         # lancement de l'écran en blocs principaux
         self.pnlBandeau = xbandeau.Bandeau(self,TITRE,INTRO,nomImage="xpy/Images/32x32/Matth.png")
         self.pnlParams = PNL_params(self)
-        self.pnlOlv = PNL_corpsReglements(self, self.dicOlv)
+        self.pnlOlv = PNL_corpsOlv(self, self.dicOlv)
         self.pnlPied = PNL_Pied(self, dicPied)
         self.ctrlOlv = self.pnlOlv.ctrlOlv
 
@@ -322,6 +307,7 @@ class Dialog(wx.Dialog):
         self.Refresh()
 
     def GetDonneesIn(self):
+        # importation des donnéees du fichier entrée
         dic = self.pnlParams.GetValeurs()
         nomFichier = dic['fichiers']['path']
         entrees = xfichiers.GetFichierCsv(nomFichier)
