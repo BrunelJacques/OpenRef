@@ -400,42 +400,6 @@ class CTRL_property(wxpg.PropertyGrid):
             ddDonnees[code][champ] = valeur
         return ddDonnees
 
-class PNL_param_property(wx.Panel):
-    #affichage d'une grille property avec boutons sauvegarde réinit
-    def __init__(self, parent, topWin, *args, matrice={}, donnees={}, lblbox="Paramètres property", **kwds):
-        self.parent = parent
-        wx.Panel.__init__(self, parent, *args, **kwds)
-
-        #********************** CTRL PRINCIPAL ***************************************
-        self.ctrl = CTRL_property(self,matrice,donnees)
-        #***********************************************************************
-
-        self.bouton_action = BTN_action(self,image=wx.Bitmap("xpy/Images/16x16/Ajouter.png"),help="Créer une sauvegarde",action=self.OnSauvegarde )
-        self.bouton_reinit = BTN_reinitialisation(self, self.ctrl)
-        cadre_staticbox = wx.StaticBox(self,wx.ID_ANY,label=lblbox)
-        topbox = wx.StaticBoxSizer(cadre_staticbox,wx.HORIZONTAL)
-        topbox.Add(self.ctrl,1,wx.ALL|wx.EXPAND,4)
-        droite_flex = wx.FlexGridSizer(2,1,0,0)
-        droite_flex.Add(self.bouton_action, 0, wx.ALL|wx.TOP, 4)
-        droite_flex.Add(self.bouton_reinit, 0, wx.ALL|wx.TOP, 4)
-        topbox.Add(droite_flex,0,wx.ALL|wx.TOP,1)
-        topbox.MinSize = (300,400)
-        self.SetSizerAndFit(topbox)
-
-    def OnSauvegarde(self, event):
-        # Action du clic sur l'icone sauvegarde renvoie au parent
-        if self.parent:
-            self.parent.OnChildSauvegarde(event)
-        else:
-            print("Bonjour l'action sauvegarde du parent de PNL_property")
-
-    def GetValeurs(self):
-        return self.ctrl.GetValeurs()
-
-    def SetValeurs(self,donnees):
-        ret = self.ctrl.SetValeurs(donnees)
-        return ret
-
 class PNL_property(wx.Panel):
     #affichage d'une grille property sans autre bouton que sortie
     def __init__(self, parent, topWin, *args, matrice={}, donnees=[], lblbox="Paramètres item_property", **kwds):
@@ -565,10 +529,6 @@ class PNL_ctrl(wx.Panel):
         if dlg.ShowModal() == wx.ID_OK:
             self.ctrl.SetValue(dlg.GetPath())
         dlg.Destroy()
-
-#**********************************************************************************
-#                   COMPOSITIONS DE CONTROLES
-#**********************************************************************************
 
 class PNL_listCtrl(wx.Panel):
     #affichage d'une listeCtrl avec les boutons classiques pour gérer les lignes

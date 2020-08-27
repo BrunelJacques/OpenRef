@@ -29,9 +29,10 @@ MATRICE_COMPTAS = {'quadra': {
                                             'from'  :'Comptes',
                                             'where' : "Type = 'G'",
                                             'filtre':"AND (CleDeux like \"%xxx%\" OR Intitule like \"%xxx%\")"},
-                            'journaux': {'select': 'Code,Libelle,TypeJournal,CompteContrepartie',
+                            'journaux': {'select': 'Code,Libelle,CompteContrepartie,TypeJournal',
                                             'from':' Journaux',
-                                            'filtre':"WHERE (Code like \"%xxx%\" OR Intitule like \"%xxx%\")"},
+                                            'where': "TypeJournal = 'T'",
+                                            'filtre':"AND (Code like \"%xxx%\" OR Intitule like \"%xxx%\")"},
                             }}
 
 MATRICE_COMPTES = {
@@ -43,9 +44,9 @@ MATRICE_COMPTES = {
     }
 
 MATRICE_JOURNAUX = {
-    'lstChamps': ['ID','libelle','type','contrepartie'],
-    'lstNomsColonnes': ["code","libelle",'type','contrepartie'],
-    'lstTypes': ['INTEGER','VARCHAR(130)','VARCHAR(10)','VARCHAR(60)',],
+    'lstChamps': ['ID','libelle','contrepartie','type'],
+    'lstNomsColonnes': ["code","libelle",'contrepartie','type'],
+    'lstTypes': ['INTEGER','VARCHAR(130)','VARCHAR(60)','VARCHAR(10)'],
     }
 
 def GetLstComptas():
@@ -101,11 +102,16 @@ class Compta(object):
         if configCpta:
             return xdb.DB(config=configCpta)
 
-    # Appel d'une liste extraite de la base de donnée
+    # Appel d'une liste extraite de la base de donnée pour table préalablement renseignée
     def GetDonnees(self,**kwds):
         filtre = kwds.pop('filtre','')
+        table = kwds.pop('table','')
+        if table == '': table = self.table
+        if not table:
+            wx.MessageBox("UTILS_Compta: Manque l'info de la table à interroger...")
+            return []
         donnees = []
-        dicTable = self.dicTables[self.table]
+        dicTable = self.dicTables[table]
         firstChamp = dicTable['select'].split(',')[0]
         req = ''
         for segment in ('select','from','where'):
@@ -116,10 +122,15 @@ class Compta(object):
             # ajout du filtre dans la requête
             req += "%s\n"%txtfiltre
         req += "ORDER BY %s;"%firstChamp
-        ret = self.db.ExecuterReq(req,mess="UTILS_Compta.GetDonnees %s"%self.table)
+        ret = self.db.ExecuterReq(req,mess="UTILS_Compta.GetDonnees %s"%table)
         if ret == "ok":
             donnees = self.db.ResultatReq()
         return donnees
+
+    # Constitue la liste des journaux si la compta est en ligne
+    def GetJournaux(self):
+        if not self.db: return []
+        return self.GetDonnees(table='journaux')
 
     # Composition du dic de tous les paramètres à fournir pour l'OLV
     def GetDicOlv(self,table):
@@ -150,10 +161,11 @@ class Compta(object):
                     'dicBandeau': dicBandeau,
                     'colonneTri': 2,
                     'style': wx.LC_SINGLE_SEL|wx.LC_HRULES|wx.LC_VRULES,
+                    'largeur' : 500,
                     'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
                     }
 
-    # Choix d'un enregistrement dans une liste
+    # Lance un DLG pour le choix d'un enregistrement dans une liste
     def ChoisirItem(self,table='generaux',filtre=''):
         self.table = table
         dicOlv = self.GetDicOlv(table)

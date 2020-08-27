@@ -423,6 +423,7 @@ class xFrame(wx.Frame):
     def OnBoutonAction(self, event):
         #Bouton Test: sauvegarde les params, pallie l'absence de kill focus
         self.topPnl.SauveParams()
+        print('OK pour Sauve Params, relancez pour vérifier')
 
 if __name__ == '__main__':
     app = wx.App(0)

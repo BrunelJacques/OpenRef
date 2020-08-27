@@ -2319,8 +2319,7 @@ class ObjectListView(wx.ListCtrl):
         """
         (rowIndex, subItemIndex) = self.cellBeingEdited
 
-        # Give the world the chance to veto the edit, or to change its
-        # characteristics
+        # Give the world the chance to veto the edit, or to change its characteristics
         rowModel = self.GetObjectAt(rowIndex)
         evt = OLVEvent.CellEditFinishingEvent(
             self,

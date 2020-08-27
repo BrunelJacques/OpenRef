@@ -618,14 +618,14 @@ class PanelListView(wx.Panel):
         # gestion des actions de sortie
         row, col = self.ctrl_listview.cellBeingEdited
         track = self.ctrl_listview.GetObjectAt(row)
-        new_data = self.ctrl_listview.cellEditor.GetValue()
+        self.valeur = self.ctrl_listview.cellEditor.GetValue()
         code = self.ctrl_listview.lstCodesColonnes[col]
         # appel des éventuels spécifiques
         if hasattr(self.Parent, 'OnEditFinishing'):
-            self.parent.OnEditFinishing(code,new_data)
+            self.parent.OnEditFinishing(code,self.valeur,parent=self)
         # stockage de la nouvelle saisie
-        track.__setattr__(code, new_data)
-        track.donnees[col] = new_data
+        track.__setattr__(code, self.valeur)
+        track.donnees[col] = self.valeur
         event.Skip()
 
     def OnEditFinished(self, event):
@@ -810,20 +810,20 @@ class PNL_Pied(wx.Panel):
             self.infosTexte.SetLabelText(text)
 
     def OnBoutonOK(self,event):
-        self.parent.Close()
+        self.parent.OnFermer(None)
 
 # ------------- Lancement ------------------------------------------------------------------
-class DLG_tableau(wx.Dialog):
+class DLG_tableau(xusp.DLG_vide):
     # minimum fonctionnel dans dialog tout est dans les trois pnl
     def __init__(self,parent,dicParams={},dicOlv={},dicPied={}, **kwds):
-        self.parent = parent
-        listArbo=os.path.abspath(__file__).split("\\")
-        titre = listArbo[-1:][0] + "/" + self.__class__.__name__
-        wx.Dialog.__init__(self,None, title=titre, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
+        super().__init__(parent,**kwds)
         self.pnlParams = PNL_params(self, dicParams)
         self.pnlOlv = PNL_corps(self, dicOlv,  **kwds )
         self.ctrlOlv = self.pnlOlv.ctrlOlv
         self.pnlPied = PNL_Pied(self, dicPied,  **kwds )
+        self.Sizer()
+
+    def Sizer(self):
         sizer_base = wx.FlexGridSizer(rows=3, cols=1, vgap=0, hgap=0)
         sizer_base.Add(self.pnlParams, 1, wx.TOP| wx.EXPAND, 3)
         sizer_base.Add(self.pnlOlv, 1, wx.TOP| wx.EXPAND, 3)
@@ -833,9 +833,6 @@ class DLG_tableau(wx.Dialog):
         self.CenterOnScreen()
         self.Layout()
         self.SetSizerAndFit(sizer_base)
-
-    def Close(self):
-        self.EndModal(wx.OK)
 
 # ------------ Pour tests ------------------------------------------------------------------
 

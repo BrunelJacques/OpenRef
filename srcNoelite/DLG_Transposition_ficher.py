@@ -8,11 +8,11 @@
 # -------------------------------------------------------------
 
 import wx
-import os
 import xpy.xGestion_TableauEditor       as xgte
 import xpy.xGestionConfig               as xgc
+import xpy.xUTILS_SaisieParams          as xusp
 from srcNoelite                 import UTILS_Compta
-from xpy.outils.ObjectListView  import ColumnDefn, CellEditor
+from xpy.outils.ObjectListView  import ColumnDefn
 from xpy.outils                 import xformat,xbandeau,xfichiers,xexport
 
 #---------------------- Paramètres du programme -------------------------------------
@@ -21,6 +21,7 @@ TITRE = "Transposition de ficher avec intervention possible"
 INTRO = "Importez un fichier, puis complétez l'information dans le tableau avant de l'exporter dans un autre format"
 # Infos d'aide en pied d'écran
 DIC_INFOS = {'date':"Flèche droite pour le mois et l'année, Entrée pour valider.\nC'est la date de réception du règlement, qui sera la date comptable",
+            'compte':    "<F4> Choix d'un compte fournisseur, ou saisie directe du compte",
             'libelle':     "S'il est connu, précisez l'affectation (objet) du règlement",
             'montant':      "Montant en €",
              }
@@ -153,8 +154,10 @@ MATRICE_PARAMS = {
                     'size':(250,30)},
     ],
 ("compta", "Paramètres comptables"): [
-    {'name': 'journal', 'genre': 'String', 'label': 'Journal',
-                    'help': "Code journal utilisé dans la compta",'size':(180,30)},
+    {'name': 'journal', 'genre': 'Combo', 'label': 'Journal','ctrlAction':'OnCtrlJournal',
+                    'help': "Code journal utilisé dans la compta",'size':(250,30),
+                    'btnLabel': "...", 'btnHelp': "Cliquez pour choisir un journal",
+                    'btnAction': 'OnBtnJournal'},
     {'name': 'contrepartie', 'genre': 'String', 'label': 'Contrepartie',
                     'help': "Code comptable du compte de contrepartie de la banque",'size':(250,30)},
     {'name': 'lastpiece', 'genre': 'String', 'label': 'Dernier no de pièce',
@@ -172,7 +175,7 @@ def GetBoutons(dlg):
                     'toolTip': "Cliquez ici pour lancer l'exportation du fichier selon les paramètres que vous avez défini",
                     'size': (120, 35), 'image': wx.ART_REDO,'onBtn':dlg.OnExporter},
                 {'name':'btnOK','ID':wx.ID_ANY,'label':"Quitter",'toolTip':"Cliquez ici pour fermer la fenêtre",
-                    'size':(120,35),'image':"xpy/Images/32x32/Quitter.png",'onBtn':dlg.OnClose}
+                    'size':(120,35),'image':"xpy/Images/32x32/Quitter.png",'onBtn':dlg.OnFermer}
             ]
 
 # description des colonnes de l'OLV (données affichées)
@@ -228,6 +231,7 @@ class PNL_params(xgc.PNL_paramsLocaux):
                 }
         super().__init__(parent, **kwds)
         self.Init()
+        self.lstIDjournaux = None
 
 class PNL_corpsOlv(xgte.PNL_corps):
     #panel olv avec habillage optionnel pour des boutons actions (à droite) des infos (bas gauche) et boutons sorties
@@ -258,9 +262,10 @@ class PNL_corpsOlv(xgte.PNL_corps):
             eval("track.oldValue = track.%s"%code)
         except: pass
 
-    def OnEditFinishing(self,code=None,value=None):
+    def OnEditFinishing(self,code=None,value=None,parent=None):
         self.parent.pnlPied.SetItemsInfos( INFO_OLV,wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
         # flagSkipEdit permet d'occulter les évènements redondants. True durant la durée du traitement
+        row, col = self.ctrlOlv.cellBeingEdited
         if self.flagSkipEdit : return
         self.flagSkipEdit = True
         track = self.ctrlOlv.lastGetObject
@@ -281,10 +286,19 @@ class PNL_corpsOlv(xgte.PNL_corps):
             # tentative de recherche mannuelle
             if not record:
                 record = self.parent.compta.ChoisirItem('fournisseurs',newfiltre)
+            # alimente les champs ('compte','appel','libelle'), puis répand l'info
             if record:
                 track.compte = record[0].upper()
+                track.exappel = track.appel
                 track.appel = record[1].upper()
                 track.libcpt = record[2]
+                # la valeur d'origine va être strockée par parent  pour cellEditor
+                if parent:
+                    #parent n'est pas self.parent!!!
+                    parent.valeur = track.compte
+                # RepandreCompte sur les autres lignes similaires
+                self.RepandreCompte(track)
+                self.ctrlOlv.Refresh()
 
         # enlève l'info de bas d'écran
         self.parent.pnlPied.SetItemsInfos( INFO_OLV,wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
@@ -293,29 +307,43 @@ class PNL_corpsOlv(xgte.PNL_corps):
     def OnEditFunctionKeys(self,event):
         row, col = self.ctrlOlv.cellBeingEdited
         code = self.ctrlOlv.lstCodesColonnes[col]
+        if event.GetKeyCode() == wx.WXK_F4 and code == 'compte':
+            # F4 Choix compte
+            item = self.parent.compta.ChoisirItem(table=self.parent.table,filtre='')
+            if item:
+                self.OnEditFinishing('compte',item[0])
+                self.ctrlOlv.lastGetObject.compte = item[0]
+
+    def RepandreCompte(self,track=None):
+        for object in self.ctrlOlv.innerList:
+            if object.appel == track.exappel:
+                object.compte = track.compte
+                object.appel  = track.appel
+                object.libcpt = track.libcpt
 
 class PNL_Pied(xgte.PNL_Pied):
     #panel infos (gauche) et boutons sorties(droite)
     def __init__(self, parent, dicPied, **kwds):
         xgte.PNL_Pied.__init__(self,parent, dicPied, **kwds)
 
-class Dialog(wx.Dialog):
+class Dialog(xusp.DLG_vide):
     # ------------------- Composition de l'écran de gestion----------
     def __init__(self):
-        listArbo = os.path.abspath(__file__).split("\\")
-        titre = listArbo[-1:][0] + "/" + self.__class__.__name__
-        wx.Dialog.__init__(self, None,-1,title=titre, style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
+        super().__init__(None,name='DLG_Transposition_fichier')
         self.ctrlOlv = None
         self.txtInfo =  "Non connecté à une compta"
         self.dicOlv = self.GetParamsOlv()
         self.Init()
+        self.Sizer()
 
+    # Récup des paramètrages pour composer l'écran
     def GetParamsOlv(self):
         # définition de l'OLV
         dicOlv = {'lstColonnes': GetOlvColonnes(self)}
         dicOlv.update(GetOlvOptions(self))
         return dicOlv
 
+    # Initialisation des panels
     def Init(self):
         # boutons de bas d'écran - infos: texte ou objet window.  Les infos sont  placées en bas à gauche
         lstInfos = [ wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)),self.txtInfo]
@@ -331,10 +359,9 @@ class Dialog(wx.Dialog):
         self.compta = self.GetCompta()
         self.table = self.GetTable()
 
-        self.Bind(wx.EVT_CLOSE,self.OnClose)
-        self.__Sizer()
+        self.Bind(wx.EVT_CLOSE,self.OnFermer)
 
-    def __Sizer(self):
+    def Sizer(self):
         sizer_base = wx.FlexGridSizer(rows=4, cols=1, vgap=0, hgap=0)
         sizer_base.Add(self.pnlBandeau, 1, wx.TOP | wx.EXPAND, 3)
         sizer_base.Add(self.pnlParams, 1, wx.TOP | wx.EXPAND, 3)
@@ -347,18 +374,16 @@ class Dialog(wx.Dialog):
         self.CenterOnScreen()
 
     # ------------------- Gestion des actions -----------------------
-    def OnChildCtrlAction(self, event):
-        # relais des actions sur boutons ou contrôles
-        self.action = 'self.%s()' % event.EventObject.actionCtrl
-        try:
-            eval(self.action)
-        except Exception as err:
-            wx.MessageBox(
-                "Echec sur lancement action sur ctrl: '%s' \nLe retour d'erreur est : \n%s" % (self.action, err))
 
-    def OnChoixExport(self):
+    def OnCtrlJournal(self,evt):
+        print('coucou le ctrl journal')
+
+    def OnBtnJournal(self,evt):
+        print('coucou le bouton journal')
+
+    def OnChoixExport(self,evt):
         self.compta = self.GetCompta()
-        self.tabme = self.GetTable()
+        self.table = self.GetTable()
 
     def InitOlv(self):
         self.pnlParams.GetValeurs()
@@ -389,13 +414,22 @@ class Dialog(wx.Dialog):
             txtInfo = "Connecté à la compta %s..."%nomCompta
             image = wx.ArtProvider.GetBitmap(wx.ART_TIP, wx.ART_OTHER, (16, 16))
         self.pnlPied.SetItemsInfos(txtInfo,image)
+        # appel des journaux
+        if compta:
+            lstJournaux = compta.GetJournaux()
+            self.lstIDjournaux = [x[0] for x in lstJournaux]
+            self.lstContreparties = [x[2] for x in lstJournaux]
+            self.lstLibJournaux = [(x[0]+"   ")[:3]+' - '+x[1] for x in lstJournaux]
+            valeur = self.pnlParams.lstBoxes[1].GetOneValue('journal')
+            #self.pnlParams.lstBoxes[1].SetOneValues('journal',self.lstLibJournaux)
+            self.pnlParams.lstBoxes[1].SetOneValue('journal',valeur+"xxx")
+            val = self.pnlParams.lstBoxes[1].GetOneValue('journal')
         return compta
 
     def GetTable(self):
         dicParams = self.pnlParams.GetValeurs()
         formatIn = dicParams['fichiers']['formatin']
         return FORMATS_IMPORT[formatIn]['table']
-
 
     def EnrichiTrack(self,ligne,lstCodesColonnes):
         # composition des champs en liens avec la compta
@@ -459,16 +493,10 @@ class Dialog(wx.Dialog):
                                                                      xformat.FmtMontant(totCredits,lg=12))+
                       "\nSolde:   %s"%solde)
 
-    def OnClose(self,event):
-        self.pnlParams.SauveParams(close=True)
-        if self.IsModal():
-            self.EndModal(wx.ID_CANCEL)
-        else:
-            self.Close()
-
 #------------------------ Lanceur de test  -------------------------------------------
 
 if __name__ == '__main__':
+    import os
     app = wx.App(0)
     os.chdir("..")
     dlg = Dialog()

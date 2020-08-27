@@ -216,7 +216,7 @@ class PNL_corpsReglements(xgte.PNL_corps):
             eval("track.oldValue = track.%s"%code)
         except: pass
 
-    def OnEditFinishing(self,code=None,value=None):
+    def OnEditFinishing(self,code=None,value=None,parent=None):
         self.parent.pnlPied.SetItemsInfos( INFO_OLV,wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
         # flagSkipEdit permet d'occulter les évènements redondants. True durant la durée du traitement
         if self.flagSkipEdit : return
@@ -324,6 +324,8 @@ class Dialog(wx.Dialog):
                     self.libelleDefaut = colonne.valueSetter
             self.dicModesRegl = {}
             ldModesDB = nur.GetModesReglements()
+            if ldModesDB == wx.ID_ABORT:
+                self.Destroy()
             for item in choices:
                 # les descriptifs de modes de règlements ne doivent pas avoir des mots en commun
                 lstMots = item.split(' ')

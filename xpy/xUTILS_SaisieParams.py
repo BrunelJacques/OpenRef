@@ -417,42 +417,6 @@ class CTRL_property(wxpg.PropertyGrid):
             ddDonnees[code][champ] = valeur
         return ddDonnees
 
-class PNL_param_property(wx.Panel):
-    #affichage d'une grille property avec boutons sauvegarde réinit
-    def __init__(self, parent, topWin, *args, matrice={}, donnees={}, lblbox="Paramètres property", **kwds):
-        self.parent = parent
-        wx.Panel.__init__(self, parent, *args, **kwds)
-
-        #********************** CTRL PRINCIPAL ***************************************
-        self.ctrl = CTRL_property(self,matrice,donnees)
-        #***********************************************************************
-
-        self.bouton_action = BTN_action(self,image=wx.Bitmap("xpy/Images/16x16/Ajouter.png"),help="Créer une sauvegarde",action=self.OnSauvegarde )
-        self.bouton_reinit = BTN_reinitialisation(self, self.ctrl)
-        cadre_staticbox = wx.StaticBox(self,wx.ID_ANY,label=lblbox)
-        topbox = wx.StaticBoxSizer(cadre_staticbox,wx.HORIZONTAL)
-        topbox.Add(self.ctrl,1,wx.ALL|wx.EXPAND,4)
-        droite_flex = wx.FlexGridSizer(2,1,0,0)
-        droite_flex.Add(self.bouton_action, 0, wx.ALL|wx.TOP, 4)
-        droite_flex.Add(self.bouton_reinit, 0, wx.ALL|wx.TOP, 4)
-        topbox.Add(droite_flex,0,wx.ALL|wx.TOP,1)
-        topbox.MinSize = (300,400)
-        self.SetSizerAndFit(topbox)
-
-    def OnSauvegarde(self, event):
-        # Action du clic sur l'icone sauvegarde renvoie au parent
-        if self.parent:
-            self.parent.OnChildSauvegarde(event)
-        else:
-            print("Bonjour l'action sauvegarde du parent de PNL_property")
-
-    def GetValeurs(self):
-        return self.ctrl.GetValeurs()
-
-    def SetValeurs(self,donnees):
-        ret = self.ctrl.SetValeurs(donnees)
-        return ret
-
 class PNL_property(wx.Panel):
     #affichage d'une grille property sans autre bouton que sortie
     def __init__(self, parent, topWin, *args, matrice={}, donnees=[], lblbox="Paramètres item_property", **kwds):
@@ -506,7 +470,7 @@ class PNL_ctrl(wx.Panel):
             commande = 'debut'
             # construction des contrôles selon leur genre
             if lgenre in ['enum','combo','multichoice']:
-                self.ctrl = wx.ComboBox(self, wx.ID_ANY)
+                self.ctrl = wx.ComboBox(self, wx.ID_ANY,style=wx.TE_PROCESS_ENTER)
                 if labels:
                     commande = 'Set in combo'
                     self.ctrl.Set(labels)
@@ -571,8 +535,12 @@ class PNL_ctrl(wx.Panel):
 
     def SetValue(self,value):
         if self.genre in ('int','float'): value = str(value)
-        if value: self.ctrl.SetValue(value)
+        if not value: value = ''
+        if self.genre in ('combo','multichoices','enum'):
+            self.ctrl.SetValue(value)
+        else: self.ctrl.SetValue(value)
 
+    # c'est la mise à jour des choices du controle
     def SetValues(self,values):
         self.ctrl.Set(values)
 
@@ -721,12 +689,7 @@ class BoxPanel(wx.Panel):
                         panel.btn.nameBtn = codename
                         panel.btn.labelBtn = ligne['btnLabel']
                         panel.btn.actionBtn = ligne['btnAction']
-                        if panel.btn.actionBtn:
-                            if isinstance(panel.btn.actionBtn,str):
-                                eval("panel.btn.Bind(wx.EVT_BUTTON, self.parent.%s)"%panel.btn.actionBtn)
-                            else: panel.btn.Bind(wx.EVT_BUTTON,panel.btn.actionBtn)
-                        else:
-                            panel.btn.Bind(wx.EVT_BUTTON,self.parent.OnBtnAction)
+                        panel.btn.Bind(wx.EVT_BUTTON,self.parent.OnBtnAction)
                     if panel.ctrl.actionCtrl:
                         if panel.ctrl.genreCtrl in ['enum','combo','multichoice']:
                             panel.ctrl.Bind(wx.EVT_COMBOBOX, self.parent.OnCtrlAction)
@@ -763,13 +726,17 @@ class BoxPanel(wx.Panel):
                     panel.SetValue(value)
         return
 
+    # SetChoices
     def SetOneValues(self,name = '', values=None):
-        ctrl = None
         if values:
             for panel in self.lstPanels:
-                if panel.ctrl.nameCtrl == name:
-                    ctrl = panel.ctrl
-                    if panel.ctrl.genreCtrl.lower() in ['enum', 'combo']:
+                lstName = name.split('.')
+                if len(lstName) == 1:
+                    nameCtrl = panel.ctrl.nameCtrl.split('.')[-1]
+                else:
+                    nameCtrl=panel.ctrl.nameCtrl
+                if nameCtrl == name:
+                    if panel.ctrl.genreCtrl.lower() in ['enum', 'combo','choices']:
                         panel.SetValues(values)
         return
 
@@ -975,28 +942,36 @@ class DLG_vide(wx.Dialog):
         self.SetSizer(sizer)
 
     def OnFermer(self, event):
-            if self.parent != None:
+            if self.IsModal():
                 self.EndModal(wx.OK)
             else:
-                print("Bonjour l'Action fermeture de DLG_vide, pas de parent désigné")
+                self.Close()
 
-    def OnChildSauvegarde(self, event):
-            if self.parent != None:
-                self.parent.OnChildSauvegarde(event)
-            else:
-                print("Bonjour Sauvegarde de DLG_vide")
+    # ------------------- Lancement des actions sur Bind -----------------------
 
     def OnChildBtnAction(self, event):
-            if self.parent != None:
-                self.parent.OnChildBtnAction(event)
-            else:
-                print("Bonjour BtnAction de DLG_vide")
+        # relais des actions sur les boutons du bas d'écran
+        if self.parent and hasattr(self.parent, 'OnChildBtnAction'):
+            self.parent.OnChildBtnAction(event)
+        else:
+            action = 'self.%s(event)' % event.EventObject.actionBtn
+            try:
+                eval(action)
+            except Exception as err:
+                wx.MessageBox(
+                    "Echec sur lancement action sur btn: '%s' \nLe retour d'erreur est : \n%s" % (action, err))
 
     def OnChildCtrlAction(self, event):
-            if self.parent != None:
-                self.parent.OnChildCtrlAction(event)
-            else:
-                print("Bonjour CtrlAction de DLG_vide")
+        # relais des actions sur boutons ou contrôles priorité si le parent gère ce relais
+        if self.parent and hasattr(self.parent, 'OnChildCtrlAction'):
+            self.parent.OnChildCtrlAction(event)
+        else:
+            action = 'self.%s(event)' % event.EventObject.actionCtrl
+            try:
+                eval(action)
+            except Exception as err:
+                wx.MessageBox(
+                    "Echec sur lancement action sur ctrl: '%s' \nLe retour d'erreur est : \n%s" % (action, err))
 
 class DLG_monoLigne(wx.Dialog):
     # variante DLG_vide, avec relais possible d'évènements Boutons ou Controles gérés dans matrice
@@ -1056,19 +1031,13 @@ class DLG_monoLigne(wx.Dialog):
             if self.parent != None:
                 self.parent.OnChildBtnAction(event)
             else:
-                print("Bonjour BtnAction de DLG_monoligne")
+                wx.MessageBox("Bonjour BtnAction de DLG_monoligne")
 
     def OnChildCtrlAction(self, event):
             if self.parent != None:
                 self.parent.OnChildCtrlAction(event)
             else:
-                print("Bonjour CtrlAction de DLG_monoligne")
-
-    def OnChildEnter(self, event):
-            if self.parent != None:
-                self.parent.OnChildAction(event)
-            else:
-                print("Bonjour l'Action de DLG_monoLigne")
+                wx.MessageBox("Bonjour CtrlAction de DLG_monoligne")
 
 #************************   Pour Test ou modèle  *********************************
 
@@ -1090,23 +1059,18 @@ class xFrame(wx.Frame):
         self.CentreOnScreen()
 
     def OnCtrlAction(self,event):
-        print('Bonjour Enter sur le ctrl : ',event.EventObject.Name)
+        wx.MessageBox('Bonjour Enter sur le ctrl : %s'%event.EventObject.Name)
         print(event.EventObject.genreCtrl, event.EventObject.nameCtrl, event.EventObject.labelCtrl,)
         print('Action prévue : ',event.EventObject.actionCtrl)
 
     def OnChildBtnAction(self,event):
-        print('Vous avez cliqué sur le bouton')
-        print(event.EventObject.Name)
+        wx.MessageBox('Vous avez cliqué sur le bouton',event.EventObject.Name)
         print( event.EventObject.nameBtn, event.EventObject.labelBtn,)
         print('vous avez donc souhaité : ',event.EventObject.actionBtn)
 
-    def OnSauvegarde(self, event):
-        #Bouton Test
-        print("Bonjour l'action de sauvegarde dans la frame")
-
     def OnBoutonAction(self, event):
         #Bouton Test
-        print("Bonjour l'action OnBoutonAction de l'appli")
+        wx.MessageBox("Bonjour l'action OnBoutonAction de l'appli")
 
 class FramePanels(wx.Frame):
     def __init__(self, *args, **kwds):
@@ -1149,19 +1113,18 @@ class FramePanels(wx.Frame):
 
     def OnBoutonActionCombo1(self, event):
         #Bouton Test
-        print("Bonjour l'action OnBoutonActionCombo1 de l'appli")
+        wx.MessageBox("Bonjour l'action OnBoutonActionCombo1 de l'appli")
         self.combo1.btn.SetLabel("Clic")
 
     def OnBoutonActionCombo2(self, event):
         #Bouton Test
-        print("Bonjour l'action OnBoutonActionCombo2 de l'appli")
+        wx.MessageBox("Bonjour l'action OnBoutonActionCombo2 de l'appli")
         self.combo2.ctrl.Set(["Crack","boum","hue"])
         self.combo2.ctrl.SetSelection (0)
 
     def OnBoutonActionTexte2(self, event):
         #Bouton Test
-        print("Bonjour l'action OnBoutonActionCombo2 de l'appli")
-        wx.MessageBox("Houston nous avons un problème!",style=wx.OK)
+        wx.MessageBox("Bonjour l'action OnBoutonActionCombo2 de l'appli\nHouston nous avons un problème!",style=wx.OK)
         self.ctrl2.ctrl.SetValue("corrigez")
 
 if __name__ == '__main__':
@@ -1189,7 +1152,7 @@ if __name__ == '__main__':
             [
                 {'genre': 'Date', 'name': 'config', 'label': 'DateConfiguration','value':DDstrdate2wxdate('27/02/2019',iso=False),
                       'help': "Le bouton de droite vous permet de créer une nouvelle configuration"},
-                {'genre': 'MultiChoice', 'name': 'multi', 'label': 'Configurations','labels':['aa','bb','cc'], 'value':['1','2'],
+                {'genre': 'Combo', 'name': 'multi', 'label': 'Configurations','labels':['aa','bb','cc'], 'value':'1',
                          'help': "Le bouton de droite vous permet de créer une nouvelle configuration",
                          'btnLabel': "...", 'btnHelp': "Cliquez pour gérer les configurations",
                         'btnAction': 'OnCtrlAction'},
@@ -1207,21 +1170,20 @@ if __name__ == '__main__':
         }
 
 # Lancement des tests
-    """
-    """
-
+    """"""
     frame_4 = DLG_listCtrl(None,dldMatrice=dictMatrice, dlColonnes={'bd_reseau':['serveur','choix','localisation','nombre'],'ident':['utilisateur']},
                 lddDonnees=[dictDonnees,{"bd_reseau":{'serveur': 'serveur3'}}])
     frame_4.Init()
     app.SetTopWindow(frame_4)
     frame_4.Show()
+    """"""
 
     frame_3 = DLG_vide(None,)
     pnl = PNL_property(frame_3,frame_3,matrice=dictMatrice,donnees=dictDonnees)
     frame_3.Sizer(pnl)
     app.SetTopWindow(frame_3)
     frame_3.Show()
-
+    """"""
     frame_2 = FramePanels(None, )
     frame_2.Position = (500,300)
     frame_2.Show()
@@ -1230,7 +1192,7 @@ if __name__ == '__main__':
     app.SetTopWindow(frame_1)
     frame_1.Position = (50,50)
     frame_1.Show()
-
+    """"""
     frame_5 = DLG_monoLigne(None,dldMatrice=dictMatrice,
                 ddDonnees=dictDonnees,gestionProperty=False,minSize=(400,300))
     app.SetTopWindow(frame_5)

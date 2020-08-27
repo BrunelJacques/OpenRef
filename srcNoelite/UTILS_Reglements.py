@@ -245,6 +245,9 @@ def GetBanquesNne(where = 'code_nne IS NOT NULL'):
 
 def GetModesReglements():
     db = xdb.DB()
+    if db.echec == 1:
+        wx.MessageBox("ECHEC accès Noethys!\n\nabandon...")
+        return wx.ID_ABORT
     ldModesRegls = []
     lstChamps = ['IDmode','label','numero_piece','nbre_chiffres','type_comptable','code_compta']
     req = """   SELECT %s
@@ -256,6 +259,7 @@ def GetModesReglements():
         recordset = db.ResultatReq()
         if len(recordset) == 0:
             wx.MessageBox("Aucun mode de règlements")
+    else: return wx.ID_ABORT
     db.Close()
     for record in recordset:
         dicModeRegl = {}
@@ -272,6 +276,7 @@ def GetDesignationFamille(IDfamille):
                 WHERE IDfamille = %d
                 """ % (IDfamille)
     retour = db.ExecuterReq(req, mess='UTILS_Reglements.GetDesignationFamille' )
+    recordset = []
     if retour == "ok":
         recordset = db.ResultatReq()
     designation = ''
