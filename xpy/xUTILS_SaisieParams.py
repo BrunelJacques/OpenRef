@@ -404,9 +404,6 @@ class CTRL_property(wxpg.PropertyGrid):
                     label = propriete.GetName()
                     genre,nom,label,valeur = Normalise(genre,nom,label,valeur)
                     propriete.SetValue(valeur)
-                    #propriete.SetAttribute('TE_PASSWORD',1)
-                    # if propriete.GetClassName() = 'wxEnumProperty'
-                    # propriete.SetChoices(choix)
 
     def GetValeurs(self):
         values = self.GetPropertyValues()
@@ -457,7 +454,7 @@ class PNL_ctrl(wx.Panel):
         self.txt = wx.StaticText(self, wx.ID_ANY, label + " :")
         self.txt.MinSize = (110, 25)
 
-        # seul le PropertyGrid gère le multichoice, pas le comboBox
+        # seul le PropertyGrid gère le multichoices, pas le comboBox
         if genre == 'multichoice': genre = 'combo'
         lgenre,lname,llabel,lvalue = Normalise(genre, name, label, value)
         if not labels: labels = []
@@ -470,7 +467,7 @@ class PNL_ctrl(wx.Panel):
             commande = 'debut'
             # construction des contrôles selon leur genre
             if lgenre in ['enum','combo','multichoice']:
-                self.ctrl = wx.ComboBox(self, wx.ID_ANY,style=wx.TE_PROCESS_ENTER)
+                self.ctrl = wx.ComboBox(self, wx.ID_ANY)
                 if labels:
                     commande = 'Set in combo'
                     self.ctrl.Set(labels)
@@ -536,7 +533,7 @@ class PNL_ctrl(wx.Panel):
     def SetValue(self,value):
         if self.genre in ('int','float'): value = str(value)
         if not value: value = ''
-        if self.genre in ('combo','multichoices','enum'):
+        if self.genre in ('combo','multichoice','enum'):
             self.ctrl.SetValue(value)
         else: self.ctrl.SetValue(value)
 
@@ -699,12 +696,14 @@ class BoxPanel(wx.Panel):
                     self.lstPanels.append(panel)
         self.SetSizerAndFit(self.ssbox)
 
+    # Get de tous les ctrl, mis dans un dictionnaire de données
     def GetValues(self):
         for panel in self.lstPanels:
             [code, champ] = panel.ctrl.nameCtrl.split('.')
             self.dictDonnees[champ] = panel.GetValue()
         return self.dictDonnees
 
+    # Set pour tous les ctrl nommés dans le dictionnaire de données
     def SetValues(self,dictDonnees):
         for panel in self.lstPanels:
             [code, champ] = panel.ctrl.nameCtrl.split('.')
@@ -712,6 +711,7 @@ class BoxPanel(wx.Panel):
                 panel.SetValue(dictDonnees[champ])
         return
 
+    # Get du ctrl nommé
     def GetOneValue(self,name = ''):
         value = None
         self.dictDonnees = self.GetValues()
@@ -719,24 +719,21 @@ class BoxPanel(wx.Panel):
             value = self.dictDonnees[name]
         return value
 
+    # Set du ctrl nommé
     def SetOneValue(self,name = '', value=None):
-        ctrl = None
         for panel in self.lstPanels:
-            if panel.ctrl.nameCtrl == name:
+            [code, champ] = panel.ctrl.nameCtrl.split('.')
+            if champ == name or panel.ctrl.nameCtrl == name:
                     panel.SetValue(value)
         return
 
-    # SetChoices
+    # SetChoices du ctrl nommé
     def SetOneValues(self,name = '', values=None):
         if values:
             for panel in self.lstPanels:
-                lstName = name.split('.')
-                if len(lstName) == 1:
-                    nameCtrl = panel.ctrl.nameCtrl.split('.')[-1]
-                else:
-                    nameCtrl=panel.ctrl.nameCtrl
-                if nameCtrl == name:
-                    if panel.ctrl.genreCtrl.lower() in ['enum', 'combo','choices']:
+                [code, champ] = panel.ctrl.nameCtrl.split('.')
+                if champ == name or panel.ctrl.nameCtrl == name:
+                    if panel.ctrl.genreCtrl.lower() in ['enum', 'combo','multichoice']:
                         panel.SetValues(values)
         return
 
@@ -778,6 +775,13 @@ class TopBoxPanel(wx.Panel):
                 dic = ddDonnees[box.code]
                 box.SetValues(dic)
         return
+
+    def GetBox(self,codeBox):
+        # utile pour lui adresser les méthodes ex: box.SetOneValue()
+        for box in self.lstBoxes:
+            if box.code == codeBox:
+                return box
+
 
 class DLG_listCtrl(wx.Dialog):
     #Dialog contenant le PNL_listCtrl qui intégre la gestion ajout,
@@ -959,7 +963,8 @@ class DLG_vide(wx.Dialog):
                 eval(action)
             except Exception as err:
                 wx.MessageBox(
-                    "Echec sur lancement action sur btn: '%s' \nLe retour d'erreur est : \n%s" % (action, err))
+                    "Commande: '%s' \n\nErreur: \n%s" % (action, err),
+                "Echec sur lancement de l'action bouton")
 
     def OnChildCtrlAction(self, event):
         # relais des actions sur boutons ou contrôles priorité si le parent gère ce relais

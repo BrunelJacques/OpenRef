@@ -32,7 +32,7 @@ MATRICE_COMPTAS = {'quadra': {
                             'journaux': {'select': 'Code,Libelle,CompteContrepartie,TypeJournal',
                                             'from':' Journaux',
                                             'where': "TypeJournal = 'T'",
-                                            'filtre':"AND (Code like \"%xxx%\" OR Intitule like \"%xxx%\")"},
+                                            'filtre':"AND (Code like \"%xxx%\" OR Libelle like \"%xxx%\")"},
                             }}
 
 MATRICE_COMPTES = {
@@ -47,6 +47,8 @@ MATRICE_JOURNAUX = {
     'lstChamps': ['ID','libelle','contrepartie','type'],
     'lstNomsColonnes': ["code","libelle",'contrepartie','type'],
     'lstTypes': ['INTEGER','VARCHAR(130)','VARCHAR(60)','VARCHAR(10)'],
+    'lstValDefColonnes':[1,'','','',''],
+    'lstLargeurColonnes':[90,-1,100,60]
     }
 
 def GetLstComptas():
@@ -235,6 +237,6 @@ if __name__ == u"__main__":
     os.chdir("..")
     app = wx.App(0)
     cpt = Compta(None,compta='quadra')
-    print(cpt.GetOneAuto('fournisseurs','sncf internet paris'),cpt.filtreTest)
-    cpt.ChoisirItem('fournisseurs','sncfi')
+    #print(cpt.GetOneAuto('fournisseurs','sncf internet paris'),cpt.filtreTest)
+    cpt.ChoisirItem('clients','brunel')
     app.MainLoop()

@@ -36,7 +36,7 @@ MATRICE_CONFIG = {
          'btnAction': 'OnClicFloat', 'ctrlAction': 'OnEnterFloat'},
         {'genre': 'Colour', 'name': 'couleur', 'label': 'Choisir votre couleur', 'value': wx.Colour(255, 0, 0),
          'help': 'Saisir votre couleur préférée', 'btnLabel': None, 'btnHelp': None},
-        {'genre': 'MultiChoice', 'name': 'choix', 'label': 'Choix multiples', 'value': [],
+        {'genre': 'multichoice', 'name': 'choix', 'label': 'Choix multiples', 'value': [],
          'labels': ["choix 1", "choix 2", "choix3"]},
     ]
 }

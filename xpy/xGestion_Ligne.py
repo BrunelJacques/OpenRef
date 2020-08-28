@@ -439,7 +439,7 @@ class PNL_ctrl(wx.Panel):
         self.txt = wx.StaticText(self, wx.ID_ANY, label + " :")
         self.txt.MinSize = (110, 25)
 
-        # seul le PropertyGrid gère le multichoice, pas le comboBox
+        # seul le PropertyGrid gère le multichoices, pas le comboBox
         if genre == 'multichoice': genre = 'combo'
         lgenre,lname,llabel,lvalue = Normalise(genre, name, label, value)
         if not labels: labels = []

@@ -156,6 +156,7 @@ MATRICE_PARAMS = {
 ("compta", "Paramètres comptables"): [
     {'name': 'journal', 'genre': 'Combo', 'label': 'Journal','ctrlAction':'OnCtrlJournal',
                     'help': "Code journal utilisé dans la compta",'size':(250,30),
+                    'values':['BQ','LCL','LBP','CCP'],
                     'btnLabel': "...", 'btnHelp': "Cliquez pour choisir un journal",
                     'btnAction': 'OnBtnJournal'},
     {'name': 'contrepartie', 'genre': 'String', 'label': 'Contrepartie',
@@ -231,7 +232,6 @@ class PNL_params(xgc.PNL_paramsLocaux):
                 }
         super().__init__(parent, **kwds)
         self.Init()
-        self.lstIDjournaux = None
 
 class PNL_corpsOlv(xgte.PNL_corps):
     #panel olv avec habillage optionnel pour des boutons actions (à droite) des infos (bas gauche) et boutons sorties
@@ -376,10 +376,25 @@ class Dialog(xusp.DLG_vide):
     # ------------------- Gestion des actions -----------------------
 
     def OnCtrlJournal(self,evt):
-        print('coucou le ctrl journal')
+        # tronque pour ne garder que le code journal sur trois caractères maxi
+        box = self.pnlParams.GetBox('compta')
+        valeur = self.pnlParams.lstBoxes[1].GetOneValue('journal')
+        valeur = valeur[:3].strip()
+        box.SetOneValue('journal', valeur)
+        if self.compta:
+            item = self.compta.GetOneAuto(table='journaux',filtre=valeur)
+            if item:
+                box = self.pnlParams.GetBox('compta')
+                box.SetOneValue('journal',valeur)
+                box.SetOneValue('contrepartie',item[2])
 
     def OnBtnJournal(self,evt):
-        print('coucou le bouton journal')
+        if self.compta:
+            item = self.compta.ChoisirItem(table='journaux')
+            if item:
+                box = self.pnlParams.GetBox('compta')
+                box.SetOneValue('journal',item[0])
+                box.SetOneValue('contrepartie',item[2])
 
     def OnChoixExport(self,evt):
         self.compta = self.GetCompta()
@@ -417,13 +432,11 @@ class Dialog(xusp.DLG_vide):
         # appel des journaux
         if compta:
             lstJournaux = compta.GetJournaux()
-            self.lstIDjournaux = [x[0] for x in lstJournaux]
-            self.lstContreparties = [x[2] for x in lstJournaux]
-            self.lstLibJournaux = [(x[0]+"   ")[:3]+' - '+x[1] for x in lstJournaux]
+            lstLibJournaux = [(x[0]+"   ")[:3]+' - '+x[1] for x in lstJournaux]
+            box = self.pnlParams.GetBox('compta')
             valeur = self.pnlParams.lstBoxes[1].GetOneValue('journal')
-            #self.pnlParams.lstBoxes[1].SetOneValues('journal',self.lstLibJournaux)
-            self.pnlParams.lstBoxes[1].SetOneValue('journal',valeur+"xxx")
-            val = self.pnlParams.lstBoxes[1].GetOneValue('journal')
+            box.SetOneValues('journal',lstLibJournaux)
+            box.SetOneValue('journal',valeur)
         return compta
 
     def GetTable(self):
