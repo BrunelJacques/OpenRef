@@ -94,7 +94,7 @@ class MENU():
 
     def On_config(self,event):
         #lance la configuration initiale à la base de donnée pincipale
-        self.parent.SaisieConfig()
+        ret = self.parent.SaisieConfig()
 
     def On_utilisateurs(self,event):
         ncident.AfficheUsers()

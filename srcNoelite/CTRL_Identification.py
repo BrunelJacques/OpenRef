@@ -164,6 +164,7 @@ class Dialog(wx.Dialog):
         self.parent = parent
         self.echec = False
         self.dictUtilisateur = None
+        self.listeUtilisateurs = []
         argStart = sys.argv
         # lancement avec des arguments, le premier est l'user
         if len(argStart) > 1:
@@ -172,13 +173,18 @@ class Dialog(wx.Dialog):
         else:
             DB = xdb.DB()
             if DB.echec:
-                self.parent.SaisieConfig()
-                DB = xdb.DB()
-                if DB.echec:
-                    self.echec = True
-                    return
+                ret = self.parent.SaisieConfig()
+                if ret == wx.ID_OK:
+                    DB = xdb.DB()
+                    if DB.echec:
+                        self.echec = True
+                else: self.echec = True
+            # l'identification n'a de sens qu'en réseau
+            if not DB.isNetwork:
+                self.echec = True
             DB.Close()
-            self.listeUtilisateurs = GetListeUsers()
+            if not self.echec:
+                self.listeUtilisateurs = GetListeUsers()
             self.dictUtilisateur = None
 
             self.staticbox = wx.StaticBox(self, -1, "")

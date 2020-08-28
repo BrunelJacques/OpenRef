@@ -202,7 +202,7 @@ class DLG_identification(wx.Dialog):
         cfg.SetDict(dic, groupe='USER',close=False)
         dic = self.ctrlID.GetValeurs()
         cfg.SetDict(dic['ident'], groupe='IDENT')
-        self.Destroy()
+        self.EndModal(wx.ID_OK)
 
     def OnCtrlAction(self,event):
         #action evènement Enter sur le contrôle combo, correspond à un changement de choix

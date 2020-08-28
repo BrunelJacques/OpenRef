@@ -124,7 +124,7 @@ class MENU():
 
     def On_config(self,event):
         #lance la configuration initiale à la base de donnée pincipale
-        self.parent.SaisieConfig()
+        ret = self.parent.SaisieConfig()
 
     def On_implant(self,event):
         #appel de l'implantation compta

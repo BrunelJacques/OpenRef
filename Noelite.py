@@ -3,7 +3,6 @@
 
 # Noelite.py : Lanceur d'une application Noethys version lite
 
-import sys
 import os
 import wx
 import xpy.xAppli as xAppli
@@ -56,16 +55,14 @@ class MyFrame(xAppli.MainFrame):
         self.SetStatusText("Noelite est lancé!")
         self.Show()
         dlg = ncident.Dialog(self)
-        if dlg.echec:
-            self.Destroy()
-            return
         etat = False
-        self.dicUser = dlg.GetDictUtilisateur()
-        if not self.dicUser:
-            ret = dlg.ShowModal()
+        if not dlg.echec:
             self.dicUser = dlg.GetDictUtilisateur()
-            if self.dicUser:
-                etat = True
+            if not self.dicUser:
+                ret = dlg.ShowModal()
+                self.dicUser = dlg.GetDictUtilisateur()
+                if self.dicUser:
+                    etat = True
         dlg.Destroy()
         for numMenu in range(1,2):
             self.menu.EnableTop(numMenu, etat)

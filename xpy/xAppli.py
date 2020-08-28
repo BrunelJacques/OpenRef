@@ -233,7 +233,7 @@ class MainFrame(wx.Frame):
     def SaisieConfig(self):
         import xpy.xGestionConfig as gc
         cfg = gc.DLG_identification(self, style = wx.RESIZE_BORDER )
-        cfg.ShowModal()
+        return cfg.ShowModal()
 
 
 #************************   Pour Test    *******************************

@@ -3,8 +3,6 @@
 
 # myXappli.py : Exemple de lanceur d'une application standard
 
-import sys
-import os
 import wx
 import xpy.xAppli as xAppli
 
@@ -35,7 +33,7 @@ class MyFrame(xAppli.MainFrame):
         self.CreateStatusBar()
         self.SetStatusText("xPY roule pour vous!")
         self.Show()
-        self.SaisieConfig()
+        ret = self.SaisieConfig()
         #self.ConnexionReseau()
         #self.ConnexionLocal()
         #self.SuiviActivite()

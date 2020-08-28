@@ -63,7 +63,10 @@ class DB():
             # appel des params de connexion stockés dans Data
             cfg = xucfg.ParamFile()
             configs= cfg.GetDict(groupe='CONFIGS')
-            nomConfig = choix['config']
+            if 'config' in choix.keys():
+                nomConfig = choix['config']
+            else: nomConfig=None
+            self.cfgParams = None
             try:
                 # priorité la config passée en kwds puis recherche de la dernière config dans 'USER'
                 if config:
@@ -83,17 +86,18 @@ class DB():
                     # on récupére les paramétres dans toutes les configs par le pointeur ix dans les clés
                     self.cfgParams = configs['lstConfigs'][ix][grpConfig]
                 # on ajoute les choix  de mot passe aux paramètres de la config retenue
-                for cle, valeur in choix.items():
-                    self.cfgParams[cle] = valeur
-                if self.cfgParams['serveur'][-1:] in ('/','\\'):
-                    self.nomBase = self.cfgParams['serveur']+self.cfgParams['nameDB']
-                else:
-                    self.nomBase = self.cfgParams['serveur']+'\\'+self.cfgParams['nameDB']
+                if self.cfgParams:
+                    for cle, valeur in choix.items():
+                        self.cfgParams[cle] = valeur
+                    if self.cfgParams['serveur'][-1:] in ('/','\\'):
+                        self.nomBase = self.cfgParams['serveur']+self.cfgParams['nameDB']
+                    else:
+                        self.nomBase = self.cfgParams['serveur']+'\\'+self.cfgParams['nameDB']
             except Exception as err:
                 wx.MessageBox("La récup des identifiants de connexion a échoué : \nErreur detectee :%s" % err)
                 self.erreur = err
                 return
-
+            if not self.cfgParams : return
             # Ouverture des bases de données selon leur type
             if 'typeDB' in self.cfgParams:
                 self.typeDB = self.cfgParams['typeDB'].lower()
