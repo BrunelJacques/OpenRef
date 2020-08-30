@@ -128,7 +128,7 @@ def ComposeFuncExp(dicParams,donnees,champsIn):
 
 # formats possibles des fichiers en entrées et sortie, utiliser les mêmes codes des champs pour les 'ComposeFunc'
 FORMATS_IMPORT = {"LCL carte":{ 'champs':['date','montant','mode',None,'libelle',None,None,'codenat','nature',],
-                                'lignesentete':3,
+                                'lignesentete':0,
                                 'fonction':ComposeFuncImp,
                                 'table':'fournisseurs'}}
 
@@ -282,8 +282,11 @@ class PNL_corpsOlv(xgte.PNL_corps):
         if code == 'compte':
             table = self.parent.table
             record = self.parent.compta.GetOneAuto(table,value)
-            newfiltre = self.parent.compta.filtreTest
+            # deuxième essai dans les comptes généraux
+            if not record:
+                record = self.parent.compta.GetOneAuto('generaux', value)
             # tentative de recherche mannuelle
+            newfiltre = self.parent.compta.filtreTest
             if not record:
                 record = self.parent.compta.ChoisirItem('fournisseurs',newfiltre)
             # alimente les champs ('compte','appel','libelle'), puis répand l'info
@@ -299,6 +302,10 @@ class PNL_corpsOlv(xgte.PNL_corps):
                 # RepandreCompte sur les autres lignes similaires
                 self.RepandreCompte(track)
                 self.ctrlOlv.Refresh()
+            else:
+                track.appel = ''
+                track.libcpt = ''
+
 
         # enlève l'info de bas d'écran
         self.parent.pnlPied.SetItemsInfos( INFO_OLV,wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
@@ -437,6 +444,10 @@ class Dialog(xusp.DLG_vide):
             valeur = self.pnlParams.lstBoxes[1].GetOneValue('journal')
             box.SetOneValues('journal',lstLibJournaux)
             box.SetOneValue('journal',valeur)
+        pnlJournal = self.pnlParams.GetPanel('journal', 'compta')
+        x = False
+        if compta : x = True
+        pnlJournal.btn.Enable(x)
         return compta
 
     def GetTable(self):
@@ -498,13 +509,17 @@ class Dialog(xusp.DLG_vide):
         if 'piece' in champs:
             ixp = champs.index('piece')
             lastPiece = lstValeurs[-1][ixp]
-            self.pnlParams.lstBoxes[1].SetOneValue('compta.lastpiece',lastPiece)
-
+            box = self.pnlParams.GetBox('compta')
+            box.SetOneValue('compta.lastpiece',lastPiece)
         # affichage résultat
         solde = xformat.FmtMontant(totDebits - totCredits,lg=12)
         wx.MessageBox("Fin de transfert\n\nDébits: %s\nCrédits:%s"%(xformat.FmtMontant(totDebits,lg=12),
                                                                      xformat.FmtMontant(totCredits,lg=12))+
                       "\nSolde:   %s"%solde)
+
+        # sauvegarde des params
+        self.pnlParams.SauveParams(close=True)
+
 
 #------------------------ Lanceur de test  -------------------------------------------
 

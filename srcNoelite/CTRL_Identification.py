@@ -136,7 +136,6 @@ class CTRL_mdp(wx.SearchCtrl):
                 self.choix['pseudo'] =  dictUtilisateur['prenom'] + " " + dictUtilisateur['nom']
                 self.choix['nom'] = dictUtilisateur['nom']
                 self.choix['prenom'] = dictUtilisateur['prenom']
-                self.choix['mpuser'] = dictUtilisateur['mdp']
                 self.choix['IDutilisateur'] =  dictUtilisateur['IDutilisateur']
                 self.choix['droits'] = dictUtilisateur['droits']
                 self.choix['profil'] = dictUtilisateur['profil']
@@ -188,7 +187,7 @@ class Dialog(wx.Dialog):
             self.dictUtilisateur = None
 
             self.staticbox = wx.StaticBox(self, -1, "")
-            self.label = wx.StaticText(self, -1, "Veuillez saisir votre code d'identification personnel ou 'local' :")
+            self.label = wx.StaticText(self, -1, "Veuillez saisir votre mot de passe Noethys :")
             self.ctrl_mdp = CTRL_mdp(self, listeUtilisateurs=self.listeUtilisateurs, modeDLG=True)
         
             self.bouton_annuler = CTRL_Bouton_image(self, id=wx.ID_CANCEL, texte="Annuler", cheminImage="xpy/Images/32x32/Annuler.png")

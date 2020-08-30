@@ -51,8 +51,8 @@ class DB():
         self.echec = 1
         self.IDconnexion = IDconnexion
         self.nomBase = 'personne!'
+        self.isNetwork = False
         if nomFichier:
-            self.isNetwork = False
             self.OuvertureFichierLocal(nomFichier)
             return
         if not IDconnexion:
@@ -164,7 +164,6 @@ class DB():
             passwd = config['mpUserDB']
             nomFichier = config['nameDB']
             self.pseudo = config['pseudo']
-            self.mpUtilisateur = config['mpuser']
             self.utilisateur = os.environ['USERNAME']
             self.domaine =  os.environ['USERDOMAIN']
             etape = 'Ping %s'%(host)

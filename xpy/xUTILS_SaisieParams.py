@@ -445,6 +445,7 @@ class PNL_ctrl(wx.Panel):
                  btnLabel=None, btnHelp=None, btnAction='', ctrlAction='', enable=True, size=None, **kwds):
         wx.Panel.__init__(self,parent,*args, **kwds)
         self.value = value
+        self.name = name
         if btnLabel :
             self.avecBouton = True
         else: self.avecBouton = False
@@ -713,6 +714,10 @@ class BoxPanel(wx.Panel):
 
     # Get du ctrl nommé
     def GetOneValue(self,name = ''):
+        lrad = name.split('.')
+        if lrad == 2:
+            [code,champ] = lrad
+            name = champ
         value = None
         self.dictDonnees = self.GetValues()
         if name in self.dictDonnees:
@@ -722,7 +727,7 @@ class BoxPanel(wx.Panel):
     # Set du ctrl nommé
     def SetOneValue(self,name = '', value=None):
         for panel in self.lstPanels:
-            [code, champ] = panel.ctrl.nameCtrl.split('.')
+            [code,champ] = panel.ctrl.nameCtrl.split('.')
             if champ == name or panel.ctrl.nameCtrl == name:
                     panel.SetValue(value)
         return
@@ -736,6 +741,15 @@ class BoxPanel(wx.Panel):
                     if panel.ctrl.genreCtrl.lower() in ['enum', 'combo','multichoice']:
                         panel.SetValues(values)
         return
+
+    def GetPnlCtrl(self,name = ''):
+        pnlctrl = None
+        for panel in self.lstPanels:
+            [code,champ] = panel.ctrl.nameCtrl
+            if champ == name or panel.ctrl.nameCtrl == name:
+                pnlctrl
+        return pnlctrl
+
 
 class TopBoxPanel(wx.Panel):
     #gestion de pluieurs BoxPanel juxtaposées horizontalement
@@ -782,6 +796,26 @@ class TopBoxPanel(wx.Panel):
             if box.code == codeBox:
                 return box
 
+    def GetPanel(self,name,codebox=None):
+        panel = None
+        lrad = name.split('.')
+        if codebox:
+            box = self.GetBox(codebox)
+            name = lrad[-1]
+        elif lrad == 2:
+            [code,name] = lrad
+            box = self.GetBox(code)
+        else:
+            for box in self.lstBoxes:
+                for pnlctrl in box.lstPanels:
+                    if pnlctrl.name == lrad[-1]:
+                        panel = pnlctrl
+                        break
+        if not panel:
+            for pnlctrl in box.lstPanels:
+                if pnlctrl.name == name:
+                    panel = pnlctrl
+        return panel
 
 class DLG_listCtrl(wx.Dialog):
     #Dialog contenant le PNL_listCtrl qui intégre la gestion ajout,

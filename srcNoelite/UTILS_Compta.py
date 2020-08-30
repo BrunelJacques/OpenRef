@@ -24,11 +24,11 @@ MATRICE_COMPTAS = {'quadra': {
                             'clients':  {'select': 'Numero,CleDeux,Intitule',
                                             'from'  : 'Comptes',
                                             'where' : "Type = 'C'",
-                                            'filtre':"AND (CleDeux like \"%xxx%\" OR Intitule like \"%xxx%\")"},
+                                            'filtre':"AND (Numero like \"%xxx%\" OR CleDeux like \"%xxx%\" OR Intitule like \"%xxx%\")"},
                             'generaux': {'select': 'Numero,CleDeux,Intitule',
                                             'from'  :'Comptes',
                                             'where' : "Type = 'G'",
-                                            'filtre':"AND (CleDeux like \"%xxx%\" OR Intitule like \"%xxx%\")"},
+                                            'filtre':"AND (Numero like \"%xxx%\" OR CleDeux like \"%xxx%\" OR Intitule like \"%xxx%\")"},
                             'journaux': {'select': 'Code,Libelle,CompteContrepartie,TypeJournal',
                                             'from':' Journaux',
                                             'where': "TypeJournal = 'T'",
@@ -188,11 +188,11 @@ class Compta(object):
         self.table = table
 
         # fonction recherche un seul items contenant un mot limité à lg caractères puis décroisant
-        def testMatch(mot,lg=10):
+        def testMatch(mot,lg=10,mini=3):
             lstTemp = []
             match = False
-            for lgtest in range(lg,2,-1):
-                lstTemp = self.GetDonnees(filtre=mot[:lgtest+1])
+            for lgtest in range(lg,mini-1,-1):
+                lstTemp = self.GetDonnees(filtre=mot[:lgtest],table=table)
                 if len(lstTemp) == 0 : continue
                 elif len(lstTemp) == 1 :
                     match = True
@@ -208,11 +208,12 @@ class Compta(object):
             return match, lstTemp,lgtest
 
         # appel avec 10 caractères du filtre puis réduit jusqu'a trouver au moins un item (cible clé d'apppel)
-        match,lstItems,lgtest = testMatch(filtre.replace(' ',''),lg=10)
+        lstMots = filtre.split(' ')
+        lgMotUn = len(lstMots[0])
+        match,lstItems,lgtest = testMatch(filtre.replace(' ',''),lg=10,mini=max(3,lgMotUn))
         motTest = filtre.replace(' ','')[:lgtest+1]
         # deuxième tentative avec chaque mot du filtre de + de 3 car (cible libellé)
         if not match:
-            lstMots = filtre.split(' ')
             lstIx = []
             # calcul des longeurs pour traitement par lg décroissante item 'xx0yy' xx = lg yy=ix
             for ix in range(len(lstMots)):
@@ -221,7 +222,8 @@ class Compta(object):
             # appel par mot de longeur décroissante
             for pointeur in sorted(lstIx,reverse=True):
                 ix = pointeur%1000
-                match, lstItems, lgtest2 = testMatch(lstMots[ix],lg=min(10,len(lstMots[ix])))
+                lgMot = len(lstMots[ix])
+                match, lstItems, lgtest2 = testMatch(lstMots[ix],lg=min(10,len(lstMots[ix])),mini=max(3,lgMot))
                 if len(lstItems)>0 and lgtest2 + 1 > len(motTest):
                     motTest = lstMots[ix][:lgtest2 + 1]
                 if match: break
