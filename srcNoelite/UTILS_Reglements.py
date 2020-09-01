@@ -339,7 +339,7 @@ def GetReglements(IDdepot):
         creer = "N"
         # la reprise force la non création car déjà potentiellement fait. IDpiece contient l'ID de la prestation créée
         lstDonneesTrack = [IDreglement, date, IDfamille, designation,payeur, labelmode, numero, "", "", libelle,
-                           montant, creer, compta]
+                           montant, creer, compta,IDpiece]
         listeDonnees.append(lstDonneesTrack)
     db.Close()
     return listeDonnees
@@ -417,6 +417,41 @@ def SauveLigne(dlg,track):
     db.Close()
     return ret
 
+def DeleteLigne(noLigne,track):
+    # --- Supprime les différents éléments associés à la ligne ---
+    db = xdb.DB()
+    # si le montant est à zéro il n'y a pas eu d'enregistrements
+    if track.montant != 0.0:
+        # suppression  du réglement et des ventilations
+        ret = db.ReqDEL("reglements", "IDreglement", track.IDreglement,affichError=False)
+        # --- Mémorise l'action dans l'historique ---
+        if ret == 'ok':
+            IDcategorie = 8
+            categorie = "Suppression"
+            nuh.InsertActions([{
+                "IDfamille": track.IDfamille,
+                "IDcategorie": IDcategorie,
+                "action": "Noelite %s du règlement ID%d"%(categorie, track.IDreglement),
+                },])
+
+        db.ReqDEL("ventilation", "IDreglement", track.IDreglement)
+
+        # gestion de la prestation associée
+        if ret and track.IDprestation:
+            ret = db.ReqDEL("prestations", "IDprestation", track.IDprestation)
+            if ret == 'ok':
+                IDcategorie = 8
+                categorie = "Suppression"
+                nuh.InsertActions([{
+                    "IDfamille": track.IDfamille,
+                    "IDcategorie": IDcategorie,
+                    "action": "Noelite %s de la prestation ID%d" % (categorie, track.IDprestation),
+                }, ])
+
+    db.Close()
+    return
+
+
 def SetPrestation(dlg,track,db):
     # --- Sauvegarde de la prestation ---
     listeDonnees = [
@@ -441,6 +476,10 @@ def SetPrestation(dlg,track,db):
         ret = db.ReqMAJ("prestations", listeDonnees, "IDprestation", track.IDprestation)
         IDcategorie = 7
         categorie = "Modification"
+
+    # mise à jour du règlement sur son numéro de pièce (ID de la prestation
+    listeDonnees = [("IDpiece",track.IDprestation)]
+    ret = db.ReqMAJ("reglements", listeDonnees, "IDreglement", track.IDreglement)
 
     # --- Mémorise l'action dans l'historique ---
     if ret == 'ok':
@@ -518,7 +557,7 @@ def SetReglement(dlg,track,db):
         nuh.InsertActions([{
             "IDfamille": track.IDfamille,
             "IDcategorie": IDcategorie,
-            "action": ("Noelite %s du règlement ID%d : %s en %s %spayé par %s") % (
+            "action": "Noelite %s du règlement ID%d : %s en %s %spayé par %s" % (
             categorie, track.IDreglement, montant, texteMode, texteDetail, textePayeur),
         }, ])
     return True

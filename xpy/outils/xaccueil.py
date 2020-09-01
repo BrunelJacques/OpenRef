@@ -180,7 +180,7 @@ class Panel_Titre(wx.Panel):
 
     def GetVersion(self):
         chemin = self.parent.dictAppli['REP_SOURCES']
-        fichier = xfichiers.GetFichierCsv(chemin + '/versions.txt')
+        fichier = xfichiers.GetFichierCsv(chemin + '/Versions.txt')
         version = None
         if fichier and len(fichier)>0:
             version = fichier[0][0]

@@ -505,6 +505,22 @@ class ListView(FastObjectListView):
     def SupprimerFiltres(self, event=None):
         self.parent.ctrloutils.SupprimerFiltres()
 
+    def OnDelete(self,event):
+        ix = 0
+        for obj in self.GetSelectedObjects():
+            # suppression des lignes pour la saisie
+            ix = self.lastGetObjectIndex
+            # appel des éventuels spécifiques sur OnDelete
+            if hasattr(self.parent, 'OnDelete'):
+                self.parent.OnDelete(ix,obj,parent=self)
+            event.Skip()
+            #Suppression dans l'OLV
+            self.modelObjects.remove(obj)
+        self.RepopulateList()
+        self._SelectAndFocus(ix)
+        return True
+
+
 class PanelListView(wx.Panel):
     # Le Panel contiendra le listView et le footer, attention à l'étape généalogique supplémentaire
     def __init__(self, parent, **kwargs):
@@ -599,7 +615,7 @@ class PanelListView(wx.Panel):
         row, col = self.ctrl_listview.cellBeingEdited
         code = self.ctrl_listview.lstCodesColonnes[col]
         # appel des éventuels spécifiques
-        if hasattr(self.Parent, 'OnEditStarted'):
+        if hasattr(self.parent, 'OnEditStarted'):
             self.parent.OnEditStarted(code)
 
         olv = self.ctrl_listview
@@ -611,7 +627,7 @@ class PanelListView(wx.Panel):
 
     def ValideLigne(self,track):
         # Cette procédure peut générer deux attributs track.valide track.message interceptés par CellEditor.
-        if hasattr(self.Parent, 'ValideLigne'):
+        if hasattr(self.parent, 'ValideLigne'):
             self.parent.ValideLigne(track)
 
     def OnEditFinishing(self, event):
@@ -621,7 +637,7 @@ class PanelListView(wx.Panel):
         self.valeur = self.ctrl_listview.cellEditor.GetValue()
         code = self.ctrl_listview.lstCodesColonnes[col]
         # appel des éventuels spécifiques
-        if hasattr(self.Parent, 'OnEditFinishing'):
+        if hasattr(self.parent, 'OnEditFinishing'):
             self.parent.OnEditFinishing(code,self.valeur,parent=self)
         # stockage de la nouvelle saisie
         track.__setattr__(code, self.valeur)

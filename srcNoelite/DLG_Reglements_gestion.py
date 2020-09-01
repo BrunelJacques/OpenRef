@@ -73,6 +73,8 @@ def GetOlvColonnes(dlg):
                             stringConverter=xformat.FmtCheck),
             ColumnDefn("differé", 'center', 80, 'differe', valueSetter=wx.DateTime.Today(), isSpaceFilling=False,
                    stringConverter=xformat.FmtDate,),
+            ColumnDefn("IDprestation", 'centre', 0, 'IDprestation',
+                            isEditable=False),
             ]
 
 def GetOlvOptions(dlg):
@@ -289,6 +291,9 @@ class PNL_corpsReglements(xgte.PNL_corps):
             IDfamille = nur.GetFamille()
             self.OnEditFinishing('IDfamille',IDfamille)
             self.ctrlOlv.lastGetObject.IDfamille = IDfamille
+
+    def OnDelete(self,noligne,track,parent=None):
+        nur.DeleteLigne(noligne,track)
 
 class PNL_Pied(xgte.PNL_Pied):
     #panel infos (gauche) et boutons sorties(droite)
