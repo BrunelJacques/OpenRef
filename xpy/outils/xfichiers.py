@@ -15,13 +15,17 @@ def GetFichierCsv(nomFichier,delimiter="\t",detect=True):
     if platform.system() == "Windows":
         nomFichier = nomFichier.replace("/", "\\")
     # ouverture du fichier en lecture seule
-    fichier = open(nomFichier, "rt")
+    try:
+        fichier = open(nomFichier, "rt")
+    except Exception as err :
+        wx.MessageBox("Erreur d'accès au fichier\n\nAppel: %s\nErreur: %d, %s"%(nomFichier,err.args[0],err.args[1]))
+        return []
     # csv.reader est la fonction qui lit le fichier ouvert
     donnees = [x for x in csv.reader(fichier,delimiter=delimiter)]
     fichier.close()
     if detect and len(donnees[0]) == 1:
         # le séparateur n'etait pas le bon ou inexistant, essais avec ';'
-        donnees = GetFichierCsv(nomFichier, delimiter=";")
+        donnees = GetFichierCsv(nomFichier, delimiter=";",detect=False)
     return donnees
 
 if __name__ == '__main__':

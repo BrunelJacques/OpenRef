@@ -38,11 +38,14 @@ def ComposeFuncImp(dicParams,donnees,champsOut,compta,table):
     noPiece = dicParams['compta']['lastpiece']
     champsIn = FORMATS_IMPORT[formatIn]['champs']
     nblent = FORMATS_IMPORT[formatIn]['lignesentete']
+    # longeur du préfixe ajouté lors du traitement de l'import
+    lgPrefixe = 6
     # teste la cohérence de la première ligne importée
-    if len(champsIn) != len(donnees[nblent]):
-        wx.MessageBox("Problème de fichier d'origine\n\nLe paramétrage attend les colonnes suivantes:\n\t%s"%str(champsIn) \
-                        + "\mais la ligne %d comporte %d champs :\n%s"%(nblent,len(donnees[nblent]),donnees[nblent]))
-        return []
+    if nblent>0:
+        if len(champsIn) != len(donnees[nblent]):
+            wx.MessageBox("Problème de fichier d'origine\n\nLe paramétrage attend les colonnes suivantes:\n\t%s"%str(champsIn) \
+                            + "\mais la ligne %d comporte %d champs :\n%s"%(nblent,len(donnees[nblent]),donnees[nblent]))
+            return []
 
     ixLibelle = champsOut.index('libelle')
     ixCompte = champsOut.index('compte')
@@ -52,7 +55,7 @@ def ComposeFuncImp(dicParams,donnees,champsOut,compta,table):
     def enrichiLigne(ligne):
         if len(ligne) != len(champsOut): return
         # composition des champs en liens avec la compta
-        record = compta.GetOneAuto(table,filtre=ligne[ixLibelle][lgPref:])
+        record = compta.GetOneAuto(table,lib=ligne[ixLibelle][lgPrefixe:])
         # la recherche de compte a matché
         if record:
             ligne[ixCompte] = record[0]
@@ -62,7 +65,6 @@ def ComposeFuncImp(dicParams,donnees,champsOut,compta,table):
             ligne[ixAppel] = compta.filtreTest
 
     # déroulé du fichier entrée
-    lgPref = 6
     for ligne in donnees[nblent:]:
         if len(champsIn) != len(ligne):
             # ligne batarde ignorée
@@ -79,7 +81,7 @@ def ComposeFuncImp(dicParams,donnees,champsOut,compta,table):
             elif champ  == 'libelle':
                 # ajout du début de date dans le libellé
                 if 'date' in champsIn and 'libelle' in champsIn:
-                    prefixe = ligne[champsIn.index('date')].strip()[:lgPref-1]+' '
+                    prefixe = ligne[champsIn.index('date')].strip()[:lgPrefixe-1]+' '
                     valeur = prefixe + ligne[champsIn.index('libelle')]
             # récupération des champs homonymes
             elif champ in champsIn:
@@ -461,7 +463,7 @@ class Dialog(xusp.DLG_vide):
         ixCompte = lstCodesColonnes.index('compte')
         ixAppel = lstCodesColonnes.index('appel')
         ixLibCpt = lstCodesColonnes.index('libcpt')
-        record = self.compta.GetOneAuto(self.table,filtre=ligne[ixLibelle])
+        record = self.compta.GetOneAuto(self.table,lib=ligne[ixLibelle])
         # la recherche de compte a matché
         if record:
             ligne[ixCompte] = record[0]

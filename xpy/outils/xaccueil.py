@@ -10,7 +10,7 @@
 
 import wx
 import wx.html as html
-import datetime
+from xpy.outils import xfichiers
 
 COULEUR_FOND = wx.Colour(176,153,203)
 
@@ -150,8 +150,10 @@ class CTRL_html(html.HtmlWindow):
 
 class Panel_Titre(wx.Panel):
     def __init__(self, parent, pos=(0,0),image="xpy/Images/Globe.ico",posImage=(20, 10),
-                 texte="monAppli..."*5,posLabel=(160, 40),tailleFont=18,couleurFond=None):
+                 texte="monAppli..."*5,posLabel=(160, 40),tailleFont=16,couleurFond=None):
+        self.parent = parent
         size = parent.GetSize()
+
         size[1] = 145
         wx.Panel.__init__(self, parent, name="panel_titre", id=-1, size=size, pos=pos, style=wx.TAB_TRAVERSAL)
         
@@ -160,6 +162,29 @@ class Panel_Titre(wx.Panel):
         self.SetForegroundColour(couleurFond)
         self.label = wx.StaticText(self, -1, texte, pos=posLabel)
         self.label.SetFont(wx.Font(tailleFont, wx.DEFAULT, wx.NORMAL, wx.NORMAL, 0, ""))
+        self.version = self.GetVersion()
+        if self.version:
+            self.ctrlVersion = wx.StaticText(self, -1, self.version)
+            self.ctrlVersion.SetFont(wx.Font(tailleFont/2, wx.DEFAULT, wx.NORMAL, wx.NORMAL, 0, ""))
+        self.__do_layout()
+
+    def __do_layout(self):
+        grid_sizer = wx.FlexGridSizer(rows=5, cols=2, vgap=10, hgap=20)
+        grid_sizer.Add(self.image_titre, 0, wx.ALL, 20)
+        sizer_right = wx.FlexGridSizer(rows=5, cols=1, vgap=0, hgap=20)
+        sizer_right.Add(self.label, 0, wx.TOP, 20)
+        if self.version:
+            sizer_right.Add(self.ctrlVersion, 0, wx.TOP, 10)
+        grid_sizer.Add(sizer_right)
+        self.SetSizer(grid_sizer)
+
+    def GetVersion(self):
+        chemin = self.parent.dictAppli['REP_SOURCES']
+        fichier = xfichiers.GetFichierCsv(chemin + '/versions.txt')
+        version = None
+        if fichier and len(fichier)>0:
+            version = fichier[0][0]
+        return version
 
 class Panel_Buttons(wx.Panel):
     def __init__(self, parent,lstButtons=[],sizeFont=12,sizeBmp=80,couleurFond=None,
@@ -194,8 +219,6 @@ class Panel_Buttons(wx.Panel):
         for ctrlBtn in self.lstCtrlBtns:
             grid_sizer.Add(ctrlBtn, 1, wx.ALL, 10)
         self.SetSizer(grid_sizer)
-        #grid_sizer.AddGrowableRow(0)
-        #grid_sizer.AddGrowableCol(0)
 
 class Panel_Accueil(wx.Panel):
     def __init__(self, parent,pnlTitre=None,pnlBtnActions=None):

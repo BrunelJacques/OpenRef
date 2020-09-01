@@ -12,8 +12,6 @@ import xpy.xGestionConfig   as xgc
 import xpy.xGestionDB       as xdb
 import xpy.xUTILS_SaisieParams          as xusp
 import xpy.xGestion_TableauRecherche    as xgtr
-import xpy.xGestion_TableauEditor       as xgte
-from xpy.outils.ObjectListView import ColumnDefn
 
 # Constantes de paramétrage des accès aux bases de données
 MATRICE_COMPTAS = {'quadra': {
@@ -184,33 +182,47 @@ class Compta(object):
         return item
 
     # Recherche automatique d'un item
-    def GetOneAuto(self,table='clients',filtre=''):
+    def GetOneAuto(self,table='clients',filtre='',lib=None):
         self.table = table
+        # la recherche peut se faire sur un filtre qui est un libellé complet
+        if lib:
+            # on testera la clé d'appel dans le lib d'origine compacté
+            filtre = lib
+            lib = lib.replace(' ','')
+        # formatage du filtre
+        filtre = filtre.replace(',','')
+        lstMots = filtre.split(' ')
 
         # fonction recherche un seul items contenant un mot limité à lg caractères puis décroisant
         def testMatch(mot,lg=10,mini=3):
             lstTemp = []
             match = False
+            lgrad = 0
             for lgtest in range(lg,mini-1,-1):
                 lstTemp = self.GetDonnees(filtre=mot[:lgtest],table=table)
+                # élimine les cas où la cle d'appel du compte n'est pas présente dans le libelle complet
+                if lib:
+                    lstTemp = [x for x in lstTemp if x[1] and len(x[1]) > 2 and x[1] in lib]
                 if len(lstTemp) == 0 : continue
                 elif len(lstTemp) == 1 :
                     match = True
+                    lgrad = lgtest
                     break
                 elif len(lstTemp) == 2:
                     # teste l'identité des libellés pos(2) pour comptes en double
                     if lstTemp[0][2] == lstTemp[1][2]:
                         lstTemp = lstTemp[1:2]
                         match = True
+                        lgrad = lgtest
                         break
                 else:
                     break
-            return match, lstTemp,lgtest
+            return match, lstTemp,lgrad
 
         # appel avec 10 caractères du filtre puis réduit jusqu'a trouver au moins un item (cible clé d'apppel)
-        lstMots = filtre.split(' ')
         lgMotUn = len(lstMots[0])
-        match,lstItems,lgtest = testMatch(filtre.replace(' ',''),lg=10,mini=max(3,lgMotUn))
+        match,lstItems,lgtest = testMatch(filtre.replace(' ',''),lg=10,mini=min(4,lgMotUn))
+        if not match: lgtest = lgMotUn
         motTest = filtre.replace(' ','')[:lgtest+1]
         # deuxième tentative avec chaque mot du filtre de + de 3 car (cible libellé)
         if not match:
