@@ -134,10 +134,11 @@ class DB():
                 if self.connexion: self.echec = 0
 
     def Ping(self,serveur):
-        option = '-n' if sys.platform != 'win32' else ''
+        option = '-n' if sys.platform == 'win32' else ''
         if not serveur or len(serveur) < 3 :
             raise NameError('Pas de nom de serveur fourni dans la commande PING')
-        ret = subprocess.run(['ping', '-n', '1', '-w', '100', serveur]).returncode
+        ret = subprocess.run(['ping', option, '1', '-w', '300', serveur,],
+                             capture_output=True).returncode
         if ret != 0:
             raise NameError("Pas de réponse du serveur %s à la commande PING"%serveur)
         return True

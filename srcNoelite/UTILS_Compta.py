@@ -12,8 +12,9 @@ import xpy.xGestionConfig   as xgc
 import xpy.xGestionDB       as xdb
 import xpy.xUTILS_SaisieParams          as xusp
 import xpy.xGestion_TableauRecherche    as xgtr
+from xpy.outils             import xexport
 
-# Constantes de paramétrage des accès aux bases de données
+# Paramétrage des accès aux bases de données, les 'select' de _COMPTAS doivent respecter 'lstChamps' de  _COMPTES
 MATRICE_COMPTAS = {'quadra': {
                             'fournisseurs':{'select':'Numero,CleDeux,Intitule',
                                             'from'  :'Comptes',
@@ -49,9 +50,114 @@ MATRICE_JOURNAUX = {
     'lstLargeurColonnes':[90,-1,100,60]
     }
 
+# Transposition des valeurs Export, gérer chaque item FORMAT_xxxx pour les spécificités
+def ComposeFuncExp(dicParams,donnees,champsIn,champsOut):
+    # 'in' est l'OLV, 'out' est le fichier de sortie
+    lstOut = []
+    formatOut = dicParams['fichiers']['formatexp']
+    for ligne in donnees:
+        ligneOut = []
+        typePiece = "B" # cas par défaut B comme carte Bancaire
+        for champ in champsOut:
+            valeur = None
+            # composition des champs sortie
+            if champ    == 'journal':   valeur = dicParams['compta']['journal']
+            elif champ  == 'typepiece': valeur = typePiece
+            elif champ  == 'contrepartie': valeur = dicParams['compta']['contrepartie']
+            elif champ  == 'debit':
+                montant = float(ligne.donnees[champsIn.index("montant")].replace(",","."))
+                if montant < 0.0: valeur = -montant
+                else: valeur = 0.0
+            elif champ  == 'credit':
+                montant = float(ligne.donnees[champsIn.index("montant")].replace(",","."))
+                if montant >= 0.0: valeur = montant
+                else: valeur = 0.0
+            # récupération des champs homonymes (date, compte, libelle, piece...)
+            elif champ in champsIn:
+                valeur = ligne.donnees[champsIn.index(champ)]
+            ligneOut.append(valeur)
+        lstOut.append(ligneOut)
+        # ajout de la contrepartie banque
+        ligneBanque = [x for x in ligneOut]
+        ligneBanque[champsOut.index('contrepartie')]    = ligneOut[champsOut.index('compte')]
+        ligneBanque[champsOut.index('compte')]          = dicParams['compta']['contrepartie']
+        ligneBanque[champsOut.index('debit')]    = ligneOut[champsOut.index('credit')]
+        ligneBanque[champsOut.index('credit')]    = ligneOut[champsOut.index('debit')]
+        lstOut.append(ligneBanque)
+    return lstOut
+
+def ExportExcel(formatExp, lstValeurs):
+    matrice = FORMATS_EXPORT[formatExp]['matrice']
+    champsOut   = [x['code'] for x in matrice]
+    widths      = [x['lg'] for x in matrice]
+    lstColonnes = [[x, None, widths[champsOut.index(x)], x] for x in champsOut]
+    # envois dans un fichier excel
+    xexport.ExportExcel(listeColonnes=lstColonnes,
+                        listeValeurs=lstValeurs,
+                        titre=formatExp)
+
+def ExportQuadra(formatExp, valeurs):
+    matrice = FORMATS_EXPORT[formatExp]['matrice']
+    # envois dans un fichier texte
+    xexport.ExportLgFixe(nomfic=formatExp+".txt",matrice=matrice,valeurs=valeurs)
+
+FORMATS_EXPORT = {"Quadra via Excel":{  'compta':'quadra',
+                                        'fonction':ComposeFuncExp,
+                                        'matrice':[{'code':'journal',   'lg': 40,},
+                                                   {'code':'date',      'lg': 80,},
+                                                   {'code':'compte',    'lg': 60,},
+                                                   {'code':'typepiece', 'lg': 25,},
+                                                   {'code':'libelle',   'lg': 240,},
+                                                   {'code':'debit',     'lg': 60,},
+                                                   {'code':'credit',    'lg': 60,},
+                                                   {'code':'piece',     'lg': 60,},
+                                                   {'code':'contrepartie','lg': 60,},
+                                                   ],
+                                        'genere':ExportExcel},
+                  "Quadra import ASCII": { 'compta':'quadra',
+                                        'fonction':ComposeFuncExp,
+                                        'matrice':[{'code':'journal',   'lg': 40,},
+                                                   {'code':'date',      'lg': 80,},
+                                                   {'code':'compte',    'lg': 60,},
+                                                   {'code':'typepiece', 'lg': 25,},
+                                                   {'code':'libelle',   'lg': 240,},
+                                                   {'code':'debit',     'lg': 60,},
+                                                   {'code':'credit',    'lg': 60,},
+                                                   {'code':'piece',     'lg': 60,},
+                                                   {'code':'contrepartie','lg': 60,},
+                                                   ],
+                                        'genere':ExportQuadra},
+                  }
+
 def GetLstComptas():
     lstCpta = [x for x in MATRICE_COMPTAS.keys()]
     return lstCpta
+
+class Export(object):
+    def __init__(self,parent,compta):
+        self.parent = parent
+        self.nameCpta = compta.nameCpta
+
+    def Exporte(self,params={},donnees=[],olv=None):
+        # génération du fichier
+        formatExp = params['fichiers']['formatexp']
+        champsOut = [x['code'] for x in FORMATS_EXPORT[formatExp]['matrice']]
+
+        # transposition des lignes par l'appel de la fonction 'ComposeFuncExp'
+        lstValeurs = FORMATS_EXPORT[formatExp]['fonction'](donnees,
+                                                            olv.innerList,
+                                                            olv.lstCodesColonnes,
+                                                            champsOut)
+        # appel de la fonction génération fichier
+        FORMATS_EXPORT[formatExp]['genere'](formatExp,lstValeurs)
+
+        # mise à jour du dernier numero de pièce affiché avant d'être sauvegardé
+        if 'piece' in champsOut:
+            ixp = champsOut.index('piece')
+            lastPiece = lstValeurs[-1][ixp]
+            box = self.parent.pnlParams.GetBox('compta')
+            box.SetOneValue('compta.lastpiece',lastPiece)
+        return
 
 # ouvre la base de donnée compta et interagit
 class Compta(object):

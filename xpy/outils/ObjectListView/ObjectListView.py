@@ -566,8 +566,13 @@ class ObjectListView(wx.ListCtrl):
         """
         return self.AddNamedImages(None, smallImage, normalImage)
 
-    def GetTrackVierge(self):
-        return TrackVierge(self)
+    def GetTrackVierge(self,row = None):
+        if not row or row == 0:
+            return TrackVierge(self)
+        track = TrackVierge(self)
+        if hasattr(self.Parent,'InitTrackVierge'):
+            self.Parent.InitTrackVierge(track,self.modelObjects[row-1])
+        return track
 
     def AddObject(self, modelObject):
         """
@@ -1016,7 +1021,7 @@ class ObjectListView(wx.ListCtrl):
 
     def AutoAddRow(self):
         # création automatique d'une nouvelle ligne pour la saisie
-        self.modelObjects.append(self.GetTrackVierge())
+        self.modelObjects.append(self.GetTrackVierge(row=len(self.modelObjects)))
 
     def SetObjects(self, modelObjects, preserveSelection=False):
         """
@@ -1424,7 +1429,8 @@ class ObjectListView(wx.ListCtrl):
     def OnInsert(self,evt):
         # création automatique d'une nouvelle ligne pour la saisie
         ix = self.lastGetObjectIndex
-        self.modelObjects.insert(ix, self.GetTrackVierge())
+        self.modelObjects.insert(ix, self.GetTrackVierge(row=ix+1))
+
         self.RepopulateList()
         self._SelectAndFocus(ix)
         return True
@@ -2321,6 +2327,7 @@ class ObjectListView(wx.ListCtrl):
 
         # Give the world the chance to veto the edit, or to change its characteristics
         rowModel = self.GetObjectAt(rowIndex)
+        rowModel.vierge = False
         evt = OLVEvent.CellEditFinishingEvent(
             self,
             rowIndex,
@@ -2419,8 +2426,8 @@ class ObjectListView(wx.ListCtrl):
 
     def SetFiltresColonnes(self, listeFiltresColonnes=[]):
         self.listeFiltresColonnes = listeFiltresColonnes
-        if self.parent.ctrloutils.barreRecherche != None:
-            self.parent.ctrloutils.barreRecherche.Cancel()
+        if self.Parent.ctrloutils.barreRecherche != None:
+            self.Parent.ctrloutils.barreRecherche.Cancel()
         self.Filtrer()
 
     def formatageFiltres(self, listeFiltres=[]):
@@ -4465,6 +4472,8 @@ class TrackVierge(object):
     #    Cette classe initialise une ligne avec les valeurs par défaut définies dans les colonnes
     def __init__(self,olv):
         self.donnees = []
+        self.vierge = True
+        self.ligneValide = False
         for column in olv.columns:
             value = None
             if column.valueSetter != None:

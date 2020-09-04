@@ -663,6 +663,13 @@ class PanelListView(wx.Panel):
                                                                                      row, col, sys.exc_info()[0]))
             """
 
+    # Initialisation d'une nouvelle track
+    def InitTrackVierge(self,track,trackN1):
+        # appel des éventuels spécifiques
+        if hasattr(self.parent, 'InitTrackVierge'):
+            self.parent.InitTrackVierge(track,trackN1)
+
+
 # ----------- Composition de l'écran -------------------------------------------------------
 class PNL_params(wx.Panel):
     #panel de paramètres de l'application

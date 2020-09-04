@@ -365,7 +365,11 @@ def ValideLigne(track):
         track.messageRefus += "La famille n'est pas identifiée\n"
 
     # montant null
-    if track.montant == 0.0:
+    try:
+        track.montant = float(track.montant)
+    except:
+        track.montant = None
+    if not track.montant or track.montant == 0.0:
         track.messageRefus += "Le montant est à zéro\n"
 
     # IDreglement manquant
@@ -373,17 +377,17 @@ def ValideLigne(track):
         track.messageRefus += "L'ID reglement n'est pas été déterminé à l'entrée du montant\n"
 
     # Date
-    if track.date == None or not isinstance(track.date,(wx.DateTime,datetime.date)):
+    if not track.date or not isinstance(track.date,(wx.DateTime,datetime.date)):
         track.messageRefus += "Vous devez obligatoirement saisir une date d'émission du règlement !\n"
 
     # Mode
-    if track.mode == None or len(track.mode) == 0:
+    if not track.mode or len(track.mode) == 0:
         track.messageRefus += "Vous devez obligatoirement sélectionner un mode de règlement !\n"
 
     # Numero de piece
     if track.mode[:3].upper() == 'CHQ':
         if not track.numero or len(track.numero)<4:
-            track.messageRefus += "Vous devez saisir un numéro de chèque !\n"
+            track.messageRefus += "Vous devez saisir un numéro de chèque 4 chiffres mini!\n"
         # libelle pour chèques
         if track.libelle == '':
             track.messageRefus += "Veuillez saisir la banque émettrice du chèque dans les observations !\n"
@@ -400,6 +404,8 @@ def ValideLigne(track):
 
 def SauveLigne(dlg,track):
     if not track.ligneValide:
+        return False
+    if not track.montant or not isinstance(track.montant,float):
         return False
     # --- Sauvegarde des différents éléments associés à la ligne ---
     db = xdb.DB()
@@ -485,10 +491,13 @@ def SetPrestation(dlg,track,db):
     if ret == 'ok':
         texteMode = track.mode
         montant = u"%.2f %s" % (track.montant, SYMBOLE)
+        if not track.IDprestation: IDprest = 0
+        else: IDprest = track.IDprestation
         nuh.InsertActions([{
             "IDfamille": track.IDfamille,
             "IDcategorie": IDcategorie,
-            "action": "Noelite %s de prestation associée regl ID%d : %s en %s "%(categorie, track.IDprestation, montant, track.libelle),
+            "action": "Noelite %s de prestation associée regl ID%d : %s en %s "%(categorie, IDprest,
+                                                                                 montant, track.libelle),
             }, ])
     return True
 
@@ -552,6 +561,7 @@ def SetReglement(dlg,track,db):
             texteDetail = u""
         else:
             texteDetail = u"- %s - " % (texteNumpiece)
+
         montant = u"%.2f %s" % (track.montant, SYMBOLE)
         textePayeur = track.payeur
         nuh.InsertActions([{

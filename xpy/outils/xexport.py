@@ -23,6 +23,65 @@ from xpy.outils import xbandeau
 from xpy.outils.xconst import *
 from xpy.outils.ObjectListView import FastObjectListView, ColumnDefn
 
+class DataType(object):
+    #Classe permetant la conversion facile vers le format souhaité (nombre de caractéres, alignement, décimales)
+    def __init__(self,cat=int,length=1,align="<",precision=2):
+        """
+        initialise l'objet avec les paramétres souhaité
+        """
+        self.cat = cat
+        self.length = length
+        self.align = align
+        self.precision = precision
+
+    def Convert(self,data):
+        # format souhaité
+        ret_val = ""
+        if data == None:
+            data = ""
+
+        if self.cat == int:                        #si l'on veux des entier
+            if data!="":
+                try:                                #on vérifie qu'il s'agit bien d'un nombre
+                    data=int(data)
+                except ValueError as e:
+                    print("/!\ Erreur de format, impossible de convertir en int /!\\")
+                    print(e)
+                    data=0
+                ret_val = u"{0:{align}0{length}d}".format(data,align=self.align,length=self.length)
+            else:
+                ret_val = u"{0:{align}0{length}s}".format(data,align=self.align,length=self.length)
+
+        elif self.cat == str:                      #si l'on veux des chaines de caractéres
+            if not isinstance(data,(str)): data = str(data)
+            for a in ['\\',';',',']:
+                data = data.replace(a,'')
+            ret_val = u"{0: {align}0{length}s}".format(data,align=self.align,length=self.length)
+
+        elif self.cat == 'strdt':                      #si l'on veux des chaines de caractéres
+            for a in ['/','-',' ']:
+                data = data.replace(a,'')
+            data = data.replace("-/","")
+            ret_val = u"{0: {align}0{length}s}".format(data,align=self.align,length=self.length)
+
+        elif self.cat == float:                    #si l'on veux un nombre a virgule
+            if data!="":
+                try:
+                    data=float(data)
+                    #on vérifie qu'il s'agit bien d'un nombre
+                except ValueError as e:
+                    print("/!\ Erreur de format, impossible de convertir en float /!\\")
+                    print(e)
+                    data=0
+                ret_val = u"{0: {align}0{length}.{precision}f}".format(data,align=self.align,length=self.length,precision=self.precision)
+            else:
+                ret_val = u"{0: {align}0{length}s}".format(data,align=self.align,length=self.length)
+
+        if len(ret_val)>self.length:                #on tronc si la chaine est trop longue
+            ret_val=ret_val[:self.length]
+        return ret_val
+        #fin Convert
+    #fin class DataType
 
 def GetValeursListview(listview=None, format="texte"):
     """ Récupère les valeurs affichées sous forme de liste """
@@ -168,6 +227,73 @@ def ExportTexte(listview=None, grid=None, titre=u"", listeColonnes=None, listeVa
     else:
         xfichiers.LanceFichierExterne(cheminFichier)
 
+def ExportLgFixe(nomfic='',matrice=[],valeurs=[],entete=False):
+    """ Export de la liste au format texte """
+    if len(valeurs) == 0:
+        wx.MessageBox("On ne peut exporter une liste de valeurs vide")
+        return
+    if len(matrice) != len(valeurs)[0]:
+        wx.MessageBox("Pb: matrice décrit %d colonnes et valeurs[0] en contient %d!"%(len(matrice),len(valeurs)[0]))
+
+    # Demande à l'utilisateur le nom de fichier et le répertoire de destination
+    nomFichier = "%s"%nomfic
+    wildcard = "Fichier texte (*.txt)|*.txt|" \
+               "All files (*.*)|*.*"
+    sp = wx.StandardPaths.Get()
+    cheminDefaut = sp.GetDocumentsDir()
+    dlg = wx.FileDialog(
+        None, message="Veuillez sélectionner le répertoire de destination et le nom du fichier",
+        defaultDir=cheminDefaut,
+        defaultFile=nomFichier,
+        wildcard=wildcard,
+        style=wx.FD_SAVE
+    )
+    dlg.SetFilterIndex(0)
+    if dlg.ShowModal() == wx.ID_OK:
+        cheminFichier = dlg.GetPath()
+        dlg.Destroy()
+    else:
+        dlg.Destroy()
+        return
+
+    # Le fichier de destination existe déjà :
+    if os.path.isfile(cheminFichier) == True:
+        dlg = wx.MessageDialog(None, "Un fichier portant ce nom existe déjà. \n\nVoulez-vous le remplacer ?",
+                               "Attention !", wx.YES_NO | wx.NO_DEFAULT | wx.ICON_EXCLAMATION)
+        if dlg.ShowModal() == wx.ID_NO:
+            dlg.Destroy()
+            return False
+        else:
+            dlg.Destroy()
+
+    # Création du fichier texte
+    texte = ""
+    if entete:
+        champs = [x['code'] for x in matrice]
+        texte += LigneLgFixe(ligne, matrice,entete=True)
+
+    for ligne in valeurs:
+        texte += LigneLgFixe(ligne, matrice,entete=False)
+        texte = texte[:-1] + "\n"
+
+    # Elimination du dernier saut à la ligne
+    texte = texte[:-1]
+
+    # Création du fichier texte
+    f = open(cheminFichier, "w")
+    f.write(texte)
+    print(texte.encode('utf-8'))
+    f.close()
+
+    # Confirmation de création du fichier et demande d'ouverture directe dans Excel
+    txtMessage = "Le fichier Texte a été créé avec succès. Souhaitez-vous l'ouvrir dès maintenant ?"
+    dlgConfirm = wx.MessageDialog(None, txtMessage, "Confirmation", wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
+    reponse = dlgConfirm.ShowModal()
+    dlgConfirm.Destroy()
+    if reponse == wx.ID_NO:
+        return
+    else:
+        xfichiers.LanceFichierExterne(cheminFichier)
 
 # -------------------------------------------------------------------------------------------------------------------------------
 

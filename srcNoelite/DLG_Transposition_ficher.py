@@ -19,6 +19,7 @@ from xpy.outils                 import xformat,xbandeau,xfichiers,xexport
 
 TITRE = "Transposition de ficher avec intervention possible"
 INTRO = "Importez un fichier, puis complétez l'information dans le tableau avant de l'exporter dans un autre format"
+
 # Infos d'aide en pied d'écran
 DIC_INFOS = {'date':"Flèche droite pour le mois et l'année, Entrée pour valider.\nC'est la date de réception du règlement, qui sera la date comptable",
             'compte':    "<F4> Choix d'un compte fournisseur, ou saisie directe du compte",
@@ -29,7 +30,7 @@ DIC_INFOS = {'date':"Flèche droite pour le mois et l'année, Entrée pour valid
 # Info par défaut
 INFO_OLV = "<Suppr> <Inser> <Ctrl C> <Ctrl V>"
 
-# Fonctions de transposition entrée et sortie à gérer pour chaque item FORMAT_xxxx pour les spécificités
+# Fonctions de transposition entrée à gérer pour chaque item FORMAT_xxxx pour les spécificités
 def ComposeFuncImp(dicParams,donnees,champsOut,compta,table):
     # accès aux comptes
     # 'in' est le fichier entrée, 'out' est l'OLV
@@ -92,53 +93,11 @@ def ComposeFuncImp(dicParams,donnees,champsOut,compta,table):
         lstOut.append(ligneOut)
     return lstOut
 
-def ComposeFuncExp(dicParams,donnees,champsIn):
-    # 'in' est l'OLV, 'out' est le fichier de sortie
-    lstOut = []
-    formatOut = dicParams['fichiers']['formatexp']
-    champsOut = FORMATS_EXPORT[formatOut]['champs']
-    for ligne in donnees:
-        ligneOut = []
-        typePiece = "B" # cas par défaut B comme carte Bancaire
-        for champ in champsOut:
-            valeur = None
-            # composition des champs sortie
-            if champ    == 'journal':   valeur = dicParams['compta']['journal']
-            elif champ  == 'typepiece': valeur = typePiece
-            elif champ  == 'contrepartie': valeur = dicParams['compta']['contrepartie']
-            elif champ  == 'debit':
-                montant = float(ligne.donnees[champsIn.index("montant")].replace(",","."))
-                if montant < 0.0: valeur = -montant
-                else: valeur = 0.0
-            elif champ  == 'credit':
-                montant = float(ligne.donnees[champsIn.index("montant")].replace(",","."))
-                if montant >= 0.0: valeur = montant
-                else: valeur = 0.0
-            # récupération des champs homonymes (date, compte, libelle, piece...)
-            elif champ in champsIn:
-                valeur = ligne.donnees[champsIn.index(champ)]
-            ligneOut.append(valeur)
-        lstOut.append(ligneOut)
-        # ajout de la contrepartie banque
-        ligneBanque = [x for x in ligneOut]
-        ligneBanque[champsOut.index('contrepartie')]    = ligneOut[champsOut.index('compte')]
-        ligneBanque[champsOut.index('compte')]          = dicParams['compta']['contrepartie']
-        ligneBanque[champsOut.index('debit')]    = ligneOut[champsOut.index('credit')]
-        ligneBanque[champsOut.index('credit')]    = ligneOut[champsOut.index('debit')]
-        lstOut.append(ligneBanque)
-    return lstOut
-
-# formats possibles des fichiers en entrées et sortie, utiliser les mêmes codes des champs pour les 'ComposeFunc'
+# formats possibles des fichiers en entrées, utiliser les mêmes codes des champs pour les 'ComposeFuncExp et Imp'
 FORMATS_IMPORT = {"LCL carte":{ 'champs':['date','montant','mode',None,'libelle',None,None,'codenat','nature',],
                                 'lignesentete':0,
                                 'fonction':ComposeFuncImp,
                                 'table':'fournisseurs'}}
-
-FORMATS_EXPORT = {"Quadra via Excel":{  'champs':['journal','date','compte','typepiece','libelle','debit','credit',
-                                                'piece','contrepartie'],
-                                        'widths':[40, 80, 60, 25, 240, 60, 60, 60, 60],
-                                        'fonction':ComposeFuncExp,
-                                        'compta':'quadra'}}
 
 # Description des paramètres à choisir en haut d'écran
 MATRICE_PARAMS = {
@@ -151,13 +110,13 @@ MATRICE_PARAMS = {
                     'size':(250,30)},
     {'name': 'formatexp', 'genre': 'Enum', 'label': 'Format export',
                     'help': "Le choix est limité par la programmation", 'value':0,
-                    'values':[x for x in FORMATS_EXPORT.keys()],
+                    'values':[x for x in UTILS_Compta.FORMATS_EXPORT.keys()],
                     'ctrlAction':'OnChoixExport',
                     'size':(250,30)},
     ],
 ("compta", "Paramètres comptables"): [
     {'name': 'journal', 'genre': 'Combo', 'label': 'Journal','ctrlAction':'OnCtrlJournal',
-                    'help': "Code journal utilisé dans la compta",'size':(250,30),
+                    'help': "Code journal utilisé dans la compta",'size':(350,30),
                     'values':['BQ','LCL','LBP','CCP'],
                     'btnLabel': "...", 'btnHelp': "Cliquez pour choisir un journal",
                     'btnAction': 'OnBtnJournal'},
@@ -427,8 +386,8 @@ class Dialog(xusp.DLG_vide):
         dic = self.pnlParams.GetValeurs()
         formatExp = dic['fichiers']['formatexp']
         compta = None
-        if formatExp in FORMATS_EXPORT.keys() :
-            nomCompta = FORMATS_EXPORT[formatExp]['compta']
+        if formatExp in UTILS_Compta.FORMATS_EXPORT.keys() :
+            nomCompta = UTILS_Compta.FORMATS_EXPORT[formatExp]['compta']
             compta = UTILS_Compta.Compta(self, compta=nomCompta)
             if not compta.db: compta = None
         if not compta:
@@ -485,11 +444,7 @@ class Dialog(xusp.DLG_vide):
         self.InitOlv()
 
     def OnExporter(self,event):
-        dic = self.pnlParams.GetValeurs()
-        formatExp = dic['fichiers']['formatexp']
-        champs = FORMATS_EXPORT[formatExp]['champs']
-        widths = FORMATS_EXPORT[formatExp]['widths']
-        lstColonnes = [[x,None,widths[champs.index(x)],x] for x in champs]
+
         # calcul des débit et crédit des pièces
         totDebits, totCredits = 0.0, 0.0
         for ligne in self.ctrlOlv.innerList:
@@ -499,20 +454,9 @@ class Dialog(xusp.DLG_vide):
             else:
                 totDebits -= montant
 
-        # transposition des lignes par l'appel de la fonction 'ComposeFuncExp'
-        lstValeurs = FORMATS_EXPORT[formatExp]['fonction'](self.pnlParams.GetValeurs(),
-                                                           self.ctrlOlv.innerList,
-                                                           self.ctrlOlv.lstCodesColonnes)
-        # envois dans un fichier excel
-        xexport.ExportExcel(listeColonnes=lstColonnes,
-                            listeValeurs=lstValeurs,
-                            titre=formatExp)
-        # mise à jour du dernier numero de pièce affiché avant d'être sauvegardé
-        if 'piece' in champs:
-            ixp = champs.index('piece')
-            lastPiece = lstValeurs[-1][ixp]
-            box = self.pnlParams.GetBox('compta')
-            box.SetOneValue('compta.lastpiece',lastPiece)
+        exp = UTILS_Compta.Export(self,self.compta)
+        exp.Exporte(params=self.pnlParams.GetValeurs(),donnees=self.pnlParams.GetValeurs(),olv=self.ctrlOlv)
+
         # affichage résultat
         solde = xformat.FmtMontant(totDebits - totCredits,lg=12)
         wx.MessageBox("Fin de transfert\n\nDébits: %s\nCrédits:%s"%(xformat.FmtMontant(totDebits,lg=12),

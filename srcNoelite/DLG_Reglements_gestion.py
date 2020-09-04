@@ -80,7 +80,7 @@ def GetOlvColonnes(dlg):
 def GetOlvOptions(dlg):
     # retourne les paramètres de l'OLV del'écran général
     return {
-            'hauteur': 400,
+            'hauteur': 200,
             'largeur': 850,
             'checkColonne': False,
             'recherche': True,
@@ -181,6 +181,17 @@ class PNL_corpsReglements(xgte.PNL_corps):
         self.flagSkipEdit = False
         self.oldRow = None
 
+    def InitTrackVierge(self,track,trackN1):
+        # Le premier accès sur la ligne va attribuer un ID, la sauvegarde se fera après la saisie du montant != 0.0
+        if track.IDreglement in (None, 0):
+            track.IDreglement = nur.GetNewIDreglement(self.lstNewReglements)
+            self.lstNewReglements.append(track.IDreglement)
+            track.ventilation = []
+        # reprise de la valeur 'mode' et date de la ligne précédente
+        track.mode = trackN1.mode
+        track.date = trackN1.date
+
+
     def OnEditStarted(self,code):
         # affichage de l'aide
         if code in DIC_INFOS.keys():
@@ -189,6 +200,7 @@ class PNL_corpsReglements(xgte.PNL_corps):
         else:
             self.parent.pnlPied.SetItemsInfos( INFO_OLV,wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
         row, col = self.ctrlOlv.cellBeingEdited
+
         if not self.oldRow: self.oldRow = row
         if row != self.oldRow:
             track = self.ctrlOlv.GetObjectAt(self.oldRow)
@@ -200,17 +212,10 @@ class PNL_corpsReglements(xgte.PNL_corps):
                 track.valide = False
         track = self.ctrlOlv.GetObjectAt(row)
 
-        # Le premier accès sur la ligne va attribuer un ID, la sauvegarde se fera après la saisie du montant != 0.0
         if track.IDreglement in (None, 0):
             track.IDreglement = nur.GetNewIDreglement(self.lstNewReglements)
             self.lstNewReglements.append(track.IDreglement)
             track.ventilation = []
-
-        # reprise de la valeur 'mode' de la ligne précédente
-        if row > 0:
-            if len(track.mode) == 0:
-                trackN1 = self.ctrlOlv.GetObjectAt(row - 1)
-                track.mode = trackN1.mode
 
         # conservation de l'ancienne valeur
         track.oldValue = None
@@ -268,7 +273,6 @@ class PNL_corpsReglements(xgte.PNL_corps):
                 track.article = ""
                 track.creer = False
         if code == 'montant':
-            #print(okSauve, track.ligneValide, track.messageRefus)
             if okSauve and track.nature in ('Règlement','Ne pas créer') and value != 0.0:
                 # cas du règlement d'une prestation antérieure: appel de l'écran ventilations
                 dlg = ndrv.Dialog(self,-1,None,track.IDfamille,track.IDreglement,track.montant)
@@ -310,7 +314,9 @@ class Dialog(wx.Dialog):
         self.IDutilisateur = nuu.GetIDutilisateur()
         if (not self.IDutilisateur) or not nuu.VerificationDroitsUtilisateurActuel('reglements_depots','creer'):
             self.Destroy()
-        else: self.Init()
+        else:
+            ret = self.Init()
+            if ret == wx.ID_ABORT: self.Destroy()
 
     def Init(self):
             # définition de l'OLV
@@ -330,7 +336,8 @@ class Dialog(wx.Dialog):
             self.dicModesRegl = {}
             ldModesDB = nur.GetModesReglements()
             if ldModesDB == wx.ID_ABORT:
-                self.Destroy()
+                return wx.ID_ABORT
+
             for item in choices:
                 # les descriptifs de modes de règlements ne doivent pas avoir des mots en commun
                 lstMots = item.split(' ')

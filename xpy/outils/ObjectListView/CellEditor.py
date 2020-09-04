@@ -66,6 +66,7 @@ def GetValideLigne(track):
     # permet de quitter la ligne ou pas selon la validité de la saisie testée par ValideLigne en sortie de cellEditor
     descend = 1
     if track:
+        track.vierge = False
         # création d'un message par défaut
         if not hasattr(track,'messageRefus'):
             track.messageRefus = "Il faut revoir la saisie,\n\n la ligne n'est pas valide\ndixit CellEditor.GetValideLigne"
@@ -94,11 +95,12 @@ def EnterAction(event,finish = True):
         # ajout éventuel d'une nouvelle ligne
         if row == len(olv.innerList)-1:
             if olv.autoAddRow:
-                olv.AutoAddRow()
-                olv.RepopulateList()
+                if hasattr(olv.innerList[row],'ligneValide') and olv.innerList[row].ligneValide == True:
+                    olv.AutoAddRow()
+                    olv.RepopulateList()
             else:
                 row -=1
-        track = olv.GetSelectedObject()
+        track = olv.innerList[row]
         row += GetValideLigne(track)
         coldefn = olv.GetPrimaryColumn()
         col = olv.columns.index(coldefn)-1
