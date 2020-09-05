@@ -780,7 +780,7 @@ class Dialog(wx.Dialog):
         # Boutons
         grid_sizer_boutons = wx.FlexGridSizer(rows=1, cols=4, vgap=10, hgap=10)
         grid_sizer_boutons.Add((20, 20), 0, wx.EXPAND, 0)
-        grid_sizer_boutons.Add(self.bouton_ok, 0, 0, 0)
+        grid_sizer_boutons.Add(self.bouton_ok, 0, wx.ALIGN_RIGHT, 0)
         grid_sizer_boutons.Add(self.bouton_annuler, 0, 0, 0)
         grid_sizer_boutons.AddGrowableCol(1)
         grid_sizer_base.Add(grid_sizer_boutons, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
@@ -809,7 +809,12 @@ class Dialog(wx.Dialog):
 
 if __name__ == "__main__":
     app = wx.App(0)
+    import os
+    os.chdir("..")
+    os.chdir("..")
     dlg = Dialog(None)
     app.SetTopWindow(dlg)
     dlg.ShowModal()
     app.MainLoop()
+
+

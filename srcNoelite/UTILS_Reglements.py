@@ -10,7 +10,6 @@
 
 import wx
 import srcNoelite.UTILS_Historique  as nuh
-import xpy.xGestionDB               as xdb
 import xpy.xGestion_TableauEditor   as xgte
 import xpy.xGestion_TableauRecherche as xgtr
 import xpy.xUTILS_SaisieParams      as xusp
@@ -49,7 +48,7 @@ def GetMatriceFamilles():
                 'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
                 }
 
-def GetFamilles(matriceOlv={}, filtre = None, limit=100):
+def GetFamilles(db,matriceOlv={}, filtre = None, limit=100):
     # ajoute les données à la matrice pour la recherche d'une famille
     where = ""
     if filtre:
@@ -61,7 +60,6 @@ def GetFamilles(matriceOlv={}, filtre = None, limit=100):
     lstChamps = matriceOlv['listeChamps']
     lstCodesColonnes = matriceOlv['listeCodesColonnes']
 
-    db = xdb.DB()
     req = """   SELECT %s 
                 FROM ((familles 
                 LEFT JOIN rattachements ON familles.IDfamille = rattachements.IDfamille) 
@@ -73,7 +71,6 @@ def GetFamilles(matriceOlv={}, filtre = None, limit=100):
     recordset = ()
     if retour == "ok":
         recordset = db.ResultatReq()
-    db.Close()
     # composition des données du tableau à partir du recordset, regroupement par famille
     dicFamilles = {}
     # zero,IDfamille,designation,cp,ville,categ,nom,prenom
@@ -100,9 +97,9 @@ def GetFamilles(matriceOlv={}, filtre = None, limit=100):
     dicOlv['listeDonnees']=lstDonnees
     return lstDonnees
 
-def GetFamille():
+def GetFamille(db):
     dicOlv = GetMatriceFamilles()
-    dlg = xgtr.DLG_tableau(None,dicOlv=dicOlv)
+    dlg = xgtr.DLG_tableau(None,dicOlv=dicOlv,db=db)
     ret = dlg.ShowModal()
     if ret == wx.OK:
         IDfamille = dlg.GetSelection().donnees[1]
@@ -140,7 +137,7 @@ def GetMatriceDepots():
                 'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
                 }
 
-def GetDepots(matriceOlv, filtre = None, limit=100):
+def GetDepots(db=None,matriceOlv={}, filtre = None, limit=100):
     # ajoute les données à la matrice pour la recherche d'un depot
     where = ""
     if filtre:
@@ -153,7 +150,6 @@ def GetDepots(matriceOlv, filtre = None, limit=100):
     lstChamps = matriceOlv['listeChamps']
     lstCodesColonnes = matriceOlv['listeCodesColonnes']
 
-    db = xdb.DB()
     req = """   SELECT %s
                 FROM depots
                 LEFT JOIN comptes_bancaires ON comptes_bancaires.IDcompte = depots.IDcompte
@@ -193,7 +189,6 @@ def GetDepots(matriceOlv, filtre = None, limit=100):
         recordset = ()
         if retour == "ok":
             recordset = db.ResultatReq()
-        db.Close()
 
         # Ajout des compléments au dictionnaire
         for IDdepot, IDmode, label, somme, nombre in recordset:
@@ -222,8 +217,7 @@ def GetDepots(matriceOlv, filtre = None, limit=100):
     dicOlv['listeDonnees']=lstDonnees
     return lstDonnees
 
-def GetBanquesNne(where = 'code_nne IS NOT NULL'):
-    db = xdb.DB()
+def GetBanquesNne(db,where = 'code_nne IS NOT NULL'):
     ldBanques = []
     lstChamps = ['IDcompte','nom','defaut','code_nne','iban','bic']
     req = """   SELECT %s
@@ -235,7 +229,6 @@ def GetBanquesNne(where = 'code_nne IS NOT NULL'):
         recordset = db.ResultatReq()
         if len(recordset) == 0:
             wx.MessageBox("Aucun banque n'a de compte destination (code Nne) paramétré")
-    db.Close()
     for record in recordset:
         dicBanque = {}
         for ix in range(len(lstChamps)):
@@ -243,8 +236,7 @@ def GetBanquesNne(where = 'code_nne IS NOT NULL'):
         ldBanques.append(dicBanque)
     return ldBanques
 
-def GetModesReglements():
-    db = xdb.DB()
+def GetModesReglements(db):
     if db.echec == 1:
         wx.MessageBox("ECHEC accès Noethys!\n\nabandon...")
         return wx.ID_ABORT
@@ -260,7 +252,6 @@ def GetModesReglements():
         if len(recordset) == 0:
             wx.MessageBox("Aucun mode de règlements")
     else: return wx.ID_ABORT
-    db.Close()
     for record in recordset:
         dicModeRegl = {}
         for ix in range(len(lstChamps)):
@@ -268,9 +259,8 @@ def GetModesReglements():
         ldModesRegls.append(dicModeRegl)
     return ldModesRegls
 
-def GetDesignationFamille(IDfamille):
+def GetDesignationFamille(db,IDfamille):
     if not isinstance(IDfamille,int): return ""
-    db = xdb.DB()
     req = """   SELECT adresse_intitule
                 FROM familles
                 WHERE IDfamille = %d
@@ -282,16 +272,14 @@ def GetDesignationFamille(IDfamille):
     designation = ''
     for record in recordset:
         designation = record[0]
-    db.Close()
     return designation
 
-def GetPayeurs(IDfamille):
-    db = xdb.DB()
+def GetPayeurs(db,IDfamille):
     ldPayeurs = []
     lstChamps = ['IDpayeur','IDcompte_payeur','nom']
     req = """   SELECT %s
                 FROM payeurs
-                WHERE IDcompte_payeur = %d
+                WHERE IDcompte_payeur = %d and nom IS NOT NULL
                 """ % (",".join(lstChamps),IDfamille)
     retour = db.ExecuterReq(req, mess='UTILS_Reglements.GetPayeurs')
     recordset = ()
@@ -302,21 +290,17 @@ def GetPayeurs(IDfamille):
         for ix in range(len(lstChamps)):
             dicPayeur[lstChamps[ix]] = record[ix]
         ldPayeurs.append(dicPayeur)
-    db.Close()
     return ldPayeurs
 
-def SetPayeur(IDcompte_payeur,nom):
+def SetPayeur(db,IDcompte_payeur,nom):
     listeDonnees = [('IDcompte_payeur',IDcompte_payeur),
                     ('nom',nom)]
-    DB = xdb.DB()
-    DB.ReqInsert("payeurs", lstDonnees=listeDonnees,mess="UTILS_Reglements.SetPayeur")
-    ID = DB.newID
-    DB.Close()
+    db.ReqInsert("payeurs", lstDonnees=listeDonnees,mess="UTILS_Reglements.SetPayeur")
+    ID = db.newID
     return ID
 
-def GetReglements(IDdepot):
+def GetReglements(db,IDdepot):
     listeDonnees = []
-    db = xdb.DB()
     #            IDreglement,date,IDfamille,designation,payeur,labelmode,numero,libelle,montant,IDpiece in recordset
     lstChamps = ['reglements.IDreglement', 'reglements.date', 'reglements.IDcompte_payeur', 'familles.adresse_intitule',
                  'payeurs.nom', 'modes_reglements.label', 'reglements.numero_piece', 'reglements.observations', 
@@ -341,12 +325,10 @@ def GetReglements(IDdepot):
         lstDonneesTrack = [IDreglement, date, IDfamille, designation,payeur, labelmode, numero, "", "", libelle,
                            montant, creer, compta,IDpiece]
         listeDonnees.append(lstDonneesTrack)
-    db.Close()
     return listeDonnees
 
-def GetNewIDreglement(lstID):
+def GetNewIDreglement(db,lstID):
     # Recherche le prochain ID reglement après ceux de la base et éventuellement déjà dans la liste ID préaffectés
-    db = xdb.DB()
     req = """SELECT MAX(IDreglement) 
             FROM reglements;"""
     db.ExecuterReq(req)
@@ -356,12 +338,12 @@ def GetNewIDreglement(lstID):
         ID += 1
     return ID
 
-def ValideLigne(track):
+def ValideLigne(db,track):
     track.ligneValide = True
     track.messageRefus = "Saisie incomplète\n\n"
 
     # vérification des éléments saisis
-    if not len(GetDesignationFamille(track.IDfamille)) > 0:
+    if not len(GetDesignationFamille(db,track.IDfamille)) > 0:
         track.messageRefus += "La famille n'est pas identifiée\n"
 
     # montant null
@@ -390,7 +372,7 @@ def ValideLigne(track):
             track.messageRefus += "Vous devez saisir un numéro de chèque 4 chiffres mini!\n"
         # libelle pour chèques
         if track.libelle == '':
-            track.messageRefus += "Veuillez saisir la banque émettrice du chèque dans les observations !\n"
+            track.messageRefus += "Veuillez saisir la banque émettrice du chèque dans le libellé !\n"
 
     # Payeur
     if track.payeur == None:
@@ -401,62 +383,6 @@ def ValideLigne(track):
         track.ligneValide = False
     else: track.messageRefus = ""
     return
-
-def SauveLigne(dlg,track):
-    if not track.ligneValide:
-        return False
-    if not track.montant or not isinstance(track.montant,float):
-        return False
-    # --- Sauvegarde des différents éléments associés à la ligne ---
-    db = xdb.DB()
-
-    # gestion de l'ID depot si withDepot
-    if not hasattr(dlg,"IDdepot") and dlg.withDepot:
-        dlg.IDdepot = SetDepot(dlg,db)
-
-    # gestion du réglement
-    ret = SetReglement(dlg,track,db)
-
-    # gestion de la prestation associée
-    if ret and track.creer:
-        ret = SetPrestation(dlg,track,db)
-    db.Close()
-    return ret
-
-def DeleteLigne(noLigne,track):
-    # --- Supprime les différents éléments associés à la ligne ---
-    db = xdb.DB()
-    # si le montant est à zéro il n'y a pas eu d'enregistrements
-    if track.montant != 0.0:
-        # suppression  du réglement et des ventilations
-        ret = db.ReqDEL("reglements", "IDreglement", track.IDreglement,affichError=False)
-        # --- Mémorise l'action dans l'historique ---
-        if ret == 'ok':
-            IDcategorie = 8
-            categorie = "Suppression"
-            nuh.InsertActions([{
-                "IDfamille": track.IDfamille,
-                "IDcategorie": IDcategorie,
-                "action": "Noelite %s du règlement ID%d"%(categorie, track.IDreglement),
-                },])
-
-        db.ReqDEL("ventilation", "IDreglement", track.IDreglement)
-
-        # gestion de la prestation associée
-        if ret and track.IDprestation:
-            ret = db.ReqDEL("prestations", "IDprestation", track.IDprestation)
-            if ret == 'ok':
-                IDcategorie = 8
-                categorie = "Suppression"
-                nuh.InsertActions([{
-                    "IDfamille": track.IDfamille,
-                    "IDcategorie": IDcategorie,
-                    "action": "Noelite %s de la prestation ID%d" % (categorie, track.IDprestation),
-                }, ])
-
-    db.Close()
-    return
-
 
 def SetPrestation(dlg,track,db):
     # --- Sauvegarde de la prestation ---
@@ -472,7 +398,7 @@ def SetPrestation(dlg,track,db):
         ("IDindividu", 0),
     ]
 
-    if not hasattr(track,"IDprestation"):
+    if (not hasattr(track,"IDprestation")) or (not track.IDprestation):
         ret = db.ReqInsert("prestations",lstDonnees= listeDonnees, mess="UTILS_Reglements.SetPrestation",)
         IDcategorie = 6
         categorie = ("Saisie")
@@ -501,18 +427,68 @@ def SetPrestation(dlg,track,db):
             }, ])
     return True
 
+def SauveLigne(db,dlg,track):
+    if not track.ligneValide:
+        return False
+    if not track.montant or not isinstance(track.montant,float):
+        return False
+    # --- Sauvegarde des différents éléments associés à la ligne ---
+    # gestion de l'ID depot si withDepot
+    if not hasattr(dlg,"IDdepot") and dlg.withDepot:
+        dlg.IDdepot = SetDepot(dlg,db)
+
+    # gestion du réglement
+    ret = SetReglement(dlg,track,db)
+
+    # gestion de la prestation associée
+    if ret and track.creer:
+        ret = SetPrestation(dlg,track,db)
+    return ret
+
+def DeleteLigne(db,noLigne,track):
+    # --- Supprime les différents éléments associés à la ligne ---
+    # si le montant est à zéro il n'y a pas eu d'enregistrements
+    if track.montant != 0.0:
+        # suppression  du réglement et des ventilations
+        ret = db.ReqDEL("reglements", "IDreglement", track.IDreglement,affichError=False)
+        # --- Mémorise l'action dans l'historique ---
+        if ret == 'ok':
+            IDcategorie = 8
+            categorie = "Suppression"
+            nuh.InsertActions([{
+                "IDfamille": track.IDfamille,
+                "IDcategorie": IDcategorie,
+                "action": "Noelite %s du règlement ID%d"%(categorie, track.IDreglement),
+                },],db=db)
+
+        db.ReqDEL("ventilation", "IDreglement", track.IDreglement)
+
+        # gestion de la prestation associée
+        if ret and track.IDprestation:
+            ret = db.ReqDEL("prestations", "IDprestation", track.IDprestation)
+            if ret == 'ok':
+                IDcategorie = 8
+                categorie = "Suppression"
+                nuh.InsertActions([{
+                    "IDfamille": track.IDfamille,
+                    "IDcategorie": IDcategorie,
+                    "action": "Noelite %s de la prestation ID%d" % (categorie, track.IDprestation),
+                }, ])
+
+    return
+
 def SetReglement(dlg,track,db):
     # --- Sauvegarde du règlement ---
     IDmode = dlg.dicModesRegl[track.mode]['IDmode']
     IDpayeur = None
     if not hasattr(dlg.pnlOlv,'ldPayeurs'):
-        dlg.pnlOlv.ldPayeurs = GetPayeurs(track.IDfamille)
+        dlg.pnlOlv.ldPayeurs = GetPayeurs(db,track.IDfamille)
     for dicPayeur in dlg.pnlOlv.ldPayeurs:
         if track.payeur in dicPayeur['nom']:
             IDpayeur = dicPayeur['IDpayeur']
             break
     if not IDpayeur:
-        IDpayeur = SetPayeur(track.IDfamille,track.payeur)
+        IDpayeur = SetPayeur(db,track.IDfamille,track.payeur)
 
     listeDonnees = [
         ("IDreglement", track.IDreglement),
@@ -573,8 +549,9 @@ def SetReglement(dlg,track,db):
     return True
 
 class Article(object):
-    def __init__(self,nature):
+    def __init__(self,db,nature):
         self.nature = nature
+        self.db = db
 
     def GetMatriceArticles(self):
         dicBandeau = {'titre':"Recherche d'un article prestation",
@@ -606,6 +583,7 @@ class Article(object):
 
     def GetArticles(self,matriceOlv,filtre = None):
         # le pointeur de cette fonction est dans le dic généré par GetMatriceArticles,
+
         nature = self.nature
         if nature: nature = nature.lower()
         if nature == 'don':
@@ -625,20 +603,18 @@ class Article(object):
                             OR pctCodeComptable LIKE '%%%s%%'
                             OR pctCompte LIKE '%%%s%%')"""%(filtre,filtre,filtre)
 
-        db = xdb.DB()
         lstChamps = matriceOlv['listeChamps']
         lstCodesColonnes = matriceOlv['listeCodesColonnes']
         req = """SELECT %s
                 FROM matPlanComptable
                 WHERE %s;
                 """ % (",".join(lstChamps),where)
-        retour = db.ExecuterReq(req, mess='UTILS_Reglements.GetArticles' )
+        retour = self.db.ExecuterReq(req, mess='UTILS_Reglements.GetArticles' )
         recordset = ()
         if retour == "ok":
-            recordset = db.ResultatReq()
+            recordset = self.db.ResultatReq()
             if len(recordset) == 0:
                 wx.MessageBox("Aucun article paramétré contenant '%s' ou '%s' dans le code ou le libellé"%(rad1,rad2))
-        db.Close()
 
         # composition des données du tableau à partir du recordset, regroupement par article
         dicArticles = {}
@@ -665,9 +641,9 @@ class Article(object):
         dicOlv['listeDonnees']=lstDonnees
         return lstDonnees
 
-    def GetArticle(self):
+    def GetArticle(self,db=None):
         dicOlv = self.GetMatriceArticles()
-        dlg = xgtr.DLG_tableau(None,dicOlv=dicOlv)
+        dlg = xgtr.DLG_tableau(None,dicOlv=dicOlv,db=db)
         ret = dlg.ShowModal()
         if ret == wx.OK:
             article = dlg.GetSelection().donnees[1]
@@ -692,11 +668,11 @@ def SetDepot(dlg,db):
     dlg.pnlParams.ctrlRef.SetValue(str(IDdepot))
     return IDdepot
 
-def GetDepot():
+def GetDepot(db=None):
     # appel des dépots existants pour reprise d'un dépot
     dicDepot = {}
     dicOlv = GetMatriceDepots()
-    dlg = xgtr.DLG_tableau(None,dicOlv=dicOlv)
+    dlg = xgtr.DLG_tableau(None,dicOlv=dicOlv,db=db)
     ret = dlg.ShowModal()
     if ret == wx.OK:
         donnees = dlg.GetSelection().donnees

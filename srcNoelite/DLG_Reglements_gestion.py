@@ -10,6 +10,7 @@
 import wx
 import os
 import xpy.xGestion_TableauEditor       as xgte
+import xpy.xGestionDB                   as xdb
 import srcNoelite.UTILS_Utilisateurs    as nuu
 import srcNoelite.UTILS_Reglements      as nur
 import srcNoelite.DLG_Reglements_ventilation      as ndrv
@@ -84,7 +85,8 @@ def GetOlvOptions(dlg):
             'largeur': 850,
             'checkColonne': False,
             'recherche': True,
-            'dictColFooter': {"designation": {"mode": "nombre", "alignement": wx.ALIGN_CENTER}, }
+            'dictColFooter': {"designation": {"mode": "nombre", "alignement": wx.ALIGN_CENTER},
+                              "montant": {"mode": "total", "alignement": wx.ALIGN_RIGHT},}
     }
 
 #----------------------- Parties de l'écrans -----------------------------------------
@@ -95,7 +97,7 @@ class PNL_params(wx.Panel):
         self.parent = parent
         wx.Panel.__init__(self, parent, **kwds)
 
-        self.ldBanques = nur.GetBanquesNne()
+        self.ldBanques = nur.GetBanquesNne(self.parent.db)
         lstBanques = [x['nom'] for x in self.ldBanques if x['code_nne'][:2]!='47']
         self.lstIDbanques = [x['IDcompte'] for x in self.ldBanques if x['code_nne'][:2]!='47']
         self.lblBanque = wx.StaticText(self,-1, label="Banque Noethys:  ",size=(130,20),style=wx.ALIGN_RIGHT)
@@ -184,7 +186,7 @@ class PNL_corpsReglements(xgte.PNL_corps):
     def InitTrackVierge(self,track,trackN1):
         # Le premier accès sur la ligne va attribuer un ID, la sauvegarde se fera après la saisie du montant != 0.0
         if track.IDreglement in (None, 0):
-            track.IDreglement = nur.GetNewIDreglement(self.lstNewReglements)
+            track.IDreglement = nur.GetNewIDreglement(self.parent.db,self.lstNewReglements)
             self.lstNewReglements.append(track.IDreglement)
             track.ventilation = []
         # reprise de la valeur 'mode' et date de la ligne précédente
@@ -204,7 +206,7 @@ class PNL_corpsReglements(xgte.PNL_corps):
         if not self.oldRow: self.oldRow = row
         if row != self.oldRow:
             track = self.ctrlOlv.GetObjectAt(self.oldRow)
-            test = nur.ValideLigne(track)
+            test = nur.ValideLigne(self.parent.db,track)
             if test:
                 track.valide = True
                 self.oldRow = row
@@ -213,7 +215,7 @@ class PNL_corpsReglements(xgte.PNL_corps):
         track = self.ctrlOlv.GetObjectAt(row)
 
         if track.IDreglement in (None, 0):
-            track.IDreglement = nur.GetNewIDreglement(self.lstNewReglements)
+            track.IDreglement = nur.GetNewIDreglement(self.parent.db,self.lstNewReglements)
             self.lstNewReglements.append(track.IDreglement)
             track.ventilation = []
 
@@ -228,7 +230,9 @@ class PNL_corpsReglements(xgte.PNL_corps):
         # flagSkipEdit permet d'occulter les évènements redondants. True durant la durée du traitement
         if self.flagSkipEdit : return
         self.flagSkipEdit = True
-        track = self.ctrlOlv.lastGetObject
+
+        (row, col) = self.ctrlOlv.cellBeingEdited
+        track = self.ctrlOlv.GetObjectAt(row)
 
         # si pas de saisie on passe
         if (not value) or track.oldValue == value:
@@ -238,12 +242,12 @@ class PNL_corpsReglements(xgte.PNL_corps):
         # anticipe l'enregistrement du champ montant pour réussir la validation
         if code == 'montant' and value:
             track.montant = value
-        nur.ValideLigne(track)
+        nur.ValideLigne(self.parent.db,track)
 
         # l'enregistrement de la ligne se fait à chaque saisie pour gérer les montées et descentes
         okSauve = False
         if track.ligneValide:
-            okSauve = nur.SauveLigne(self.parent, track)
+            okSauve = nur.SauveLigne(self.parent.db,self.parent, track)
 
         # Traitement des spécificités selon les zones
         if code == 'IDfamille':
@@ -252,9 +256,9 @@ class PNL_corpsReglements(xgte.PNL_corps):
             except:
                 self.flagSkipEdit = False
                 return
-            designation = nur.GetDesignationFamille(value)
+            designation = nur.GetDesignationFamille(self.parent.db,value)
             track.designation = designation
-            self.ldPayeurs = nur.GetPayeurs(value)
+            self.ldPayeurs = nur.GetPayeurs(self.parent.db,value)
             payeurs = [x['nom'] for x in self.ldPayeurs]
             if len(payeurs)==0: payeurs.append(designation)
             payeur = payeurs[0]
@@ -266,7 +270,7 @@ class PNL_corpsReglements(xgte.PNL_corps):
                 # Seuls les dons et débours vont générer la prestation selon l'article
                 track.creer = True
                 # Choix article - code comptable
-                obj = nur.Article(value)
+                obj = nur.Article(self.parent.db,value)
                 compte = obj.GetArticle()
                 track.article = compte
             else:
@@ -292,12 +296,12 @@ class PNL_corpsReglements(xgte.PNL_corps):
         code = self.ctrlOlv.lstCodesColonnes[col]
         if event.GetKeyCode() == wx.WXK_F4 and code == 'IDfamille':
             # Choix famille
-            IDfamille = nur.GetFamille()
+            IDfamille = nur.GetFamille(self.parent.db)
             self.OnEditFinishing('IDfamille',IDfamille)
-            self.ctrlOlv.lastGetObject.IDfamille = IDfamille
+            self.ctrlOlv.GetObjectAt(row).IDfamille = IDfamille
 
     def OnDelete(self,noligne,track,parent=None):
-        nur.DeleteLigne(noligne,track)
+        nur.DeleteLigne(self.parent.db,noligne,track)
 
 class PNL_Pied(xgte.PNL_Pied):
     #panel infos (gauche) et boutons sorties(droite)
@@ -319,6 +323,7 @@ class Dialog(wx.Dialog):
             if ret == wx.ID_ABORT: self.Destroy()
 
     def Init(self):
+            self.db = xdb.DB()
             # définition de l'OLV
             self.dicOlv = {'lstColonnes': GetOlvColonnes(self)}
             self.dicOlv.update(GetOlvOptions(self))
@@ -334,7 +339,7 @@ class Dialog(wx.Dialog):
                 if 'libelle' in colonne.valueGetter:
                     self.libelleDefaut = colonne.valueSetter
             self.dicModesRegl = {}
-            ldModesDB = nur.GetModesReglements()
+            ldModesDB = nur.GetModesReglements(self.db)
             if ldModesDB == wx.ID_ABORT:
                 return wx.ID_ABORT
 
@@ -460,15 +465,15 @@ class Dialog(wx.Dialog):
                 return
         # lancement de la recherche d'un dépot
         self.ctrlOlv.cellEditMode = self.ctrlOlv.CELLEDIT_NONE
-        dicDepot = nur.GetDepot()
+        dicDepot = nur.GetDepot(self.db)
         IDdepot = None
         self.ctrlOlv.cellEditMode = self.ctrlOlv.CELLEDIT_DOUBLECLICK        # gestion du retour du choix dépot
         if 'numero' in dicDepot.keys():
             IDdepot = dicDepot['numero']
         self.pnlParams.ctrlSsDepot.Enable(True)
         if isinstance(IDdepot,int):
-            lstDonnees = [rec[:-1] for rec in  nur.GetReglements(IDdepot)]
-            lstEnCompta = [rec[:-1] for rec in  nur.GetReglements(IDdepot) if rec[-1]]
+            lstDonnees = [rec[:-1] for rec in  nur.GetReglements(self.db,IDdepot)]
+            lstEnCompta = [rec[:-1] for rec in  nur.GetReglements(self.db,IDdepot) if rec[-1]]
             # présence de lignes déjà transférées compta
             if len(lstEnCompta) >0:
                 self.ctrlOlv.cellEditMode = self.ctrlOlv.CELLEDIT_NONE
@@ -488,6 +493,10 @@ class Dialog(wx.Dialog):
                 # place les règlements du dépôt dans la grille
                 self.ctrlOlv.listeDonnees = lstDonnees
                 self.InitOlv(withDiffere=False)
+                # les écritures reprises sont censées être valides
+                for item in self.ctrlOlv.modelObjects[:-1]:
+                    item.ligneValide = True
+                self.ctrlOlv._FormatAllRows()
                 # stockage pour test de saisie
                 self.depotOrigine = self.ctrlOlv.innerList
                 self.IDdepot = IDdepot
@@ -497,6 +506,7 @@ class Dialog(wx.Dialog):
                 self.IDdepot = None
 
     def OnImprimer(self,event):
+        print(self.ctrlOlv.ctrl_footer.GetDonneesImpression())
         self.ctrlOlv.Apercu(None)
         self.isImpress = True
 

@@ -807,15 +807,13 @@ class ObjectListView(wx.ListCtrl):
             self.SetItem(item)
 
     def _FormatOneItem(self, item, index, model):
-        """
-        Give the given row it's correct background color
-        """
+        # Give the given row it's correct background color
         if self.useAlternateBackColors and self.InReportView():
             if index & 1:
                 item.SetBackgroundColour(self.oddRowsBackColor)
             else:
                 item.SetBackgroundColour(self.evenRowsBackColor)
-        if type(model).__name__ == 'TrackVierge':
+        if self.autoAddRow and (not hasattr(model,'ligneValide') or not model.ligneValide):
             item.SetBackgroundColour(self.newRowsBackColor)
 
         if self.rowFormatter is not None:
@@ -2670,7 +2668,6 @@ class AbstractVirtualObjectListView(ObjectListView):
         """
         Set up the required formatting on all rows
         """
-        # This is handled within OnGetItemAttr()
         pass
 
     #-------------------------------------------------------------------------

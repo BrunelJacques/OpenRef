@@ -12,7 +12,7 @@ import wx
 import os
 import sys
 import xpy.outils.xformat
-from xpy.outils.ObjectListView import FastObjectListView, ColumnDefn, Filter, Footer, CTRL_Outils, OLVEvent,CellEditor
+from xpy.outils.ObjectListView import ObjectListView, ColumnDefn, Filter, Footer, CTRL_Outils, OLVEvent,CellEditor
 from xpy.outils.xconst import *
 import datetime
 import xpy.xUTILS_SaisieParams as xusp
@@ -154,7 +154,7 @@ class TrackGeneral(object):
                         except : pass
             self.__setattr__(codesColonnes[ix], donnee)
 
-class ListView(FastObjectListView):
+class ListView(ObjectListView):
     """
     Lors de l'instanciation de cette classe vous pouvez y passer plusieurs parametres :
 
@@ -231,12 +231,12 @@ class ListView(FastObjectListView):
         # Initialisation du listCtrl
         if not 'autoAddRow' in kwds: kwds['autoAddRow']=True
         if not 'sortable' in kwds: kwds['sortable']=False
-        FastObjectListView.__init__(self, *args,**kwds)
+        ObjectListView.__init__(self, *args,**kwds)
         # Binds perso
         self.Bind(OLVEvent.EVT_ITEM_CHECKED, self.OnItemChecked)
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
         if self.editMode:
-            self.cellEditMode = FastObjectListView.CELLEDIT_SINGLECLICK
+            self.cellEditMode = ObjectListView.CELLEDIT_SINGLECLICK
 
     def SetFooter(self, ctrl=None, dictColFooter={}):
         self.ctrl_footer = ctrl

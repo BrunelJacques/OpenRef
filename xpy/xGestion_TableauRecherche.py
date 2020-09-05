@@ -109,8 +109,11 @@ class ListView(FastObjectListView):
         self.InitModel()
         #self.Refresh()
 
-    def formerTracks(self):
-        self.listeDonnees = self.getDonnees(matriceOlv=self.matriceOlv,filtre=self.filtre)
+    def formerTracks(self,db=None):
+        if db:
+            self.listeDonnees = self.getDonnees(db=db,matriceOlv=self.matriceOlv,filtre=self.filtre)
+        else:
+            self.listeDonnees = self.getDonnees(matriceOlv=self.matriceOlv, filtre=self.filtre)
         tracks = list()
         if self.listeDonnees is None:
             return tracks
@@ -152,7 +155,7 @@ class ListView(FastObjectListView):
         return setterValues
 
     def InitModel(self):
-        self.SetObjects(self.formerTracks())
+        self.SetObjects(self.formerTracks(db=self.Parent.Parent.db))
         if len(self.innerList) >0:
             self.SelectObject(self.innerList[0])
 
@@ -427,6 +430,7 @@ class DLG_tableau(wx.Dialog):
         self.parent = parent
         largeur = dicOlv.pop("largeur", 800)
         hauteur = dicOlv.pop("hauteur", 700)
+        self.db = kwds.pop("db", None)
         pnlTableau = dicOlv.pop("pnlTableau",PNL_tableau )
         listArbo=os.path.abspath(__file__).split("\\")
         titre = listArbo[-1:][0] + "/" + self.__class__.__name__
