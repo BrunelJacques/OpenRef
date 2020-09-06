@@ -13,8 +13,8 @@ from builtins import object
 import datetime
 import wx
 
-from xpy.outils.ObjectListView import ReportFormat
-from xpy.outils import xlistctrlprinter, xdates, xoptionsimpression
+from xpy.outils.ObjectListView import ReportFormat, ListCtrlPrinter
+from xpy.outils                import xdates, xoptionsimpression
 
 
 class PreviewControlBar(wx.PyPreviewControlBar):
@@ -234,15 +234,15 @@ class ObjectListViewPrinter(object):
                 dictOptions[key] = valeur
 
         # Préparation du printout
-        self.printer = xlistctrlprinter.ListCtrlPrinter(self.listview, dictOptions["titre"])
+        self.printer = ListCtrlPrinter(self.listview, dictOptions["titre"])
         self.printer.printout.margins = (wx.Point(dictOptions["marge_gauche"], dictOptions["marge_haut"]),
                                          wx.Point(dictOptions["marge_droite"], dictOptions["marge_bas"]))
         self.printer.printout.printData.SetOrientation(dictOptions["orientation"])
         self.printer.printout.printData.SetQuality(dictOptions["qualite_impression"])
         self.printer.PageFooter = (dictOptions["pied_page_texte_gauche"], dictOptions["pied_page_texte_milieu"],
                                    dictOptions["pied_page_texte_droite"])
-        xlistctrlprinter.LISTINTRO = dictOptions["introduction"]
-        xlistctrlprinter.LISTFOOTER = dictOptions["conclusion"]
+        ListCtrlPrinter.LISTINTRO = dictOptions["introduction"]
+        ListCtrlPrinter.LISTFOOTER = dictOptions["conclusion"]
 
         # Préparation du format
         fmt = ReportFormat()
@@ -338,14 +338,14 @@ class ObjectListViewPrinter(object):
         self.printer.ReportFormat = fmt
         return True
 
-    ##        self.printer = xlistctrlprinter.ListCtrlPrinter(self.listview, self.titre)
+    ##        self.printer = ListCtrlPrinter.ListCtrlPrinter(self.listview, self.titre)
     ##        self.printer.printout.margins = (wx.Point(5, 5), wx.Point(5, 5))
     ##        self.printer.printout.printData.SetOrientation(orientation)
     ##        self.printer.printout.printData.SetQuality(wx.PRINT_QUALITY_MEDIUM)
     ##        dateJour = DateEngFr(str(datetime.date.today()))
     ##        self.printer.PageFooter = (dateJour, u"%s - %s" % (self.titre, self.GetNomOrganisateur()), "%(currentPage)d / %(totalPages)d")
-    ##        xlistctrlprinter.LISTINTRO = self.intro
-    ##        xlistctrlprinter.LISTFOOTER = self.total
+    ##        ListCtrlPrinter.LISTINTRO = self.intro
+    ##        ListCtrlPrinter.LISTFOOTER = self.total
     ##        if format == "A" : self.printer.ReportFormat = self.GetFormatA()
 
     def PreviewStandard(self):
@@ -546,11 +546,11 @@ class FramePreview(wx.Frame):
         self.OnZoom(None)
 
     def OnPageSetup(self, event):
-        self.xlistctrlprinter.PageSetup()
+        self.ListCtrlPrinter.PageSetup()
         self.RefreshPreview()
 
     def OnPrint(self, event):
-        self.xlistctrlprinter.Print()
+        self.ListCtrlPrinter.Print()
 
     def OnPremierePage(self, event):  # wxGlade: MyFrame.<event_handler>
         self.printPreview.SetCurrentPage(self.printPreview.GetMinPage())

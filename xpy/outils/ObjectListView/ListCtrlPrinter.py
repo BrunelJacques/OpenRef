@@ -100,21 +100,26 @@ and the second look a different way.
 
 import datetime
 import math
-import wx
 
-from .WordWrapRenderer import *
+from ..xwordwraprenderer import *
+
+#from WordWrapRenderer import WordWrapRenderer
+
+# Ajout Perso :
+LISTINTRO = u""
+LISTFOOTER=u""
 
 # ----------------------------------------------------------------------------
 
 class ListCtrlPrinter(object):
-    """
-    An ListCtrlPrinter creates a pretty report from an ObjectListView/ListCtrl.
-
-    """
+    # this class creates a pretty report from an ObjectListView/ListCtrl.
 
     def __init__(self, listCtrl=None, title="ListCtrl Printing"):
         """
         """
+        global LISTINTRO, LISTFOOTER
+        LISTINTRO = u""
+        LISTFOOTER=u""
         self.printout = ListCtrlPrintout(self)
         self.engine = ReportEngine()
         if listCtrl is not None:
@@ -251,7 +256,7 @@ class ListCtrlPrinter(object):
         """
         Print the given page on the given device context.
         """
-        self.engine.PrintPage(dc, pageNumber, bounds)
+        return self.engine.PrintPage(dc, pageNumber, bounds)
 
 
 # ----------------------------------------------------------------------------
@@ -744,6 +749,12 @@ class ReportFormat(object):
         fmt.ColumnHeader.Line(wx.BOTTOM, wx.Colour(192, 192, 192), 1, space=3)
         fmt.ColumnHeader.AlwaysCenter = True
 
+        fmt.ColumnFooter.Font = wx.FFont(14, wx.FONTFAMILY_DEFAULT, wx.FONTFLAG_BOLD, faceName=headerFontName)
+        fmt.ColumnFooter.Padding = (0, 12, 0, 12)
+        fmt.ColumnFooter.CellPadding = 5
+        fmt.ColumnFooter.Line(wx.BOTTOM, wx.Colour(192, 192, 192), 1, space=3)
+        fmt.ColumnFooter.AlwaysCenter = True
+
         fmt.Row.Font = wx.FFont(10, wx.FONTFAMILY_DEFAULT, faceName=rowFontName)
         fmt.Row.CellPadding = 5
         fmt.Row.Line(wx.BOTTOM, wx.Colour(192, 192, 192), 1, space=3)
@@ -782,6 +793,13 @@ class ReportFormat(object):
         fmt.ColumnHeader.GridPen = wx.Pen(wx.WHITE, 1)
         fmt.ColumnHeader.Padding = (0, 0, 0, 12)
         fmt.ColumnHeader.AlwaysCenter = True
+
+        fmt.ColumnFooter.Font = wx.FFont(14, wx.FONTFAMILY_DEFAULT, wx.FONTFLAG_BOLD, faceName=headerFontName)
+        fmt.ColumnFooter.CellPadding = 2
+        fmt.ColumnFooter.Background(wx.Colour(192, 192, 192))
+        fmt.ColumnFooter.GridPen = wx.Pen(wx.WHITE, 1)
+        fmt.ColumnFooter.Padding = (0, 0, 0, 12)
+        fmt.ColumnFooter.AlwaysCenter = True
 
         fmt.Row.Font = wx.FFont(12, wx.FONTFAMILY_DEFAULT, faceName=rowFontName)
         fmt.Row.Line(wx.BOTTOM, pen=wx.Pen(wx.BLUE, 1, wx.DOT), space=3)
@@ -1342,7 +1360,7 @@ class Block(object):
             y = _CalcBitmapPosition(bounds, image.Height)
             dc.DrawBitmap(image, RectUtils.Left(bounds), y)
             RectUtils.MoveLeftBy(bounds, image.GetWidth() + GAP_BETWEEN_IMAGE_AND_TEXT)
-        elif listCtrl and imageIndex >= 0:
+        elif listCtrl and imageIndex and imageIndex >= 0:
             imageList = listCtrl.GetImageList(wx.IMAGE_LIST_SMALL)
             y = _CalcBitmapPosition(bounds, imageList.GetSize(0)[1])
             imageList.Draw(imageIndex, dc, RectUtils.Left(bounds), y, wx.IMAGELIST_DRAW_TRANSPARENT)
@@ -1799,8 +1817,9 @@ class ListBlock(Block):
             if not first:
                 self.engine.AddBlock(PageBreakBlock())
             self.engine.AddBlock(ListHeaderBlock(self.lv, self.title))
+            #self.engine.AddBlock(ListIntroBlock(self.lv, LISTINTRO))
             self.engine.AddBlock(ListSliceBlock(self.lv, left, right, cellWidths))
-            self.engine.AddBlock(ListFooterBlock(self.lv, ""))
+            self.engine.AddBlock(ListFooterBlock(self.lv, LISTFOOTER))
             first = False
 
         return True
@@ -1869,6 +1888,23 @@ class ListHeaderBlock(TextBlock):
 
 
 # ----------------------------------------------------------------------------
+
+class ListIntroBlock(TextBlock):
+    """
+    Ajout perso !
+    """
+
+    def __init__(self, lv, text):
+        self.lv = lv
+        self.text = text
+
+    def GetText(self):
+        """
+        Return the text that will be printed in this block
+        """
+        return self.text
+
+#----------------------------------------------------------------------------
 
 class ListFooterBlock(TextBlock):
     """
@@ -1947,6 +1983,11 @@ class ListSliceBlock(Block):
 
         if self.IsColumnHeadingsOnEachPage():
             self.engine.AddBlock(RunningBlockPusher(headerBlock, False))
+
+        # Colonne Footer
+        if self.lv.ctrl_footer != None :
+            columnFooterBlock = ColumnFooterBlock(self.lv, self.left, self.right, scale, self.allCellWidths)
+            self.engine.AddBlock(columnFooterBlock)
 
         return True
 
@@ -2061,7 +2102,21 @@ class ColumnHeaderBlock(ColumnBasedBlock):
         return False
 
 
-# ----------------------------------------------------------------------------
+
+class ColumnFooterBlock(ColumnBasedBlock):
+    def GetTexts(self):
+        return self.lv.ctrl_footer.GetDonneesImpression("texte")
+
+    def GetAlignments(self):
+        return self.lv.ctrl_footer.GetDonneesImpression("alignement")
+
+    def GetImages(self):
+        return []
+
+    def IsUseSubstitution(self):
+        return False
+
+#----------------------------------------------------------------------------
 
 class ListRowsBlock(Block):
     """
