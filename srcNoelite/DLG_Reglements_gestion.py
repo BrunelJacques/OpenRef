@@ -49,33 +49,34 @@ def GetOlvColonnes(dlg):
     # retourne la liste des colonnes de l'écran principal
     return [
             ColumnDefn("ID", 'centre', 0, 'IDreglement',
-                            isEditable=False),
+                       isEditable=False),
             ColumnDefn("date", 'center', 80, 'date', valueSetter=wx.DateTime.Today(),isSpaceFilling=False,
-                            stringConverter=xformat.FmtDate),
+                       stringConverter=xformat.FmtDate),
             ColumnDefn("famille", 'centre', 50, 'IDfamille', valueSetter=0,isSpaceFilling=False,
-                            stringConverter=xformat.FmtIntNoSpce),
+                       stringConverter=xformat.FmtIntNoSpce),
             ColumnDefn("désignation famille", 'left', 180, 'designation',valueSetter='',isSpaceFilling=True,
-                            isEditable=False),
+                       isEditable=False),
             ColumnDefn("payeur", 'left', 80, "payeur", valueSetter='', isSpaceFilling=True,
-                            cellEditorCreator=CellEditor.ComboEditor),
-            ColumnDefn("mode", 'centre', 50, 'mode', valueSetter='',choices=['VRT virement', 'CHQ chèque',
-                                                    'ESP espèces'], isSpaceFilling=False,
-                            cellEditorCreator=CellEditor.ChoiceEditor),
+                        cellEditorCreator=CellEditor.ComboEditor),
+            ColumnDefn("mode", 'centre', 50, 'mode', valueSetter='',choices=['VRT virement', 'CHQ chèque','ESP espèces'],
+                       isSpaceFilling=False,
+                        cellEditorCreator=CellEditor.ChoiceEditor),
             ColumnDefn("n°ref", 'left', 50, 'numero', isSpaceFilling=False),
-            ColumnDefn("nat", 'centre', 50, 'nature',valueSetter='Règlement',choices=['Règlement','Acompte','Don','Debour','Ne pas créer'], isSpaceFilling=False,
-                            cellEditorCreator=CellEditor.ChoiceEditor),
+            ColumnDefn("nat", 'centre', 50, 'nature',valueSetter='Règlement',
+                       choices=['Règlement','Acompte','Don','Debour','Ne pas créer'], isSpaceFilling=False,
+                        cellEditorCreator=CellEditor.ChoiceEditor),
             ColumnDefn("article", 'left', 50, 'article', isSpaceFilling=False,
-                            isEditable=False),
+                        isEditable=False),
             ColumnDefn("libelle", 'left', 200, 'libelle', valueSetter='à saisir', isSpaceFilling=True),
             ColumnDefn("montant", 'right',70, "montant", isSpaceFilling=False, valueSetter=0.0,
-                            stringConverter=xformat.FmtDecimal),
+                        stringConverter=xformat.FmtDecimal),
             ColumnDefn("créer", 'centre', 38, 'creer', valueSetter=True,
-                            isEditable=False,
-                            stringConverter=xformat.FmtCheck),
+                        isEditable=False,
+                        stringConverter=xformat.FmtCheck),
             ColumnDefn("differé", 'center', 80, 'differe', valueSetter=wx.DateTime.Today(), isSpaceFilling=False,
-                   stringConverter=xformat.FmtDate,),
+                        stringConverter=xformat.FmtDate,),
             ColumnDefn("IDprestation", 'centre', 0, 'IDprestation',
-                            isEditable=False),
+                        isEditable=False),
             ]
 
 def GetOlvOptions(dlg):
@@ -86,7 +87,9 @@ def GetOlvOptions(dlg):
             'checkColonne': False,
             'recherche': True,
             'dictColFooter': {"designation": {"mode": "nombre", "alignement": wx.ALIGN_CENTER},
-                              "montant": {"mode": "total", "alignement": wx.ALIGN_RIGHT},}
+                              "libelle": {"mode": "texte", "alignement": wx.ALIGN_RIGHT,"texte":'Total montants: '},
+                              "montant": {"mode": "total", "alignement": wx.ALIGN_RIGHT},
+                              }
     }
 
 #----------------------- Parties de l'écrans -----------------------------------------
@@ -114,6 +117,10 @@ class PNL_params(wx.Panel):
         self.btnDepot.SetBitmap(wx.ArtProvider.GetBitmap(wx.ART_FIND,size=(22,22)))
         self.btnDepot.Bind(wx.EVT_BUTTON,self.parent.OnGetDepot)
 
+        self.btnRaz = wx.Button(self, label="Tout effacer",size=(90,20))
+        self.btnRaz.SetBitmap(wx.ArtProvider.GetBitmap(wx.ART_ERROR,size=(15,15)))
+        self.btnRaz.Bind(wx.EVT_BUTTON,self.parent.OnRaz)
+
         self.lblDate = wx.StaticText(self,-1, label="Date de saisie:  ",size=(85,20),style=wx.ALIGN_RIGHT)
         self.ctrlDate = wx.adv.DatePickerCtrl(self,-1,size=(90,20),style=wx.ALIGN_CENTRE_HORIZONTAL)
         self.lblRef = wx.StaticText(self,-1, label="No Bordereau:  ",size=(90,20),style=wx.ALIGN_RIGHT)
@@ -130,6 +137,7 @@ class PNL_params(wx.Panel):
                                     "mais ces règlements vont créditer les clients dans Noethys")
         self.btnBanque.SetToolTip("Amélioration prévue pour consulter les comptes bancaires")
         self.btnDepot.SetToolTip("Recherche d'un dépôt existant pour consultation ou modification")
+        self.btnRaz.SetToolTip("Remise à zéro du tableau")
 
         self.lblDate.SetToolTip("Cette date de saisie servira de date de dépôt s'il est généré par validation")
         self.ctrlDate.SetToolTip("Cette date de saisie servira de date de dépôt s'il est généré par validation")
@@ -160,7 +168,10 @@ class PNL_params(wx.Panel):
         sizer_base = wx.FlexGridSizer(rows=1, cols=3, vgap=0, hgap=20)
         sizer_base.Add(sz_banque,1,wx.LEFT|wx.BOTTOM|wx.EXPAND,3)
         sizer_base.Add(sz_bordereau,1,wx.LEFT|wx.BOTTOM|wx.EXPAND,3)
-        sizer_base.Add(self.btnDepot,0,wx.ALL|wx.ALIGN_CENTRE,10)
+        sizer_btn = wx.FlexGridSizer(rows=2,cols=1,vgap=0,hgap=10)
+        sizer_btn.Add(self.btnDepot,1,wx.LEFT|wx.BOTTOM|wx.EXPAND,3)
+        sizer_btn.Add(self.btnRaz,1,wx.LEFT|wx.BOTTOM,3)
+        sizer_base.Add(sizer_btn,0,wx.ALL|wx.ALIGN_CENTRE,10)
         sizer_base.AddGrowableCol(0)
         self.SetSizer(sizer_base)
 
@@ -193,6 +204,9 @@ class PNL_corpsReglements(xgte.PNL_corps):
         track.mode = trackN1.mode
         track.date = trackN1.date
 
+    def OnCtrlV(self,track):
+        # raz de certains champs à recomposer
+        (track.IDreglement, track.date, track.IDprestation, track.IDpiece,track.compta) = (None,)*5
 
     def OnEditStarted(self,code):
         # affichage de l'aide
@@ -412,6 +426,14 @@ class Dialog(wx.Dialog):
         ix = self.pnlParams.ctrlBanque.GetSelection()
         return self.pnlParams.lstIDbanques[ix]
 
+    def SetTitreImpression(self):
+        IDdepot = self.pnlParams.ctrlRef.GetValue()
+        ctrl = self.pnlParams.ctrlBanque
+        banque = ctrl.GetString(ctrl.GetSelection())
+        dte = self.pnlParams.ctrlDate.GetValue()
+        if not IDdepot: IDdepot = "___"
+        self.ctrlOlv.titreImpression = "REGLEMENTS Dépot No %s, du %s, banque: %s "%(IDdepot,dte.FormatDate(),banque)
+
     def InitOlv(self,withDiffere=False):
         self.ctrlOlv.lstColonnes = GetOlvColonnes(self)
         self.ctrlOlv.lstCodesColonnes = self.ctrlOlv.formerCodeColonnes()
@@ -458,11 +480,14 @@ class Dialog(wx.Dialog):
         self.withDepot = not value
         self.InitOlv(withDiffere=value)
 
+    def OnRaz(self,event):
+        # effacement des lignes sur l'écran
+        self.pnlParams.ctrlRef.SetValue('')
+        self.ctrlOlv.listeDonnees = []
+        self.ctrlOlv.MAJ()
+        self.pnlOlv.Refresh()
+
     def OnGetDepot(self,event):
-        # Test si une saisie est en cours
-        if self.IsSaisie():
-            if wx.MessageBox("Confirmez !\n\nLe bordereau de dépôt en cours a été modifié sans réimpression!",style=wx.YES_NO) != wx.YES:
-                return
         # lancement de la recherche d'un dépot
         self.ctrlOlv.cellEditMode = self.ctrlOlv.CELLEDIT_NONE
         dicDepot = nur.GetDepot(self.db)
@@ -472,12 +497,13 @@ class Dialog(wx.Dialog):
             IDdepot = dicDepot['numero']
         self.pnlParams.ctrlSsDepot.Enable(True)
         if isinstance(IDdepot,int):
-            lstDonnees = [rec[:-1] for rec in  nur.GetReglements(self.db,IDdepot)]
-            lstEnCompta = [rec[:-1] for rec in  nur.GetReglements(self.db,IDdepot) if rec[-1]]
+            lstDonnees = [rec[:-2] for rec in  nur.GetReglements(self.db,IDdepot)]
+            lstEnCompta = [rec[:-2] for rec in  nur.GetReglements(self.db,IDdepot) if (rec[-2] or rec[-1])]
             # présence de lignes déjà transférées compta
             if len(lstEnCompta) >0:
                 self.ctrlOlv.cellEditMode = self.ctrlOlv.CELLEDIT_NONE
-                self.pnlPied.SetItemsInfos("Non modifiable: Transféré en compta", wx.ArtProvider.GetBitmap(wx.ART_ERROR, wx.ART_OTHER, (16, 16)))
+                self.pnlPied.SetItemsInfos("NON MODIFIABLE: règlement ou prestation transféré en compta ",
+                                           wx.ArtProvider.GetBitmap(wx.ART_ERROR, wx.ART_OTHER, (16, 16)))
 
             if len(lstDonnees)>0:
                 # transposition mode de règlement
@@ -506,7 +532,9 @@ class Dialog(wx.Dialog):
                 self.IDdepot = None
 
     def OnImprimer(self,event):
-        print(self.ctrlOlv.ctrl_footer.GetDonneesImpression())
+        self.ctrlOlv.modelObjects=[x for x in self.ctrlOlv.modelObjects if hasattr(x,'ligneValide') and x.ligneValide]
+        self.ctrlOlv.RepopulateList()
+        self.SetTitreImpression()
         self.ctrlOlv.Apercu(None)
         self.isImpress = True
 

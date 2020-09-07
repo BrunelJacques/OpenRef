@@ -307,6 +307,8 @@ class ListView(ObjectListView):
     def MAJ(self, ID=None):
         self.selectionID = ID
         self.InitObjectListView()
+        if self.pnlfooter:
+            self.MAJ_footer()
         # Rappel de la sélection d'un item
         if self.selectionID != None and len(self.innerList) > 0:
             self.SelectObject(self.innerList[ID], deselectOthers=True, ensureVisible=True)
@@ -316,7 +318,7 @@ class ListView(ObjectListView):
 
     def OnItemChecked(self, event):
         if self.pnlfooter:
-            self.pnlfooter.SetFooter(reinit=True)
+            self.MAJ_footer()
 
     def OnContextMenu(self, event):
         """
@@ -587,10 +589,10 @@ class PanelListView(wx.Panel):
             mess = "Pas de sélection faite"
             wx.MessageBox(mess)
             return
-        for item in self.buffertracks:
+        for track in self.buffertracks:
             olv = event.EventObject
             ix = olv.lastGetObjectIndex
-            olv.modelObjects.remove(item)
+            olv.modelObjects.remove(track)
             olv.RepopulateList()
             olv._SelectAndFocus(ix)
             wx.MessageBox(u" %d lignes supprimées et mémorisées pour prochain <ctrl> V"%len(self.buffertracks))
@@ -599,10 +601,17 @@ class PanelListView(wx.Panel):
     def OnCtrlV(self,event):
         # action coller
         if self.buffertracks and len(self.buffertracks) >0:
-            for item in self.buffertracks:
+            for track in self.buffertracks:
+                track.ligneValide = False
+                if hasattr(self.parent,'OnCtrlV'):
+                    self.parent.OnCtrlV(track)
                 olv = event.EventObject
-                ix = olv.lastGetObjectIndex
-                olv.modelObjects.insert(ix,item)
+                ix = len(olv.modelObjects)
+                if len(olv.GetSelectedObjects())>0:
+                    ix = olv.modelObjects.index(olv.GetSelectedObjects()[0])
+                if hasattr(olv,'lastGetObjectIndex'):
+                    ix = olv.lastGetObjectIndex
+                olv.modelObjects.insert(ix,track)
                 olv.RepopulateList()
                 olv._SelectAndFocus(ix)
         else:

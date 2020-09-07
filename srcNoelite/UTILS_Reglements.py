@@ -304,13 +304,14 @@ def GetReglements(db,IDdepot):
     #            IDreglement,date,IDfamille,designation,payeur,labelmode,numero,libelle,montant,IDpiece in recordset
     lstChamps = ['reglements.IDreglement', 'reglements.date', 'reglements.IDcompte_payeur', 'familles.adresse_intitule',
                  'payeurs.nom', 'modes_reglements.label', 'reglements.numero_piece', 'reglements.observations', 
-                 'reglements.montant', 'reglements.IDpiece','reglements.compta']
+                 'reglements.montant', 'reglements.IDpiece','prestations.compta','reglements.compta']
 
     req = """   SELECT %s
-                FROM (( reglements 
+                FROM ((( reglements 
                         LEFT JOIN modes_reglements ON reglements.IDmode = modes_reglements.IDmode) 
                         LEFT JOIN payeurs ON reglements.IDpayeur = payeurs.IDpayeur) 
-                        LEFT JOIN familles ON reglements.IDcompte_payeur = familles.IDfamille
+                        LEFT JOIN familles ON reglements.IDcompte_payeur = familles.IDfamille)
+                        LEFT JOIN prestations ON reglements.IDpiece = prestations.IDprestation
                 WHERE ((reglements.IDdepot = %d))
                 ;""" % (",".join(lstChamps),IDdepot)
 
@@ -319,11 +320,11 @@ def GetReglements(db,IDdepot):
     if retour == "ok":
         recordset = db.ResultatReq()
 
-    for IDreglement,date,IDfamille,designation,payeur,labelmode,numero,libelle,montant,IDpiece,compta in recordset:
+    for IDreglement,date,IDfamille,designation,payeur,labelmode,numero,libelle,montant,IDpiece,prestcpta,compta in recordset:
         creer = "N"
         # la reprise force la non création car déjà potentiellement fait. IDpiece contient l'ID de la prestation créée
         lstDonneesTrack = [IDreglement, date, IDfamille, designation,payeur, labelmode, numero, "", "", libelle,
-                           montant, creer, compta,IDpiece]
+                           montant,creer,IDpiece,prestcpta,compta]
         listeDonnees.append(lstDonneesTrack)
     return listeDonnees
 
@@ -398,33 +399,55 @@ def SetPrestation(dlg,track,db):
         ("IDindividu", 0),
     ]
 
-    if (not hasattr(track,"IDprestation")) or (not track.IDprestation):
+    if (not hasattr(track,"IDpiece")) or (not track.IDpiece):
         ret = db.ReqInsert("prestations",lstDonnees= listeDonnees, mess="UTILS_Reglements.SetPrestation",)
         IDcategorie = 6
         categorie = ("Saisie")
         if ret == 'ok':
-           track.IDprestation = db.newID
+           track.IDpiece = db.newID
     else:
-        ret = db.ReqMAJ("prestations", listeDonnees, "IDprestation", track.IDprestation)
+        ret = db.ReqMAJ("prestations", listeDonnees, "IDprestation", track.IDpiece)
         IDcategorie = 7
         categorie = "Modification"
 
     # mise à jour du règlement sur son numéro de pièce (ID de la prestation
-    listeDonnees = [("IDpiece",track.IDprestation)]
+    listeDonnees = [("IDpiece",track.IDpiece)]
     ret = db.ReqMAJ("reglements", listeDonnees, "IDreglement", track.IDreglement)
 
     # --- Mémorise l'action dans l'historique ---
     if ret == 'ok':
         texteMode = track.mode
         montant = u"%.2f %s" % (track.montant, SYMBOLE)
-        if not track.IDprestation: IDprest = 0
-        else: IDprest = track.IDprestation
+        if not track.IDpiece: IDprest = 0
+        else: IDprest = track.IDpiece
         nuh.InsertActions([{
             "IDfamille": track.IDfamille,
             "IDcategorie": IDcategorie,
             "action": "Noelite %s de prestation associée regl ID%d : %s en %s "%(categorie, IDprest,
                                                                                  montant, track.libelle),
             }, ])
+    return True
+
+def DelPrestation(track,db):
+    ret = db.ReqDEL("prestations", "IDprestation", track.IDpiece)
+    IDcategorie = 8
+    categorie = "Suppression"
+    # --- Mémorise l'action dans l'historique ---
+    if ret == 'ok':
+        # mise à jour du règlement sur son numéro de pièce (ID de la prestation
+        listeDonnees = [("IDpiece", None)]
+        db.ReqMAJ("reglements", listeDonnees, "IDreglement", track.IDreglement)
+
+        montant = u"%.2f %s" % (track.montant, SYMBOLE)
+        if not track.IDpiece: IDprest = 0
+        else: IDprest = track.IDpiece
+        nuh.InsertActions([{
+            "IDfamille": track.IDfamille,
+            "IDcategorie": IDcategorie,
+            "action": "Noelite %s de prestation associée regl ID%d : %s en %s "%(categorie, IDprest,
+                                                                                 montant, track.libelle),
+            }, ])
+        track.IDpiece = None
     return True
 
 def SauveLigne(db,dlg,track):
@@ -440,9 +463,21 @@ def SauveLigne(db,dlg,track):
     # gestion du réglement
     ret = SetReglement(dlg,track,db)
 
+    if not hasattr(track,'IDpiece'): track.IDpiece = None
     # gestion de la prestation associée
     if ret and track.creer:
         ret = SetPrestation(dlg,track,db)
+    elif ret and track.IDpiece:
+        ret = DelPrestation(track,db)
+
+    # Vérif Prestation
+    message = ''
+    if not hasattr(track,'IDpiece'): track.IDpiece = None
+    if track.creer == True  and not track.IDpiece:
+        message = "La prestation associée n'est pas créée!\n"
+    if track.creer == False and track.IDpiece:
+        message = "La prestation associée au règlement n'est pas supprimée!\n"
+    if len(message)>0: wx.MessageBox(message)
     return ret
 
 def DeleteLigne(db,noLigne,track):
@@ -451,30 +486,22 @@ def DeleteLigne(db,noLigne,track):
     if track.montant != 0.0:
         # suppression  du réglement et des ventilations
         ret = db.ReqDEL("reglements", "IDreglement", track.IDreglement,affichError=False)
-        # --- Mémorise l'action dans l'historique ---
-        if ret == 'ok':
-            IDcategorie = 8
-            categorie = "Suppression"
-            nuh.InsertActions([{
-                "IDfamille": track.IDfamille,
-                "IDcategorie": IDcategorie,
-                "action": "Noelite %s du règlement ID%d"%(categorie, track.IDreglement),
-                },],db=db)
-
-        db.ReqDEL("ventilation", "IDreglement", track.IDreglement)
-
-        # gestion de la prestation associée
-        if ret and track.IDprestation:
-            ret = db.ReqDEL("prestations", "IDprestation", track.IDprestation)
+        if track.ligneValide:
+            # --- Mémorise l'action dans l'historique ---
             if ret == 'ok':
                 IDcategorie = 8
                 categorie = "Suppression"
                 nuh.InsertActions([{
                     "IDfamille": track.IDfamille,
                     "IDcategorie": IDcategorie,
-                    "action": "Noelite %s de la prestation ID%d" % (categorie, track.IDprestation),
-                }, ])
+                    "action": "Noelite %s du règlement ID%d"%(categorie, track.IDreglement),
+                    },],db=db)
 
+        db.ReqDEL("ventilation", "IDreglement", track.IDreglement)
+
+        # gestion de la prestation associée
+        if ret == 'ok' and track.IDpiece:
+            DelPrestation(track, db)
     return
 
 def SetReglement(dlg,track,db):
