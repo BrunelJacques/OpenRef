@@ -229,7 +229,7 @@ class PNL_corpsOlv(xgte.PNL_corps):
         row, col = self.ctrlOlv.cellBeingEdited
         if self.flagSkipEdit : return
         self.flagSkipEdit = True
-        track = self.ctrlOlv.lastGetObject
+        track = self.ctrlOlv.GetObjectAt(row)
 
         # si pas de saisie on passe
         if (not value) or track.oldValue == value:

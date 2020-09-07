@@ -290,6 +290,7 @@ class ObjectListView(wx.ListCtrl):
         self.oddRowsBackColor = wx.Colour(245, 245, 255)
         self.newRowsBackColor = wx.Colour(255,250,205)      # Jaune
 
+        self.lastGetObjectIndex = -1
         wx.ListCtrl.__init__(self, *args, **kwargs)
 
         if self.sortable:
@@ -666,6 +667,7 @@ class ObjectListView(wx.ListCtrl):
         """
         Remove all items and columns
         """
+        self.lastGetObjectIndex = -1
         wx.ListCtrl.ClearAll(self)
         self.SetObjects(list())
 
@@ -768,6 +770,7 @@ class ObjectListView(wx.ListCtrl):
         """
         wx.ListCtrl.DeleteAllItems(self)
         self.SetObjects(list())
+        self.lastGetObjectIndex = -1
 
     def EnsureCellVisible(self, rowIndex, subItemIndex):
         """
@@ -851,6 +854,7 @@ class ObjectListView(wx.ListCtrl):
         """
         Refresh the item at the given index with data associated with the given object
         """
+        self.lastGetObjectIndex = index
         self._InsertUpdateItem(self.GetItem(index), index, modelObject, False)
 
     def _InsertUpdateItem(self, listItem, index, modelObject, isInsert):
@@ -884,6 +888,7 @@ class ObjectListView(wx.ListCtrl):
         Refresh the display of the given model
         """
         idx = self.GetIndexOf(modelObject)
+        self.lastGetObjectIndex = idx
         if idx != -1:
             self.RefreshIndex(self._MapModelIndexToListIndex(idx), modelObject)
 
@@ -1172,6 +1177,7 @@ class ObjectListView(wx.ListCtrl):
         """
         # Because of sorting, index can't be used directly, which is
         # why we set the item data to be the real index
+        self.lastGetObjectIndex = index
         return self.innerList[self.GetItemData(index)]
 
     def __getitem__(self, index):
@@ -1416,6 +1422,7 @@ class ObjectListView(wx.ListCtrl):
             return False
 
     def OnDelete(self,evt):
+        ix = -1
         for obj in self.GetSelectedObjects():
             # suppression des lignes pour la saisie
             ix = self.lastGetObjectIndex
@@ -1427,8 +1434,9 @@ class ObjectListView(wx.ListCtrl):
     def OnInsert(self,evt):
         # création automatique d'une nouvelle ligne pour la saisie
         ix = self.lastGetObjectIndex
+        if len(self.GetSelectedObjects()) > 0:
+            ix = self.modelObjects.index(self.GetSelectedObjects()[0])
         self.modelObjects.insert(ix, self.GetTrackVierge(row=ix+1))
-
         self.RepopulateList()
         self._SelectAndFocus(ix)
         return True

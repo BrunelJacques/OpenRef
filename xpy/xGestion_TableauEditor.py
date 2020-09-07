@@ -230,7 +230,7 @@ class ListView(ObjectListView):
 
         # Initialisation du listCtrl
         if not 'autoAddRow' in kwds: kwds['autoAddRow']=True
-        if not 'sortable' in kwds: kwds['sortable']=False
+        if not 'sortable' in kwds: kwds['sortable']=True
         ObjectListView.__init__(self, *args,**kwds)
         # Binds perso
         self.Bind(OLVEvent.EVT_ITEM_CHECKED, self.OnItemChecked)
@@ -601,19 +601,18 @@ class PanelListView(wx.Panel):
     def OnCtrlV(self,event):
         # action coller
         if self.buffertracks and len(self.buffertracks) >0:
+            olv = event.EventObject
+            ix = olv.lastGetObjectIndex
+            if len(olv.GetSelectedObjects()) > 0:
+                ix = olv.modelObjects.index(olv.GetSelectedObjects()[0])
             for track in self.buffertracks:
                 track.ligneValide = False
                 if hasattr(self.parent,'OnCtrlV'):
                     self.parent.OnCtrlV(track)
-                olv = event.EventObject
-                ix = len(olv.modelObjects)
-                if len(olv.GetSelectedObjects())>0:
-                    ix = olv.modelObjects.index(olv.GetSelectedObjects()[0])
-                if hasattr(olv,'lastGetObjectIndex'):
-                    ix = olv.lastGetObjectIndex
                 olv.modelObjects.insert(ix,track)
-                olv.RepopulateList()
-                olv._SelectAndFocus(ix)
+                ix += 1
+            olv.RepopulateList()
+            olv._SelectAndFocus(ix)
         else:
             mess = "Rien en attente de collage, refaites le <ctrl> C ou <ctrl> X"
             wx.MessageBox(mess)

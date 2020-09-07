@@ -117,7 +117,7 @@ class PNL_params(wx.Panel):
         self.btnDepot.SetBitmap(wx.ArtProvider.GetBitmap(wx.ART_FIND,size=(22,22)))
         self.btnDepot.Bind(wx.EVT_BUTTON,self.parent.OnGetDepot)
 
-        self.btnRaz = wx.Button(self, label="Tout effacer",size=(90,20))
+        self.btnRaz = wx.Button(self, label="Réinit",size=(90,20))
         self.btnRaz.SetBitmap(wx.ArtProvider.GetBitmap(wx.ART_ERROR,size=(15,15)))
         self.btnRaz.Bind(wx.EVT_BUTTON,self.parent.OnRaz)
 
@@ -532,8 +532,22 @@ class Dialog(wx.Dialog):
                 self.IDdepot = None
 
     def OnImprimer(self,event):
+        # test de présence d'écritures non valides
+        lstNonValides = [x for x in self.ctrlOlv.modelObjects if not x.ligneValide and x.IDreglement]
+        if len(lstNonValides) > 0:
+            ret = wx.MessageBox('Présence de lignes non valides!\n\nCes lignes seront détruites avant impression',
+                                'Confirmez pour continuer', style=wx.OK | wx.CANCEL)
+            if ret != wx.OK: return
+        # test de présence d'un filtre
+        if len(self.ctrlOlv.innerList) != len(self.ctrlOlv.modelObjects):
+            ret = wx.MessageBox('Filtre actif!\n\nDes lignes sont filtrées, seules les visibles seront rapportées',
+                                'Confirmez pour continuer',style=wx.OK|wx.CANCEL)
+            if ret != wx.OK: return
+        # purge des lignes non valides
         self.ctrlOlv.modelObjects=[x for x in self.ctrlOlv.modelObjects if hasattr(x,'ligneValide') and x.ligneValide]
+        # réaffichage
         self.ctrlOlv.RepopulateList()
+        # impression
         self.SetTitreImpression()
         self.ctrlOlv.Apercu(None)
         self.isImpress = True
