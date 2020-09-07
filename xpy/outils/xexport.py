@@ -25,22 +25,41 @@ from xpy.outils.ObjectListView import FastObjectListView, ColumnDefn
 
 class DataType(object):
     #Classe permetant la conversion facile vers le format souhaité (nombre de caractéres, alignement, décimales)
-    def __init__(self,cat=int,length=1,align="<",precision=2):
+    def __init__(self,cat=int,lg=1,align="<",precision=2,fmt=None,**kwd):
         """
         initialise l'objet avec les paramétres souhaité
         """
         self.cat = cat
-        self.length = length
+        self.length = lg
         self.align = align
         self.precision = precision
+        self.fmt = fmt
 
     def Convert(self,data):
-        # format souhaité
+        # convertit au format souhaité
         ret_val = ""
-        if data == None:
-            data = ""
 
-        if self.cat == int:                        #si l'on veux des entier
+        # gestion des valeurs nulles selon la catégorie attendue
+        if data == None:
+            if self.cat in (int,float,bool,decimal.Decimal): data = self.cat(0)
+            elif self.cat == str:           data = ''
+            elif self.cat == wx.DateTime:   data = wx.DateTime.FromDMY(1,0,1900)
+            elif self.cat == datetime.date: data = datetime.date(1900,1,1)
+
+        # avec un format spécifique fourni
+        if self.fmt: # attention la catégorie doit bien correspondre à la réalité attendue par le format
+            if self.cat == wx.DateTime:
+                # exemple data.Format("%d%m%y")
+                ret_val = data.Format(self.fmt)
+            elif self.cat == datetime.date:
+                # exemple '{:%d%m%y}'.format(data)
+                ret_val = self.fmt.format(data)
+            else:
+                # exemple "{0:{align}0{length}.{precision}f}".format(+1254.126,align=">",length=10,precision=2)
+                # ou directement "{0:+010.0f}".format(+1254.126) pour '+000001254'
+                ret_val = self.fmt.format(data,align=self.align,length=self.length,prec=self.precision)
+
+        elif self.cat == int:                        #si l'on veux des entier
             if data!="":
                 try:                                #on vérifie qu'il s'agit bien d'un nombre
                     data=int(data)
@@ -56,12 +75,6 @@ class DataType(object):
             if not isinstance(data,(str)): data = str(data)
             for a in ['\\',';',',']:
                 data = data.replace(a,'')
-            ret_val = u"{0: {align}0{length}s}".format(data,align=self.align,length=self.length)
-
-        elif self.cat == 'strdt':                      #si l'on veux des chaines de caractéres
-            for a in ['/','-',' ']:
-                data = data.replace(a,'')
-            data = data.replace("-/","")
             ret_val = u"{0: {align}0{length}s}".format(data,align=self.align,length=self.length)
 
         elif self.cat == float:                    #si l'on veux un nombre a virgule
@@ -106,7 +119,6 @@ def GetValeursListview(listview=None, format="texte"):
 
     return listeColonnes, listeValeurs
 
-
 def GetValeursGrid(grid=None):
     """ Récupère les valeurs affichées sous forme de liste """
     # Récupère les labels de colonnes
@@ -129,6 +141,55 @@ def GetValeursGrid(grid=None):
 
     return listeColonnes, listeValeurs
 
+def ChoixDestination(nomFichier,wildcard):
+    # Demande à l'utilisateur le nom de fichier et le répertoire de destination
+    sp = wx.StandardPaths.Get()
+    cheminDefaut = sp.GetDocumentsDir()
+    dlg = wx.FileDialog(
+        None, message="Veuillez sélectionner le répertoire de destination et le nom du fichier",
+        defaultDir=cheminDefaut,
+        defaultFile=nomFichier,
+        wildcard=wildcard,
+        style=wx.FD_SAVE
+    )
+    dlg.SetFilterIndex(0)
+    if dlg.ShowModal() == wx.ID_OK:
+        cheminFichier = dlg.GetPath()
+        dlg.Destroy()
+    else:
+        dlg.Destroy()
+        return
+
+    # Le fichier de destination existe déjà :
+    if os.path.isfile(cheminFichier) == True:
+        dlg = wx.MessageDialog(None, "Un fichier portant ce nom existe déjà. \n\nVoulez-vous le remplacer ?",
+                               "Attention !", wx.YES_NO | wx.NO_DEFAULT | wx.ICON_EXCLAMATION)
+        if dlg.ShowModal() == wx.ID_NO:
+            dlg.Destroy()
+            return False
+        else:
+            dlg.Destroy()
+    return cheminFichier
+
+def LigneLgFixe(matrice):
+    # crée une fonction appelant les datatype pour formater une ligne à données fixes
+    # la matrice décrivant les params doit être : {'code': 'champ1', 'typ': str, 'lg': 8, 'align': "<"},
+    lstFunc = [DataType(**x).Convert for x in matrice]
+    lstChamps = [x['code'] for x in matrice]
+
+    def func(valeurs):
+        texte = ''
+        if len(valeurs) != len(lstFunc):
+            wx.MessageBox('La matrice prévoit %d champs, la ligne a %d valeurs\n%s\n%s'%(len(lstFunc),len(valeurs),
+                                                                                        str(lstChamps),
+                                                                                        str(valeurs)),
+                          'Echec xexport.LigneLgFixe')
+        for ix in range(len(lstFunc)):
+            texte += lstFunc[ix](valeurs[ix])
+        return texte
+    return func
+
+# -------------------------------------------------------------------------------------------------------------------------------
 
 def ExportTexte(listview=None, grid=None, titre=u"", listeColonnes=None, listeValeurs=None, autoriseSelections=True):
     """ Export de la liste au format texte """
@@ -157,36 +218,11 @@ def ExportTexte(listview=None, grid=None, titre=u"", listeColonnes=None, listeVa
             dlg.Destroy()
             return False
 
-    # Demande à l'utilisateur le nom de fichier et le répertoire de destination
     nomFichier = "ExportTexte_%s.txt" % datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     wildcard = "Fichier texte (*.txt)|*.txt|" \
                "All files (*.*)|*.*"
-    sp = wx.StandardPaths.Get()
-    cheminDefaut = sp.GetDocumentsDir()
-    dlg = wx.FileDialog(
-        None, message="Veuillez sélectionner le répertoire de destination et le nom du fichier",
-        defaultDir=cheminDefaut,
-        defaultFile=nomFichier,
-        wildcard=wildcard,
-        style=wx.FD_SAVE
-    )
-    dlg.SetFilterIndex(0)
-    if dlg.ShowModal() == wx.ID_OK:
-        cheminFichier = dlg.GetPath()
-        dlg.Destroy()
-    else:
-        dlg.Destroy()
-        return
-
-    # Le fichier de destination existe déjà :
-    if os.path.isfile(cheminFichier) == True:
-        dlg = wx.MessageDialog(None, "Un fichier portant ce nom existe déjà. \n\nVoulez-vous le remplacer ?",
-                               "Attention !", wx.YES_NO | wx.NO_DEFAULT | wx.ICON_EXCLAMATION)
-        if dlg.ShowModal() == wx.ID_NO:
-            dlg.Destroy()
-            return False
-        else:
-            dlg.Destroy()
+    cheminFichier = ChoixDestination(nomFichier,wildcard)
+    if not cheminFichier : return
 
     # Création du fichier texte
     texte = ""
@@ -227,53 +263,31 @@ def ExportTexte(listview=None, grid=None, titre=u"", listeColonnes=None, listeVa
     else:
         xfichiers.LanceFichierExterne(cheminFichier)
 
-def ExportLgFixe(nomfic='',matrice=[],valeurs=[],entete=False):
+def ExportLgFixe(nomfic='',matrice={},valeurs=[],entete=False):
     """ Export de la liste au format texte """
     if len(valeurs) == 0:
         wx.MessageBox("On ne peut exporter une liste de valeurs vide")
         return
-    if len(matrice) != len(valeurs)[0]:
-        wx.MessageBox("Pb: matrice décrit %d colonnes et valeurs[0] en contient %d!"%(len(matrice),len(valeurs)[0]))
+    if len(matrice) != len(valeurs[0]):
+        wx.MessageBox("Pb: matrice décrit %d colonnes et valeurs[0] en contient %d!"%(len(matrice),
+                                                                                        len(valeurs)[0]))
 
     # Demande à l'utilisateur le nom de fichier et le répertoire de destination
     nomFichier = "%s"%nomfic
     wildcard = "Fichier texte (*.txt)|*.txt|" \
                "All files (*.*)|*.*"
-    sp = wx.StandardPaths.Get()
-    cheminDefaut = sp.GetDocumentsDir()
-    dlg = wx.FileDialog(
-        None, message="Veuillez sélectionner le répertoire de destination et le nom du fichier",
-        defaultDir=cheminDefaut,
-        defaultFile=nomFichier,
-        wildcard=wildcard,
-        style=wx.FD_SAVE
-    )
-    dlg.SetFilterIndex(0)
-    if dlg.ShowModal() == wx.ID_OK:
-        cheminFichier = dlg.GetPath()
-        dlg.Destroy()
-    else:
-        dlg.Destroy()
-        return
-
-    # Le fichier de destination existe déjà :
-    if os.path.isfile(cheminFichier) == True:
-        dlg = wx.MessageDialog(None, "Un fichier portant ce nom existe déjà. \n\nVoulez-vous le remplacer ?",
-                               "Attention !", wx.YES_NO | wx.NO_DEFAULT | wx.ICON_EXCLAMATION)
-        if dlg.ShowModal() == wx.ID_NO:
-            dlg.Destroy()
-            return False
-        else:
-            dlg.Destroy()
+    cheminFichier = ChoixDestination(nomFichier,wildcard)
+    if not cheminFichier : return
 
     # Création du fichier texte
     texte = ""
     if entete:
-        champs = [x['code'] for x in matrice]
-        texte += LigneLgFixe(ligne, matrice,entete=True)
+        ligne = [x['code'] for x in matrice]
+        texte += LigneLgFixe(ligne, matrice)
 
+    makeLigne= LigneLgFixe(matrice)
     for ligne in valeurs:
-        texte += LigneLgFixe(ligne, matrice,entete=False)
+        texte += makeLigne(ligne)
         texte = texte[:-1] + "\n"
 
     # Elimination du dernier saut à la ligne
@@ -282,7 +296,6 @@ def ExportLgFixe(nomfic='',matrice=[],valeurs=[],entete=False):
     # Création du fichier texte
     f = open(cheminFichier, "w")
     f.write(texte)
-    print(texte.encode('utf-8'))
     f.close()
 
     # Confirmation de création du fichier et demande d'ouverture directe dans Excel
@@ -295,13 +308,8 @@ def ExportLgFixe(nomfic='',matrice=[],valeurs=[],entete=False):
     else:
         xfichiers.LanceFichierExterne(cheminFichier)
 
-# -------------------------------------------------------------------------------------------------------------------------------
-
-
-def ExportExcel(listview=None, grid=None, titre="Liste", listeColonnes=None, listeValeurs=None,
-                autoriseSelections=True):
-    """ Export de la liste au format Excel """
-    # Plus de sélection pour éviter les bugs !!!!
+def ExportExcel(listview=None, grid=None, titre="Liste", listeColonnes=None, listeValeurs=None, autoriseSelections=True):
+    # Export de la liste au format Excel
     autoriseSelections = False
 
     # Vérifie si données bien présentes
@@ -332,36 +340,10 @@ def ExportExcel(listview=None, grid=None, titre="Liste", listeColonnes=None, lis
 
     # Définit le nom et le chemin du fichier
     nomFichier = "ExportExcel_%s.xls" % datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-
-    # Demande à l'utilisateur le nom de fichier et le répertoire de destination
     wildcard = "Fichier Excel (*.xls)|*.xls|" \
                "All files (*.*)|*.*"
-    sp = wx.StandardPaths.Get()
-    cheminDefaut = sp.GetDocumentsDir()
-    dlg = wx.FileDialog(
-        None, message="Veuillez sélectionner le répertoire de destination et le nom du fichier",
-        defaultDir=cheminDefaut,
-        defaultFile=nomFichier,
-        wildcard=wildcard,
-        style=wx.FD_SAVE
-    )
-    dlg.SetFilterIndex(0)
-    if dlg.ShowModal() == wx.ID_OK:
-        cheminFichier = dlg.GetPath()
-        dlg.Destroy()
-    else:
-        dlg.Destroy()
-        return
-
-    # Le fichier de destination existe déjà :
-    if os.path.isfile(cheminFichier) == True:
-        dlg = wx.MessageDialog(None, "Un fichier portant ce nom existe déjà. \n\nVoulez-vous le remplacer ?",
-                               "Attention !", wx.YES_NO | wx.NO_DEFAULT | wx.ICON_EXCLAMATION)
-        if dlg.ShowModal() == wx.ID_NO:
-            return False
-            dlg.Destroy()
-        else:
-            dlg.Destroy()
+    cheminFichier = ChoixDestination(nomFichier,wildcard)
+    if not cheminFichier : return
 
     # Export
     import xlwt
@@ -396,7 +378,7 @@ def ExportExcel(listview=None, grid=None, titre="Liste", listeColonnes=None, lis
     y = 0
     for labelCol, alignement, largeur, nomChamp in listeColonnes:
         try:
-            if "CheckState" in unicode(nomChamp):
+            if "CheckState" in nomChamp:
                 nomChamp = "Coche"
         except:
             pass
@@ -557,7 +539,6 @@ def ExportExcel(listview=None, grid=None, titre="Liste", listeColonnes=None, lis
         return
     else:
         xfichiers.LanceFichierExterne(cheminFichier)
-
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------------------
 

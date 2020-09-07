@@ -12,7 +12,7 @@ import xpy.xGestionConfig   as xgc
 import xpy.xGestionDB       as xdb
 import xpy.xUTILS_SaisieParams          as xusp
 import xpy.xGestion_TableauRecherche    as xgtr
-from xpy.outils             import xexport
+from xpy.outils             import xexport,xformat
 
 # Paramétrage des accès aux bases de données, les 'select' de _COMPTAS doivent respecter 'lstChamps' de  _COMPTES
 MATRICE_COMPTAS = {'quadra': {
@@ -50,39 +50,60 @@ MATRICE_JOURNAUX = {
     'lstLargeurColonnes':[90,-1,100,60]
     }
 
+#FORMATS_EXPORT
+"""les formats d'exports sont décrits plus bas, en dessous de la définition des fonctions d'exports,
+    car ils les appellent ces fonctions qui doivent donc êtres déclarées avant dans le module"""
+
 # Transposition des valeurs Export, gérer chaque item FORMAT_xxxx pour les spécificités
 def ComposeFuncExp(dicParams,donnees,champsIn,champsOut):
     # 'in' est l'OLV, 'out' est le fichier de sortie
     lstOut = []
-    formatOut = dicParams['fichiers']['formatexp']
+    #formatOut = dicParams['fichiers']['formatexp']
     for ligne in donnees:
         ligneOut = []
         typePiece = "B" # cas par défaut B comme carte Bancaire
         for champ in champsOut:
-            valeur = None
+            if champ in champsIn:
+                valeur = ligne.donnees[champsIn.index(champ)]
+            elif champ in ('debit','credit','sens','valeur','valeur00'):
+                valeur = ligne.donnees[champsIn.index('montant')]
+            else: valeur = ''
             # composition des champs sortie
             if champ    == 'journal':   valeur = dicParams['compta']['journal']
+            elif champ  == 'compte':
+                if not valeur or valeur == '' : valeur = '471'
+            elif champ  == 'date':
+                valeur = xformat.DateStrToWxdate(valeur)
             elif champ  == 'typepiece': valeur = typePiece
             elif champ  == 'contrepartie': valeur = dicParams['compta']['contrepartie']
+            elif champ  == 'devise': valeur = 'EUR'
+            elif champ  == 'sens':
+                mtt = float(valeur.replace(",","."))
+                if mtt >=0: valeur = 'C'
+                else: valeur = 'D'
+            elif champ  == 'valeur': valeur = abs(float(valeur.replace(",",".")))
+            elif champ == 'valeur00':valeur = abs(float(valeur.replace(",", "."))*100)
             elif champ  == 'debit':
-                montant = float(ligne.donnees[champsIn.index("montant")].replace(",","."))
+                montant = float(valeur.replace(",","."))
                 if montant < 0.0: valeur = -montant
                 else: valeur = 0.0
             elif champ  == 'credit':
-                montant = float(ligne.donnees[champsIn.index("montant")].replace(",","."))
+                montant = float(valeur.replace(",","."))
                 if montant >= 0.0: valeur = montant
                 else: valeur = 0.0
-            # récupération des champs homonymes (date, compte, libelle, piece...)
-            elif champ in champsIn:
-                valeur = ligne.donnees[champsIn.index(champ)]
             ligneOut.append(valeur)
         lstOut.append(ligneOut)
         # ajout de la contrepartie banque
         ligneBanque = [x for x in ligneOut]
         ligneBanque[champsOut.index('contrepartie')]    = ligneOut[champsOut.index('compte')]
         ligneBanque[champsOut.index('compte')]          = dicParams['compta']['contrepartie']
-        ligneBanque[champsOut.index('debit')]    = ligneOut[champsOut.index('credit')]
-        ligneBanque[champsOut.index('credit')]    = ligneOut[champsOut.index('debit')]
+        if 'debit' in champsOut:
+            ligneBanque[champsOut.index('debit')]    = ligneOut[champsOut.index('credit')]
+            ligneBanque[champsOut.index('credit')]    = ligneOut[champsOut.index('debit')]
+        elif 'sens' in champsOut:
+            ix = champsOut.index('sens')
+            if ligneOut[ix] == 'D': ligneBanque[ix] = 'C'
+            elif ligneOut[ix] == 'C': ligneBanque[ix] = 'D'
         lstOut.append(ligneBanque)
     return lstOut
 
@@ -96,36 +117,47 @@ def ExportExcel(formatExp, lstValeurs):
                         listeValeurs=lstValeurs,
                         titre=formatExp)
 
-def ExportQuadra(formatExp, valeurs):
+def ExportQuadra(formatExp, lstValeurs):
     matrice = FORMATS_EXPORT[formatExp]['matrice']
     # envois dans un fichier texte
-    xexport.ExportLgFixe(nomfic=formatExp+".txt",matrice=matrice,valeurs=valeurs)
+    xexport.ExportLgFixe(nomfic=formatExp+".txt",matrice=matrice,valeurs=lstValeurs)
+
 
 FORMATS_EXPORT = {"Quadra via Excel":{  'compta':'quadra',
                                         'fonction':ComposeFuncExp,
-                                        'matrice':[{'code':'journal',   'lg': 40,},
-                                                   {'code':'date',      'lg': 80,},
-                                                   {'code':'compte',    'lg': 60,},
-                                                   {'code':'typepiece', 'lg': 25,},
-                                                   {'code':'libelle',   'lg': 240,},
-                                                   {'code':'debit',     'lg': 60,},
-                                                   {'code':'credit',    'lg': 60,},
-                                                   {'code':'piece',     'lg': 60,},
-                                                   {'code':'contrepartie','lg': 60,},
-                                                   ],
+                                        'matrice':[
+                                                {'code':'journal',   'lg': 40,},
+                                                {'code':'date',      'lg': 80,},
+                                                {'code':'compte',    'lg': 60,},
+                                                {'code':'typepiece', 'lg': 25,},
+                                                {'code':'libelle',   'lg': 240,},
+                                                {'code':'debit',     'lg': 60,},
+                                                {'code':'credit',    'lg': 60,},
+                                                {'code':'piece',     'lg': 60,},
+                                                {'code':'contrepartie','lg': 60,},
+                                                ],
                                         'genere':ExportExcel},
-                  "Quadra import ASCII": { 'compta':'quadra',
+                  "Quadra qExport ASCII": { 'compta':'quadra',
                                         'fonction':ComposeFuncExp,
-                                        'matrice':[{'code':'journal',   'lg': 40,},
-                                                   {'code':'date',      'lg': 80,},
-                                                   {'code':'compte',    'lg': 60,},
-                                                   {'code':'typepiece', 'lg': 25,},
-                                                   {'code':'libelle',   'lg': 240,},
-                                                   {'code':'debit',     'lg': 60,},
-                                                   {'code':'credit',    'lg': 60,},
-                                                   {'code':'piece',     'lg': 60,},
-                                                   {'code':'contrepartie','lg': 60,},
-                                                   ],
+                                        'matrice':[
+                                                {'code': 'typ',     'cat': str, 'lg': 1, 'align': "<"},
+                                                {'code': 'compte',  'cat': str, 'lg': 8, 'align': "<"},
+                                                {'code': 'journal',      'cat': str, 'lg': 2, 'align': "<"},
+                                                {'code': 'fol',     'cat': str, 'lg': 3, 'align': "<"},
+                                                {'code': 'date',    'cat': wx.DateTime, 'lg':6, 'fmt': "%d%m%y"},
+                                                {'code': 'fil',    'cat': str, 'lg': 21, 'align': ">"},
+                                                {'code': 'sens',    'cat': str, 'lg': 1, 'align': "<"},
+                                                {'code': 'valeur00',  'cat': float, 'lg': 13,'fmt':"{0:+013.0f}"},
+                                                {'code': 'contrepartie','cat': str, 'lg': 8, 'align': "<"},
+                                                {'code': 'fil',    'cat': str, 'lg': 44, 'align': ">"},
+                                                {'code': 'devise',  'cat': str, 'lg': 3, 'align': "<"},
+                                                {'code': 'journal',     'cat': str, 'lg': 3, 'align': "<"},
+                                                {'code': 'fil',    'cat': str, 'lg': 3, 'align': "<"},
+                                                {'code': 'libelle','cat': str, 'lg': 30, 'align': "<"},
+                                                {'code': 'fil',    'cat': str, 'lg': 2, 'align': "<"},
+                                                {'code': 'piece','cat': str, 'lg': 10, 'align': "<"},
+                                                {'code': 'fil',    'cat': str, 'lg': 73, 'align': "<"},
+                                                ],
                                         'genere':ExportQuadra},
                   }
 
