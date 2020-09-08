@@ -34,6 +34,8 @@ class DataType(object):
         self.align = align
         self.precision = precision
         self.fmt = fmt
+        if self.cat == 'const':
+            self.constante = kwd.pop('constante',None)
 
     def Convert(self,data):
         # convertit au format souhaité
@@ -76,6 +78,10 @@ class DataType(object):
             for a in ['\\',';',',']:
                 data = data.replace(a,'')
             ret_val = u"{0: {align}0{length}s}".format(data,align=self.align,length=self.length)
+
+        elif self.cat == 'const':                      # la valeur est une constante
+            if not isinstance(data,(str)): data = str(data)
+            ret_val = self.constante
 
         elif self.cat == float:                    #si l'on veux un nombre a virgule
             if data!="":
@@ -173,7 +179,7 @@ def ChoixDestination(nomFichier,wildcard):
 
 def LigneLgFixe(matrice):
     # crée une fonction appelant les datatype pour formater une ligne à données fixes
-    # la matrice décrivant les params doit être : {'code': 'champ1', 'typ': str, 'lg': 8, 'align': "<"},
+    # la matrice décrivant les params doit être structurée: {'code': 'champ1', 'typ': str, 'lg': 8, 'align': "<"},
     lstFunc = [DataType(**x).Convert for x in matrice]
     lstChamps = [x['code'] for x in matrice]
 
@@ -187,6 +193,7 @@ def LigneLgFixe(matrice):
         for ix in range(len(lstFunc)):
             texte += lstFunc[ix](valeurs[ix])
         return texte
+
     return func
 
 # -------------------------------------------------------------------------------------------------------------------------------
@@ -198,7 +205,7 @@ def ExportTexte(listview=None, grid=None, titre=u"", listeColonnes=None, listeVa
         dlg = wx.MessageDialog(None, "Il n'y a aucune donnée dans la liste !", "Erreur", wx.OK | wx.ICON_ERROR)
         dlg.ShowModal()
         dlg.Destroy()
-        return
+        return wx.CANCEL
 
     # Récupération des valeurs
     if listview != None and listeColonnes == None and listeValeurs == None:
@@ -216,13 +223,13 @@ def ExportTexte(listview=None, grid=None, titre=u"", listeColonnes=None, listeVa
             dlg.Destroy()
         else:
             dlg.Destroy()
-            return False
+            return wx.CANCEL
 
     nomFichier = "ExportTexte_%s.txt" % datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     wildcard = "Fichier texte (*.txt)|*.txt|" \
                "All files (*.*)|*.*"
     cheminFichier = ChoixDestination(nomFichier,wildcard)
-    if not cheminFichier : return
+    if not cheminFichier : return wx.CANCEL
 
     # Création du fichier texte
     texte = ""
@@ -258,16 +265,15 @@ def ExportTexte(listview=None, grid=None, titre=u"", listeColonnes=None, listeVa
     dlgConfirm = wx.MessageDialog(None, txtMessage, "Confirmation", wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
     reponse = dlgConfirm.ShowModal()
     dlgConfirm.Destroy()
-    if reponse == wx.ID_NO:
-        return
-    else:
+    if reponse == wx.ID_YES:
         xfichiers.LanceFichierExterne(cheminFichier)
+    return wx.OK
 
 def ExportLgFixe(nomfic='',matrice={},valeurs=[],entete=False):
     """ Export de la liste au format texte """
     if len(valeurs) == 0:
         wx.MessageBox("On ne peut exporter une liste de valeurs vide")
-        return
+        return wx.CANCEL
     if len(matrice) != len(valeurs[0]):
         wx.MessageBox("Pb: matrice décrit %d colonnes et valeurs[0] en contient %d!"%(len(matrice),
                                                                                         len(valeurs)[0]))
@@ -277,13 +283,14 @@ def ExportLgFixe(nomfic='',matrice={},valeurs=[],entete=False):
     wildcard = "Fichier texte (*.txt)|*.txt|" \
                "All files (*.*)|*.*"
     cheminFichier = ChoixDestination(nomFichier,wildcard)
-    if not cheminFichier : return
+    if not cheminFichier : return wx.CANCEL
 
     # Création du fichier texte
     texte = ""
     if entete:
         ligne = [x['code'] for x in matrice]
-        texte += LigneLgFixe(ligne, matrice)
+        matriceEntete = [{'code':x['code'],'cat':str,'lg':x['lg'],} for x in matrice]
+        texte += LigneLgFixe(matriceEntete)(ligne)+ "\n"
 
     makeLigne= LigneLgFixe(matrice)
     for ligne in valeurs:
@@ -303,10 +310,9 @@ def ExportLgFixe(nomfic='',matrice={},valeurs=[],entete=False):
     dlgConfirm = wx.MessageDialog(None, txtMessage, "Confirmation", wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
     reponse = dlgConfirm.ShowModal()
     dlgConfirm.Destroy()
-    if reponse == wx.ID_NO:
-        return
-    else:
+    if reponse == wx.ID_YES:
         xfichiers.LanceFichierExterne(cheminFichier)
+    return wx.OK
 
 def ExportExcel(listview=None, grid=None, titre="Liste", listeColonnes=None, listeValeurs=None, autoriseSelections=True):
     # Export de la liste au format Excel
@@ -318,7 +324,7 @@ def ExportExcel(listview=None, grid=None, titre="Liste", listeColonnes=None, lis
         dlg = wx.MessageDialog(None, "Il n'y a aucune donnée dans la liste !", "Erreur", wx.OK | wx.ICON_ERROR)
         dlg.ShowModal()
         dlg.Destroy()
-        return
+        return wx.CANCEL
 
     # Récupération des valeurs
     if listview != None and listeColonnes == None and listeValeurs == None:
@@ -336,14 +342,14 @@ def ExportExcel(listview=None, grid=None, titre="Liste", listeColonnes=None, lis
             dlg.Destroy()
         else:
             dlg.Destroy()
-            return False
+            return wx.CANCEL
 
     # Définit le nom et le chemin du fichier
     nomFichier = "ExportExcel_%s.xls" % datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     wildcard = "Fichier Excel (*.xls)|*.xls|" \
                "All files (*.*)|*.*"
     cheminFichier = ChoixDestination(nomFichier,wildcard)
-    if not cheminFichier : return
+    if not cheminFichier : return wx.CANCEL
 
     # Export
     import xlwt
@@ -526,7 +532,7 @@ def ExportExcel(listview=None, grid=None, titre="Liste", listeColonnes=None, lis
                                "Erreur", wx.OK | wx.ICON_ERROR)
         dlg.ShowModal()
         dlg.Destroy()
-        return
+        return wx.CANCEL
 
     # Confirmation de création du fichier et demande d'ouverture directe dans Excel
 
@@ -535,10 +541,9 @@ def ExportExcel(listview=None, grid=None, titre="Liste", listeColonnes=None, lis
                                   wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
     reponse = dlgConfirm.ShowModal()
     dlgConfirm.Destroy()
-    if reponse == wx.ID_NO:
-        return
-    else:
+    if reponse == wx.ID_YES:
         xfichiers.LanceFichierExterne(cheminFichier)
+    return wx.OK
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------------------
 

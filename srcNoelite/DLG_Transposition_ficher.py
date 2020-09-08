@@ -144,7 +144,7 @@ def GetBoutons(dlg):
 def GetOlvColonnes(dlg):
     # retourne la liste des colonnes de l'écran principal
     return [
-            ColumnDefn("Date", 'center', 80, 'date', valueSetter=wx.DateTime.Today(),isSpaceFilling=False,
+            ColumnDefn("Date", 'center', 85, 'date', valueSetter=wx.DateTime.Today(),isSpaceFilling=False,
                             stringConverter=xformat.FmtDate),
             ColumnDefn("Cpt No", 'left', 70, 'compte',valueSetter='',isSpaceFilling=False,
                             isEditable=True),
@@ -170,7 +170,8 @@ def GetOlvOptions(dlg):
             'recherche': True,
             'autoAddRow':False,
             'msgIfEmpty':"Fichier non encore importé!",
-            'dictColFooter': {"libelle": {"mode": "nombre", "alignement": wx.ALIGN_CENTER}, }
+            'dictColFooter': {"libelle": {"mode": "nombre", "alignement": wx.ALIGN_CENTER},
+                              "montant": {"mode": "total"}, }
     }
 
 # fonction d'enrichissement des champs
@@ -447,15 +448,25 @@ class Dialog(xusp.DLG_vide):
 
         # calcul des débit et crédit des pièces
         totDebits, totCredits = 0.0, 0.0
+        nonValides = 0
         for ligne in self.ctrlOlv.innerList:
+            if not ligne.compte or len(ligne.compte)==0: nonValides +=1
             montant = float(ligne.montant.replace(',','.'))
             if montant > 0.0:
                 totCredits += montant
             else:
                 totDebits -= montant
+        if nonValides > 0:
+            ret = wx.MessageBox("%d lignes sans no de compte!\n\nelles seront mises en compte d'attente 471"%nonValides,
+                          "Confirmez ou abandonnez",style= wx.YES_NO)
+            if not ret == wx.YES:
+                return wx.CANCEL
+
 
         exp = UTILS_Compta.Export(self,self.compta)
-        exp.Exporte(params=self.pnlParams.GetValeurs(),donnees=self.pnlParams.GetValeurs(),olv=self.ctrlOlv)
+        ret = exp.Exporte(params=self.pnlParams.GetValeurs(),donnees=self.pnlParams.GetValeurs(),olv=self.ctrlOlv)
+        if not ret == wx.OK:
+            return ret
 
         # affichage résultat
         solde = xformat.FmtMontant(totDebits - totCredits,lg=12)

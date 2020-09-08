@@ -140,7 +140,7 @@ FORMATS_EXPORT = {"Quadra via Excel":{  'compta':'quadra',
                   "Quadra qExport ASCII": { 'compta':'quadra',
                                         'fonction':ComposeFuncExp,
                                         'matrice':[
-                                                {'code': 'typ',     'cat': str, 'lg': 1, 'align': "<"},
+                                                {'code': 'typ',     'cat': 'const', 'lg': 1, 'constante': "M"},
                                                 {'code': 'compte',  'cat': str, 'lg': 8, 'align': "<"},
                                                 {'code': 'journal',      'cat': str, 'lg': 2, 'align': "<"},
                                                 {'code': 'fol',     'cat': str, 'lg': 3, 'align': "<"},
@@ -181,7 +181,7 @@ class Export(object):
                                                             olv.lstCodesColonnes,
                                                             champsOut)
         # appel de la fonction génération fichier
-        FORMATS_EXPORT[formatExp]['genere'](formatExp,lstValeurs)
+        ret = FORMATS_EXPORT[formatExp]['genere'](formatExp,lstValeurs)
 
         # mise à jour du dernier numero de pièce affiché avant d'être sauvegardé
         if 'piece' in champsOut:

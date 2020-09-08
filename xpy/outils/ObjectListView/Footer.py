@@ -42,6 +42,7 @@ class Footer(wx.Control):
                         if not nomColonne in self.dictTotaux:
                             self.dictTotaux[nomColonne] = 0
                         if total != None :
+                            total = float(total.replace(',','.'))
                             self.dictTotaux[nomColonne] += total
                 if dictColonne["mode"] == "nombre" :
                     if hasattr(track, nomColonne) :
