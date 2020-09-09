@@ -133,17 +133,24 @@ class DB():
                 self.cfgParams  = DICT_CONNEXIONS[self.IDconnexion]['cfgParams']
                 if self.connexion: self.echec = 0
 
-    def Ping(self,serveur):
-        #t1 = datetime.datetime.now()
+    def Ping(self,serveur, bis=False):
         option = '-n' if sys.platform == 'win32' else ''
         if not serveur or len(serveur) < 3 :
             raise NameError('Pas de nom de serveur fourni dans la commande PING')
         ret = subprocess.run(['ping', option, '1', '-w', '500', serveur,],
                              capture_output=True).returncode
-        #t2 = datetime.datetime.now()
-        #print((t2-t1).microseconds/1000)
         if ret != 0:
-            raise NameError("Pas de réponse du serveur %s à la commande PING"%serveur)
+            if not bis:
+                # deusième tentative
+                t1 = datetime.datetime.now()
+                ret = self.Ping(serveur,bis=True)
+                t2 = datetime.datetime.now()
+                if ret != 0:
+                    delta = (t2-t1)
+                    deltasec = delta.seconds + delta.microseconds/10**6
+                    mess = "Délai d'attente ping en secondes: %.3f"%(deltasec)
+                    print(mess)
+                    raise NameError("Pas de réponse du serveur %s à la commande PING\n\n%s"%(serveur,mess))
         return True
 
     def AfficheTestOuverture(self):
