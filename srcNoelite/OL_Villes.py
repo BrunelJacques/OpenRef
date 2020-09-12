@@ -12,7 +12,7 @@ import wx
 import xpy.xGestionDB                   as xdb
 import srcNoelite.UTILS_Adresses   as usa
 import srcNoelite.UTILS_Utilisateurs    as nuu
-import srcNoelite.DLG_Secteurs          as ndsect
+import srcNoelite.DLG_Pays          as DLG_Pays
 from xpy.outils.ObjectListView import FastObjectListView, ColumnDefn, Filter, CTRL_Outils
 
 class CTRL_Bouton_image(wx.Button):
@@ -96,7 +96,7 @@ class DLG_Saisie(wx.Dialog):
         return self.ctrl_pays.GetValue().upper()
 
     def OnChoixPays(self,event):
-        dlg = ndsect.Dialog(self)
+        dlg = DLG_Pays.Dialog(self)
         if dlg.ShowModal() == wx.ID_OK:
             pays = dlg.saisie_pays
             self.ctrl_pays.SetValue(pays)

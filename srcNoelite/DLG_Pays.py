@@ -10,7 +10,7 @@
 
 import wx
 import xpy.outils.xbandeau      as xbd
-import srcNoelite.OL_Secteurs   as nosct
+import srcNoelite.OL_Pays   as OL_Pays
 
 class CTRL_Bouton_image(wx.Button):
     def __init__(self, parent, id=wx.ID_APPLY, texte="", cheminImage=None):
@@ -28,9 +28,9 @@ class Dialog(wx.Dialog):
         intro = "Vous pouvez ici saisir, modifier ou supprimer des pays utilisés dans les adresses"
         titre = "Gestion des pays postaux"
         self.ctrl_bandeau = xbd.Bandeau(self, titre=titre, texte=intro, hauteur=15, nomImage="xpy/Images/32x32/Secteur.png")
-        self.ctrl_listview = nosct.ListView(self, id=-1, style=wx.LC_REPORT|wx.SUNKEN_BORDER|wx.LC_SINGLE_SEL|wx.LC_HRULES|wx.LC_VRULES)
+        self.ctrl_listview = OL_Pays.ListView(self, id=-1, style=wx.LC_REPORT|wx.SUNKEN_BORDER|wx.LC_SINGLE_SEL|wx.LC_HRULES|wx.LC_VRULES)
         self.ctrl_listview.MAJ()
-        self.ctrl_recherche = nosct.CTRL_Outils(self, listview=self.ctrl_listview)
+        self.ctrl_recherche = OL_Pays.CTRL_Outils(self, listview=self.ctrl_listview)
         
         self.bouton_ajouter = wx.BitmapButton(self, -1, wx.Bitmap("xpy/Images/16x16/Ajouter.png", wx.BITMAP_TYPE_ANY))
         self.bouton_modifier = wx.BitmapButton(self, -1, wx.Bitmap("xpy/Images/16x16/Modifier.png", wx.BITMAP_TYPE_ANY))

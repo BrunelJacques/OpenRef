@@ -163,7 +163,6 @@ class DB():
             mess = "Désolé "
         wx.MessageBox(mess, style=style)
 
-
     def ConnexionFichierReseau(self,config):
         self.connexion = None
         self.echec = 1
@@ -557,7 +556,8 @@ class DB():
                 # Adaptation à Sqlite
                 if self.isNetwork == False and typeChamp == "LONGBLOB" : typeChamp = "BLOB"
                 # Adaptation à MySQL :
-                if self.isNetwork == True and typeChamp == "INTEGER PRIMARY KEY AUTOINCREMENT" : typeChamp = "INTEGER PRIMARY KEY AUTO_INCREMENT"
+                if self.isNetwork == True and typeChamp == "INTEGER PRIMARY KEY AUTOINCREMENT" :
+                    typeChamp = "INTEGER PRIMARY KEY AUTO_INCREMENT"
                 if self.isNetwork == True and typeChamp == "FLOAT" : typeChamp = "REAL"
                 if self.isNetwork == True and typeChamp == "DATE" : typeChamp = "VARCHAR(10)"
                 if self.isNetwork == True and typeChamp.startswith("VARCHAR") :
@@ -574,6 +574,16 @@ class DB():
                     self.Commit()
         return retour
         #fin CreationUneTable
+
+    def CreationTables(self, dicoDB={}, fenetreParente=None):
+        for table in dicoDB:
+            # Affichage dans la StatusBar
+            mess = "Création de la table de données %s..." % table
+            if fenetreParente != None :
+                fenetreParente.SetStatusText(mess)
+            else: print(mess)
+            self.CreationUneTable(dicoDB=dicoDB,table=table,fenetreParente=fenetreParente)
+        Index = self.CreationIndex()
 
     def CreationIndex(self,nomIndex="",listeIndex={}):
         """ Création d'un index """
@@ -656,7 +666,7 @@ class DB():
         cnxn.close()
 
         import mysql
-        cnx = mysql.connector.connect(host='192.168.1.43', user='root', database='matthania_data',password='pr0V1522')
+        cnx = mysql.connector.connect(host='192.168.1.43', user='root', database='matthania_data',password='xxxxx')
         cursor = cnx.cursor()
 
         query = ("SELECT * FROM caisses")
@@ -676,7 +686,7 @@ class DB():
         # Connect to the database
         connection = pymysql.connect(host='192.168.1.43',
                                      user='root',
-                                     password='pr0V1522',
+                                     password='xxxxx',
                                      db='matthania_data',
                                      charset='utf8mb4',
                                      cursorclass=pymysql.cursors.DictCursor)

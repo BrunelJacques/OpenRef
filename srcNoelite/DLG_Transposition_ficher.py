@@ -417,21 +417,6 @@ class Dialog(xusp.DLG_vide):
         formatIn = dicParams['fichiers']['formatin']
         return FORMATS_IMPORT[formatIn]['table']
 
-    def EnrichiTrack(self,ligne,lstCodesColonnes):
-        # composition des champs en liens avec la compta
-        ixLibelle = lstCodesColonnes.index('libelle')
-        ixCompte = lstCodesColonnes.index('compte')
-        ixAppel = lstCodesColonnes.index('appel')
-        ixLibCpt = lstCodesColonnes.index('libcpt')
-        record = self.compta.GetOneAuto(self.table,lib=ligne[ixLibelle])
-        # la recherche de compte a matché
-        if record:
-            ligne[ixCompte] = record[0]
-            ligne[ixAppel]  = record[1]
-            ligne[ixLibCpt] = record[2]
-        else:
-            ligne[ixCompte] = self.compta.filtreTest
-
     def OnImporter(self,event):
         dicParams = self.pnlParams.GetValeurs()
         formatIn = dicParams['fichiers']['formatin']
@@ -439,9 +424,6 @@ class Dialog(xusp.DLG_vide):
         self.ctrlOlv.listeDonnees = FORMATS_IMPORT[formatIn]['fonction'](dicParams,
                                                            self.GetDonneesIn(),
                                                            self.ctrlOlv.lstCodesColonnes,self.compta,self.table)
-        if self.compta and False:
-            for ligne in self.ctrlOlv.listeDonnees:
-                self.EnrichiTrack(ligne,self.ctrlOlv.lstCodesColonnes,self.table)
         self.InitOlv()
 
     def OnExporter(self,event):
