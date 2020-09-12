@@ -14,10 +14,10 @@ import os
 import datetime
 import six
 import decimal
+import platform
 
 from xpy.outils import xctrlbi
 from xpy.outils import xdates
-from xpy.outils import xfichiers
 from xpy.outils import xselection
 from xpy.outils import xbandeau
 from xpy.outils.xconst import *
@@ -177,6 +177,16 @@ def ChoixDestination(nomFichier,wildcard):
             dlg.Destroy()
     return cheminFichier
 
+def Confirmation(cheminFichier):
+    # Confirmation de création du fichier et demande d'ouverture directe
+    txtMessage = "Le fichier a été créé avec succès. Souhaitez-vous l'ouvrir dès maintenant ?"
+    dlgConfirm = wx.MessageDialog(None, txtMessage, "Confirmation", wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
+    reponse = dlgConfirm.ShowModal()
+    dlgConfirm.Destroy()
+    if reponse == wx.ID_YES:
+        LanceFichierExterne(cheminFichier)
+    return wx.OK
+
 def LigneLgFixe(matrice):
     # crée une fonction appelant les datatype pour formater une ligne à données fixes
     # la matrice décrivant les params doit être structurée: {'code': 'champ1', 'typ': str, 'lg': 8, 'align': "<"},
@@ -197,6 +207,14 @@ def LigneLgFixe(matrice):
     return func
 
 # -------------------------------------------------------------------------------------------------------------------------------
+
+def LanceFichierExterne(nomFichier) :
+    """ Ouvre un fichier externe sous windows ou linux """
+    if platform.system() == "Windows":
+        nomFichier = nomFichier.replace("/", "\\")
+        os.startfile(nomFichier)
+    if platform.system() == "Linux":
+        os.system("xdg-open " + nomFichier)
 
 def ExportTexte(listview=None, grid=None, titre=u"", listeColonnes=None, listeValeurs=None, autoriseSelections=True):
     """ Export de la liste au format texte """
@@ -259,15 +277,7 @@ def ExportTexte(listview=None, grid=None, titre=u"", listeColonnes=None, listeVa
     f.write(texte)
     print(texte.encode('utf-8'))
     f.close()
-
-    # Confirmation de création du fichier et demande d'ouverture directe dans Excel
-    txtMessage = "Le fichier Texte a été créé avec succès. Souhaitez-vous l'ouvrir dès maintenant ?"
-    dlgConfirm = wx.MessageDialog(None, txtMessage, "Confirmation", wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
-    reponse = dlgConfirm.ShowModal()
-    dlgConfirm.Destroy()
-    if reponse == wx.ID_YES:
-        xfichiers.LanceFichierExterne(cheminFichier)
-    return wx.OK
+    return Confirmation(cheminFichier)
 
 def ExportLgFixe(nomfic='',matrice={},valeurs=[],entete=False):
     """ Export de la liste au format texte """
@@ -304,15 +314,7 @@ def ExportLgFixe(nomfic='',matrice={},valeurs=[],entete=False):
     f = open(cheminFichier, "w")
     f.write(texte)
     f.close()
-
-    # Confirmation de création du fichier et demande d'ouverture directe dans Excel
-    txtMessage = "Le fichier Texte a été créé avec succès. Souhaitez-vous l'ouvrir dès maintenant ?"
-    dlgConfirm = wx.MessageDialog(None, txtMessage, "Confirmation", wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
-    reponse = dlgConfirm.ShowModal()
-    dlgConfirm.Destroy()
-    if reponse == wx.ID_YES:
-        xfichiers.LanceFichierExterne(cheminFichier)
-    return wx.OK
+    return Confirmation(cheminFichier)
 
 def ExportExcel(listview=None, grid=None, titre="Liste", listeColonnes=None, listeValeurs=None, autoriseSelections=True):
     # Export de la liste au format Excel
@@ -534,16 +536,7 @@ def ExportExcel(listview=None, grid=None, titre="Liste", listeColonnes=None, lis
         dlg.Destroy()
         return wx.CANCEL
 
-    # Confirmation de création du fichier et demande d'ouverture directe dans Excel
-
-    txtMessage = "Le fichier Excel a été créé avec succès. Souhaitez-vous l'ouvrir dès maintenant ?"
-    dlgConfirm = wx.MessageDialog(None, txtMessage, "Confirmation",
-                                  wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
-    reponse = dlgConfirm.ShowModal()
-    dlgConfirm.Destroy()
-    if reponse == wx.ID_YES:
-        xfichiers.LanceFichierExterne(cheminFichier)
-    return wx.OK
+    return Confirmation(cheminFichier)
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------------------
 

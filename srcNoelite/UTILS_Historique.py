@@ -73,7 +73,7 @@ DICT_COULEURS = {
 }
 
 
-def InsertActions(listeActions=[], DB=None):
+def InsertActions(listeActions=[],db=None):
     """ dictAction = { IDutilisateur : None, IDfamille : None, IDindividu : None, IDcategorie : None, action : u"" } """
     date = str(datetime.date.today())
     heure = "%02d:%02d:%02d" % (
@@ -110,13 +110,13 @@ def InsertActions(listeActions=[], DB=None):
     # Enregistrement dans la base
     if len(listeAjouts) > 0:
         req = u"INSERT INTO historique (date, heure, IDutilisateur, IDfamille, IDindividu, IDcategorie, action) VALUES (?, ?, ?, ?, ?, ?, ?)"
-        if DB == None:
-            DB = xdb.DB()
-            DB.Executermany(req, listeAjouts, commit=False)
-            DB.Commit()
-            DB.Close()
+        if db == None:
+            db = xdb.DB()
+            db.Executermany(req, listeAjouts, commit=False)
+            db.Commit()
+            db.Close()
         else:
-            DB.Executermany(req, listeAjouts, commit=False)
+            db.Executermany(req, listeAjouts, commit=False)
 
 
 

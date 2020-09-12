@@ -393,12 +393,12 @@ class Dialog(wx.Dialog):
 
     def __Sizer(self):
         sizer_base = wx.FlexGridSizer(rows=4, cols=1, vgap=0, hgap=0)
-        sizer_base.Add(self.pnlBandeau, 1, wx.TOP | wx.EXPAND, 3)
-        sizer_base.Add(self.pnlParams, 1, wx.TOP | wx.EXPAND, 3)
+        sizer_base.Add(self.pnlBandeau, 0, wx.TOP | wx.EXPAND, 3)
+        sizer_base.Add(self.pnlParams, 0, wx.TOP | wx.EXPAND, 3)
         sizer_base.Add(self.pnlOlv, 1, wx.TOP | wx.EXPAND, 3)
         sizer_base.Add(self.pnlPied, 0, wx.ALL | wx.EXPAND, 3)
         sizer_base.AddGrowableCol(0)
-        sizer_base.AddGrowableRow(1)
+        sizer_base.AddGrowableRow(2)
         self.CenterOnScreen()
         self.SetSizerAndFit(sizer_base)
         self.CenterOnScreen()

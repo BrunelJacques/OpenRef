@@ -10,7 +10,7 @@
 
 import wx
 import wx.html as html
-from xpy.outils import xfichiers
+from xpy.outils import ximport
 
 COULEUR_FOND = wx.Colour(176,153,203)
 
@@ -180,7 +180,7 @@ class Panel_Titre(wx.Panel):
 
     def GetVersion(self):
         chemin = self.parent.dictAppli['REP_SOURCES']
-        fichier = xfichiers.GetFichierCsv(chemin + '/Versions.txt')
+        fichier = ximport.GetFichierCsv(chemin + '/Versions.txt')
         version = None
         if fichier and len(fichier)>0:
             version = fichier[0][0]

@@ -425,7 +425,7 @@ def SetPrestation(dlg,track,db):
             "IDcategorie": IDcategorie,
             "action": "Noelite %s de prestation associée regl ID%d : %s en %s "%(categorie, IDprest,
                                                                                  montant, track.libelle),
-            }, ])
+            },],db=db)
     return True
 
 def DelPrestation(track,db):
@@ -446,7 +446,7 @@ def DelPrestation(track,db):
             "IDcategorie": IDcategorie,
             "action": "Noelite %s de prestation associée regl ID%d : %s en %s "%(categorie, IDprest,
                                                                                  montant, track.libelle),
-            }, ])
+            }, ],db=db)
         track.IDpiece = None
     return True
 
@@ -572,7 +572,7 @@ def SetReglement(dlg,track,db):
             "IDcategorie": IDcategorie,
             "action": "Noelite %s du règlement ID%d : %s en %s %spayé par %s" % (
             categorie, track.IDreglement, montant, texteMode, texteDetail, textePayeur),
-        }, ])
+        }, ],db=db)
     return True
 
 class Article(object):

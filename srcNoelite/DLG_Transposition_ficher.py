@@ -13,7 +13,7 @@ import xpy.xGestionConfig               as xgc
 import xpy.xUTILS_SaisieParams          as xusp
 from srcNoelite                 import UTILS_Compta
 from xpy.outils.ObjectListView  import ColumnDefn
-from xpy.outils                 import xformat,xbandeau,xfichiers,xexport
+from xpy.outils                 import xformat,xbandeau,ximport,xexport
 
 #---------------------- Paramètres du programme -------------------------------------
 
@@ -380,7 +380,7 @@ class Dialog(xusp.DLG_vide):
         # importation des donnéees du fichier entrée
         dic = self.pnlParams.GetValeurs()
         nomFichier = dic['fichiers']['path']
-        entrees = xfichiers.GetFichierCsv(nomFichier)
+        entrees = ximport.GetFichierCsv(nomFichier)
         return entrees
 
     def GetCompta(self):
