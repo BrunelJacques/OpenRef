@@ -244,13 +244,14 @@ class PNL_corpsOlv(xgte.PNL_corps):
         if code == 'compte':
             table = self.parent.table
             record = self.parent.compta.GetOneAuto(table,value)
-            # deuxième essai dans les comptes généraux
+            """# deuxième essai dans les comptes généraux
             if not record:
                 record = self.parent.compta.GetOneAuto('generaux', value)
             # tentative de recherche mannuelle
             newfiltre = self.parent.compta.filtreTest
             if not record:
                 record = self.parent.compta.ChoisirItem('fournisseurs',newfiltre)
+            """
             # alimente les champs ('compte','appel','libelle'), puis répand l'info
             if record:
                 track.compte = record[0].upper()
@@ -281,7 +282,8 @@ class PNL_corpsOlv(xgte.PNL_corps):
             item = self.parent.compta.ChoisirItem(table=self.parent.table,filtre='')
             if item:
                 self.OnEditFinishing('compte',item[0])
-                self.ctrlOlv.lastGetObject.compte = item[0]
+                track = self.ctrlOlv.GetObjectAt(row)
+                track.compte = item[0]
 
     def RepandreCompte(self,track=None):
         for object in self.ctrlOlv.innerList:

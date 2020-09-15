@@ -368,7 +368,7 @@ class DB():
             donneesValeurs += "%s"%Compose(donnees)
         return donneesValeurs +')'
 
-    def ReqInsert(self, nomTable="", lstChamps=[], lstlstDonnees=[],lstDonnees=None,commit=True, mess=None, affichError=True):
+    def ReqInsert(self,nomTable="",lstChamps=[],lstlstDonnees=[],lstDonnees=None,commit=True, mess=None,affichError=True):
         """ Permet d'insérer les lstChamps ['ch1','ch2',..] et lstlstDonnees [[val11,val12...],[val21],[val22]...]
             self.newID peut être appelé ensuite pour récupérer le dernier'D """
         if lstDonnees:
@@ -524,6 +524,70 @@ class DB():
         except :
             pass
 
+    def SupprChamp(self, nomTable="", nomChamp = ""):
+        """ Suppression d'une colonne dans une table """
+        if self.isNetwork == False :
+            listeChamps = self.GetListeChamps2(nomTable)
+
+            index = 0
+            varChamps = ""
+            varNomsChamps = ""
+            for nomTmp, typeTmp in listeChamps :
+                if nomTmp == nomChamp :
+                    listeChamps.pop(index)
+                    break
+                else:
+                    varChamps += "%s %s, " % (nomTmp, typeTmp)
+                    varNomsChamps += nomTmp + ", "
+                index += 1
+            varChamps = varChamps[:-2]
+            varNomsChamps = varNomsChamps[:-2]
+
+            # Procédure de mise à jour de la table
+            req = ""
+            req += "BEGIN TRANSACTION;"
+            req += "CREATE TEMPORARY TABLE %s_backup(%s);" % (nomTable, varChamps)
+            req += "INSERT INTO %s_backup SELECT %s FROM %s;" % (nomTable, varNomsChamps, nomTable)
+            req += "DROP TABLE %s;" % nomTable
+            req += "CREATE TABLE %s(%s);" % (nomTable, varChamps)
+            req += "INSERT INTO %s SELECT %s FROM %s_backup;" % (nomTable, varNomsChamps, nomTable)
+            req += "DROP TABLE %s_backup;" % nomTable
+            req += "COMMIT;"
+            self.cursor.executescript(req)
+        else:
+            # Version MySQL
+            req = "ALTER TABLE %s DROP %s;" % (nomTable, nomChamp)
+            self.ExecuterReq(req)
+            self.Commit()
+
+    def AjoutChamp(self, nomTable = "", nomChamp = "", dicTables = None):
+        req = None
+        if not self.IsChampExists(nomTable,nomChamp):
+            if dicTables:
+                for champ,nature,comment in dicTables[nomTable]:
+                    if nomChamp.lower().strip() != champ.strip(): continue
+                    comment = comment.replace("'","''")
+                    req = "ALTER TABLE %s ADD %s %s COMMENT '%s';" % (nomTable, champ, nature, comment)
+            if req:
+                ret = self.ExecuterReq(req)
+                self.Commit()
+                print(req , "----- ", ret)
+            else: print("ECHEC Ajout table.champ: %s.%s"%(nomTable,nomChamp))
+
+    def IsChampExists(self, nomTable="",nomChamp=""):
+        """ Vérifie si le champ d'une table existe dans la base """
+        champExists = False
+        req = """SELECT *
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_NAME = '%s'
+                AND COLUMN_NAME = '%s'"""%(nomTable,nomChamp)
+        ret = self.ExecuterReq(req)
+        if ret == 'ok':
+            recordset = self.ResultatReq()
+            if len(recordset) >0:
+                champExists = True
+        return champExists
+
     def IsTableExists(self, nomTable=""):
         """ Vérifie si une table donnée existe dans la base """
         tableExists = False
@@ -535,60 +599,63 @@ class DB():
     def IsIndexExists(self, nomIndex=""):
         """ Vérifie si un index existe dans la base """
         indexExists = False
-        if self.lstIndex == []:
-            self.lstIndex = self.GetListeIndex()
-        if nomIndex in self.lstIndex :
+        lstIndex = self.GetListeIndex()
+        if nomIndex in lstIndex :
             indexExists = True
         return indexExists
 
-    def CreationUneTable(self, dicoDB={},table=None, fenetreParente=None):
-        #dicoDB=DATA_Tables.DB_DATA
+    def CreationUneTable(self, dicTables={},table=None, fenetreParente=None):
+        #dicTables = DB_schema.DB_TABLES
         retour = None
         if table == None : return retour
-        if not self.IsTableExists(table) :
-            # Affichage dans la StatusBar
-            if fenetreParente != None :
-                fenetreParente.SetStatusText(("Création de la table de données %s...") % table)
-            req = "CREATE TABLE %s (" % table
-            for descr in dicoDB[table]:
-                nomChamp = descr[0]
-                typeChamp = descr[1]
-                # Adaptation à Sqlite
-                if self.isNetwork == False and typeChamp == "LONGBLOB" : typeChamp = "BLOB"
-                # Adaptation à MySQL :
-                if self.isNetwork == True and typeChamp == "INTEGER PRIMARY KEY AUTOINCREMENT" :
-                    typeChamp = "INTEGER PRIMARY KEY AUTO_INCREMENT"
-                if self.isNetwork == True and typeChamp == "FLOAT" : typeChamp = "REAL"
-                if self.isNetwork == True and typeChamp == "DATE" : typeChamp = "VARCHAR(10)"
-                if self.isNetwork == True and typeChamp.startswith("VARCHAR") :
-                    nbreCaract = int(typeChamp[typeChamp.find("(")+1:typeChamp.find(")")])
-                    if nbreCaract > 255 :
-                        typeChamp = "TEXT(%d)" % nbreCaract
-                    if nbreCaract > 20000 :
-                        typeChamp = "MEDIUMTEXT"
-                # ------------------------------
-                req = req + "%s %s, " % (nomChamp, typeChamp)
-            req = req[:-2] + ")"
-            retour = self.ExecuterReq(req)
-            if retour == "ok":
-                    self.Commit()
+
+        req = "CREATE TABLE %s (" % table
+        for descr in dicTables[table]:
+            nomChamp = descr[0]
+            typeChamp = descr[1]
+            comment = "COMMENT '%s'"%descr[2]
+            # Adaptation à Sqlite
+            if self.isNetwork == False and typeChamp == "LONGBLOB" : typeChamp = "BLOB"
+            # Adaptation à MySQL :
+            if self.isNetwork == True and typeChamp == "INTEGER PRIMARY KEY AUTOINCREMENT" :
+                typeChamp = "INTEGER PRIMARY KEY AUTO_INCREMENT"
+            if self.isNetwork == True and typeChamp == "FLOAT" : typeChamp = "REAL"
+            if self.isNetwork == True and typeChamp == "DATE" : typeChamp = "VARCHAR(10)"
+            if self.isNetwork == True and typeChamp.startswith("VARCHAR") :
+                nbreCaract = int(typeChamp[typeChamp.find("(")+1:typeChamp.find(")")])
+                if nbreCaract > 255 :
+                    typeChamp = "TEXT(%d)" % nbreCaract
+                if nbreCaract > 20000 :
+                    typeChamp = "MEDIUMTEXT"
+            # ------------------------------
+            req = req + "%s %s, " % (nomChamp, typeChamp)
+        req = req[:-2] + ")"
+        retour = self.ExecuterReq(req)
+        if retour == "ok":
+                self.Commit()
         return retour
         #fin CreationUneTable
 
-    def CreationTables(self, dicoDB={}, fenetreParente=None):
-        for table in dicoDB:
+    def CreationTables(self, dicTables={}, fenetreParente=None):
+        for table in dicTables:
+            if self.IsTableExists(table):
+                continue
             # Affichage dans la StatusBar
-            mess = "Création de la table de données %s..." % table
             if fenetreParente != None :
                 fenetreParente.SetStatusText(mess)
             else: print(mess)
-            self.CreationUneTable(dicoDB=dicoDB,table=table,fenetreParente=fenetreParente)
-        Index = self.CreationIndex()
+            ret = self.CreationUneTable(dicTables=dicTables,table=table,fenetreParente=fenetreParente)
+            mess = "Création de la table de données %s: %s" %(table,ret)
+            # Affichage dans la StatusBar
+            if fenetreParente == None:
+                print(mess)
+            else:
+                fenetreParente.SetStatusText(("Création de la table de données %s...") % table)
 
-    def CreationIndex(self,nomIndex="",listeIndex={}):
+    def CreationIndex(self,nomIndex="",dicIndex={}):
         """ Création d'un index """
-        nomTable = listeIndex[nomIndex]["table"]
-        nomChamp = listeIndex[nomIndex]["champ"]
+        nomTable = dicIndex[nomIndex]["table"]
+        nomChamp = dicIndex[nomIndex]["champ"]
 
         if self.IsTableExists(nomTable) :
             #print "Creation de l'index : %s" % nomIndex
@@ -600,6 +667,12 @@ class DB():
             print(nomIndex, "-----------/-------------",retour)
             if retour == "ok":
                     self.Commit()
+
+    def CreationTousIndex(self,dicIndex):
+        """ Création de tous les index """
+        for nomIndex, temp in dicIndex.items() :
+            if not self.IsIndexExists(nomIndex) :
+                self.CreationIndex(nomIndex,dicIndex)
 
     def GetListeTables(self):
         if self.typeDB == 'sqlite' :
@@ -726,18 +799,12 @@ class DB():
 
 if __name__ == "__main__":
     app = wx.App()
-    DB1 = DB(config={'typeDB':'access','serveur':'C:/Quadra/DATABASE/gi/0000/','nameDB':'qgi.mdb'})
-    f = DB1.ExecuterReq('SELECT count(Code) FROM clients ;')
-    print(f)
-    print(DB1.ResultatReq()[0][0])
-
-    """
-    DB1 = DB()
-    print(DB1)
-    print(len(DICT_CONNEXIONS),DB1.IDconnexion)
-    DB2 = DB()
-    print(DB2.echec)
-    print(len(DICT_CONNEXIONS),DB2.IDconnexion)
-    DB1.Close()
-    print(len(DICT_CONNEXIONS),DB2.IDconnexion)
-    """
+    os.chdir("..")
+    db = DB()
+    print("echec ouverture: ",db.echec)
+    from srcNoelite.DB_schema import DB_TABLES, DB_IX, DB_PK
+    db.CreationTables(dicTables=DB_TABLES)
+    db.CreationTousIndex(DB_IX)
+    db.CreationTousIndex(DB_PK)
+    db.AjoutChamp("compta_exercices","actif",DB_TABLES)
+    db.AjoutChamp("compta_exercices","cloture",DB_TABLES)
