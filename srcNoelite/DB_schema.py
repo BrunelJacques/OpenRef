@@ -196,7 +196,7 @@ DB_TABLES = {
                 ('user','INTEGER',"ID de l'utilisateur"),],# subdivisions des fiches immobilisations
     
     'vehiculesCouts':[
-                ('IDvcout','INTEGER PRIMARY KEY AUTOINCREMENT',"Clé Unique"),
+                ('IDcout','INTEGER PRIMARY KEY AUTOINCREMENT',"Clé Unique"),
                 ('IDimmo','INTEGER',"clé usuelle d'appel, identifie l'composant principal 0 par son libelle"),
                 ('cloture','DATE',"Date de clôture de l'exercice"),
                 ('prixKmVte','FLOAT',"Prix de base du km facturé avant remise"),
@@ -212,7 +212,7 @@ DB_TABLES = {
                 ('user','INTEGER',"ID de l'utilisateur"),],# Eléments de coûts annuels
     
     'vehiculesConsos':[
-                ('IDvconso','INTEGER PRIMARY KEY AUTOINCREMENT',"Clé Unique"),
+                ('IDconso','INTEGER PRIMARY KEY AUTOINCREMENT',"Clé Unique"),
                 ('IDimmo','INTEGER',"ID de l'immo"),
                 ('cloture','DATE',"Date de clôture de l'exercice"),
                 ('typeTiers','VARCHAR(1)',"'C'lient, 'S'ection interne,'P'partenaires,'E'mployés"),
@@ -221,14 +221,21 @@ DB_TABLES = {
                 ('kmDeb','INTEGER',"kilométrage de départ"),
                 ('dteKmFin','DATE',"Date du relvé km fin"),
                 ('kmFin','INTEGER',"kilométrage de fin"),
+                ('dtFact','DATE',"Date de facturation"),
+                ('compta','DATE',"Date de transert en compta"),
                 ('dtMaj','DATE',"Date de dernière modif"),
                 ('user','INTEGER',"ID de l'utilisateur"),],# affectation des consommations internes par section
+
+    'codesAnalytiques':[
+                ('IDanalytique','VARCHAR(5)',"Clé Unique alphanumérique"),
+                ('libelle','VARCHAR(64)','Libellé du code analytique'),
+                ('famille','VARCHAR(24)','regroupement des codes par famille'),
+                ]
     }
 
 # index clé unique
 DB_PK = {
-        "PK_matArticles_artCodeArticle"  :  {"table"  :  "matArticles",  "champ" : "artCodeArticle", },
-        "PK_vehiculesCouts_IDimmo_cloture": {"table": "vehicules", "champ": "IDimmo, cloture"},}
+        "PK_vehiculesCouts_IDimmo_cloture": {"table": "vehiculesCouts", "champ": "IDimmo, cloture"},}
 
 # index sans contrainte
 DB_IX = {

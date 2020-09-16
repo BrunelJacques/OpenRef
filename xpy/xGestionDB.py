@@ -52,6 +52,8 @@ class DB():
         self.IDconnexion = IDconnexion
         self.nomBase = 'personne!'
         self.isNetwork = False
+        self.lstTables = None
+        self.lstIndex = None
         if nomFichier:
             self.OuvertureFichierLocal(nomFichier)
             return
@@ -564,10 +566,10 @@ class DB():
         req = None
         if not self.IsChampExists(nomTable,nomChamp):
             if dicTables:
-                for champ,nature,comment in dicTables[nomTable]:
+                for champ,typeChamp,comment in dicTables[nomTable]:
                     if nomChamp.lower().strip() != champ.strip(): continue
                     comment = comment.replace("'","''")
-                    req = "ALTER TABLE %s ADD %s %s COMMENT '%s';" % (nomTable, champ, nature, comment)
+                    req = "ALTER TABLE %s ADD %s %s COMMENT '%s';" % (nomTable, champ, typeChamp, comment)
             if req:
                 ret = self.ExecuterReq(req)
                 self.Commit()
@@ -591,29 +593,31 @@ class DB():
     def IsTableExists(self, nomTable=""):
         """ Vérifie si une table donnée existe dans la base """
         tableExists = False
-        for (nomTableTmp,) in self.GetListeTables() :
-            if nomTableTmp == nomTable :
-                tableExists = True
+        if not self.lstTables :
+            # ne charge qu'une fois la liste des tables
+            self.lstTables = self.GetListeTables()
+        if nomTable.lower in self.lstTables :
+            tableExists = True
         return tableExists
 
     def IsIndexExists(self, nomIndex=""):
         """ Vérifie si un index existe dans la base """
         indexExists = False
-        lstIndex = self.GetListeIndex()
-        if nomIndex in lstIndex :
+        if not self.lstIndex :
+            # ne charge qu'une fois la liste des tables
+            self.lstIndex = self.GetListeIndex()
+        if nomIndex in self.lstIndex :
             indexExists = True
         return indexExists
 
-    def CreationUneTable(self, dicTables={},table=None, fenetreParente=None):
+    def CreationUneTable(self, dicTables={},nomTable=None):
         #dicTables = DB_schema.DB_TABLES
         retour = None
-        if table == None : return retour
+        if nomTable == None : return retour
 
-        req = "CREATE TABLE %s (" % table
-        for descr in dicTables[table]:
-            nomChamp = descr[0]
-            typeChamp = descr[1]
-            comment = "COMMENT '%s'"%descr[2]
+        req = "CREATE TABLE IF NOT EXISTS %s (" % nomTable
+        for nomChamp, typeChamp, comment in dicTables[nomTable]:
+            comment = comment.replace("'", "''")
             # Adaptation à Sqlite
             if self.isNetwork == False and typeChamp == "LONGBLOB" : typeChamp = "BLOB"
             # Adaptation à MySQL :
@@ -628,8 +632,8 @@ class DB():
                 if nbreCaract > 20000 :
                     typeChamp = "MEDIUMTEXT"
             # ------------------------------
-            req = req + "%s %s, " % (nomChamp, typeChamp)
-        req = req[:-2] + ")"
+            req = req + "%s %s COMMENT %s, " % (nomChamp, typeChamp, comment)
+        req = req[:-2] + ");"
         retour = self.ExecuterReq(req)
         if retour == "ok":
                 self.Commit()
@@ -637,20 +641,16 @@ class DB():
         #fin CreationUneTable
 
     def CreationTables(self, dicTables={}, fenetreParente=None):
-        for table in dicTables:
-            if self.IsTableExists(table):
+        for nomTable in dicTables.keys():
+            if self.IsTableExists(nomTable):
                 continue
-            # Affichage dans la StatusBar
-            if fenetreParente != None :
-                fenetreParente.SetStatusText(mess)
-            else: print(mess)
-            ret = self.CreationUneTable(dicTables=dicTables,table=table,fenetreParente=fenetreParente)
-            mess = "Création de la table de données %s: %s" %(table,ret)
+            ret = self.CreationUneTable(dicTables=dicTables,nomTable=nomTable)
+            mess = "Création de la table de données %s: %s" %(nomTable,ret)
             # Affichage dans la StatusBar
             if fenetreParente == None:
                 print(mess)
             else:
-                fenetreParente.SetStatusText(("Création de la table de données %s...") % table)
+                fenetreParente.SetStatusText(("Création de la table de données %s...") % nomTable)
 
     def CreationIndex(self,nomIndex="",dicIndex={}):
         """ Création d'un index """
@@ -679,13 +679,16 @@ class DB():
             # Version Sqlite
             req = "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
             self.ExecuterReq(req)
-            listeTables = self.ResultatReq()
+            recordset = self.ResultatReq()
         else:
             # Version MySQL
             req = "SHOW TABLES;"
             self.ExecuterReq(req)
-            listeTables = self.ResultatReq()
-        return listeTables
+            recordset = self.ResultatReq()
+        lstTables = []
+        for record in recordset:
+            lstTables.append(record[0].lower())
+        return lstTables
 
     def GetListeChamps2(self, nomTable=""):
         """ Affiche la liste des champs de la table donnée """
@@ -715,8 +718,8 @@ class DB():
         else:
             # Version MySQL
             listeIndex = []
-            for table in self.GetListeTables():
-                req = "SHOW INDEX IN %s;" % str(table[0])
+            for nomTable in self.GetListeTables():
+                req = "SHOW INDEX IN %s;" % str(nomTable[0])
                 self.ExecuterReq(req)
                 for index in self.ResultatReq():
                     if str(index[2]) != 'PRIMARY':
