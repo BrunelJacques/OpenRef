@@ -10,7 +10,7 @@
 
 # description des tables de l'application
 DB_TABLES = {
-    "clients":[
+    "v_clients":[
                 ("IDclient", "INTEGER PRIMARY KEY AUTOINCREMENT", u"ID de la famille"),
                 ("libelle", "VARCHAR(40)", u"libellé de la famille pour les adresses"),
                 ("rue", "VARCHAR(255)", u"Adresse de la personne"),
@@ -150,7 +150,7 @@ DB_TABLES = {
                 ("defaut", "INTEGER", u"Modèle par défaut (0/1)"),
                                     ], # Modèles de droits
 
-    "compta_exercices":[("IDexercice", "INTEGER PRIMARY KEY AUTOINCREMENT", u"ID Exercice"),
+    "cpta_exercices":[("IDexercice", "INTEGER PRIMARY KEY AUTOINCREMENT", u"ID Exercice"),
                 ("nom", "VARCHAR(400)", u"Nom de l'exercice"),
                 ("date_debut", "DATE", u"Date de début"),
                 ("date_fin", "DATE", u"Date de fin"),
@@ -162,8 +162,7 @@ DB_TABLES = {
     'immobilisations':[
                 ('IDimmo','INTEGER PRIMARY KEY AUTOINCREMENT',"Clé Unique"),
                 ('compteImmo','VARCHAR(10)',"compte comptable de l'immobilisation"),
-                ('cleAppel','VARCHAR(16)',"clé usuelle appel, identifie l'ensemble de composants par son libelle"),
-                ('analytique','VARCHAR(8)',"Section analytique"),
+                ('IDanalytique','VARCHAR(8)',"Section analytique"),
                 ('dteAcquisition','DATE',"date de la première acquisition des éléments de l'immo"),
                 ('compteDotation','VARCHAR(10)',"compte comptable de la dotation aux immos"),
                 ('libelle','VARCHAR(200)',"texte pour les édition ou choix de ligne "),
@@ -197,7 +196,7 @@ DB_TABLES = {
     
     'vehiculesCouts':[
                 ('IDcout','INTEGER PRIMARY KEY AUTOINCREMENT',"Clé Unique"),
-                ('IDimmo','INTEGER',"clé usuelle d'appel, identifie l'composant principal 0 par son libelle"),
+                ('IDanalytique','INTEGER',"clé usuelle d'appel, identifie l'composant principal 0 par son libelle"),
                 ('cloture','DATE',"Date de clôture de l'exercice"),
                 ('prixKmVte','FLOAT',"Prix de base du km facturé avant remise"),
                 ('carburants','FLOAT',"Coût des carburants pour l'exercice"),
@@ -213,36 +212,40 @@ DB_TABLES = {
     
     'vehiculesConsos':[
                 ('IDconso','INTEGER PRIMARY KEY AUTOINCREMENT',"Clé Unique"),
-                ('IDimmo','INTEGER',"ID de l'immo"),
+                ('IDanalytique','INTEGER',"ID de l'immo"),
                 ('cloture','DATE',"Date de clôture de l'exercice"),
-                ('typeTiers','VARCHAR(1)',"'C'lient, 'S'ection interne,'P'partenaires,'E'mployés"),
+                ('typeTiers','VARCHAR(1)',"'C'lient, 'A'analytique,'P'partenaires,'E'mployés"),
                 ('IDtiers','VARCHAR(8)',"Section analytique consommatrice ou no client"),
                 ('dteKmDeb','DATE',"Date du relvé km début"),
                 ('kmDeb','INTEGER',"kilométrage de départ"),
                 ('dteKmFin','DATE',"Date du relvé km fin"),
                 ('kmFin','INTEGER',"kilométrage de fin"),
+                ('observation','VARCHAR(80)', "Décrit les cas particuliers"),
                 ('dtFact','DATE',"Date de facturation"),
                 ('compta','DATE',"Date de transert en compta"),
                 ('dtMaj','DATE',"Date de dernière modif"),
                 ('user','INTEGER',"ID de l'utilisateur"),],# affectation des consommations internes par section
 
-    'codesAnalytiques':[
+    'cpta_analytiques':[
                 ('IDanalytique','VARCHAR(5)',"Clé Unique alphanumérique"),
-                ('libelle','VARCHAR(64)','Libellé du code analytique'),
-                ('famille','VARCHAR(24)','regroupement des codes par famille'),
+                ('abrege','VARCHAR(16)',"cle d'appel ou libelle court du code analytique"),
+                ('nom','VARCHAR(200)',"Libellé long du code analytique"),
+                ('params','VARCHAR(400)',"liste texte de paramétrages constructeurs"),
+                ('axe','VARCHAR(16)',"axe analytique, defaut = vide")
                 ]
     }
 
 # index clé unique
 DB_PK = {
-        "PK_vehiculesCouts_IDimmo_cloture": {"table": "vehiculesCouts", "champ": "IDimmo, cloture"},}
+        "PK_vehiculesCouts_IDanalytique_cloture": {"table": "vehiculesCouts", "champ": "IDanalytique, cloture"},}
 
 # index sans contrainte
 DB_IX = {
         "index_reglements_IDcompte_payeur": {"table": "reglements", "champ": "IDcompte_payeur"},#index de Noethys
-        "IX_immobilisations_compteImmo_cleAppel": {"table": "immobilisations", "champ": "compteImmo,cleAppel"},
+        "IX_immobilisations_compteImmo_IDanalytique": {"table": "immobilisations", "champ": "compteImmo,IDanalytique"},
         "IX_immosComposants_IDimmo": {"table": "immosComposants", "champ": "IDimmo"},
-        "IX_vehiculesConsos_IDimmo_cloture": {"table": "vehicules", "champ": "IDimmo, cloture"},}
+        "IX_vehiculesConsos_IDanalytique_cloture": {"table": "vehicules",
+                                                    "champ": "IDanalytique, cloture, typeTiers, IDtiers"},}
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 

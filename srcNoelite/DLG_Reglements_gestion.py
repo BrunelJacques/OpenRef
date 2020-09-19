@@ -315,7 +315,7 @@ class PNL_corpsReglements(xgte.PNL_corps):
             self.ctrlOlv.GetObjectAt(row).IDfamille = IDfamille
 
     def OnDelete(self,noligne,track,parent=None):
-        nur.DeleteLigne(self.parent.db,noligne,track)
+        nur.DeleteLigne(self.parent.db,track)
 
 class PNL_Pied(xgte.PNL_Pied):
     #panel infos (gauche) et boutons sorties(droite)

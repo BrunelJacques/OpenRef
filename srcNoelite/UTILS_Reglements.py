@@ -385,7 +385,7 @@ def ValideLigne(db,track):
     else: track.messageRefus = ""
     return
 
-def SetPrestation(dlg,track,db):
+def SetPrestation(track,db):
     # --- Sauvegarde de la prestation ---
     listeDonnees = [
         ("date", xfor.DatetimeToStr(datetime.date.today(),iso=True)),
@@ -466,7 +466,7 @@ def SauveLigne(db,dlg,track):
     if not hasattr(track,'IDpiece'): track.IDpiece = None
     # gestion de la prestation associée
     if ret and track.creer:
-        ret = SetPrestation(dlg,track,db)
+        ret = SetPrestation(track,db)
     elif ret and track.IDpiece:
         ret = DelPrestation(track,db)
 
@@ -480,7 +480,7 @@ def SauveLigne(db,dlg,track):
     if len(message)>0: wx.MessageBox(message)
     return ret
 
-def DeleteLigne(db,noLigne,track):
+def DeleteLigne(db,track):
     # --- Supprime les différents éléments associés à la ligne ---
     # si le montant est à zéro il n'y a pas eu d'enregistrements
     if track.montant != 0.0:

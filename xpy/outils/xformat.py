@@ -127,6 +127,16 @@ def DatetimeToStr(dte,iso=False):
         else: return "%s/%s/%s"%(dd,mm,yyyy)
     else: return str(dte)
 
+def FinDeMois(anydate):
+    findemois = None
+    if isinstance(anydate,str):anydate = DateSqlToDatetime()
+    elif isinstance(anydate,wx.DateTime): anydate = WxdateToDatetime(anydate)
+    if isinstance(anydate,(datetime.date,datetime.datetime)):
+        mm = anydate.month
+        aa = anydate.year
+        findemois = datetime.date(aa, mm + 1, 1) - datetime.timedelta(days=1)
+    return findemois
+
 # -------------------------------------------------------------------------------------------------------
 
 def SetBgColour(self,montant):
@@ -300,6 +310,7 @@ if __name__ == '__main__':
     print(FmtMontant(8520.547),FmtMontant(-8520.547),FmtMontant(0))
     """
 
-    print(IncrementeRef("aaZ"))
+    print(FinDeMois(datetime.date.today()))
+
 
 

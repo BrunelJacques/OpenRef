@@ -5,7 +5,7 @@ import xlrd
 import datetime
 from openpyxl import load_workbook
 
-def GetFichierXls(nomFichier,minrow=1,maxrow=100,mincol=1,maxcol=10):
+def GetFichierXls(nomFichier,minrow=1,maxrow=1000,mincol=1,maxcol=10):
     # pour anciennes versions de fichiers excel jusqu'à 2003
     """
     Si on veut accéder aux informations de formattage des cellules, il faut faire :
@@ -32,6 +32,7 @@ def GetFichierXls(nomFichier,minrow=1,maxrow=100,mincol=1,maxcol=10):
     lstDonnees = []
     for row in range(minrow,maxrow):
         ligne = []
+        sansNull = []
         for col in range(mincol,maxcol):
             try:
                 value = ws.cell_value(row - 1, col - 1)
@@ -40,10 +41,12 @@ def GetFichierXls(nomFichier,minrow=1,maxrow=100,mincol=1,maxcol=10):
                     value = datetime.datetime(*xlrd.xldate.xldate_as_tuple(value, wk.datemode))
             except: value = None
             ligne.append(value)
-        lstDonnees.append(ligne)
+            if value: sansNull.append(value)
+        if len(sansNull)>0:
+            lstDonnees.append(ligne)
     return lstDonnees
 
-def GetFichierXlsx(nomFichier,minrow=1,maxrow=100,mincol=1,maxcol=10):
+def GetFichierXlsx(nomFichier,minrow=1,maxrow=1000,mincol=1,maxcol=10):
     #get handle on existing file
     wk = load_workbook(filename=nomFichier)
     #get active worksheet or wk['some_worksheet']
@@ -51,7 +54,9 @@ def GetFichierXlsx(nomFichier,minrow=1,maxrow=100,mincol=1,maxcol=10):
     #loop through range values
     lstDonnees = []
     for values in ws.iter_rows(min_row=minrow,max_row=maxrow,min_col=mincol,max_col=maxcol,values_only=True):
-        lstDonnees.append(values)
+        sansNull = [x for x in values if x]
+        if len(sansNull)>0:
+            lstDonnees.append(values)
     return lstDonnees
 
 def GetFichierCsv(nomFichier,delimiter="\t",detect=True):

@@ -452,8 +452,9 @@ class PNL_ctrl(wx.Panel):
         if not size:
             size = (2000, 30)
         self.MaxSize = size
+        lg = max(110,len(label)*5+4)
         self.txt = wx.StaticText(self, wx.ID_ANY, label + " :")
-        self.txt.MinSize = (110, 25)
+        self.txt.MinSize = (lg, 25)
 
         # seul le PropertyGrid gère le multichoices, pas le comboBox
         if genre == 'multichoice': genre = 'combo'
@@ -654,7 +655,11 @@ class BoxPanel(wx.Panel):
         self.lstPanels=[]
         self.champsItem = ('name', 'label', 'ctrlAction', 'btnLabel', 'btnAction', 'value', 'labels', 'values','enable')
         self.dictDonnees = dictDonnees
-        self.ssbox = wx.BoxSizer(wx.VERTICAL)
+        if lblbox:
+            cadre_staticbox = wx.StaticBox(self, wx.ID_ANY, label=lblbox)
+            self.ssbox = wx.StaticBoxSizer(cadre_staticbox, wx.VERTICAL)
+        else:
+            self.ssbox = wx.BoxSizer(wx.VERTICAL)
         self.InitMatrice(lignes)
 
     def InitMatrice(self,lignes):
@@ -750,15 +755,16 @@ class BoxPanel(wx.Panel):
                 pnlctrl
         return pnlctrl
 
-
 class TopBoxPanel(wx.Panel):
     #gestion de pluieurs BoxPanel juxtaposées horizontalement
     def __init__(self, parent, *args, matrice={}, donnees={}, lblbox="Paramètres top", **kwds):
         wx.Panel.__init__(self,parent,*args, **kwds)
         self.parent = parent
-
-        cadre_staticbox = wx.StaticBox(self,wx.ID_ANY,label=lblbox)
-        self.topbox = wx.StaticBoxSizer(cadre_staticbox,wx.HORIZONTAL)
+        if lblbox:
+            cadre_staticbox = wx.StaticBox(self,wx.ID_ANY,label=lblbox)
+            self.topbox = wx.StaticBoxSizer(cadre_staticbox,wx.HORIZONTAL)
+        else:
+            self.topbox = wx.BoxSizer(wx.HORIZONTAL)
         self.ddDonnees = donnees
         self.lstBoxes = []
         for code, label in matrice:

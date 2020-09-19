@@ -596,7 +596,7 @@ class DB():
         if not self.lstTables :
             # ne charge qu'une fois la liste des tables
             self.lstTables = self.GetListeTables()
-        if nomTable.lower in self.lstTables :
+        if nomTable.lower() in self.lstTables :
             tableExists = True
         return tableExists
 
@@ -613,8 +613,7 @@ class DB():
     def CreationUneTable(self, dicTables={},nomTable=None):
         #dicTables = DB_schema.DB_TABLES
         retour = None
-        if nomTable == None : return retour
-
+        if nomTable == None : return "Absence de nom de table!!!"
         req = "CREATE TABLE IF NOT EXISTS %s (" % nomTable
         for nomChamp, typeChamp, comment in dicTables[nomTable]:
             comment = comment.replace("'", "''")
@@ -632,7 +631,7 @@ class DB():
                 if nbreCaract > 20000 :
                     typeChamp = "MEDIUMTEXT"
             # ------------------------------
-            req = req + "%s %s COMMENT %s, " % (nomChamp, typeChamp, comment)
+            req = req + "%s %s COMMENT '%s', " % (nomChamp, typeChamp, comment)
         req = req[:-2] + ");"
         retour = self.ExecuterReq(req)
         if retour == "ok":
@@ -650,13 +649,17 @@ class DB():
             if fenetreParente == None:
                 print(mess)
             else:
-                fenetreParente.SetStatusText(("Création de la table de données %s...") % nomTable)
+                fenetreParente.SetStatusText(mess)
 
-    def CreationIndex(self,nomIndex="",dicIndex={}):
-        """ Création d'un index """
-        nomTable = dicIndex[nomIndex]["table"]
-        nomChamp = dicIndex[nomIndex]["champ"]
+    def CreationIndex(self,nomIndex=None,dicIndex=None):
+        try:
+            """ Création d'un index """
+            nomTable = dicIndex[nomIndex]["table"]
+            nomChamp = dicIndex[nomIndex]["champ"]
+        except Exception as err:
+            return "Création index: %s"%str(err)
 
+        retour = "Absence de table: %s"%nomTable
         if self.IsTableExists(nomTable) :
             #print "Creation de l'index : %s" % nomIndex
             if nomIndex[:2] == "PK":
@@ -664,17 +667,24 @@ class DB():
             else :
                 req = "CREATE INDEX %s ON %s (%s);" % (nomIndex, nomTable, nomChamp)
             retour = self.ExecuterReq(req)
-            print(nomIndex, "-----------/-------------",retour)
             if retour == "ok":
                     self.Commit()
+        return retour
 
-    def CreationTousIndex(self,dicIndex):
+    def CreationTousIndex(self,dicIndex,fenetreParente=None):
         """ Création de tous les index """
         for nomIndex, temp in dicIndex.items() :
             if not self.IsIndexExists(nomIndex) :
-                self.CreationIndex(nomIndex,dicIndex)
+                ret = self.CreationIndex(nomIndex,dicIndex)
+                mess = "Création de l'index %s: %s" %(nomIndex,ret)
+                # Affichage dans la StatusBar
+                if fenetreParente == None:
+                    print(mess)
+                else:
+                    fenetreParente.SetStatusText(mess)
 
-    def GetListeTables(self):
+    def GetListeTables(self,lower=True):
+        # appel des tables et des vues
         if self.typeDB == 'sqlite' :
             # Version Sqlite
             req = "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
@@ -682,12 +692,14 @@ class DB():
             recordset = self.ResultatReq()
         else:
             # Version MySQL
-            req = "SHOW TABLES;"
+            req = "SHOW FULL TABLES;"
             self.ExecuterReq(req)
             recordset = self.ResultatReq()
         lstTables = []
         for record in recordset:
-            lstTables.append(record[0].lower())
+            if lower:
+                lstTables.append(record[0].lower())
+            else: lstTables.append(record[0])
         return lstTables
 
     def GetListeChamps2(self, nomTable=""):
@@ -718,8 +730,8 @@ class DB():
         else:
             # Version MySQL
             listeIndex = []
-            for nomTable in self.GetListeTables():
-                req = "SHOW INDEX IN %s;" % str(nomTable[0])
+            for nomTable in self.GetListeTables(lower=False):
+                req = "SHOW INDEX IN %s;" % str(nomTable)
                 self.ExecuterReq(req)
                 for index in self.ResultatReq():
                     if str(index[2]) != 'PRIMARY':
@@ -800,6 +812,15 @@ class DB():
         finally:
             connection.close()
 
+def Init_tables():
+    os.chdir("..")
+    db = DB()
+    print("echec ouverture: ",db.echec)
+    from srcNoelite.DB_schema import DB_TABLES, DB_IX, DB_PK
+    db.CreationTables(dicTables=DB_TABLES)
+    db.CreationTousIndex(DB_IX)
+    db.CreationTousIndex(DB_PK)
+
 if __name__ == "__main__":
     app = wx.App()
     os.chdir("..")
@@ -809,5 +830,3 @@ if __name__ == "__main__":
     db.CreationTables(dicTables=DB_TABLES)
     db.CreationTousIndex(DB_IX)
     db.CreationTousIndex(DB_PK)
-    db.AjoutChamp("compta_exercices","actif",DB_TABLES)
-    db.AjoutChamp("compta_exercices","cloture",DB_TABLES)
