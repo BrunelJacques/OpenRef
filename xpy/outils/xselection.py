@@ -147,7 +147,6 @@ class DLG_selection(wx.Dialog):
         else:
             return self.listCtrl.GetFirstSelected()
 
-
 # -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 class ListCtrl(wx.ListCtrl):
     def __init__(self, parent, lstColonnes, lstValeurs):
@@ -179,7 +178,7 @@ class ListCtrl(wx.ListCtrl):
             x = 0
             for valeur in valeurs:
                 if 'phoenix' in wx.PlatformInfo:
-                    self.SetItem(index, x, valeur)
+                    self.SetItem(index, x, str(valeur))
                 else:
                     self.SetStringItem(index, x, valeur)
                 x += 1

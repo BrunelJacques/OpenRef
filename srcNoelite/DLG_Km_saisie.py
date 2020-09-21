@@ -12,7 +12,8 @@ import datetime
 import xpy.xGestion_TableauEditor       as xgte
 import xpy.xGestionConfig               as xgc
 import xpy.xUTILS_SaisieParams          as xusp
-from srcNoelite                 import UTILS_Noegest,UTILS_Compta
+import srcNoelite.UTILS_Noegest         as nunoegest
+import srcNoelite.UTILS_Compta          as nucompta
 from xpy.outils.ObjectListView  import ColumnDefn, CellEditor
 from xpy.outils                 import xformat,xbandeau,ximport,xexport
 
@@ -39,7 +40,7 @@ def ComposeFuncImp(entete,donnees,champsOut):
     lstOut = [] #'vehicule','date','membre','camp','kmdeb','kmfin'
     # teste la cohérence de la première ligne importée
     mess = "Vérification des champs trouvés,\n\n"
-    mess += '{:_<26} '.format('ATENDU') + 'TROUVE\n\n'
+    mess += '{:_<26} '.format('ATTENDU') + 'TROUVÉ\n\n'
     for ix in range(len(colonnesIn)):
         mess += '{:_<26} '.format(colonnesIn[ix] ) + str(entete[ix])+'\n'
     ret = wx.MessageBox(mess,"Confirmez le fichier ouvert...",style=wx.YES_NO)
@@ -72,26 +73,24 @@ def ComposeFuncImp(entete,donnees,champsOut):
 # Description des paramètres à choisir en haut d'écran
 MATRICE_PARAMS = {
 ("filtres","Filtre des données"): [
-    {'name': 'exercice', 'genre': 'Enum', 'label': 'Exercice clôturant',
+    {'name': 'cloture', 'genre': 'Enum', 'label': 'Exercice clôturant',
                     'help': "Choisir un exercice ouvert pour pouvoir saisir, sinon il sera en consultation", 'value':0,
-                    'values': ['',],
-                    'ctrlAction':'OnExercice',
+                    'values': nunoegest.GetClotures(),
+                    'ctrlAction':'OnCloture',
                     'size':(300,30)},
     {'name': 'datefact', 'genre': 'Enum', 'label': 'Date facturation',
                     'help': "Date de facturation pour l'export ou pour consulter l'antérieur",
-                    'value':1, 'values':['toutes dates','{:%d/%m/%Y}'.format(datetime.date.today())],
-                    'ctrlAction':'OnDateFact',
+                    'value':1, 'values':nunoegest.GetClotures()+['{:%d/%m/%Y}'.format(datetime.date.today())],
                     'size':(300,30)},
     {'name': 'vehicule', 'genre': 'Enum', 'label': "Véhicule",
                     'help': "Pour filtrer les écritures d'un seul véhicule, saisir sa clé d'appel",
                     'value':0, 'values':['',],
-                    'ctrlAction':'OnDateFact',
                     'size':(300,30)},
     ],
 ("compta", "Paramètres export"): [
     {'name': 'formatexp', 'genre': 'Enum', 'label': 'Format export',
                     'help': "Le choix est limité par la programmation", 'value':0,
-                    'values':[x for x in UTILS_Compta.FORMATS_EXPORT.keys()],
+                    'values':[x for x in nucompta.FORMATS_EXPORT.keys()],
                     'ctrlAction':'OnChoixExport',
                     'size':(300,30)},
     {'name': 'journal', 'genre': 'Combo', 'label': 'Journal','ctrlAction':'OnCtrlJournal',
@@ -296,8 +295,10 @@ class Dialog(xusp.DLG_vide):
         self.ctrlOlv = None
         self.txtInfo =  "Non connecté à une compta"
         self.dicOlv = self.GetParamsOlv()
+        self.noegest = nunoegest.Noegest(self)
         self.Init()
         self.Sizer()
+        self.exercice = None
 
     # Récup des paramètrages pour composer l'écran
     def GetParamsOlv(self):
@@ -323,6 +324,7 @@ class Dialog(xusp.DLG_vide):
         self.table = self.GetTable()
 
         self.Bind(wx.EVT_CLOSE,self.OnFermer)
+        self.OnCloture(None)
 
     def Sizer(self):
         sizer_base = wx.FlexGridSizer(rows=4, cols=1, vgap=0, hgap=0)
@@ -337,6 +339,15 @@ class Dialog(xusp.DLG_vide):
         self.CenterOnScreen()
 
     # ------------------- Gestion des actions -----------------------
+
+    def OnCloture(self,evt):
+        # Met à jour self.cloture
+        box = self.pnlParams.GetBox('filtres')
+        self.noegest.cloture = box.GetOneValue('cloture')
+        lClotures = [x for y, x in self.noegest.GetExercices()]
+        self.exercice = self.noegest.ltExercices[lClotures.index(self.noegest.cloture)]
+        self.lstVehicules = [x[0] for x in self.noegest.GetVehicules(lstChamps=['abrege'])]
+        box.SetOneValues('vehicule',self.lstVehicules)
 
     def OnCtrlJournal(self,evt):
         # tronque pour ne garder que le code journal sur trois caractères maxi
@@ -393,9 +404,9 @@ class Dialog(xusp.DLG_vide):
         dic = self.pnlParams.GetValeurs()
         formatExp = dic['compta']['formatexp']
         compta = None
-        if formatExp in UTILS_Compta.FORMATS_EXPORT.keys() :
-            nomCompta = UTILS_Compta.FORMATS_EXPORT[formatExp]['compta']
-            compta = UTILS_Compta.Compta(self, compta=nomCompta)
+        if formatExp in nucompta.FORMATS_EXPORT.keys() :
+            nomCompta = nucompta.FORMATS_EXPORT[formatExp]['compta']
+            compta = nucompta.Compta(self, compta=nomCompta)
             if not compta.db: compta = None
         if not compta:
             txtInfo = "Echec d'accès à la compta associée à %s!!!"%formatExp
@@ -457,7 +468,7 @@ class Dialog(xusp.DLG_vide):
                 return wx.CANCEL
 
 
-        exp = UTILS_Compta.Export(self,self.compta)
+        exp = nucompta.Export(self,self.compta)
         ret = exp.Exporte(params=self.pnlParams.GetValeurs(),donnees=self.pnlParams.GetValeurs(),olv=self.ctrlOlv)
         if not ret == wx.OK:
             return ret

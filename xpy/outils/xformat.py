@@ -93,17 +93,33 @@ def DateSqlToDatetime(dateen):
         return datetime.date(int(dateen[:4]),int(dateen[5:7]),int(dateen[8:10]))
     return dateen
 
+def DateSqlToIso(dateen):
+    # Conversion de date récupérée de requête SQL aaaa-mm-jj en jj/mm/aaaa
+    if not isinstance(dateen, str) : dateen = str(dateen)
+    if len(dateen) < 10: return None
+    dateen = dateen.strip()
+    return '%s/%s/%s'%(dateen[8:10],dateen[5:7],dateen[:4])
+
+def DateIsoToSql(dateen):
+    # Conversion de date récupérée de requête SQL aaaa-mm-jj en jj/mm/aaaa
+    if not isinstance(dateen, str) : dateen = str(dateen)
+    if len(dateen) < 10: return None
+    dateen = dateen.strip()
+    return '%s-%s-%s'%(dateen[6:10],dateen[3:5],dateen[:2])
+
 # Conversion dates jj?mm?aaaa
 def DateStrToWxdate(date,iso=False):
     # Conversion d'une date chaîne jj-mm-aaaa en wx.datetime
     if not isinstance(date, str) : date = str(date)
-    if len(date) < 10: return None
+    if len(date) != 10: return None
     date = date.strip()
-    if iso:
-        dmy = (int(date[8:10]), int(date[5:7]) - 1, int(date[:4]))
-    else:
-        dmy = (int(date[:2]), int(date[3:5]) - 1, int(date[6:10]))
-    dateout = wx.DateTime.FromDMY(*dmy)
+    try:
+        if iso:
+            dmy = (int(date[8:10]), int(date[5:7]) - 1, int(date[:4]))
+        else:
+            dmy = (int(date[:2]), int(date[3:5]) - 1, int(date[6:10]))
+        dateout = wx.DateTime.FromDMY(*dmy)
+    except: dateout = None
     #dateout.SetCountry(5) ???
     return dateout
 
@@ -127,17 +143,7 @@ def DatetimeToStr(dte,iso=False):
         else: return "%s/%s/%s"%(dd,mm,yyyy)
     else: return str(dte)
 
-def FinDeMois(anydate):
-    findemois = None
-    if isinstance(anydate,str):anydate = DateSqlToDatetime()
-    elif isinstance(anydate,wx.DateTime): anydate = WxdateToDatetime(anydate)
-    if isinstance(anydate,(datetime.date,datetime.datetime)):
-        mm = anydate.month
-        aa = anydate.year
-        findemois = datetime.date(aa, mm + 1, 1) - datetime.timedelta(days=1)
-    return findemois
-
-# -------------------------------------------------------------------------------------------------------
+# Formatages--------------------------------------------------------------------------------------------------
 
 def SetBgColour(self,montant):
     if montant > 0.0:
@@ -186,6 +192,7 @@ def FmtPercent(montant):
     return strMtt
 
 def FmtDate(date):
+    strdate = ''
     if date == None or date == wx.DateTime.FromDMY(1,0,1900) or date == '':
         return ''
     if isinstance(date,str):
@@ -227,7 +234,7 @@ def FmtSolde(montant):
     strMtt = strMtt.replace(',',' ')+ SYMBOLE
     return strMtt
 
-#-------------------------------------------------------------------------------------------
+# Diverses fonctions-------------------------------------------------------------------------------------------
 def Nz(param):
     # fonction Null devient zero, et extrait les chiffres d'une chaîne pour faire un nombre
     valeur = 0.0
@@ -244,6 +251,25 @@ def Nz(param):
         valeur = float(param)
     except: pass
     return valeur
+
+def ListToDict(lstCles,lstValeurs):
+    dict = {}
+    if isinstance(lstCles,list):
+        for cle in lstCles:
+            idx = lstCles.index(cle)
+            dict[cle] = None
+            if isinstance(lstValeurs, (list,tuple)) and len(lstValeurs) >= idx:
+                dict[cle] = lstValeurs[idx]
+    return dict
+
+def DictToList(dic):
+    lstCles = []
+    lstValeurs = []
+    if isinstance(dic,dict):
+        for cle,valeur in dic.items():
+            lstCles.append(cle)
+            lstValeurs.append(valeur)
+    return lstCles,lstValeurs
 
 def PrefixeNbre(param):
     if not isinstance(param,str):
@@ -287,9 +313,11 @@ def IncrementeRef(ref):
 def FinDeMois(date,iso=False):
     # Retourne le dernier jour du mois
     def action(wxdte):
-        dteout = wx.DateTime.FromDMY(1,wxdte.GetMonth()+1,wxdte.GetYear())
-        dteout -= wx.DateSpan(days=1)
-        return dteout
+        if isinstance(wxdte,wx.DateTime):
+            dteout = wx.DateTime.FromDMY(1,wxdte.GetMonth()+1,wxdte.GetYear())
+            dteout -= wx.DateSpan(days=1)
+            return dteout
+        return None
 
     if isinstance(date,str):
         date = DateStrToWxdate(date)
@@ -310,7 +338,7 @@ if __name__ == '__main__':
     print(FmtMontant(8520.547),FmtMontant(-8520.547),FmtMontant(0))
     """
 
-    print(FinDeMois(datetime.date.today()))
+    print(DateSqlToIso('2020-08-31'))
 
 
 

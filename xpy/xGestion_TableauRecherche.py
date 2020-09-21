@@ -340,10 +340,10 @@ class PNL_tableau(wx.Panel):
             self.barreRecherche = BarreRecherche(self, listview=self.ctrlOlv,texteDefaut=u"Saisir une partie de mot à rechercher ...",
                                                  style=wx.TE_LEFT|wx.TE_PROCESS_ENTER)
             self.barreRecherche.Bind(wx.EVT_CHAR,self.OnRechercheChar)
-
-
-        # Le pnlPied est un spécifique alimenté par les descendants
-        self.pnlPied = (200,10)
+            self.pnlPied = (10,10)
+        else:
+            # Le pnlPied est un spécifique alimenté par les descendants
+            self.pnlPied = (200,10)
         # Sizer différé pour les descendants avec spécificités modifiant le panel
         if autoSizer:
             self.ProprietesOlv()
@@ -450,9 +450,10 @@ class DLG_tableau(wx.Dialog):
             self.EndModal(wx.OK)
         else:
             self.Close()
+
 # -- pour tests -----------------------------------------------------------------------------------------------------
 
-def GetDonnees(matrice,filtre = ""):
+def GetDonnees(matriceOlv=None,filtre = ""):
     donnees = [[18, "Bonjour", -1230.05939, -1230.05939, None, None],
                      [19, "Bonsoir", 57.5, 208.99, wx.DateTime.FromDMY(15, 11, 2018), '2019-03-29'],
                      [1, "Jonbour", 0, 209, wx.DateTime.FromDMY(6, 11, 2018), '2019-03-01'],

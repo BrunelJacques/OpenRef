@@ -11,25 +11,6 @@ import wx
 import os
 import shelve
 
-def ListToDict(lstCles,lstValeurs):
-    dict = {}
-    if isinstance(lstCles,list):
-        for cle in lstCles:
-            idx = lstCles.index(cle)
-            dict[cle] = None
-            if isinstance(lstValeurs, list) and len(lstValeurs) >= idx:
-                dict[cle] = lstValeurs[idx]
-    return dict
-
-def DictToList(dic):
-    lstCles = []
-    lstValeurs = []
-    if isinstance(dic,dict):
-        for cle,valeur in dic.items():
-            lstCles.append(cle)
-            lstValeurs.append(valeur)
-    return lstCles,lstValeurs
-
 def DumpFile(dic):
         print(len(dic)," groupes")
         print()

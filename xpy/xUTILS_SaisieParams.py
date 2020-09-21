@@ -160,9 +160,12 @@ def DefColonnes(lstNoms,lstCodes,lstValDef,lstLargeur):
             if '%' in colonne:
                 stringConverter = xfmt.FmtPercent
             else:
-                stringConverter = xfmt.FmtInt
+                stringConverter = xfmt.FmtMontant
         elif isinstance(lstValDef[ix], int):
-            stringConverter = None
+            if '%' in colonne:
+                stringConverter = xfmt.FmtPercent
+            else:
+                stringConverter = xfmt.FmtInt
         elif isinstance(lstValDef[ix], (datetime.date,wx.DateTime)):
             stringConverter = xfmt.FmtDate
         else: stringConverter = None

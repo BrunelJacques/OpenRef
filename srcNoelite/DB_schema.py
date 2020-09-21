@@ -159,6 +159,14 @@ DB_TABLES = {
                 ("cloture", "INTEGER", u"Clôturé, l'exercice ne peut plus être actif(0/1)"),
                                     ], # Compta : Exercices
 
+    'cpta_analytiques': [
+        ('IDanalytique', 'VARCHAR(8)', "Clé Unique alphanumérique"),
+        ('abrege', 'VARCHAR(16)', "cle d'appel ou libelle court du code analytique"),
+        ('nom', 'VARCHAR(200)', "Libellé long du code analytique"),
+        ('params', 'VARCHAR(400)', "liste texte de paramétrages constructeurs, pour le calcul coût"),
+        ('axe', 'VARCHAR(24)', "axe analytique 'VEHICULES' 'CONVOIS' 'PRIXJOUR', defaut = vide")
+    ],
+
     'immobilisations':[
                 ('IDimmo','INTEGER PRIMARY KEY AUTOINCREMENT',"Clé Unique"),
                 ('compteImmo','VARCHAR(10)',"compte comptable de l'immobilisation"),
@@ -196,7 +204,7 @@ DB_TABLES = {
     
     'vehiculesCouts':[
                 ('IDcout','INTEGER PRIMARY KEY AUTOINCREMENT',"Clé Unique"),
-                ('IDanalytique','INTEGER',"clé usuelle d'appel, identifie l'composant principal 0 par son libelle"),
+                ('IDanalytique','VARCHAR(8)',"clé usuelle d'appel, identifie l'composant principal 0 par son libelle"),
                 ('cloture','DATE',"Date de clôture de l'exercice"),
                 ('prixKmVte','FLOAT',"Prix de base du km facturé avant remise"),
                 ('carburants','FLOAT',"Coût des carburants pour l'exercice"),
@@ -212,7 +220,7 @@ DB_TABLES = {
     
     'vehiculesConsos':[
                 ('IDconso','INTEGER PRIMARY KEY AUTOINCREMENT',"Clé Unique"),
-                ('IDanalytique','INTEGER',"ID de l'immo"),
+                ('IDanalytique','VARCHAR(8)',"Id du véhicule"),
                 ('cloture','DATE',"Date de clôture de l'exercice"),
                 ('typeTiers','VARCHAR(1)',"'C'lient, 'A'analytique,'P'partenaires,'E'mployés"),
                 ('IDtiers','VARCHAR(8)',"Section analytique consommatrice ou no client"),
@@ -225,14 +233,6 @@ DB_TABLES = {
                 ('compta','DATE',"Date de transert en compta"),
                 ('dtMaj','DATE',"Date de dernière modif"),
                 ('user','INTEGER',"ID de l'utilisateur"),],# affectation des consommations internes par section
-
-    'cpta_analytiques':[
-                ('IDanalytique','VARCHAR(5)',"Clé Unique alphanumérique"),
-                ('abrege','VARCHAR(16)',"cle d'appel ou libelle court du code analytique"),
-                ('nom','VARCHAR(200)',"Libellé long du code analytique"),
-                ('params','VARCHAR(400)',"liste texte de paramétrages constructeurs"),
-                ('axe','VARCHAR(16)',"axe analytique, defaut = vide")
-                ]
     }
 
 # index clé unique
