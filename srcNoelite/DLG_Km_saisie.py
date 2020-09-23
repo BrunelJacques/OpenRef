@@ -134,14 +134,13 @@ def GetOlvColonnes(dlg):
     return [
             ColumnDefn("ID", 'centre', 0, 'IDconso',
                        isEditable=False),
-            ColumnDefn("Véhicule", 'center', 70, 'vehicule', isSpaceFilling=False,
-                       cellEditorCreator=CellEditor.ComboEditor),
+            ColumnDefn("Véhicule", 'center', 70, 'vehicule', isSpaceFilling=False,),
             ColumnDefn("Nom Véhicule", 'left', 120, 'nomvehicule',
                        isSpaceFilling=True, isEditable=False),
             ColumnDefn("Type Tiers", 'center', 40, 'typetiers', isSpaceFilling=False,valueSetter='A',
                        cellEditorCreator=CellEditor.ChoiceEditor,choices=['A analytique', 'T tiers']),
-            ColumnDefn("Tiers", 'center', 60, 'IDtiers', isSpaceFilling=False),
-            ColumnDefn("Nom Tiers", 'left', 120, 'nomtiers',
+            ColumnDefn("Activité", 'center', 60, 'IDtiers', isSpaceFilling=False),
+            ColumnDefn("Nom tiers/activité", 'left', 130, 'nomtiers',
                        isSpaceFilling=True, isEditable=False),
             ColumnDefn("Date Début", 'center', 85, 'dtkmdeb',
                        stringConverter=xformat.FmtDate, isSpaceFilling=False),
@@ -161,7 +160,7 @@ def GetOlvColonnes(dlg):
 def GetOlvOptions(dlg):
     return {
             'hauteur': 400,
-            'largeur': 900,
+            'largeur': 950,
             'checkColonne': False,
             'recherche': True,
             'autoAddRow':True,
@@ -214,7 +213,6 @@ class PNL_corpsOlv(xgte.PNL_corps):
             track = self.ctrlOlv.GetObjectAt(self.oldRow)
             track.valide = True
         track = self.ctrlOlv.GetObjectAt(row)
-
         # conservation de l'ancienne valeur
         track.oldValue = None
         try:
@@ -250,6 +248,7 @@ class PNL_corpsOlv(xgte.PNL_corps):
                 track.IDvehicule = ''
                 track.nomvehicule = ''
             self.ctrlOlv.Refresh()
+
         if code == 'IDtiers':
             # vérification de l'unicité du code saisi
             dicActivite = self.parent.noegest.GetActivite(filtre=value)
@@ -261,7 +260,29 @@ class PNL_corpsOlv(xgte.PNL_corps):
                 track.nomtiers = ''
             self.ctrlOlv.Refresh()
 
+        if code == 'typetiers':
+            ixtiers = self.ctrlOlv.lstCodesColonnes.index('IDtiers')
+            ixnomtiers = self.ctrlOlv.lstCodesColonnes.index('nomtiers')
+            if value[:1]=='T':
+                self.ctrlOlv.lstColonnes[ixtiers].isEditable = False
+                self.ctrlOlv.lstColonnes[ixnomtiers].isEditable = True
+            else:
+                self.ctrlOlv.lstColonnes[ixtiers].isEditable = True
+                self.ctrlOlv.lstColonnes[ixnomtiers].isEditable = False
 
+        if code in ['kmdeb','kmfin']:
+            kmdeb,kmfin = 9999999,0
+            if track.kmdeb:
+                kmdeb = int(track.kmdeb)
+            if track.kmfin:
+                kmfin = int(track.kmfin)
+            if code == 'kmdeb':
+                kmdeb = int(value)
+            else: kmfin = int(value)
+            if kmdeb and kmfin:
+                if kmdeb <= kmfin:
+                    conso = kmfin - kmdeb
+                    track.conso = conso
         # enlève l'info de bas d'écran
         self.parent.pnlPied.SetItemsInfos( INFO_OLV,wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
         self.flagSkipEdit = False

@@ -381,7 +381,10 @@ class ChoiceEditor(wx.Choice):
         if value in self.GetItems():
             self.SetSelection(self.GetItems().index(str(value)))
         else:
-            self.FindString(str(value))
+            for item in self.GetItems():
+                if str(value) == str(item)[:len(str(value))]:
+                    self.SetSelection(self.GetItems().index(item))
+                    break
         return
 
 class ComboEditor(wx.ComboBox):
@@ -400,7 +403,10 @@ class ComboEditor(wx.ComboBox):
         if value in self.GetItems():
             self.SetSelection(self.GetItems().index(str(value)))
         else:
-            self.FindString(str(value))
+            for item in self.GetItems():
+                if str(value) == str(item)[:len(str(value))]:
+                    self.SetSelection(self.GetItems().index(item))
+                    break
         return
 
 class DateEditor(wx.adv.DatePickerCtrl):
