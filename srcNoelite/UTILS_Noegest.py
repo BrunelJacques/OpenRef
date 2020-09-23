@@ -147,86 +147,215 @@ class Noegest(object):
             'msgIfEmpty': "Aucune donnée ne correspond à votre recherche",
         }
 
-    def GetVehicule(self):
-        # appel des véhicules existants
-        dicVehicule = {}
+    def GetAnalytique(self,**kwd):
+        # choix d'un code analytique, retourne un dict, mode:'auto' automatisme d'affectation, f4 force écran
+        mode = kwd.pop('mode',None)
+        axe = kwd.pop('axe',None)
+        filtre = kwd.pop('filtre',None)
+        getAnalytiques = kwd.pop('getAnalytiques', None)
+
+        lstNomsColonnes = ['IDanalytique', 'abrégé', 'nom']
+        lstChamps = ['cpta_analytiques.IDanalytique', 'cpta_analytiques.abrege', 'cpta_analytiques.nom']
+        lstTypes = ['varchar(8)', 'varchar(8)', 'varchar(32)']
+        lstCodesColonnes = [xusp.SupprimeAccents(x).lower() for x in lstNomsColonnes]
+
+        if not mode: mode = 'normal'
+        dicAnalytique = None
+        nb = 0
+        # Test préalable sur début de clé seulement
+        if filtre and len(filtre)>0:
+            # déroule les champs progresivement, jusqu'à trouver un item unique
+            for ix in range(len(lstChamps)):
+                kwd['whereFiltre']  = """
+                    AND (%s LIKE '%s%%' )"""%(lstChamps[ix],filtre)
+
+                ltAnalytiques = getAnalytiques(lstChamps=lstChamps,**kwd)
+                nb = len(ltAnalytiques)
+                if nb == 1:
+                    dicAnalytique={}
+                    for ix in range(len(ltAnalytiques[0])):
+                        dicAnalytique[lstCodesColonnes[ix]] = ltAnalytiques[0][ix]
+                    break
+                elif nb > 1:
+                    break
+        if (mode.lower() in ('auto')): return dicAnalytique
+        if dicAnalytique and mode.lower() == 'normal':  return dicAnalytique
+
+        # le filtre semble trop sélectif pour un f4 on le supprime
+        if nb == 0: filtre = None
+        # un item unique n'a pas été trouvé on affiche les choix possibles
+        getDonnees = getAnalytiques
+        dicOlv = self.GetMatriceAnalytiques(axe,lstChamps,lstNomsColonnes,lstTypes,getDonnees)
+        dicOlv['largeur'] = 400
+        dlg = xgtr.DLG_tableau(self,dicOlv=dicOlv, db=self.db)
+        if filtre and len(filtre)>0:
+            dlg.ctrlOlv.Parent.barreRecherche.SetValue(filtre)
+            dlg.ctrlOlv.Filtrer(filtre)
+        ret = dlg.ShowModal()
+        if ret == wx.OK:
+            donnees = dlg.GetSelection().donnees
+            dicAnalytique = {}
+            for ix in range(len(donnees)):
+                dicAnalytique[dicOlv['listeCodesColonnes'][ix]] = donnees[ix]
+        dlg.Destroy()
+        return dicAnalytique
+
+    def GetAnalytiques(self,lstChamps=None,**kwd):
+        reqFrom = kwd.pop('reqFrom','')
+        reqWhere = kwd.pop('reqWhere','')
+
+        # retourne un recordset de requête (liste de tuples)
+        ltAnalytiques = []
+        champs = ",".join(lstChamps)
+        req = """SELECT %s
+                %s
+                %s
+                GROUP BY %s;
+                """%(champs,reqFrom,reqWhere,champs)
+        retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetAnalytiques')
+        if retour == "ok":
+            ltAnalytiques = self.db.ResultatReq()
+        return ltAnalytiques
+
+    def zzGetVehicule(self,filtre=None,mute=False):
+        # choix d'un véhicule et retour de son dict, mute sert pour automatisme d'affectation
+        dicVehicule = None
         axe = 'VEHICULES'
         lstChamps = ['cpta_analytiques.IDanalytique', 'cpta_analytiques.abrege', 'cpta_analytiques.nom',
                      'vehiculesCouts.prixKmVte']
-        lstNomsColonnes = ['abrege','IDanalytique','nom','prixKmVte']
+        lstNomsColonnes = ['IDanalytique','abrege','nom','prixKmVte']
         lstTypes = ['varchar(8)','varchar(8)','varchar(32)','float']
+        lstCodesColonnes = [xusp.SupprimeAccents(x).lower() for x in lstNomsColonnes]
+        # Test préalable sur début de clé seulement
+        if filtre:
+            whereFiltre = """
+                            AND ((cpta_analytiques.IDanalytique LIKE '%s%%')
+                            OR (cpta_analytiques.abrege LIKE '%s%%')) """ % (filtre, filtre,)
+
+            ltVehicules = self.GetVehicules(lstChamps=lstChamps[:1],whereFiltre=whereFiltre)
+            if len(ltVehicules) == 1:
+                dicVehicule={}
+                for ix in range(len(lstCodesColonnes)):
+                    dicVehicule[lstCodesColonnes[ix]] = ltVehicules[0][ix]
+            if mute or dicVehicule: return dicVehicule
+        # un item unique n'a pas été trouvé on affiche les choix possibles
         getDonnees = self.GetVehicules
         dicOlv = self.GetMatriceAnalytiques(axe,lstChamps,lstNomsColonnes,lstTypes,getDonnees)
         dicOlv['largeur'] = 400
         dlg = xgtr.DLG_tableau(self,dicOlv=dicOlv, db=self.db)
+        if len(filtre)>0:
+            dlg.ctrlOlv.Parent.barreRecherche.SetValue(filtre)
+            dlg.ctrlOlv.Filtrer(filtre)
         ret = dlg.ShowModal()
         if ret == wx.OK:
             donnees = dlg.GetSelection().donnees
+            dicVehicule = {}
             for ix in range(len(donnees)):
                 dicVehicule[dicOlv['listeCodesColonnes'][ix]] = donnees[ix]
         dlg.Destroy()
         return dicVehicule
 
-    def GetVehicules(self,matriceOlv=None,lstChamps=None,filtre=None,**kwd):
+    def zzGetVehicules(self,lstChamps=None,filtre=None,**kwd):
+        matriceOlv = kwd.pop('matriceOlv',{})
+        whereFiltre = kwd.pop('whereFiltre','')
+        # retourne un recordset de requête (liste de tuples)
         ltVehicules = []
-        if not lstChamps:
+        # matrice Olv est envoyé par la saisie d'un filtre dans la barre de recherche
+        if (not lstChamps) and 'listeChamps' in matriceOlv:
             lstChamps = matriceOlv['listeChamps']
-        where = "WHERE (cpta_analytiques.axe = 'VEHICULES')"
-        if filtre:
-            where = """ AND (cpta_analytiques.IDanalytique LIKE '%%%s%%'
-                            OR cpta_analytiques.abrege LIKE '%%%s%%'
-                            OR cpta_analytiques.nom '%%%s%%') """ % (filtre, filtre, filtre, )
+        # where filtre permet de personnaliser la recherche
+        if filtre and not whereFiltre:
+            whereFiltre = """
+                AND ((cpta_analytiques.IDanalytique LIKE '%%%s%%')
+                OR (cpta_analytiques.abrege LIKE '%%%s%%')
+                OR (cpta_analytiques.nom LIKE '%%%s%%')) """ % (filtre, filtre, filtre, )
 
-        where += " AND (vehiculesCouts.cloture = '%s') "%xformat.DateIsoToSql(self.cloture)
+        where = """
+                WHERE (cpta_analytiques.axe = 'VEHICULES') %s
+                AND (vehiculesCouts.cloture = '%s') """%(whereFiltre,xformat.DateIsoToSql(self.cloture))
 
-        req = """SELECT %s
-                FROM cpta_analytiques LEFT JOIN vehiculesCouts ON cpta_analytiques.IDanalytique = vehiculesCouts.IDanalytique
-                %s;
-                """%(",".join(lstChamps),where)
+        champs = ",".join(lstChamps)
+        req = """
+                SELECT %s
+                FROM    cpta_analytiques   
+                        LEFT JOIN vehiculesCouts ON cpta_analytiques.IDanalytique = vehiculesCouts.IDanalytique
+                %s
+                GROUP BY %s;
+                """%(champs,where,champs)
         retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetVehicules')
         if retour == "ok":
             ltVehicules = self.db.ResultatReq()
         return ltVehicules
 
-    def GetActivite(self):
-        # appel des activités existantes
-        dicActivite = {}
-        axe = 'ACTIVITES'
-        lstChamps = ['cpta_analytiques.IDanalytique', 'cpta_analytiques.abrege', 'cpta_analytiques.nom']
-        lstNomsColonnes = ['abrege','IDanalytique','nom']
-        lstTypes = ['varchar(8)','varchar(8)','varchar(32)']
-        getDonnees = self.GetActivites
-        dicOlv = self.GetMatriceAnalytiques(axe,lstChamps,lstNomsColonnes,lstTypes,getDonnees)
-        dicOlv['largeur'] = 400
-        dlg = xgtr.DLG_tableau(self,dicOlv=dicOlv, db=self.db)
-        ret = dlg.ShowModal()
-        if ret == wx.OK:
-            donnees = dlg.GetSelection().donnees
-            for ix in range(len(donnees)):
-                dicActivite[dicOlv['listeCodesColonnes'][ix]] = donnees[ix]
-        dlg.Destroy()
+    def GetVehicule(self,filtre='', mode=None):
+        # choix d'une activité et retour de son dict, mute sert pour automatisme d'affectation
+        kwd = {
+            'axe': 'VEHICULES',
+            'mode' : mode,
+            'filtre' : filtre,
+            'getAnalytiques': self.GetVehicules}
+        dicVehicule = self.GetAnalytique(**kwd)
+        return dicVehicule
+
+    def GetVehicules(self,lstChamps=None,**kwd):
+        # matriceOlv et filtre résultent d'une saisie en barre de recherche
+        matriceOlv = kwd.pop('matriceOlv',{})
+        if (not lstChamps) and 'listeChamps' in matriceOlv:
+            lstChamps = matriceOlv['listeChamps']
+        filtre = kwd.pop('filtre','')
+        kwd['filtre'] = filtre
+        whereFiltre = kwd.pop('whereFiltre','')
+        if len(whereFiltre) == 0 and len(filtre)>0:
+            whereFiltre = self.ComposeWhereFiltre(filtre,lstChamps)
+        kwd['reqWhere'] = """
+                WHERE (cpta_analytiques.axe = 'VEHICULES')
+                AND (vehiculesCouts.cloture = '%s') %s"""%(xformat.DateIsoToSql(self.cloture),whereFiltre)
+        kwd['reqFrom'] = """
+                FROM    cpta_analytiques   
+                LEFT JOIN vehiculesCouts ON cpta_analytiques.IDanalytique = vehiculesCouts.IDanalytique"""
+        return self.GetAnalytiques(lstChamps,**kwd)
+
+    def GetActivite(self,filtre='', mode=None):
+        # choix d'une activité et retour de son dict, mute sert pour automatisme d'affectation
+        kwd = {
+            'axe': 'ACTIVITES',
+            'mode' : mode,
+            'filtre' : filtre,
+            'getAnalytiques': self.GetActivites}
+        dicActivite = self.GetAnalytique(**kwd)
         return dicActivite
 
-    def GetActivites(self,db=None,matriceOlv=None,filtre=None):
-        # db dans le param est inutile ici, mais il doit être réceptionné car d'autres modules l'utilisent
-        ltActivites = []
-        lstChamps = matriceOlv['listeChamps']
-        where = "WHERE (cpta_analytiques.axe = 'ACTIVITES')"
-        if filtre:
-            where = """ AND (cpta_analytiques.IDanalytique LIKE '%%%s%%'
-                            OR cpta_analytiques.abrege LIKE '%%%s%%'
-                            OR cpta_analytiques.nom '%%%s%%') """ % (filtre, filtre, filtre, )
+    def GetActivites(self,lstChamps=None,**kwd):
+        # matriceOlv et filtre résultent d'une saisie en barre de recherche
+        matriceOlv = kwd.pop('matriceOlv',{})
+        if (not lstChamps) and 'listeChamps' in matriceOlv:
+            lstChamps = matriceOlv['listeChamps']
+        filtre = kwd.pop('filtre','')
+        kwd['filtre'] = filtre
+        whereFiltre = kwd.pop('whereFiltre','')
+        if len(whereFiltre) == 0 and len(filtre)>0:
+            whereFiltre = self.ComposeWhereFiltre(filtre,lstChamps)
+        kwd['reqWhere'] = """
+            WHERE cpta_analytiques.axe = 'ACTIVITES' %s
+            """%(whereFiltre)
+        kwd['reqFrom'] = """
+            FROM cpta_analytiques"""
+        return self.GetAnalytiques(lstChamps,**kwd)
 
-        req = """SELECT %s
-                FROM cpta_analytiques
-                %s;
-                """%(",".join(lstChamps),where)
-        retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetActivites')
-        if retour == "ok":
-            ltActivites = self.db.ResultatReq()
-        return ltActivites
-
-
+    def ComposeWhereFiltre(self,filtre,lstChamps):
+        whereFiltre = ''
+        if filtre and len(filtre) > 0:
+            texte = ''
+            ordeb = """
+                    ("""
+            for ix in range(len(lstChamps)):
+                texte += "%s %s LIKE '%%%s%%' )"%(ordeb,lstChamps[ix],filtre)
+                ordeb = """
+                    OR ("""
+            whereFiltre = """
+                AND ( %s )"""%(texte)
+        return whereFiltre
+    
 #------------------------ Lanceur de test  -------------------------------------------
 
 if __name__ == '__main__':

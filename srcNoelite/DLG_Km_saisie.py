@@ -24,6 +24,7 @@ INTRO = "Importez un fichier ou saisissez les consommations de km, avant de l'ex
 
 # Infos d'aide en pied d'écran
 DIC_INFOS = {'date':"Flèche droite pour le mois et l'année, Entrée pour valider.\nC'est la date",
+            'vehicule':    "<F4> Choix d'un véhicule, ou saisie directe de l'abrégé",
             'IDtiers':    "<F4> Choix d'une section ou d'un tiers pour l'affectation du coût",
             'observation':     "S'il y a lieu précisez des circonstances particulières",
             'montant':      "Montant en €",
@@ -54,7 +55,10 @@ def ComposeFuncImp(entete,donnees,champsOut):
         ligneOut = [None,]*len(champsOut)
         #champs communs aux listIn et listOut
         for champ in ('vehicule','dtkmdeb','kmdeb','kmfin'):
-            ligneOut[champsOut.index(champ)] = ligneIn[champsIn.index(champ)]
+            value = ligneIn[champsIn.index(champ)]
+            if isinstance(value,datetime.datetime):
+                value = datetime.date(value.year,value.month,value.day)
+            ligneOut[champsOut.index(champ)] = value
         # calcul auto d'une date fin de mois
         findemois = xformat.FinDeMois(ligneIn[champsIn.index('dtkmdeb')])
         ligneOut[champsOut.index('dtkmfin')] = findemois
@@ -128,14 +132,16 @@ def GetBoutons(dlg):
 def GetOlvColonnes(dlg):
     # retourne la liste des colonnes de l'écran principal
     return [
-            ColumnDefn("Véhicule", 'center', 50, 'vehicule', isSpaceFilling=False,
+            ColumnDefn("ID", 'centre', 0, 'IDconso',
+                       isEditable=False),
+            ColumnDefn("Véhicule", 'center', 70, 'vehicule', isSpaceFilling=False,
                        cellEditorCreator=CellEditor.ComboEditor),
             ColumnDefn("Nom Véhicule", 'left', 120, 'nomvehicule',
                        isSpaceFilling=True, isEditable=False),
             ColumnDefn("Type Tiers", 'center', 40, 'typetiers', isSpaceFilling=False,valueSetter='A',
                        cellEditorCreator=CellEditor.ChoiceEditor,choices=['A analytique', 'T tiers']),
             ColumnDefn("Tiers", 'center', 60, 'IDtiers', isSpaceFilling=False),
-            ColumnDefn("Nom Tiers", 'left', 120, 'tiers',
+            ColumnDefn("Nom Tiers", 'left', 120, 'nomtiers',
                        isSpaceFilling=True, isEditable=False),
             ColumnDefn("Date Début", 'center', 85, 'dtkmdeb',
                        stringConverter=xformat.FmtDate, isSpaceFilling=False),
@@ -232,33 +238,28 @@ class PNL_corpsOlv(xgte.PNL_corps):
         okSauve = False
 
         # Traitement des spécificités selon les zones
-        if code == 'compte':
-            table = self.parent.table
-            record = self.parent.compta.GetOneAuto(table,value)
-            """# deuxième essai dans les comptes généraux
-            if not record:
-                record = self.parent.compta.GetOneAuto('generaux', value)
-            # tentative de recherche mannuelle
-            newfiltre = self.parent.compta.filtreTest
-            if not record:
-                record = self.parent.compta.ChoisirItem('fournisseurs',newfiltre)
-            """
-            # alimente les champs ('compte','appel','libelle'), puis répand l'info
-            if record:
-                track.compte = record[0].upper()
-                track.exappel = track.appel
-                track.appel = record[1].upper()
-                track.libcpt = record[2]
-                # la valeur d'origine va être strockée par parent  pour cellEditor
-                if parent:
-                    #parent n'est pas self.parent!!!
-                    parent.valeur = track.compte
-                # RepandreCompte sur les autres lignes similaires
-                self.RepandreCompte(track)
-                self.ctrlOlv.Refresh()
+        if code == 'vehicule':
+            # vérification de l'unicité du code saisi
+            dicVehicule = self.parent.noegest.GetVehicule(filtre=value)
+            if dicVehicule:
+                track.IDvehicule = dicVehicule['idanalytique'],
+                track.vehicule = dicVehicule['abrege'],
+                track.nomvehicule = dicVehicule['nom']
             else:
-                track.appel = ''
-                track.libcpt = ''
+                track.vehicule = ''
+                track.IDvehicule = ''
+                track.nomvehicule = ''
+            self.ctrlOlv.Refresh()
+        if code == 'IDtiers':
+            # vérification de l'unicité du code saisi
+            dicActivite = self.parent.noegest.GetActivite(filtre=value)
+            if dicActivite:
+                track.IDtiers = dicActivite['idanalytique'],
+                track.nomtiers = dicActivite['nom']
+            else:
+                track.IDtiers = ''
+                track.nomtiers = ''
+            self.ctrlOlv.Refresh()
 
 
         # enlève l'info de bas d'écran
@@ -267,21 +268,23 @@ class PNL_corpsOlv(xgte.PNL_corps):
 
     def OnEditFunctionKeys(self,event):
         row, col = self.ctrlOlv.cellBeingEdited
+        track = self.ctrlOlv.GetObjectAt(row)
         code = self.ctrlOlv.lstCodesColonnes[col]
-        if event.GetKeyCode() == wx.WXK_F4 and code == 'compte':
-            # F4 Choix compte
-            item = self.parent.compta.ChoisirItem(table=self.parent.table,filtre='')
-            if item:
-                self.OnEditFinishing('compte',item[0])
-                track = self.ctrlOlv.GetObjectAt(row)
-                track.compte = item[0]
-
-    def RepandreCompte(self,track=None):
-        for object in self.ctrlOlv.innerList:
-            if object.appel == track.exappel:
-                object.compte = track.compte
-                object.appel  = track.appel
-                object.libcpt = track.libcpt
+        if event.GetKeyCode() == wx.WXK_F4 and code == 'vehicule':
+            # F4 Choix
+            dict = self.parent.noegest.GetVehicule(filtre=track.vehicule)
+            if dict:
+                self.OnEditFinishing('vehicule',dict['abrege'])
+                track.vehicule = dict['abrege']
+                track.nomvehicule = dict['nom']
+                track.IDvehicule = dict['idanalytique']
+        elif event.GetKeyCode() == wx.WXK_F4 and code == 'IDtiers':
+            # F4 Choix
+            dict = self.parent.noegest.GetActivite(filtre=track.IDtiers,mode='f4')
+            if dict:
+                self.OnEditFinishing('IDtiers',dict['idanalytique'])
+                track.IDtiers = dict['idanalytique']
+                track.nomtiers = dict['nom']
 
 class PNL_Pied(xgte.PNL_Pied):
     #panel infos (gauche) et boutons sorties(droite)
@@ -319,7 +322,7 @@ class Dialog(xusp.DLG_vide):
         self.pnlOlv = PNL_corpsOlv(self, self.dicOlv)
         self.pnlPied = PNL_Pied(self, dicPied)
         self.ctrlOlv = self.pnlOlv.ctrlOlv
-        # connextion compta et affichage bas d'écran
+        # connexion compta et affichage bas d'écran
         self.compta = self.GetCompta()
         self.table = self.GetTable()
 
@@ -348,6 +351,9 @@ class Dialog(xusp.DLG_vide):
         self.exercice = self.noegest.ltExercices[lClotures.index(self.noegest.cloture)]
         self.lstVehicules = [x[0] for x in self.noegest.GetVehicules(lstChamps=['abrege'])]
         box.SetOneValues('vehicule',self.lstVehicules)
+        self.ctrlOlv.dicChoices[self.ctrlOlv.lstCodesColonnes.index('vehicule')]= self.lstVehicules
+        self.lstActivites = [x[0]+" "+x[1] for x in self.noegest.GetActivites(lstChamps=['IDanalytique','nom'])]
+        #self.ctrlOlv.dicChoices[self.ctrlOlv.lstCodesColonnes.index('tiers')]= self.lstActivites
 
     def OnCtrlJournal(self,evt):
         # tronque pour ne garder que le code journal sur trois caractères maxi
@@ -444,9 +450,7 @@ class Dialog(xusp.DLG_vide):
         dicParams = self.pnlParams.GetValeurs()
         entete,donnees = self.GetDonneesIn(nomFichier)
         if donnees:
-            self.ctrlOlv.listeDonnees = ComposeFuncImp(entete,
-                                                                            donnees,
-                                                                          self.ctrlOlv.lstCodesColonnes,)
+            self.ctrlOlv.listeDonnees = ComposeFuncImp(entete,donnees, self.ctrlOlv.lstCodesColonnes,)
             self.InitOlv()
 
     def OnExporter(self,event):

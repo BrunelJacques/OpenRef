@@ -419,9 +419,10 @@ class DateEditor(wx.adv.DatePickerCtrl):
         OnChar(self,event)
 
     def SetValue(self, value):
-        if value:
-            dt = wx.DateTime()
-            dt.Set(value.day, value.month , value.year)
+        if isinstance(value,(datetime.date,datetime.datetime)):
+            dt = wx.DateTime(value.day, value.month-1 , value.year)
+        elif isinstance(value,wx.DateTime):
+            dt = wx.DateTime(value.GetDay(), value.GetMonth(), value.GetYear())
         else:
             dt = wx.DateTime.Today()
         wx.adv.DatePickerCtrl.SetValue(self, dt)
