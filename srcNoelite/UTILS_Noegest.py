@@ -17,91 +17,15 @@ import xpy.xGestion_TableauEditor   as xgte
 import xpy.xGestion_TableauRecherche as xgtr
 import xpy.xUTILS_SaisieParams       as xusp
 
-def ValideLigne(db,track):
-    track.ligneValide = True
-    track.messageRefus = "Saisie incomplète\n\n"
-
-    # vérification des éléments saisis
-
-    # montant null
-    try:
-        track.montant = float(track.montant)
-    except:
-        track.montant = None
-    if not track.montant or track.montant == 0.0:
-        track.messageRefus += "Le montant est à zéro\n"
-
-    # IDligne manquant
-    if track.IDligne in (None,0) :
-        track.messageRefus += "L'ID reglement n'est pas été déterminé à l'entrée du montant\n"
-
-    # Date
-    if not track.date or not isinstance(track.date,(wx.DateTime,datetime.date)):
-        track.messageRefus += "Vous devez obligatoirement saisir une date d'émission du règlement !\n"
-
-    # Mode
-    if not track.mode or len(track.mode) == 0:
-        track.messageRefus += "Vous devez obligatoirement sélectionner un mode de règlement !\n"
-
-    # Numero de piece
-    if track.mode[:3].upper() == 'CHQ':
-        if not track.numero or len(track.numero)<4:
-            track.messageRefus += "Vous devez saisir un numéro de chèque 4 chiffres mini!\n"
-        # libelle pour chèques
-        if track.libelle == '':
-            track.messageRefus += "Veuillez saisir la banque émettrice du chèque dans le libellé !\n"
-
-    # Payeur
-    if track.payeur == None:
-        track.messageRefus += "Vous devez obligatoirement sélectionner un payeur dans la liste !\n"
-
-    # envoi de l'erreur
-    if track.messageRefus != "Saisie incomplète\n\n":
-        track.ligneValide = False
-    else: track.messageRefus = ""
-    return
-
-def SauveLigne(db,dlg,track):
-    if not track.ligneValide:
-        return False
-    if not track.montant or not isinstance(track.montant,float):
-        return False
-    # --- Sauvegarde des différents éléments associés à la ligne ---
-    message = ''
-    ret = None
-    if len(message)>0: wx.MessageBox(message)
-    return ret
-
-def DeleteLigne(db,track):
-    # --- Supprime les différents éléments associés à la ligne ---
-    # si le montant est à zéro il n'y a pas eu d'enregistrements
-    if track.montant != 0.0:
-        # suppression  du réglement et des ventilations
-        ret = db.ReqDEL("reglements", "IDligne", track.IDligne,affichError=False)
-        if track.ligneValide:
-            # --- Mémorise l'action dans l'historique ---
-            if ret == 'ok':
-                IDcategorie = 8
-                categorie = "Suppression"
-                nuh.InsertActions([{
-                    "IDfamille": track.IDfamille,
-                    "IDcategorie": IDcategorie,
-                    "action": "Noelite %s du règlement ID%d"%(categorie, track.IDligne),
-                    },],db=db)
-
-        db.ReqDEL("ventilation", "IDligne", track.IDligne)
-
-    return
-
 def GetClotures():
     noegest = Noegest()
     lClotures = [x for y,x in noegest.GetExercices()]
     del noegest
     return lClotures
 
-
 class Noegest(object):
     def __init__(self,parent=None):
+        self.parent = parent
         self.db = xGestionDB.DB()
         self.cloture = None
         self.ltExercices = None
@@ -289,7 +213,114 @@ class Noegest(object):
             whereFiltre = """
                 AND ( %s )"""%(texte)
         return whereFiltre
-    
+
+    def SetConso(self,track):
+        dlg = self.parent
+        # --- Sauvegarde de la ligne consommation ---
+        dteFacturation = self.GetParam('filtre','datefact')
+        listeDonnees = [
+            ("IDconso", track.IDconso),
+            ("IDanalytique", track.IDvehicule),
+            ("cloture", xformat.DateIsoToSql(self.cloture)),
+            ("typeTiers", track.typetiers),
+            ("IDtiers", track.IDtiers),
+            ("dteKmDeb", xformat.DatetimeToStr(track.dtkmdeb,iso=True)),
+            ("kmDeb", track.kmdeb),
+            ("dteKmFin", xformat.DatetimeToStr(track.dtkmfin,iso=True)),
+            ("kmFin", track.kmfin),
+            ("observation", track.observation),
+            ("dtFact", xformat.DateIsoToSql(dteFacturation)),
+            ("dtMaj", xformat.DatetimeToStr(datetime.date.today(),iso=True)),
+            ("user", dlg.IDutilisateur),
+            ]
+
+        if not track.IDconso or track.IDconso == 0:
+            ret = self.db.ReqInsert("vehiculesConsos",lstDonnees= listeDonnees, mess="UTILS_Noegest.SetConso")
+            track.IDconso = self.db.newID
+            IDcategorie = 6
+            categorie = ("Saisie")
+        else:
+            ret = self.db.ReqMAJ("vehiculesConsos", listeDonnees, "IDconso", track.IDconso)
+            IDcategorie = 7
+            categorie = "Modification"
+
+        # --- Mémorise l'action dans l'historique ---
+        if ret == 'ok':
+            nuh.InsertActions([{
+                                "IDcategorie": IDcategorie,
+                                "action": "Noelite %s de la conso ID%d : %s %s %s" % (
+                                categorie, track.IDconso, track.nomvehicule,track.nomtiers,track.observation,),
+                                }, ],db=self.db)
+        return True
+
+    def ValideLigne(self, track):
+        track.ligneValide = True
+        track.messageRefus = "Saisie incomplète\n\n"
+        # vérification des éléments saisis
+        try:
+            track.conso = int(track.conso)
+        except:
+            track.conso = None
+        if not track.conso or track.conso == 0:
+            track.messageRefus += "Le nombre de km consommés est à zéro\n"
+
+        # DateKmDeb
+        if not xformat.DateIsoToSql(track.dtkmdeb) :
+            track.messageRefus += "Vous devez obligatoirement saisir une date de début !\n"
+
+        # véhicule
+        if track.IDvehicule == None:
+            track.messageRefus += "Vous devez obligatoirement sélectionner un véhicle reconnu !\n"
+
+        # activité
+        if track.typetiers == 'A' and (not track.IDtiers or len(str(track.IDtiers))==0):
+            track.messageRefus += "Vous devez obligatoirement sélectionner une activité !\n"
+        if (not track.nomtiers or len(str(track.nomtiers))==0):
+            track.messageRefus += "Vous devez obligatoirement sélectionner un nom de tiers ou d'activité !\n"
+
+        # envoi de l'erreur
+        if track.messageRefus != "Saisie incomplète\n\n":
+            track.ligneValide = False
+        else:
+            track.messageRefus = ""
+        return
+
+    def SauveLigne(self,track):
+        if not track.ligneValide:
+            return False
+        if not track.montant or not isinstance(track.montant,float):
+            return False
+        # gestion de la consommation
+        ret = self.SetConso(track)
+        if ret != 'ok':
+            wx.MessageBox(ret)
+        return ret
+
+    def DeleteLigne(self,track):
+        db = self.db
+        # si la vameir conso est à zéro il n'y a pas eu d'enregistrements
+        if track.montant != 0.0:
+            # suppression  de la consommation et des ventilations
+            ret = db.ReqDEL("vehiculesConsos", "IDconso", track.IDligne,affichError=False)
+            if track.ligneValide:
+                # --- Mémorise l'action dans l'historique ---
+                if ret == 'ok':
+                    IDcategorie = 8
+                    categorie = "Suppression"
+                    nuh.InsertActions([{
+                        "IDcategorie": IDcategorie,
+                        "action": "Noelite %s de conso km véhicule ID%d"%(categorie, track.IDligne),
+                        },],db=db)
+        return
+
+    def GetParam(self,cat,name):
+        valeur = None
+        dicParams = self.parent.pnlParams.GetValeurs()
+        if cat in dicParams:
+            if name in dicParams[cat]:
+                valeur = dicParams[cat][name]
+        return valeur
+
 #------------------------ Lanceur de test  -------------------------------------------
 
 if __name__ == '__main__':

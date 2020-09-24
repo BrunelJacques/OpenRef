@@ -100,12 +100,15 @@ def DateSqlToIso(dateen):
     dateen = dateen.strip()
     return '%s/%s/%s'%(dateen[8:10],dateen[5:7],dateen[:4])
 
-def DateIsoToSql(dateen):
-    # Conversion de date récupérée de requête SQL aaaa-mm-jj en jj/mm/aaaa
-    if not isinstance(dateen, str) : dateen = str(dateen)
-    if len(dateen) < 10: return None
-    dateen = dateen.strip()
-    return '%s-%s-%s'%(dateen[6:10],dateen[3:5],dateen[:2])
+def DateIsoToSql(datefr):
+    # Conversion de date string française reçue en formats divers
+    if not isinstance(datefr, str) : datefr = str(datefr)
+    datefr = datefr.strip()
+    # normalisation des formats divers
+    datefr = FmtDate(datefr)
+    # transposition
+    if len(datefr) < 10: return None
+    return '%s-%s-%s'%(datefr[6:10],datefr[3:5],datefr[:2])
 
 # Conversion dates jj?mm?aaaa
 def DateStrToWxdate(date,iso=False):
@@ -196,12 +199,14 @@ def FmtDate(date):
     if date == None or date == wx.DateTime.FromDMY(1,0,1900) or date == '':
         return ''
     if isinstance(date,str):
+        date = date.replace('-','/')
         tpldate = date.split('/')
         if len(tpldate)==3:
-            strdate = tpldate[0]+'/'+tpldate[1]+'/'+tpldate[2]
-        tpldate = date.split('-')
-        if len(tpldate) == 3:
-            strdate = tpldate[2] + '/' + tpldate[1] + '/' + tpldate[0]
+            strdate = ('00'+tpldate[0])[-2:]+'/'+('00'+tpldate[1])[-2:]+'/'+('20'+tpldate[2])[-4:]
+        elif len(date) == 6:
+            strdate = (date[:2] + '/' + date[2:4] + '/' + '20'+date[4:])
+        elif len(date) == 8:
+            strdate = (date[:2] + '/' + date[2:4] + '/' + date[4:])
     else:
         strdate = DatetimeToStr(date)
     return strdate
@@ -338,7 +343,8 @@ if __name__ == '__main__':
     print(FmtMontant(8520.547),FmtMontant(-8520.547),FmtMontant(0))
     """
 
-    print(DateSqlToIso('2020-08-31'))
+    print(FmtDate('01022019'))
+
 
 
 

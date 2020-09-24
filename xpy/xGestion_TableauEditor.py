@@ -639,6 +639,7 @@ class PanelListView(wx.Panel):
             self.parent.ValideLigne(track)
 
     def OnEditFinishing(self, event):
+        self.event = event
         # gestion des actions de sortie
         row, col = self.ctrl_listview.cellBeingEdited
         track = self.ctrl_listview.GetObjectAt(row)
@@ -648,14 +649,20 @@ class PanelListView(wx.Panel):
         if hasattr(self.parent, 'OnEditFinishing'):
             self.parent.OnEditFinishing(code,self.valeur,parent=self)
         # stockage de la nouvelle saisie
-        track.__setattr__(code, self.valeur)
-        track.donnees[col] = self.valeur
+        #track.__setattr__(code, self.valeur)
+        #track.donnees[col] = self.valeur
         event.Skip()
 
     def OnEditFinished(self, event):
         if self.ctrl_listview.cellBeingEdited:
             row, col = self.ctrl_listview.cellBeingEdited
             track = self.ctrl_listview.GetObjectAt(row)
+
+            # appel des éventuels spécifiques
+            if hasattr(self.parent, 'OnEditFinished'):
+                code = self.ctrl_listview.lstCodesColonnes[col]
+                self.parent.OnEditFinished(code, track, parent=self)
+
             self.ValideLigne(track)
         event.Skip()
 

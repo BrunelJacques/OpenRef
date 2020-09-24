@@ -14,6 +14,7 @@ import xpy.xGestionConfig               as xgc
 import xpy.xUTILS_SaisieParams          as xusp
 import srcNoelite.UTILS_Noegest         as nunoegest
 import srcNoelite.UTILS_Compta          as nucompta
+import srcNoelite.UTILS_Utilisateurs    as nuutil
 from xpy.outils.ObjectListView  import ColumnDefn, CellEditor
 from xpy.outils                 import xformat,xbandeau,ximport,xexport
 
@@ -26,6 +27,8 @@ INTRO = "Importez un fichier ou saisissez les consommations de km, avant de l'ex
 DIC_INFOS = {'date':"Flèche droite pour le mois et l'année, Entrée pour valider.\nC'est la date",
             'vehicule':    "<F4> Choix d'un véhicule, ou saisie directe de l'abrégé",
             'IDtiers':    "<F4> Choix d'une section ou d'un tiers pour l'affectation du coût",
+            'dtkmdeb':     "formats date acceptés : j/m/a jjmmaa jjmmaaaa",
+            'dtkmfin':     "formats date acceptés : j/m/a jjmmaa jjmmaaaa",
             'observation':     "S'il y a lieu précisez des circonstances particulières",
             'montant':      "Montant en €",
              }
@@ -132,7 +135,9 @@ def GetBoutons(dlg):
 def GetOlvColonnes(dlg):
     # retourne la liste des colonnes de l'écran principal
     return [
-            ColumnDefn("ID", 'centre', 0, 'IDconso',
+            ColumnDefn("IDconso", 'centre', 0, 'IDconso',
+                       isEditable=False),
+            ColumnDefn("IDvehicule", 'centre', 0, 'IDvehicule',
                        isEditable=False),
             ColumnDefn("Véhicule", 'center', 70, 'vehicule', isSpaceFilling=False,),
             ColumnDefn("Nom Véhicule", 'left', 120, 'nomvehicule',
@@ -144,14 +149,14 @@ def GetOlvColonnes(dlg):
                        isSpaceFilling=True, isEditable=False),
             ColumnDefn("Date Début", 'center', 85, 'dtkmdeb',
                        stringConverter=xformat.FmtDate, isSpaceFilling=False),
-            ColumnDefn("KM début", 'right', 90, 'kmdeb', isSpaceFilling=False,
+            ColumnDefn("KM début", 'right', 90, 'kmdeb', isSpaceFilling=False,valueSetter=0,
                        stringConverter=xformat.FmtInt),
             ColumnDefn("Date Fin", 'center', 85, 'dtkmfin',
                        stringConverter=xformat.FmtDate, isSpaceFilling=False),
-            ColumnDefn("KM fin", 'right', 90, 'kmfin', isSpaceFilling=False,
+            ColumnDefn("KM fin", 'right', 90, 'kmfin', isSpaceFilling=False,valueSetter=0,
                        stringConverter=xformat.FmtInt),
             ColumnDefn("KM conso", 'right', 80, 'conso', isSpaceFilling=False,valueSetter=0,
-                       isEditable=False),
+                       stringConverter=xformat.FmtInt, isEditable=False),
             ColumnDefn("Observation", 'left', 150, 'observation',
                        isSpaceFilling=True),
             ]
@@ -208,11 +213,20 @@ class PNL_corpsOlv(xgte.PNL_corps):
         else:
             self.parent.pnlPied.SetItemsInfos( INFO_OLV,wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
         row, col = self.ctrlOlv.cellBeingEdited
+
         if not self.oldRow: self.oldRow = row
         if row != self.oldRow:
             track = self.ctrlOlv.GetObjectAt(self.oldRow)
-            track.valide = True
+            test = self.parent.noegest.ValideLigne(self.parent.db,track)
+            if test:
+                track.valide = True
+                self.oldRow = row
+            else:
+                track.valide = False
         track = self.ctrlOlv.GetObjectAt(row)
+        if code == 'typetiers':
+            if track.vehicule != track.donnees[self.ctrlOlv.lstCodesColonnes.index('vehicule')]:
+                track.vehicule = track.donnees[self.ctrlOlv.lstCodesColonnes.index('vehicule')]
         # conservation de l'ancienne valeur
         track.oldValue = None
         try:
@@ -240,13 +254,18 @@ class PNL_corpsOlv(xgte.PNL_corps):
             # vérification de l'unicité du code saisi
             dicVehicule = self.parent.noegest.GetVehicule(filtre=value)
             if dicVehicule:
-                track.IDvehicule = dicVehicule['idanalytique'],
-                track.vehicule = dicVehicule['abrege'],
+                track.IDvehicule = dicVehicule['idanalytique']
+                track.vehicule = dicVehicule['abrege']
                 track.nomvehicule = dicVehicule['nom']
             else:
                 track.vehicule = ''
                 track.IDvehicule = ''
                 track.nomvehicule = ''
+            if parent:
+                # la modification de la cellule éditée ne doit pas être écrasée par le finish
+                parent.valeur = track.vehicule
+                parent.event.cellValue = track.vehicule
+            track.donnees[col] = track.vehicule
             self.ctrlOlv.Refresh()
 
         if code == 'IDtiers':
@@ -278,11 +297,18 @@ class PNL_corpsOlv(xgte.PNL_corps):
                 kmfin = int(track.kmfin)
             if code == 'kmdeb':
                 kmdeb = int(value)
-            else: kmfin = int(value)
+                track.kmdeb = kmdeb
+            else:
+                kmfin = int(value)
+                track.kmfin = kmfin
             if kmdeb and kmfin:
                 if kmdeb <= kmfin:
                     conso = kmfin - kmdeb
                     track.conso = conso
+                    self.ctrlOlv.Refresh()
+        # anticipe l'enregistrement du champ montant pour réussir la validation
+        self.parent.noegest.ValideLigne(track)
+
         # enlève l'info de bas d'écran
         self.parent.pnlPied.SetItemsInfos( INFO_OLV,wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
         self.flagSkipEdit = False
@@ -320,6 +346,9 @@ class Dialog(xusp.DLG_vide):
         self.txtInfo =  "Non connecté à une compta"
         self.dicOlv = self.GetParamsOlv()
         self.noegest = nunoegest.Noegest(self)
+        self.IDutilisateur = nuutil.GetIDutilisateur()
+        if (not self.IDutilisateur) or not nuutil.VerificationDroitsUtilisateurActuel('consommations_conso','creer'):
+            self.Destroy()
         self.Init()
         self.Sizer()
         self.exercice = None
@@ -468,10 +497,10 @@ class Dialog(xusp.DLG_vide):
             nomFichier = dlg.GetPath()
         dlg.Destroy()
         if not nomFichier: return
-        dicParams = self.pnlParams.GetValeurs()
         entete,donnees = self.GetDonneesIn(nomFichier)
         if donnees:
-            self.ctrlOlv.listeDonnees = ComposeFuncImp(entete,donnees, self.ctrlOlv.lstCodesColonnes,)
+            donExist = [x.donnees for x in self.ctrlOlv.modelObjects if x.conso and x.conso > 0]
+            self.ctrlOlv.listeDonnees = donExist + ComposeFuncImp(entete,donnees,self.ctrlOlv.lstCodesColonnes,)
             self.InitOlv()
 
     def OnExporter(self,event):
@@ -494,7 +523,8 @@ class Dialog(xusp.DLG_vide):
 
 
         exp = nucompta.Export(self,self.compta)
-        ret = exp.Exporte(params=self.pnlParams.GetValeurs(),donnees=self.pnlParams.GetValeurs(),olv=self.ctrlOlv)
+        dicParams = self.pnlParams.GetValeurs()
+        ret = exp.Exporte(params=dicParams,donnees=self.pnlParams.GetValeurs(),olv=self.ctrlOlv)
         if not ret == wx.OK:
             return ret
 
