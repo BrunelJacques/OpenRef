@@ -37,14 +37,16 @@ DIC_INFOS = {'date':"Flèche droite pour le mois et l'année, Entrée pour valid
 INFO_OLV = "<Suppr> <Inser> <Ctrl C> <Ctrl V>"
 
 # Fonctions de transposition entrée à gérer pour chaque item FORMAT_xxxx pour les spécificités
-def ComposeFuncImp(entete,donnees,champsOut):
+def ComposeFuncImp(dlg,entete,donnees):
     # Fonction import pour composition
-    colonnesIn =    ["Code Véhicule","Date Début","Membre   ","Partenaire","Camp  ","KM Début  ","KM Fin"]
-    champsIn =      ['vehicule','dtkmdeb','membre','partenaire','camp','kmdeb','kmfin']
-    lstOut = [] #'vehicule','date','membre','camp','kmdeb','kmfin'
+    colonnesIn =    ["Code Véhicule       ","Date Début     ","Membre        ","Partenaire  ","Activité ",
+                     "KM Début       ","KM Fin   "]
+    champsIn =      ['vehicule','dtkmdeb','membre','partenaire','activite','kmdeb','kmfin']
+    lstOut = [] # sera composé selon champs out
+    champsOut = dlg.ctrlOlv.lstCodesColonnes
     # teste la cohérence de la première ligne importée
     mess = "Vérification des champs trouvés,\n\n"
-    mess += '{:_<26} '.format('ATTENDU') + 'TROUVÉ\n\n'
+    mess += '{:_<22} '.format('ATTENDU') + 'TROUVÉ\n\n'
     for ix in range(len(colonnesIn)):
         mess += '{:_<26} '.format(colonnesIn[ix] ) + str(entete[ix])+'\n'
     ret = wx.MessageBox(mess,"Confirmez le fichier ouvert...",style=wx.YES_NO)
@@ -65,15 +67,31 @@ def ComposeFuncImp(entete,donnees,champsOut):
         # calcul auto d'une date fin de mois
         findemois = xformat.FinDeMois(ligneIn[champsIn.index('dtkmdeb')])
         ligneOut[champsOut.index('dtkmfin')] = findemois
-        if ligneIn[champsIn.index('camp')]:
+        # recherche champ libellé véhicule
+        dicVehicule = dlg.noegest.GetVehicule(mode='auto',filtre=ligneIn[champsIn.index('vehicule')])
+        if dicVehicule:
+            ligneOut[champsOut.index('IDvehicule')] = dicVehicule['idanalytique']
+            ligneOut[champsOut.index('vehicule')] =  dicVehicule['abrege']
+            ligneOut[champsOut.index('nomvehicule')] = dicVehicule['nom']
+        # détermine le type de tiers
+        if ligneIn[champsIn.index('activite')]:
             ligneOut[champsOut.index('typetiers')] = 'A'
-            ligneOut[champsOut.index('IDtiers')] =  ligneIn[champsIn.index('camp')]
+            ligneOut[champsOut.index('IDtiers')] =  ligneIn[champsIn.index('activite')]
+            dicActivite = dlg.noegest.GetActivite(mode='auto', filtre=ligneIn[champsIn.index('activite')])
+            if dicActivite:
+                ligneOut[champsOut.index('IDtiers')] = dicActivite['idanalytique']
+                ligneOut[champsOut.index('nomtiers')] = dicActivite['nom']
         elif ligneIn[champsIn.index('partenaire')]:
-            ligneOut[champsOut.index('typetiers')] = 'T'
-            ligneOut[champsOut.index('observation')] = ligneIn[champsIn.index('partenaire')]
+            ligneOut[champsOut.index('typetiers')] = 'P'
+            ligneOut[champsOut.index('nomtiers')] = ligneIn[champsIn.index('partenaire')]
         elif ligneIn[champsIn.index('membre')]:
-            ligneOut[champsOut.index('typetiers')] = 'T'
-            ligneOut[champsOut.index('observation')] = ligneIn[champsIn.index('membre')]
+            ligneOut[champsOut.index('typetiers')] = 'C'
+            ligneOut[champsOut.index('nomtiers')] = ligneIn[champsIn.index('membre')]
+        # calcul conso
+        kmdeb = xformat.Nz(ligneOut[champsOut.index('kmdeb')])
+        kmfin = xformat.Nz(ligneOut[champsOut.index('kmfin')])
+        if kmdeb <= kmfin and kmdeb > 0:
+            ligneOut[champsOut.index('conso')] = kmfin - kmdeb
         lstOut.append(ligneOut)
     return lstOut
 
@@ -87,11 +105,14 @@ MATRICE_PARAMS = {
                     'size':(300,30)},
     {'name': 'datefact', 'genre': 'Enum', 'label': 'Date facturation',
                     'help': "Date de facturation pour l'export ou pour consulter l'antérieur",
-                    'value':1, 'values':nunoegest.GetClotures()+['{:%d/%m/%Y}'.format(datetime.date.today())],
+                    'value':0,
+                    'values':nunoegest.GetDatesFactKm(),
+                    'ctrlAction': 'OnDateFact',
                     'size':(300,30)},
     {'name': 'vehicule', 'genre': 'Enum', 'label': "Véhicule",
                     'help': "Pour filtrer les écritures d'un seul véhicule, saisir sa clé d'appel",
                     'value':0, 'values':['',],
+                    'ctrlAction': 'OnDateFact',
                     'size':(300,30)},
     ],
 ("compta", "Paramètres export"): [
@@ -102,7 +123,7 @@ MATRICE_PARAMS = {
                     'size':(300,30)},
     {'name': 'journal', 'genre': 'Combo', 'label': 'Journal','ctrlAction':'OnCtrlJournal',
                     'help': "Code journal utilisé dans la compta",'size':(350,30),
-                    'value':'CI','values':['BQ','LCL','LBP','CCP'],
+                    'value':'CI','values':['CI','OD'],
                     'btnLabel': "...", 'btnHelp': "Cliquez pour choisir un journal",
                     'btnAction': 'OnBtnJournal'},
     {'name': 'forcer', 'genre': 'Bool', 'label': 'Exporter les écritures déjà transférées','value':False,
@@ -110,11 +131,17 @@ MATRICE_PARAMS = {
     ],
 ("comptes", "Comptes à mouvementer"): [
     {'name': 'revente', 'genre': 'String', 'label': 'Vente interne km',
-     'help': "Code comptable du compte crédité de la rétrocession", 'size': (250, 30)},
+     'help': "Code comptable du compte crédité de la rétrocession", 'size': (250, 30),
+     'btnLabel': "...", 'btnHelp': "Cliquez pour choisir un compte comptable",
+     'btnAction': 'OnBtnCompte'},
     {'name': 'achat', 'genre': 'String', 'label': 'Achat interne km',
-     'help': "Code comptable du compte débité de la rétrocession interne", 'size': (250, 30)},
-    {'name': 'tiers', 'genre': 'String', 'label': 'km faits par tiers',
-     'help': "Code comptable du compte crédité de la rétrocession à refacturer aux clients", 'size': (250, 30)},
+     'help': "Code comptable du compte débité de la rétrocession interne", 'size': (250, 30),
+     'btnLabel': "...", 'btnHelp': "Cliquez pour choisir un compte comptable",
+     'btnAction': 'OnBtnCompte'},
+    {'name': 'tiers', 'genre': 'string', 'label': 'km faits par tiers',
+     'help': "Code comptable du compte crédité de la rétrocession à refacturer aux clients", 'size': (250, 30),
+     'btnLabel': "...", 'btnHelp': "Cliquez pour choisir un compte comptable",
+     'btnAction': 'OnBtnCompte'},
 
 ]}
 
@@ -175,8 +202,6 @@ def GetOlvOptions(dlg):
                               'conso': {"mode": "total"}, }
     }
 
-# fonction d'enrichissement des champs
-
 
 #----------------------- Parties de l'écrans -----------------------------------------
 
@@ -191,7 +216,7 @@ class PNL_params(xgc.PNL_paramsLocaux):
                 'lblbox':None,
                 'pathdata':"srcNoelite/Data",
                 'nomfichier':"params",
-                'nomgroupe':"transpose"
+                'nomgroupe':"saisieKM"
                 }
         super().__init__(parent, **kwds)
         self.Init()
@@ -217,7 +242,7 @@ class PNL_corpsOlv(xgte.PNL_corps):
         if not self.oldRow: self.oldRow = row
         if row != self.oldRow:
             track = self.ctrlOlv.GetObjectAt(self.oldRow)
-            test = self.parent.noegest.ValideLigne(self.parent.db,track)
+            test = self.parent.noegest.ValideLigne(track)
             if test:
                 track.valide = True
                 self.oldRow = row
@@ -272,7 +297,7 @@ class PNL_corpsOlv(xgte.PNL_corps):
             # vérification de l'unicité du code saisi
             dicActivite = self.parent.noegest.GetActivite(filtre=value)
             if dicActivite:
-                track.IDtiers = dicActivite['idanalytique'],
+                track.IDtiers = dicActivite['idanalytique']
                 track.nomtiers = dicActivite['nom']
             else:
                 track.IDtiers = ''
@@ -282,7 +307,7 @@ class PNL_corpsOlv(xgte.PNL_corps):
         if code == 'typetiers':
             ixtiers = self.ctrlOlv.lstCodesColonnes.index('IDtiers')
             ixnomtiers = self.ctrlOlv.lstCodesColonnes.index('nomtiers')
-            if value[:1]=='T':
+            if value[:1]!='A':
                 self.ctrlOlv.lstColonnes[ixtiers].isEditable = False
                 self.ctrlOlv.lstColonnes[ixnomtiers].isEditable = True
             else:
@@ -306,12 +331,18 @@ class PNL_corpsOlv(xgte.PNL_corps):
                     conso = kmfin - kmdeb
                     track.conso = conso
                     self.ctrlOlv.Refresh()
-        # anticipe l'enregistrement du champ montant pour réussir la validation
+
+        # l'enregistrement de la ligne se fait à chaque saisie pour gérer les montées et descentes
         self.parent.noegest.ValideLigne(track)
+        self.parent.noegest.SauveLigne(track)
+
 
         # enlève l'info de bas d'écran
         self.parent.pnlPied.SetItemsInfos( INFO_OLV,wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
         self.flagSkipEdit = False
+
+    def OnDelete(self,noligne,track,parent=None):
+        self.parent.noegest.DeleteLigne(track)
 
     def OnEditFunctionKeys(self,event):
         row, col = self.ctrlOlv.cellBeingEdited
@@ -319,7 +350,7 @@ class PNL_corpsOlv(xgte.PNL_corps):
         code = self.ctrlOlv.lstCodesColonnes[col]
         if event.GetKeyCode() == wx.WXK_F4 and code == 'vehicule':
             # F4 Choix
-            dict = self.parent.noegest.GetVehicule(filtre=track.vehicule)
+            dict = self.parent.noegest.GetVehicule(filtre=track.vehicule,mode='F4')
             if dict:
                 self.OnEditFinishing('vehicule',dict['abrege'])
                 track.vehicule = dict['abrege']
@@ -375,8 +406,8 @@ class Dialog(xusp.DLG_vide):
         # connexion compta et affichage bas d'écran
         self.compta = self.GetCompta()
         self.table = self.GetTable()
-
         self.Bind(wx.EVT_CLOSE,self.OnFermer)
+        self.pnlParams.SetValeur('forcer',False)
         self.OnCloture(None)
 
     def Sizer(self):
@@ -403,7 +434,15 @@ class Dialog(xusp.DLG_vide):
         box.SetOneValues('vehicule',self.lstVehicules)
         self.ctrlOlv.dicChoices[self.ctrlOlv.lstCodesColonnes.index('vehicule')]= self.lstVehicules
         self.lstActivites = [x[0]+" "+x[1] for x in self.noegest.GetActivites(lstChamps=['IDanalytique','nom'])]
-        #self.ctrlOlv.dicChoices[self.ctrlOlv.lstCodesColonnes.index('tiers')]= self.lstActivites
+        self.noegest.GetConsos()
+
+    def OnDateFact(self,evt):
+        # Charge l'éventuelle saisie antérieure sur cette date
+        self.noegest.GetConsos()
+
+    def OnVehicule(self,evt):
+        # Charge l'éventuelle saisie antérieure sur cette date
+        self.noegest.GetConsos()
 
     def OnCtrlJournal(self,evt):
         # tronque pour ne garder que le code journal sur trois caractères maxi
@@ -412,19 +451,23 @@ class Dialog(xusp.DLG_vide):
         valeur = valeur[:3].strip()
         box.SetOneValue('journal', valeur)
         if self.compta:
-            item = self.compta.GetOneAuto(table='journaux',filtre=valeur)
+            item = self.compta.GetOneAuto(table='journOD',filtre=valeur)
             if item:
-                box = self.pnlParams.GetBox('compta')
-                box.SetOneValue('journal',valeur)
-                box.SetOneValue('contrepartie',item[2])
+                self.pnlParams.SetValeur('journal',valeur,'compta')
 
     def OnBtnJournal(self,evt):
         if self.compta:
-            item = self.compta.ChoisirItem(table='journaux')
+            item = self.compta.ChoisirItem(table='journOD')
             if item:
-                box = self.pnlParams.GetBox('compta')
-                box.SetOneValue('journal',item[0])
-                box.SetOneValue('contrepartie',item[2])
+                self.pnlParams.SetValeur('journal',item[0],'compta')
+
+    def OnBtnCompte(self,evt):
+        nameBtn = evt.EventObject.nameBtn
+        lstName = nameBtn.split('.')
+        if self.compta:
+            item = self.compta.ChoisirItem(table='cpt3car')
+            if item:
+                self.pnlParams.SetValeur(lstName[1],item[0],lstName[0])
 
     def OnChoixExport(self,evt):
         self.compta = self.GetCompta()
@@ -473,7 +516,7 @@ class Dialog(xusp.DLG_vide):
         self.pnlPied.SetItemsInfos(txtInfo,image)
         # appel des journaux
         if compta:
-            lstJournaux = compta.GetJournaux()
+            lstJournaux = compta.GetJournaux(table='journOD')
             lstLibJournaux = [(x[0]+"   ")[:3]+' - '+x[1] for x in lstJournaux]
             box = self.pnlParams.GetBox('compta')
             valeur = self.pnlParams.lstBoxes[1].GetOneValue('journal')
@@ -499,41 +542,70 @@ class Dialog(xusp.DLG_vide):
         if not nomFichier: return
         entete,donnees = self.GetDonneesIn(nomFichier)
         if donnees:
-            donExist = [x.donnees for x in self.ctrlOlv.modelObjects if x.conso and x.conso > 0]
-            self.ctrlOlv.listeDonnees = donExist + ComposeFuncImp(entete,donnees,self.ctrlOlv.lstCodesColonnes,)
-            self.InitOlv()
+            donExist = [x.donnees for x in self.ctrlOlv.modelObjects]
+            if len(donExist)>0:
+                ix = self.ctrlOlv.lstCodesColonnes.index('conso')
+                if xformat.Nz(donExist[-1][ix]) == 0:
+                    del donExist[-1]
+                    del self.ctrlOlv.modelObjects[-1]
+            donNew = ComposeFuncImp(self,entete,donnees)
+            self.ctrlOlv.listeDonnees = donExist + donNew
+            # ajout de la ligne dans olv
+            self.ctrlOlv.AddTracks(donNew)
+            # test de validité pour changer la couleur de la ligne
+            for object in self.ctrlOlv.modelObjects:
+                self.noegest.ValideLigne(object)
+                self.noegest.SauveLigne(object)
+            self.ctrlOlv._FormatAllRows()
+            self.ctrlOlv.Refresh()
 
     def OnExporter(self,event):
-
+        dicParams = self.pnlParams.GetValeurs()
+        dicParams['compta']['typepiece'] = 'X'
+        dicParams['fichiers']={}
+        dicParams['fichiers']['formatexp']= dicParams['compta']['formatexp']
+        champsIn = self.ctrlOlv.lstCodesColonnes
+        toc = nunoegest.ToComptaKm(dicParams,champsIn,self.noegest)
+        champsInExp = toc.champsIn
+        lstDonnees = []
         # calcul des débit et crédit des pièces
         totDebits, totCredits = 0.0, 0.0
         nonValides = 0
-        for ligne in self.ctrlOlv.innerList:
-            if not ligne.compte or len(ligne.compte)==0: nonValides +=1
-            montant = float(ligne.montant.replace(',','.'))
-            if montant > 0.0:
-                totCredits += montant
+        # constitution de la liste des données à exporter
+        for track in self.ctrlOlv.innerList:
+            if not track.ligneValide:
+                nonValides +=1
+                continue
+            if track.conso == 0: continue
+            lstDonnees.append(track.donnees)
+
+        ixmtt = champsInExp.index('montant')
+        for donnees in lstDonnees:
+            toc.AddDonnees(donnees)
+            if donnees[ixmtt] > 0.0:
+                totCredits += donnees[ixmtt]
             else:
-                totDebits -= montant
+                totDebits -= donnees[ixmtt]
+
+
         if nonValides > 0:
-            ret = wx.MessageBox("%d lignes sans no de compte!\n\nelles seront mises en compte d'attente 471"%nonValides,
+            ret = wx.MessageBox("%d lignes non valides!\n\nelles ne seront pas transférées"%nonValides,
                           "Confirmez ou abandonnez",style= wx.YES_NO)
             if not ret == wx.YES:
                 return wx.CANCEL
 
-
         exp = nucompta.Export(self,self.compta)
-        dicParams = self.pnlParams.GetValeurs()
-        ret = exp.Exporte(params=dicParams,donnees=self.pnlParams.GetValeurs(),olv=self.ctrlOlv)
+        ret = exp.Exporte(dicParams,
+                          lstDonnees,
+                          champsInExp)
         if not ret == wx.OK:
             return ret
 
         # affichage résultat
-        solde = xformat.FmtMontant(totDebits - totCredits,lg=12)
         wx.MessageBox("Fin de transfert\n\nDébits: %s\nCrédits:%s"%(xformat.FmtMontant(totDebits,lg=12),
-                                                                     xformat.FmtMontant(totCredits,lg=12))+
-                      "\nSolde:   %s"%solde)
+                                                                     xformat.FmtMontant(totCredits,lg=12)))
 
+    def Final(self):
         # sauvegarde des params
         self.pnlParams.SauveParams(close=True)
 

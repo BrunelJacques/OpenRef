@@ -93,7 +93,7 @@ def ComposeFuncImp(dicParams,donnees,champsOut,compta,table):
         lstOut.append(ligneOut)
     return lstOut
 
-# formats possibles des fichiers en entrées, utiliser les mêmes codes des champs pour les 'ComposeFuncExp et Imp'
+# formats possibles des fichiers en entrées, utiliser les mêmes codes des champs pour les 'UtilCompta.ComposeFuncExp'
 FORMATS_IMPORT = {"LCL carte":{ 'champs':['date','montant','mode',None,'libelle',None,None,'codenat','nature',],
                                 'lignesentete':0,
                                 'fonction':ComposeFuncImp,
@@ -429,26 +429,35 @@ class Dialog(xusp.DLG_vide):
         self.InitOlv()
 
     def OnExporter(self,event):
-
+        champsIn = self.ctrlOlv.lstCodesColonnes
+        donnees = []
         # calcul des débit et crédit des pièces
         totDebits, totCredits = 0.0, 0.0
         nonValides = 0
-        for ligne in self.ctrlOlv.innerList:
-            if not ligne.compte or len(ligne.compte)==0: nonValides +=1
-            montant = float(ligne.montant.replace(',','.'))
-            if montant > 0.0:
+        # constitution de la liste des données à exporter
+        for track in self.ctrlOlv.innerList:
+            if not track.compte or len(track.compte)==0:
+                nonValides +=1
+                continue
+            montant = float(track.montant.replace(',','.'))
+            if round(montant,2) == 0.0:
+                continue
+            elif montant > 0.0:
                 totCredits += montant
             else:
                 totDebits -= montant
+            donnees.append(track.donnees)
+
         if nonValides > 0:
             ret = wx.MessageBox("%d lignes sans no de compte!\n\nelles seront mises en compte d'attente 471"%nonValides,
                           "Confirmez ou abandonnez",style= wx.YES_NO)
             if not ret == wx.YES:
                 return wx.CANCEL
 
-
         exp = UTILS_Compta.Export(self,self.compta)
-        ret = exp.Exporte(params=self.pnlParams.GetValeurs(),donnees=self.pnlParams.GetValeurs(),olv=self.ctrlOlv)
+        ret = exp.Exporte(self.pnlParams.GetValeurs(),
+                          donnees,
+                          champsIn)
         if not ret == wx.OK:
             return ret
 

@@ -72,35 +72,34 @@ def WxdateToDatetime(date):
         return None
 
 # Conversion des dates SQL aaaa-mm-jj
-def DateSqlToWxdate(dateen):
+def DateSqlToWxdate(dateiso):
     # Conversion de date récupérée de requête SQL aaaa-mm-jj(ou déjà en datetime) en wx.datetime
-    if dateen == None : return None
+    if dateiso == None : return None
 
-    if isinstance(dateen,datetime.date):
-        return wx.DateTime.FromDMY(dateen.day,dateen.month-1,dateen.year)
+    if isinstance(dateiso,datetime.date):
+        return wx.DateTime.FromDMY(dateiso.day,dateiso.month-1,dateiso.year)
 
-    if isinstance(dateen,str) and len(dateen) < 10:
-        return wx.DateTime.FromDMY(int(dateen[8:10]),int(dateen[5:7]-1),int(dateen[:4]))
+    if isinstance(dateiso,str) and len(dateiso) < 10:
+        return wx.DateTime.FromDMY(int(dateiso[8:10]),int(dateiso[5:7]-1),int(dateiso[:4]))
 
-def DateSqlToDatetime(dateen):
+def DateSqlToDatetime(dateiso):
     # Conversion de date récupérée de requête SQL aaaa-mm-jj (ou déjà en datetime) en datetime
-    if dateen == None : return None
+    if dateiso == None : return None
 
-    if isinstance(dateen,datetime.date):
-        return dateen
+    elif isinstance(dateiso,datetime.date):
+        return dateiso
 
-    if isinstance(dateen,str) and len(dateen) >= 10:
-        return datetime.date(int(dateen[:4]),int(dateen[5:7]),int(dateen[8:10]))
-    return dateen
+    elif isinstance(dateiso,str) and len(dateiso) >= 10:
+        return datetime.date(int(dateiso[:4]),int(dateiso[5:7]),int(dateiso[8:10]))
 
-def DateSqlToIso(dateen):
+def DateSqlToFr(dateiso):
     # Conversion de date récupérée de requête SQL aaaa-mm-jj en jj/mm/aaaa
-    if not isinstance(dateen, str) : dateen = str(dateen)
-    if len(dateen) < 10: return None
-    dateen = dateen.strip()
-    return '%s/%s/%s'%(dateen[8:10],dateen[5:7],dateen[:4])
+    if not isinstance(dateiso, str) : dateiso = str(dateiso)
+    if len(dateiso) < 10: return None
+    dateiso = dateiso.strip()
+    return '%s/%s/%s'%(dateiso[8:10],dateiso[5:7],dateiso[:4])
 
-def DateIsoToSql(datefr):
+def DateFrToSql(datefr):
     # Conversion de date string française reçue en formats divers
     if not isinstance(datefr, str) : datefr = str(datefr)
     datefr = datefr.strip()
@@ -110,21 +109,25 @@ def DateIsoToSql(datefr):
     if len(datefr) < 10: return None
     return '%s-%s-%s'%(datefr[6:10],datefr[3:5],datefr[:2])
 
-# Conversion dates jj?mm?aaaa
-def DateStrToWxdate(date,iso=False):
-    # Conversion d'une date chaîne jj-mm-aaaa en wx.datetime
-    if not isinstance(date, str) : date = str(date)
-    if len(date) != 10: return None
-    date = date.strip()
+def DateFrToWxdate(datefr):
+    # Conversion d'une date chaîne jj?mm?aaaa en wx.datetime
+    if not isinstance(datefr, str) : datefr = str(datefr)
+    if len(datefr) != 10: return None
+    datefr = datefr.strip()
     try:
-        if iso:
-            dmy = (int(date[8:10]), int(date[5:7]) - 1, int(date[:4]))
-        else:
-            dmy = (int(date[:2]), int(date[3:5]) - 1, int(date[6:10]))
+        dmy = (int(datefr[:2]), int(datefr[3:5]) - 1, int(datefr[6:10]))
         dateout = wx.DateTime.FromDMY(*dmy)
     except: dateout = None
-    #dateout.SetCountry(5) ???
     return dateout
+
+def DateFrToDatetime(datefr):
+    # Conversion de date française jj/mm/aaaa (ou déjà en datetime) en datetime
+    if datefr == None :
+        return None
+    elif isinstance(datefr,datetime.date):
+        return datefr
+    elif isinstance(datefr,str) and len(datefr) >= 10:
+        return datetime.date(int(datefr[:4]),int(datefr[5:7]),int(datefr[8:10]))
 
 def WxDateToStr(dte,iso=False):
     # Conversion wx.datetime en chaîne
@@ -242,7 +245,6 @@ def FmtSolde(montant):
 # Diverses fonctions-------------------------------------------------------------------------------------------
 def Nz(param):
     # fonction Null devient zero, et extrait les chiffres d'une chaîne pour faire un nombre
-    valeur = 0.0
     if isinstance(param,str):
         tmp = ''
         for x in param:
@@ -252,9 +254,12 @@ def Nz(param):
         lstval = tmp.split('.')
         if len(lstval)>=2: tmp = lstval[0] + "." + lstval[1]
         param = tmp
-    try:
-        valeur = float(param)
-    except: pass
+    if isinstance(param,int):
+        valeur = param
+    else:
+        try:
+            valeur = float(param)
+        except: valeur = 0.0
     return valeur
 
 def ListToDict(lstCles,lstValeurs):
@@ -315,22 +320,26 @@ def IncrementeRef(ref):
         refout = LettreSuivante(ref)
     return refout
 
-def FinDeMois(date,iso=False):
-    # Retourne le dernier jour du mois
+def FinDeMois(date):
+    # Retourne le dernier jour du mois dans le format reçu
     def action(wxdte):
+        # action  calcul fin de mois sur les wx.DateTime
         if isinstance(wxdte,wx.DateTime):
             dteout = wx.DateTime.FromDMY(1,wxdte.GetMonth()+1,wxdte.GetYear())
             dteout -= wx.DateSpan(days=1)
             return dteout
         return None
 
-    if isinstance(date,str):
-        date = DateStrToWxdate(date)
-        return WxDateToStr(action(date),iso)
-
     if isinstance(date,(datetime.date,datetime.datetime)):
-        date = DatetimeToWxdate(date)
-        return WxdateToDatetime(action(date))
+        return WxdateToDatetime(action(DatetimeToWxdate(date)))
+
+    if isinstance(date,str) and "/" in date:
+        date = DateFrToWxdate(date)
+        return WxDateToStr(action(date),iso=False)
+
+    if isinstance(date,str) and "-" in date:
+        date = DateSqlToWxdate(date)
+        return WxDateToStr(action(date),iso=True)
 
     if isinstance(date,wx.DateTime):
         return action(date)

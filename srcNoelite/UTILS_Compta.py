@@ -28,11 +28,20 @@ MATRICE_COMPTAS = {'quadra': {
                                             'from'  :'Comptes',
                                             'where' : "Type = 'G'",
                                             'filtre':"AND (Numero like \"%xxx%\" OR CleDeux like \"%xxx%\" OR Intitule like \"%xxx%\")"},
+                            'cpt3car': {'select': 'LEFT (Numero,3), MIN(CleDeux),MIN(Intitule)',
+                                            'from'  :'Comptes',
+                                            'where' : "Type = 'G'",
+                                            'filtre':"AND (Numero like \"%xxx%\" OR CleDeux like \"%xxx%\" OR Intitule like \"%xxx%\")",
+                                            'group by':"LEFT(Numero,3)"},
                             'journaux': {'select': 'Code,Libelle,CompteContrepartie,TypeJournal',
                                             'from':' Journaux',
                                             'where': "TypeJournal = 'T'",
                                             'filtre':"AND (Code like \"%xxx%\" OR Libelle like \"%xxx%\")"},
-                            }}
+                            'journOD': {'select': 'Code,Libelle,CompteContrepartie,TypeJournal',
+                                         'from': ' Journaux',
+                                         'where': "TypeJournal = 'O'",
+                                         'filtre': "AND (Code like \"%xxx%\" OR Libelle like \"%xxx%\")"},
+                        }}
 
 MATRICE_COMPTES = {
     'lstChamps': ['ID','cle','libelle'],
@@ -54,49 +63,71 @@ MATRICE_JOURNAUX = {
 """les formats d'exports sont décrits plus bas, en dessous de la définition des fonctions d'exports,
     car ils les appellent ces fonctions qui doivent donc êtres déclarées avant dans le module"""
 
-# Transposition des valeurs Export, gérer chaque item FORMAT_xxxx pour les spécificités
+# Transposition des valeurs Export pour compta standard, gérer chaque item FORMAT_xxxx pour les spécificités
 def ComposeFuncExp(dicParams,donnees,champsIn,champsOut):
-    # 'in' est l'OLV, 'out' est le fichier de sortie
+    """ 'in' est l'OLV enrichi des champs obligatoires, 'out' est le fichier de sortie
+        obligatoires dans champsIN : date,compte,piece,libelle,montant,
+                        facultatifs: contrepartie (qui aura priorité sur la valeur dans dicParams)
+        dans dicParams sont facultatifs: journal, contrepartie, typepiece
+    """
     lstOut = []
     #formatOut = dicParams['fichiers']['formatexp']
+    typepiece = "B"  # cas par défaut B comme carte Bancaire
+    journal = 'OD'
+    contrepartie = '58999'
+    if 'typepiece' in dicParams['compta']:
+        typepiece = dicParams['compta']['typepiece']
+    if 'journal' in dicParams['compta']:
+        journal = dicParams['compta']['journal']
+    if 'contrepartie' in dicParams['compta']:
+        contrepartie = dicParams['compta']['contrepartie']
+
+    # déroulé des lignes puis des champs out
     for ligne in donnees:
         ligneOut = []
-        typePiece = "B" # cas par défaut B comme carte Bancaire
+        montant = ligne[champsIn.index('montant')]
+        if isinstance(montant, str):
+            montant = float(montant.replace(",", "."))
+        elif isinstance(montant,(int,float)):
+            montant = float(montant)
+        else: montant = 0.0
         for champ in champsOut:
             if champ in champsIn:
-                valeur = ligne.donnees[champsIn.index(champ)]
-            elif champ in ('debit','credit','sens','valeur','valeur00'):
-                valeur = ligne.donnees[champsIn.index('montant')]
+                valeur = ligne[champsIn.index(champ)]
             else: valeur = ''
             # composition des champs sortie
-            if champ    == 'journal':   valeur = dicParams['compta']['journal']
+            if champ    == 'journal':   valeur = journal
             elif champ  == 'compte':
                 if not valeur or valeur == '' : valeur = '471'
             elif champ  == 'date':
-                valeur = xformat.DateStrToWxdate(valeur)
-            elif champ  == 'typepiece': valeur = typePiece
-            elif champ  == 'contrepartie': valeur = dicParams['compta']['contrepartie']
+                valeur = xformat.DateFrToWxdate(valeur)
+            elif champ  == 'typepiece': valeur = typepiece
+            elif champ  == 'contrepartie':
+                if 'contrepartie' in champsIn:
+                    valeur = ligne[champsIn.index('contrepartie')]
+                else:
+                    valeur = contrepartie
             elif champ  == 'devise': valeur = 'EUR'
             elif champ  == 'sens':
-                mtt = float(valeur.replace(",","."))
-                if mtt >=0: valeur = 'C'
+                if montant >=0: valeur = 'C'
                 else: valeur = 'D'
-            elif champ  == 'valeur': valeur = abs(float(valeur.replace(",",".")))
-            elif champ == 'valeur00':valeur = abs(float(valeur.replace(",", "."))*100)
+            elif champ  == 'valeur': valeur = abs(montant)
+            elif champ == 'valeur00':valeur = abs(montant * 100)
             elif champ  == 'debit':
-                montant = float(valeur.replace(",","."))
                 if montant < 0.0: valeur = -montant
                 else: valeur = 0.0
             elif champ  == 'credit':
-                montant = float(valeur.replace(",","."))
                 if montant >= 0.0: valeur = montant
                 else: valeur = 0.0
             ligneOut.append(valeur)
         lstOut.append(ligneOut)
         # ajout de la contrepartie banque
         ligneBanque = [x for x in ligneOut]
-        ligneBanque[champsOut.index('contrepartie')]    = ligneOut[champsOut.index('compte')]
-        ligneBanque[champsOut.index('compte')]          = dicParams['compta']['contrepartie']
+        ligneBanque[champsOut.index('contrepartie')] = ligneOut[champsOut.index('compte')]
+        if 'contrepartie' in champsIn:
+            ligneBanque[champsOut.index('compte')] = ligne[champsIn.index('contrepartie')]
+        else:
+            ligneBanque[champsOut.index('compte')] = dicParams['compta']['contrepartie']
         if 'debit' in champsOut:
             ligneBanque[champsOut.index('debit')]    = ligneOut[champsOut.index('credit')]
             ligneBanque[champsOut.index('credit')]    = ligneOut[champsOut.index('debit')]
@@ -113,14 +144,14 @@ def ExportExcel(formatExp, lstValeurs):
     widths      = [x['lg'] for x in matrice]
     lstColonnes = [[x, None, widths[champsOut.index(x)], x] for x in champsOut]
     # envois dans un fichier excel
-    xexport.ExportExcel(listeColonnes=lstColonnes,
+    return xexport.ExportExcel(listeColonnes=lstColonnes,
                         listeValeurs=lstValeurs,
                         titre=formatExp)
 
 def ExportQuadra(formatExp, lstValeurs):
     matrice = FORMATS_EXPORT[formatExp]['matrice']
     # envois dans un fichier texte
-    xexport.ExportLgFixe(nomfic=formatExp+".txt",matrice=matrice,valeurs=lstValeurs)
+    return xexport.ExportLgFixe(nomfic=formatExp+".txt",matrice=matrice,valeurs=lstValeurs)
 
 
 FORMATS_EXPORT = {"Quadra via Excel":{  'compta':'quadra',
@@ -171,26 +202,26 @@ class Export(object):
         self.parent = parent
         self.nameCpta = compta.nameCpta
 
-    def Exporte(self,params={},donnees=[],olv=None):
+    def Exporte(self,dicParams={},donnees=[],champsIn=[]):
         # génération du fichier
-        formatExp = params['fichiers']['formatexp']
+        formatExp = dicParams['fichiers']['formatexp']
         champsOut = [x['code'] for x in FORMATS_EXPORT[formatExp]['matrice']]
 
         # transposition des lignes par l'appel de la fonction 'ComposeFuncExp'
-        lstValeurs = FORMATS_EXPORT[formatExp]['fonction'](donnees,
-                                                            olv.innerList,
-                                                            olv.lstCodesColonnes,
+        lstValeurs = FORMATS_EXPORT[formatExp]['fonction'](dicParams,
+                                                            donnees,
+                                                            champsIn,
                                                             champsOut)
         # appel de la fonction génération fichier
         ret = FORMATS_EXPORT[formatExp]['genere'](formatExp,lstValeurs)
 
         # mise à jour du dernier numero de pièce affiché avant d'être sauvegardé
-        if 'piece' in champsOut:
+        if 'piece' in champsOut and 'lastPiece' in dicParams['compta']:
             ixp = champsOut.index('piece')
             lastPiece = lstValeurs[-1][ixp]
             box = self.parent.pnlParams.GetBox('compta')
             box.SetOneValue('compta.lastpiece',lastPiece)
-        return
+        return ret
 
 # ouvre la base de donnée compta et interagit
 class Compta(object):
@@ -251,7 +282,6 @@ class Compta(object):
             return []
         donnees = []
         dicTable = self.dicTables[table]
-        firstChamp = dicTable['select'].split(',')[0]
         req = ''
         for segment in ('select','from','where'):
             if segment in dicTable.keys():
@@ -260,27 +290,30 @@ class Compta(object):
             txtfiltre = dicTable['filtre'].replace("xxx","%s"%filtre)
             # ajout du filtre dans la requête
             req += "%s\n"%txtfiltre
-        req += "ORDER BY %s;"%firstChamp
+        if 'group by' in dicTable.keys():
+            req += "GROUP BY %s" % dicTable['group by'] + "\n"
+
         ret = self.db.ExecuterReq(req,mess="UTILS_Compta.GetDonnees %s"%table)
         if ret == "ok":
             donnees = self.db.ResultatReq()
         return donnees
 
     # Constitue la liste des journaux si la compta est en ligne
-    def GetJournaux(self):
+    def GetJournaux(self,table='journaux'):
         if not self.db: return []
-        return self.GetDonnees(table='journaux')
+        return self.GetDonnees(table=table)
 
     # Composition du dic de tous les paramètres à fournir pour l'OLV
     def GetDicOlv(self,table):
         nature = None
         matrice = None
-        if table in ('fournisseurs','clients','generaux'):
+        if table in ('fournisseurs','clients','generaux','cpt3car'):
             nature = 'compte'
             matrice = MATRICE_COMPTES
-        elif table == 'journaux':
+        elif table in ('journaux','journOD'):
             nature = 'journal'
             matrice = MATRICE_JOURNAUX
+        else: raise Exception("la table '%s' n'est pas trouvée dans UTILS_Compta"%table)
         dicBandeau = {'titre':"Choix d'un %s"%nature,
                       'texte':"les mots clés du champ en bas permettent de filtrer d'autres lignes et d'affiner la recherche",
                       'hauteur':15, 'nomImage':"xpy/Images/32x32/Matth.png"}

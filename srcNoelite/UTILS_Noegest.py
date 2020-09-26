@@ -11,17 +11,60 @@
 import wx
 import datetime
 import srcNoelite.UTILS_Historique  as nuh
-from xpy.outils import xformat
-from xpy        import xGestionDB
 import xpy.xGestion_TableauEditor   as xgte
 import xpy.xGestion_TableauRecherche as xgtr
 import xpy.xUTILS_SaisieParams       as xusp
+from xpy.outils             import xformat
+from xpy                    import xGestionDB
+from srcNoelite.DB_schema   import DB_TABLES
 
 def GetClotures():
     noegest = Noegest()
     lClotures = [x for y,x in noegest.GetExercices()]
     del noegest
     return lClotures
+
+def GetDatesFactKm():
+    # se lance à l'initialisation des params mais après l'accès à noegest
+    noegest = Noegest()
+    ldates = noegest.GetDatesFactKm()
+    del noegest
+    return ldates
+
+class ToComptaKm(object):
+    def __init__(self,dicParams,champsIn,noegest):
+        addChamps = ['date','compte','piece','libelle','montant','contrepartie']
+        self.champsIn = champsIn + addChamps
+        self.cptVte = dicParams['comptes']['revente'].strip()
+        self.cptAch = dicParams['comptes']['achat'].strip()
+        self.cptTiers = dicParams['comptes']['tiers'].strip()
+        self.forcer = dicParams['compta']['forcer']
+        self.dicPrixVte = noegest.GetdicPrixVteKm()
+        self.dateFact = xformat.DateFrToSql(dicParams['filtres']['datefact'])
+        self.piece = 'km' + dicParams['filtres']['cloture'][-4:]
+
+    def AddDonnees(self,donnees=[]):
+        #add ['date', 'compte', 'piece', 'libelle', 'montant', contrepartie ]
+        tip=donnees[self.champsIn.index('typetiers')]
+        if tip == 'A':
+            contrepartie = self.cptAch+ donnees[self.champsIn.index('IDtiers')]
+            typetiers = "Act:"
+        elif tip == 'C':
+            contrepartie = self.cptTiers
+            typetiers = "Cli:"
+        else:
+            contrepartie = self.cptTiers
+            typetiers = ""
+
+        donnees.append(self.dateFact)
+        donnees.append(self.cptVte + donnees[self.champsIn.index('IDvehicule')])
+        donnees.append(self.piece)
+        donnees.append("%s %d km /%s %s"%(donnees[self.champsIn.index('vehicule')],
+                                    donnees[self.champsIn.index('conso')],
+                                    typetiers,
+                                    donnees[self.champsIn.index('nomtiers')]))
+        donnees.append(donnees[self.champsIn.index('conso')] * self.dicPrixVte[donnees[self.champsIn.index('IDvehicule')]])
+        donnees.append(contrepartie)
 
 class Noegest(object):
     def __init__(self,parent=None):
@@ -44,8 +87,87 @@ class Noegest(object):
             if len(recordset) == 0:
                 wx.MessageBox("Aucun exercice n'est paramétré")
             for debut,fin in recordset:
-                self.ltExercices.append((xformat.DateSqlToIso(debut),xformat.DateSqlToIso(fin)))
+                self.ltExercices.append((xformat.DateSqlToFr(debut),xformat.DateSqlToFr(fin)))
         return self.ltExercices
+
+    def GetDatesFactKm(self):
+        ldates = ['{:%d/%m/%Y}'.format(datetime.date.today()),]
+        req =   """   
+                SELECT vehiculesConsos.dtFact
+                FROM vehiculesConsos 
+                INNER JOIN cpta_exercices ON vehiculesConsos.cloture = cpta_exercices.date_fin
+                GROUP BY vehiculesConsos.dtFact;
+                """
+        retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetDatesFactKm')
+        if retour == "ok":
+            recordset = self.db.ResultatReq()
+            datesNoe = [xformat.DateSqlToFr(x[0]) for x in recordset]
+        return ldates + datesNoe
+
+    def GetdicPrixVteKm(self):
+        dicPrix = {}
+        req = """   
+                SELECT vehiculesCouts.IDanalytique, vehiculesCouts.prixKmVte 
+                FROM vehiculesCouts 
+                INNER JOIN cpta_analytiques ON vehiculesCouts.IDanalytique = cpta_analytiques.IDanalytique
+                WHERE (((vehiculesCouts.cloture) = '%s') AND ((cpta_analytiques.axe)="VEHICULES"))
+                ;"""%xformat.DateFrToSql(self.cloture)
+        retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetPrixVteKm')
+        if retour == "ok":
+            recordset = self.db.ResultatReq()
+            for ID, cout in recordset:
+                dicPrix[ID] = cout
+        return dicPrix
+
+    def GetConsos(self):
+        dlg = self.parent
+        box = dlg.pnlParams.GetBox('filtres')
+        dateFact = xformat.DateFrToSql(box.GetOneValue('datefact'))
+        vehicule = box.GetOneValue('vehicule')
+        where =''
+        if dateFact and len(dateFact) > 0:
+            where += "\n            AND (consos.dtFact = '%s')"%dateFact
+        if vehicule and len(vehicule) > 0:
+            where += "\n            AND ( vehic.abrege = '%s')"%vehicule
+
+        lstChamps = ['consos.'+x[0] for x in DB_TABLES["vehiculesConsos"]]
+        lstChamps += ['vehic.abrege','vehic.nom','activ.nom']
+        req = """   
+            SELECT %s
+            FROM (vehiculesConsos AS consos
+            INNER JOIN cpta_analytiques AS vehic ON consos.IDanalytique = vehic.IDanalytique) 
+            LEFT JOIN cpta_analytiques AS activ ON consos.IDtiers = activ.IDanalytique
+            WHERE ((vehic.axe IS NULL OR vehic.axe='VEHICULES') AND (activ.axe IS NULL OR activ.axe = 'ACTIVITES')
+                    %s);
+            """ % (",".join(lstChamps),where)
+        lstDonnees = []
+        retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetConsos')
+        if retour == "ok":
+            recordset = self.db.ResultatReq()
+            for record in recordset:
+                dicDonnees = xformat.ListToDict(lstChamps,record)
+                donnees = [
+                    dicDonnees["consos.IDconso"],
+                    dicDonnees["consos.IDanalytique"],
+                    dicDonnees["vehic.abrege"],
+                    dicDonnees["vehic.nom"],
+                    dicDonnees["consos.typeTiers"],
+                    dicDonnees["consos.IDtiers"],
+                    dicDonnees["activ.nom"],
+                    dicDonnees["consos.dteKmDeb"],
+                    dicDonnees["consos.kmDeb"],
+                    dicDonnees["consos.dteKmFin"],
+                    dicDonnees["consos.kmFin"],
+                    dicDonnees["consos.kmFin"]-dicDonnees["consos.kmDeb"],
+                    dicDonnees["consos.observation"],
+                    ]
+                lstDonnees.append(donnees)
+        dlg.ctrlOlv.listeDonnees = lstDonnees
+        dlg.ctrlOlv.MAJ()
+        for object in dlg.ctrlOlv.modelObjects:
+            self.ValideLigne(object)
+        dlg.ctrlOlv._FormatAllRows()
+        return
 
     def GetMatriceAnalytiques(self,axe,lstChamps,lstNomsCol,lstTypes,getDonnees):
         dicBandeau = {'titre': "Choix d'un code analytique: %s"%str(axe),
@@ -105,7 +227,7 @@ class Noegest(object):
         if dicAnalytique and mode.lower() == 'normal':  return dicAnalytique
 
         # le filtre semble trop sélectif pour un f4 on le supprime
-        if nb == 0: filtre = None
+        if nb < 2: filtre = None
         # un item unique n'a pas été trouvé on affiche les choix possibles
         getDonnees = getAnalytiques
         dicOlv = self.GetMatriceAnalytiques(axe,lstChamps,lstNomsCol,lstTypes,getDonnees)
@@ -167,7 +289,7 @@ class Noegest(object):
             whereFiltre = self.ComposeWhereFiltre(filtre,lstChamps)
         kwd['reqWhere'] = """
                 WHERE (cpta_analytiques.axe = 'VEHICULES')
-                AND (vehiculesCouts.cloture = '%s') %s"""%(xformat.DateIsoToSql(self.cloture),whereFiltre)
+                AND (vehiculesCouts.cloture = '%s') %s"""%(xformat.DateFrToSql(self.cloture),whereFiltre)
         kwd['reqFrom'] = """
                 FROM    cpta_analytiques   
                 LEFT JOIN vehiculesCouts ON cpta_analytiques.IDanalytique = vehiculesCouts.IDanalytique"""
@@ -217,11 +339,11 @@ class Noegest(object):
     def SetConso(self,track):
         dlg = self.parent
         # --- Sauvegarde de la ligne consommation ---
-        dteFacturation = self.GetParam('filtre','datefact')
+        dteFacturation = self.GetParam('filtres','datefact')
         listeDonnees = [
             ("IDconso", track.IDconso),
             ("IDanalytique", track.IDvehicule),
-            ("cloture", xformat.DateIsoToSql(self.cloture)),
+            ("cloture", xformat.DateFrToSql(self.cloture)),
             ("typeTiers", track.typetiers),
             ("IDtiers", track.IDtiers),
             ("dteKmDeb", xformat.DatetimeToStr(track.dtkmdeb,iso=True)),
@@ -229,13 +351,13 @@ class Noegest(object):
             ("dteKmFin", xformat.DatetimeToStr(track.dtkmfin,iso=True)),
             ("kmFin", track.kmfin),
             ("observation", track.observation),
-            ("dtFact", xformat.DateIsoToSql(dteFacturation)),
+            ("dtFact", xformat.DateFrToSql(dteFacturation)),
             ("dtMaj", xformat.DatetimeToStr(datetime.date.today(),iso=True)),
             ("user", dlg.IDutilisateur),
             ]
 
         if not track.IDconso or track.IDconso == 0:
-            ret = self.db.ReqInsert("vehiculesConsos",lstDonnees= listeDonnees, mess="UTILS_Noegest.SetConso")
+            ret = self.db.ReqInsert("vehiculesConsos",lstDonnees= listeDonnees[1:], mess="UTILS_Noegest.SetConso")
             track.IDconso = self.db.newID
             IDcategorie = 6
             categorie = ("Saisie")
@@ -251,7 +373,7 @@ class Noegest(object):
                                 "action": "Noelite %s de la conso ID%d : %s %s %s" % (
                                 categorie, track.IDconso, track.nomvehicule,track.nomtiers,track.observation,),
                                 }, ],db=self.db)
-        return True
+        return ret
 
     def ValideLigne(self, track):
         track.ligneValide = True
@@ -265,7 +387,7 @@ class Noegest(object):
             track.messageRefus += "Le nombre de km consommés est à zéro\n"
 
         # DateKmDeb
-        if not xformat.DateIsoToSql(track.dtkmdeb) :
+        if not xformat.DateFrToSql(track.dtkmdeb) :
             track.messageRefus += "Vous devez obligatoirement saisir une date de début !\n"
 
         # véhicule
@@ -288,7 +410,7 @@ class Noegest(object):
     def SauveLigne(self,track):
         if not track.ligneValide:
             return False
-        if not track.montant or not isinstance(track.montant,float):
+        if not track.conso or int(track.conso) == 0:
             return False
         # gestion de la consommation
         ret = self.SetConso(track)
@@ -298,10 +420,10 @@ class Noegest(object):
 
     def DeleteLigne(self,track):
         db = self.db
-        # si la vameir conso est à zéro il n'y a pas eu d'enregistrements
-        if track.montant != 0.0:
-            # suppression  de la consommation et des ventilations
-            ret = db.ReqDEL("vehiculesConsos", "IDconso", track.IDligne,affichError=False)
+        # si l'ID est à zéro il n'y a pas eu d'enregistrements
+        if xformat.Nz(track.IDconso) != 0 :
+            # suppression  de la consommation
+            ret = db.ReqDEL("vehiculesConsos", "IDconso", track.IDconso,affichError=False)
             if track.ligneValide:
                 # --- Mémorise l'action dans l'historique ---
                 if ret == 'ok':
@@ -309,7 +431,7 @@ class Noegest(object):
                     categorie = "Suppression"
                     nuh.InsertActions([{
                         "IDcategorie": IDcategorie,
-                        "action": "Noelite %s de conso km véhicule ID%d"%(categorie, track.IDligne),
+                        "action": "Noelite %s de conso km véhicule ID%d"%(categorie, track.IDconso),
                         },],db=db)
         return
 

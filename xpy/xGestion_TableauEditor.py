@@ -10,9 +10,8 @@
 
 import wx
 import os
-import sys
 import xpy.outils.xformat
-from xpy.outils.ObjectListView import ObjectListView, ColumnDefn, Filter, Footer, CTRL_Outils, OLVEvent,CellEditor
+from xpy.outils.ObjectListView import ObjectListView, ColumnDefn, Footer, CTRL_Outils, OLVEvent,CellEditor
 from xpy.outils.xconst import *
 import datetime
 import xpy.xUTILS_SaisieParams as xusp
@@ -247,6 +246,13 @@ class ListView(ObjectListView):
         if self.ctrl_footer != None:
             self.ctrl_footer.MAJ_totaux()
             self.ctrl_footer.MAJ_affichage()
+
+    def AddTracks(self,lstDonnees):
+        tracks = []
+        for ligneDonnees in lstDonnees:
+            tracks.append(TrackGeneral(donnees=ligneDonnees,codesColonnes=self.lstCodesColonnes,
+                                            nomsColonnes=self.lstNomsColonnes,setterValues=self.lstSetterValues))
+        self.AddObjects(tracks)
 
     def formerTracks(self):
         tracks = list()

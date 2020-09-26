@@ -816,6 +816,7 @@ class ObjectListView(wx.ListCtrl):
                 item.SetBackgroundColour(self.oddRowsBackColor)
             else:
                 item.SetBackgroundColour(self.evenRowsBackColor)
+
         if self.autoAddRow and (not hasattr(model,'ligneValide') or not model.ligneValide):
             item.SetBackgroundColour(self.newRowsBackColor)
 

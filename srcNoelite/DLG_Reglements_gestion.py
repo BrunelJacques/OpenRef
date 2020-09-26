@@ -511,7 +511,7 @@ class Dialog(wx.Dialog):
                 # marque dépot non différé car déjà déposé
                 self.pnlParams.ctrlSsDepot.Enable(False)
                 # set date du dépot
-                self.pnlParams.ctrlDate.SetValue(xformat.DateStrToWxdate(dicDepot['date'],iso=True))
+                self.pnlParams.ctrlDate.SetValue(xformat.DateSqlToWxdate(dicDepot['date']))
                 # set IDdepot en référence
                 self.pnlParams.ctrlRef.SetValue(str(IDdepot))
                 # set le nom de la banque

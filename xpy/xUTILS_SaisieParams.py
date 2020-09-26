@@ -537,7 +537,13 @@ class PNL_ctrl(wx.Panel):
 
     def SetValue(self,value):
         if self.genre in ('int','float'): value = str(value)
-        if not value: value = ''
+        if self.genre in ('bool','check'):
+            try:
+                value = int(value)
+            except Exception as err:
+                value = 0
+        if value == None:
+            value = ''
         if self.genre in ('combo','multichoice','enum'):
             self.ctrl.SetValue(value)
         else: self.ctrl.SetValue(value)
@@ -730,14 +736,20 @@ class BoxPanel(wx.Panel):
         self.dictDonnees = self.GetValues()
         if name in self.dictDonnees:
             value = self.dictDonnees[name]
+        else: value = 'ko'
         return value
 
     # Set du ctrl nommé
     def SetOneValue(self,name = '', value=None):
+        ok = False
         for panel in self.lstPanels:
             [code,champ] = panel.ctrl.nameCtrl.split('.')
             if champ == name or panel.ctrl.nameCtrl == name:
-                    panel.SetValue(value)
+                panel.SetValue(value)
+                ok = True
+                break
+        if  not ok:
+            wx.MessageBox("Impossible de trouver '%s'"%name,"Echec %s.SetOneValue"%self.GrandParent.Name)
         return
 
     # SetChoices du ctrl nommé
@@ -792,12 +804,35 @@ class TopBoxPanel(wx.Panel):
             ddDonnees[box.code] = dic
         return ddDonnees
 
+    def GetValeur(self,name=None,codeBox=None):
+        valeur = None
+        if codeBox :
+            box = self.GetBox(codeBox)
+            valeur = box.GetOneValue(name)
+        else:
+            for box in self.lstBoxes:
+                ret = box.GetOneValue(name)
+                if ret != 'ko':
+                    valeur = ret
+        return valeur
+
     def SetValeurs(self, ddDonnees):
         for box in self.lstBoxes:
             if box.code in ddDonnees:
                 dic = ddDonnees[box.code]
                 box.SetValues(dic)
         return
+
+    def SetValeur(self,name=None,valeur=None,codeBox=None):
+        if codeBox :
+            box = self.GetBox(codeBox)
+            box.SetOneValue(name,valeur)
+        else:
+            for box in self.lstBoxes:
+                ret = box.GetOneValue(name)
+                if ret != 'ko':
+                    box.SetOneValue(name,valeur)
+        return valeur
 
     def GetBox(self,codeBox):
         # utile pour lui adresser les méthodes ex: box.SetOneValue()
@@ -989,10 +1024,14 @@ class DLG_vide(wx.Dialog):
         self.SetSizer(sizer)
 
     def OnFermer(self, event):
-            if self.IsModal():
-                self.EndModal(wx.OK)
-            else:
-                self.Close()
+        # si présence d'un Final et pas de sortie par fermeture de la fenêtre
+        if not event.EventObject.ClassName == 'wxDialog' and hasattr(self,'Final'):
+            self.Final()
+
+        if self.IsModal():
+            self.EndModal(wx.OK)
+        else:
+            self.Close()
 
     # ------------------- Lancement des actions sur Bind -----------------------
 
