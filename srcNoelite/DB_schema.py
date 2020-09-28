@@ -174,7 +174,6 @@ DB_TABLES = {
                 ('dteAcquisition','DATE',"date de la première acquisition des éléments de l'immo"),
                 ('compteDotation','VARCHAR(10)',"compte comptable de la dotation aux immos"),
                 ('libelle','VARCHAR(200)',"texte pour les édition ou choix de ligne "),
-                ('descriptif','TEXT',"déscriptif libre"),
                 ('etat', 'VARCHAR(5)', "état des immos s'étend à tout l'ensemble immo"),
                 ],# fiches immobilisations
 
@@ -199,6 +198,7 @@ DB_TABLES = {
                 ('section','VARCHAR(10)',"Deuxième axe analytique"),
                 ('nbrePlaces','FLOAT',"Ne renseigner que pour élément zéro, capacité d'accueil pour véhicules,tentes, batiment "),
                 ('noSerie','VARCHAR(32)',"Immatriculation ou no identifiant"),
+                ('descriptif','TEXT',"déscriptif libre"),
                 ('dtMaj','DATE',"Date de dernière modif"),
                 ('user','INTEGER',"ID de l'utilisateur"),],# subdivisions des fiches immobilisations
     
@@ -244,7 +244,7 @@ DB_IX = {
         "index_reglements_IDcompte_payeur": {"table": "reglements", "champ": "IDcompte_payeur"},#index de Noethys
         "IX_immobilisations_compteImmo_IDanalytique": {"table": "immobilisations", "champ": "compteImmo,IDanalytique"},
         "IX_immosComposants_IDimmo": {"table": "immosComposants", "champ": "IDimmo"},
-        "IX_vehiculesConsos_IDanalytique_cloture": {"table": "vehicules",
+        "IX_vehiculesConsos_IDanalytique_cloture": {"table": "vehiculesConsos",
                                                     "champ": "IDanalytique, cloture, typeTiers, IDtiers"},}
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
