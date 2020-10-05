@@ -561,7 +561,7 @@ class Dialog(xusp.DLG_vide):
 
     def OnExporter(self,event):
         dicParams = self.pnlParams.GetValeurs()
-        dicParams['compta']['typepiece'] = 'X'
+        dicParams['compta']['typepiece'] = 'I'
         dicParams['fichiers']={}
         dicParams['fichiers']['formatexp']= dicParams['compta']['formatexp']
         champsIn = self.ctrlOlv.lstCodesColonnes

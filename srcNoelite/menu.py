@@ -9,10 +9,8 @@
 #------------------------------------------------------------------------
 
 import wx
-import srcNoelite.DLG_Adresses_gestion as ndga
-import srcNoelite.DLG_Reglements_gestion as ndrg
-import srcNoelite.DLG_Transposition_ficher as ndtf
-import srcNoelite.CTRL_Identification as ncident
+from  srcNoelite import DLG_Km_saisie, DLG_Transposition_ficher, CTRL_Identification, \
+    DLG_Reglements_gestion, DLG_Adresses_gestion
 
 """ Paramétrage de la construction de la barre de menus """
 class MENU():
@@ -34,7 +32,10 @@ class MENU():
         "-",
         {"code": "transpose", "label": (u"Transposition fichier"),
                 "infobulle": (u"Outil de reformatage d'un fichier pour la compta"),
-         "image": "Images/16x16/Conversion.png", "action": "On_transpose"},
+        "image": "Images/16x16/Conversion.png", "action": "On_transpose"},
+        {"code": "kmSaisie", "label": (u"Saisie-import des km véhicules"),
+                "infobulle": (u"Outil d'import et de saisie pour refacturer les km pour la compta analytique"),
+        "image": "Images/16x16/Conversion.png", "action": "On_kmSaisie"},
         "-",
         {"code": "quitter", "label": (u"Quitter"), "infobulle": (u"Fin de travail Noelite"),
          "image": "Images/16x16/Quitter.png", "action": "xQuitter"},
@@ -80,16 +81,16 @@ class MENU():
         return lstItems
 
     def On_Adresses_individus(self, event):
-        dlg = ndga.Dialog(mode='individus',titre="Choisissez un individu")
+        dlg = DLG_Adresses_gestion.Dialog(mode='individus',titre="Choisissez un individu")
         dlg.ShowModal()
 
     def On_Adresses_familles(self, event):
         texte = "Double clic pour lancer la gestion de l'adresse du correspondant de la famille"
-        dlg = ndga.Dialog(mode='familles',titre="Choisissez une famille",intro=texte)
+        dlg = DLG_Adresses_gestion.Dialog(mode='familles',titre="Choisissez une famille",intro=texte)
         dlg.ShowModal()
 
     def On_reglements_bordereau(self, event):
-        dlg = ndrg.Dialog()
+        dlg = DLG_Reglements_gestion.Dialog()
         dlg.ShowModal()
 
     def On_config(self,event):
@@ -97,10 +98,14 @@ class MENU():
         ret = self.parent.SaisieConfig()
 
     def On_utilisateurs(self,event):
-        ncident.AfficheUsers()
+        CTRL_Identification.AfficheUsers()
 
     def On_transpose(self,event):
-        dlg = ndtf.Dialog()
+        dlg = DLG_Transposition_ficher.Dialog()
+        dlg.ShowModal()
+
+    def On_kmSaisie(self,event):
+        dlg = DLG_Km_saisie.Dialog()
         dlg.ShowModal()
 
 if __name__ == "__main__":

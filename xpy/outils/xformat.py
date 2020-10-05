@@ -112,6 +112,7 @@ def DateFrToSql(datefr):
 def DateFrToWxdate(datefr):
     # Conversion d'une date chaîne jj?mm?aaaa en wx.datetime
     if not isinstance(datefr, str) : datefr = str(datefr)
+    datefr = datefr.strip()
     if len(datefr) != 10: return None
     datefr = datefr.strip()
     try:

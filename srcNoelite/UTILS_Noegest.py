@@ -40,7 +40,7 @@ class ToComptaKm(object):
         self.cptTiers = dicParams['comptes']['tiers'].strip()
         self.forcer = dicParams['compta']['forcer']
         self.dicPrixVte = noegest.GetdicPrixVteKm()
-        self.dateFact = xformat.DateFrToSql(dicParams['filtres']['datefact'])
+        self.dateFact = dicParams['filtres']['datefact']
         self.piece = 'km' + dicParams['filtres']['cloture'][-4:]
 
     def AddDonnees(self,donnees=[]):

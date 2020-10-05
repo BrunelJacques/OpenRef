@@ -101,7 +101,8 @@ def ComposeFuncExp(dicParams,donnees,champsIn,champsOut):
                 if not valeur or valeur == '' : valeur = '471'
             elif champ  == 'date':
                 valeur = xformat.DateFrToWxdate(valeur)
-            elif champ  == 'typepiece': valeur = typepiece
+            elif champ  == 'typepiece':
+                valeur = typepiece
             elif champ  == 'contrepartie':
                 if 'contrepartie' in champsIn:
                     valeur = ligne[champsIn.index('contrepartie')]
@@ -176,7 +177,7 @@ FORMATS_EXPORT = {"Quadra via Excel":{  'compta':'quadra',
                                                 {'code': 'journal',      'cat': str, 'lg': 2, 'align': "<"},
                                                 {'code': 'fol',     'cat': str, 'lg': 3, 'align': "<"},
                                                 {'code': 'date',    'cat': wx.DateTime, 'lg':6, 'fmt': "%d%m%y"},
-                                                {'code': 'typepiece',     'cat': 'const', 'lg': 1, 'constante': "B"},
+                                                {'code': 'typepiece',     'cat': str, 'lg': 1},
                                                 {'code': 'fil',    'cat': str, 'lg': 20, 'align': ">"},
                                                 {'code': 'sens',    'cat': str, 'lg': 1, 'align': "<"},
                                                 {'code': 'valeur00',  'cat': float, 'lg': 13,'fmt':"{0:+013.0f}"},
