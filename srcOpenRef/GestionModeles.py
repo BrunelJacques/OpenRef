@@ -16,44 +16,12 @@ import xpy.xUTILS_SaisieParams as xusp
 import xpy.xGestion_Tableau as xgt
 import xpy.xGestion_Ligne as xgl
 import xpy.outils.xdatatables as xdtt
-
-def ValeursDefaut(lstNomsColonnes,lstChamps,lstTypes):
-    # Détermine des valeurs par défaut selon le type des variables
-    lstValDef = []
-    for colonne in lstNomsColonnes:
-        tip = lstTypes[lstChamps.index(colonne)]
-        if tip[:3] == 'int': lstValDef.append(0)
-        elif tip[:10] == 'tinyint(1)': lstValDef.append(True)
-        elif tip[:5] == 'float': lstValDef.append(0.0)
-        elif tip[:4] == 'date': lstValDef.append(datetime.date(1900,1,1))
-        else: lstValDef.append('')
-    return lstValDef
-
-def LargeursDefaut(lstNomsColonnes,lstChamps,lstTypes):
-    # Evaluation de la largeur nécessaire des colonnes selon le type de donnee et la longueur du champ
-    lstLargDef = []
-    for colonne in lstNomsColonnes:
-        if colonne in lstChamps:
-            tip = lstTypes[lstChamps.index(colonne)]
-        else: tip = 'int'
-        if tip[:3] == 'int': lstLargDef.append(40)
-        elif tip[:5] == 'float': lstLargDef.append(60)
-        elif tip[:4] == 'date': lstLargDef.append(60)
-        elif tip[:7] == 'varchar':
-            lg = int(tip[8:-1])*7
-            if lg > 150: lg = 150
-            lstLargDef.append(lg)
-        elif 'blob' in tip:
-            lstLargDef.append(250)
-        else: lstLargDef.append(40)
-    if len(lstLargDef)>0:
-        # La première colonne est masquée
-        lstLargDef[0]=0
-    return lstLargDef
+from xpy.xGestion_TableauEditor import ValeursDefaut, LargeursDefaut
 
 class EcranOlv(object):
     def __init__(self, parent,nomtable='',dbtable=None,title=None):
         self.table = nomtable
+        self.echec = True
         if not title:
             listArbo = os.path.abspath(__file__).split("\\")
             title = '%s.%s'%(listArbo[-1:][0], self.__class__.__name__)
@@ -63,8 +31,8 @@ class EcranOlv(object):
         self.lstTblChamps, self.lstTblTypes, self.lstTblHelp = [],[],[]
         if dbtable:
             self.lstTblChamps, self.lstTblTypes, self.lstTblHelp = xdtt.GetChampsTypes(dbtable, tous=True)
-            self.lstTblValdef = ValeursDefaut(self.lstTblChamps, self.lstTblChamps, self.lstTblTypes)
-            self.lstLargeurColonnes = LargeursDefaut(self.lstTblChamps, self.lstTblChamps, self.lstTblTypes)
+            self.lstTblValdef = ValeursDefaut(self.lstTblChamps, self.lstTblTypes)
+            self.lstLargeurColonnes = LargeursDefaut(self.lstTblChamps, self.lstTblTypes)
         else:
             self.lstTblChamps = ['*']
             self.lstTblValdef = []
@@ -72,22 +40,25 @@ class EcranOlv(object):
  
         self.req = "SELECT * FROM %s;"%(self.table)
         ret = self.InitSql()
+        if ret == "ok": self.echec = False
 
     def InitSql(self):
         self.lstReqChamps = self.lstTblChamps
         self.lstReqCodes = [xusp.SupprimeAccents(x) for x in self.lstReqChamps]
         self.DBsql = xdb.DB()
-        self.recordset = ()
-        retour = self.DBsql.ExecuterReq(self.req, mess='GestionModeles.EcranOlv\n\n%s'%self.req)
-        if retour == "ok":
-            self.recordset = self.DBsql.ResultatReq()
-            if len(self.recordset) == 0:
-                retour = "aucun enregistrement disponible"
-        if (not retour == "ok"):
-            wx.MessageBox("Erreur : %s" % retour)
-            return 'ko'
+        retour = "ko"
+        if self.DBsql.echec == 0:
+            self.recordset = ()
+            retour = self.DBsql.ExecuterReq(self.req, mess='GestionModeles.EcranOlv\n\n%s'%self.req)
+            if retour == "ok":
+                self.recordset = self.DBsql.ResultatReq()
+                if len(self.recordset) == 0:
+                    retour = "aucun enregistrement disponible"
+            if (not retour == "ok"):
+                wx.MessageBox("Erreur : %s" % retour)
+                return 'ko'
         if retour == 'ok':
-            retour = self.InitMatrice(largeurs=self.lstLargeurColonnes)
+            self.InitMatrice(largeurs=self.lstLargeurColonnes)
         return retour
 
     def InitMatrice(self,champsCol=[],valdef=[],largeurs=[],hauteur=650,largeur=1300,footer=None):
@@ -153,6 +124,7 @@ class EcranOlv(object):
             'modif': 'self.lanceur.OnModif()',
             'suppr': 'self.lanceur.OnSupprimer()'}
 
+
     def InitEcran(self):
         self.dlgolv = xgt.DLG_tableau(self, dicOlv=self.dicOlv, lstBtns=self.lstBtns, lstActions=self.lstActions,
                                       lstInfos=self.lstInfos,dicOnClick=self.dicOnClick)
@@ -197,13 +169,17 @@ class EcranOlv(object):
         champdeb = self.lstColChamps[ix]
         champfin = self.lstColChamps[-1]
         lstEcrChamps = xusp.ExtractList(self.lstTblChamps,champdeb,champfin)
-        lstEcrCodes = [xgl.SupprimeAccents(x) for x in lstEcrChamps]
+        lstEcrCodes = [xusp.SupprimeAccents(x) for x in lstEcrChamps]
 
         kwds = {'pos': (350, 20)}
         kwds['minSize'] = (350, 600)
         all = ctrlolv.innerList
-        selection = ctrlolv.Selection()[0]
-        self.ixsel = all.index(selection)
+        sel = ctrlolv.Selection()
+        if len(sel)>0:
+            selection = ctrlolv.Selection()[0]
+            self.ixsel = all.index(selection)
+        else:
+            self.ixsel = 0
 
         # personnalisation des actions
         dicOptions = {}
@@ -227,7 +203,8 @@ class Lancement():
     def __init__(self,parent,table):
         if table in dtt.DB_TABLES.keys():
             ecran = EcranOlv(self,nomtable=table,dbtable=dtt.DB_TABLES[table],title='[GestionModeles].Lancement')
-            ecran.InitEcran()
+            if not ecran.echec:
+                ecran.InitEcran()
         else:
             wx.MessageBox("GestionModeles.Lancement:\n\nLa table %s n'est pas décrite dans DB_TABLES, pb programmation"%table)
             return 'ko'

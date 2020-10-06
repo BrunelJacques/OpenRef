@@ -13,8 +13,10 @@ import datetime
 import os
 import wx.propgrid as wxpg
 import unicodedata
-import xpy.outils.xformat as xfmt
+import xpy.outils.xformat           as xfmt
+import xpy.xUTILS_SaisieParams      as xusp
 from xpy.outils.ObjectListView import ColumnDefn
+from xpy.xGestion_TableauEditor import ValeursDefaut,LargeursDefaut
 
 def Transpose(matrice,dlColonnes,lddDonnees):
     # Transposition des lignes de la matrice pour présentation colonnes dans le format grille listCtrl
@@ -91,14 +93,6 @@ def Normalise(genre, name, label, value):
             value = str(value)
     return genre,name,label,value
 
-def SupprimeAccents(texte):
-    # met en minuscule sans accents et sans caractères spéciaux
-    code = ''.join(c for c in unicodedata.normalize('NFD', texte) if unicodedata.category(c) != 'Mn')
-    #code = str(unicodedata.normalize('NFD', texte).encode('ascii', 'ignore'))
-    code = code.lower()
-    code = ''.join(car.lower() for car in code if car not in " %)(.[]',;/\n")
-    return code
-
 def DefColonnes(lstNoms,lstCodes,lstValDef,lstLargeur):
     # Composition d'une liste de définition de colonnes d'un OLV; remarque faux ami: 'nom, code' == 'label, name'
     ix=0
@@ -153,11 +147,11 @@ def ComposeMatrice(lstChamps=[],lstTypes=[],lstHelp=[],record=(),dicOptions={},l
     # Retourne une matrice (liste de dic[param]:valeurParam) et  donnees (dic[codechamp]:valeur)
     options = {}
     for key, dic in dicOptions.items():
-        options[SupprimeAccents(key)] = dic
+        options[xusp.SupprimeAccents(key)] = dic
     if lstCodes:
         lstCodesColonnes = lstCodes
     else:
-        lstCodesColonnes = [SupprimeAccents(x) for x in lstChamps]
+        lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstChamps]
     if len(lstTypes) < len(lstChamps) and len(record) == len(lstChamps):
         lstTypes = []
         for valeur in record:
@@ -207,38 +201,6 @@ def ComposeMatrice(lstChamps=[],lstTypes=[],lstHelp=[],record=(),dicOptions={},l
         if len(record) > ix:
             dicdonnees[code] = record[ix]
     return ldmatrice, dicdonnees
-
-def ValeursDefaut(lstNomsColonnes,lstChamps,lstTypes):
-    # Détermine des valeurs par défaut selon le type des variables
-    lstValDef = []
-    for colonne in lstNomsColonnes:
-        tip = lstTypes[lstChamps.index(colonne)]
-        if tip[:3] == 'int': lstValDef.append(0)
-        elif tip[:10] == 'tinyint(1)': lstValDef.append(True)
-        elif tip[:5] == 'float': lstValDef.append(0.0)
-        elif tip[:4] == 'date': lstValDef.append(datetime.date(1900,1,1))
-        else: lstValDef.append('')
-    return lstValDef
-
-def LargeursDefaut(lstNomsColonnes,lstChamps,lstTypes):
-    # Evaluation de la largeur nécessaire des colonnes selon le type de donnee et la longueur du champ
-    lstLargDef = []
-    for colonne in lstNomsColonnes:
-        tip = lstTypes[lstChamps.index(colonne)]
-        if tip[:3] == 'int': lstLargDef.append(40)
-        elif tip[:5] == 'float': lstLargDef.append(60)
-        elif tip[:4] == 'date': lstLargDef.append(60)
-        elif tip[:7] == 'varchar':
-            lg = int(tip[8:-1])*7
-            if lg > 150: lg = 150
-            lstLargDef.append(lg)
-        elif 'blob' in tip:
-            lstLargDef.append(250)
-        else: lstLargDef.append(40)
-    if len(lstLargDef)>0:
-        # La première colonne est masquée
-        lstLargDef[0]=0
-    return lstLargDef
 
 #**********************************************************************************
 #                   CONTROLES de BASE: Grilles ou composition en panel
@@ -879,8 +841,8 @@ class Gestion_ligne(object):
         lstChamps, lstTypes, lstHelp = datatable.GetChampsTypes(table, tous=True)
         self.lstTblHelp = lstHelp
         self.lstTblChamps = lstChamps
-        self.lstTblCodes = [SupprimeAccents(x) for x in lstChamps]
-        self.lstTblValdef = ValeursDefaut(lstChamps,lstChamps,lstTypes)
+        self.lstTblCodes = [xusp.SupprimeAccents(x) for x in lstChamps]
+        self.lstTblValdef = ValeursDefaut(lstChamps,lstTypes)
         self.lstTblValeurs = []
         if ctrlolv:
             self.lstOlvCodes = ctrlolv.lstCodesColonnes

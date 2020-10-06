@@ -92,6 +92,7 @@ class Noegest(object):
 
     def GetDatesFactKm(self):
         ldates = ['{:%d/%m/%Y}'.format(datetime.date.today()),]
+        datesNoe = []
         req =   """   
                 SELECT vehiculesConsos.dtFact
                 FROM vehiculesConsos 
@@ -119,7 +120,8 @@ class Noegest(object):
                 dicPrix[ID] = cout
         return dicPrix
 
-    def GetConsos(self):
+    def GetConsosKm(self):
+        # appel des consommations de km sur écran Km_saisie
         dlg = self.parent
         box = dlg.pnlParams.GetBox('filtres')
         dateFact = xformat.DateFrToSql(box.GetOneValue('datefact'))
@@ -141,11 +143,16 @@ class Noegest(object):
                     %s);
             """ % (",".join(lstChamps),where)
         lstDonnees = []
-        retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetConsos')
+        retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetConsosKm')
         if retour == "ok":
             recordset = self.db.ResultatReq()
             for record in recordset:
                 dicDonnees = xformat.ListToDict(lstChamps,record)
+                if dicDonnees["consos.typeTiers"] != 'A':
+                    lstObs = dicDonnees["consos.observation"].split(" / ")
+                    if len(lstObs) > 1:
+                        dicDonnees["activ.nom"] = lstObs[0]
+                        dicDonnees["consos.observation"] = ('-').join(lstObs[1:])
                 donnees = [
                     dicDonnees["consos.IDconso"],
                     dicDonnees["consos.IDanalytique"],
@@ -154,9 +161,9 @@ class Noegest(object):
                     dicDonnees["consos.typeTiers"],
                     dicDonnees["consos.IDtiers"],
                     dicDonnees["activ.nom"],
-                    dicDonnees["consos.dteKmDeb"],
+                    xformat.DateSqlToFr(dicDonnees["consos.dteKmDeb"]),
                     dicDonnees["consos.kmDeb"],
-                    dicDonnees["consos.dteKmFin"],
+                    xformat.DateSqlToFr(dicDonnees["consos.dteKmFin"]),
                     dicDonnees["consos.kmFin"],
                     dicDonnees["consos.kmFin"]-dicDonnees["consos.kmDeb"],
                     dicDonnees["consos.observation"],
@@ -336,19 +343,25 @@ class Noegest(object):
                 AND ( %s )"""%(texte)
         return whereFiltre
 
-    def SetConso(self,track):
+    def SetConsoKm(self,track):
         dlg = self.parent
         # --- Sauvegarde de la ligne consommation ---
         dteFacturation = self.GetParam('filtres','datefact')
+        if track.observation == None: track.observation = ""
+        if track.typetiers != 'A' and track.nomtiers and len(track.nomtiers.strip())>0:
+            if not (track.nomtiers.strip() in track.observation):
+                track.observation = "%s / %s"%(track.nomtiers.strip(),track.observation)
+        if track.IDtiers == None: track.IDtiers = ''
+
         listeDonnees = [
             ("IDconso", track.IDconso),
             ("IDanalytique", track.IDvehicule),
             ("cloture", xformat.DateFrToSql(self.cloture)),
             ("typeTiers", track.typetiers),
             ("IDtiers", track.IDtiers),
-            ("dteKmDeb", xformat.DatetimeToStr(track.dtkmdeb,iso=True)),
+            ("dteKmDeb", xformat.DateFrToSql(track.dtkmdeb)),
             ("kmDeb", track.kmdeb),
-            ("dteKmFin", xformat.DatetimeToStr(track.dtkmfin,iso=True)),
+            ("dteKmFin", xformat.DateFrToSql(track.dtkmfin)),
             ("kmFin", track.kmfin),
             ("observation", track.observation),
             ("dtFact", xformat.DateFrToSql(dteFacturation)),
@@ -357,7 +370,7 @@ class Noegest(object):
             ]
 
         if not track.IDconso or track.IDconso == 0:
-            ret = self.db.ReqInsert("vehiculesConsos",lstDonnees= listeDonnees[1:], mess="UTILS_Noegest.SetConso")
+            ret = self.db.ReqInsert("vehiculesConsos",lstDonnees= listeDonnees[1:], mess="UTILS_Noegest.SetConsoKm")
             track.IDconso = self.db.newID
             IDcategorie = 6
             categorie = ("Saisie")
@@ -413,7 +426,7 @@ class Noegest(object):
         if not track.conso or int(track.conso) == 0:
             return False
         # gestion de la consommation
-        ret = self.SetConso(track)
+        ret = self.SetConsoKm(track)
         if ret != 'ok':
             wx.MessageBox(ret)
         return ret

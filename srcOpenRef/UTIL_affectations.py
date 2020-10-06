@@ -19,6 +19,7 @@ import xpy.xGestion_Tableau as xgt
 import xpy.xGestion_Ligne as xgl
 import xpy.outils.xformat as xfmt
 import xpy.outils.xselection as xsel
+from xpy.xGestion_TableauEditor import LargeursDefaut, ValeursDefaut
 
 def Tronque35(txt):
     # tronque les  premiers caractères d'une chaîne
@@ -34,40 +35,6 @@ def ComposeLstDonnees(lstNomsColonnes,record,lstChamps):
         lstdonnees.append(record[ix])
     return lstdonnees
 
-def ValeursDefaut(lstNomsColonnes,lstChamps,lstTypes):
-    # Détermine des valeurs par défaut selon le type des variables
-    lstValDef = []
-    for colonne in lstNomsColonnes:
-        tip = lstTypes[lstChamps.index(colonne)]
-        if tip[:3] == 'int': lstValDef.append(0)
-        elif tip[:10] == 'tinyint(1)': lstValDef.append(False)
-        elif tip[:5] == 'float': lstValDef.append(0.0)
-        elif tip[:4] == 'date': lstValDef.append(datetime.date(1900,1,1))
-        else: lstValDef.append('')
-    return lstValDef
-
-def LargeursDefaut(lstNomsColonnes,lstChamps,lstTypes):
-    # Evaluation de la largeur nécessaire des colonnes selon le type de donnee et la longueur du champ
-    lstLargDef = []
-    for colonne in lstNomsColonnes:
-        if colonne in lstChamps:
-            tip = lstTypes[lstChamps.index(colonne)]
-        else: tip = 'int'
-        if tip[:3] == 'int': lstLargDef.append(40)
-        elif tip[:5] == 'float': lstLargDef.append(60)
-        elif tip[:4] == 'date': lstLargDef.append(60)
-        elif tip[:7] == 'varchar':
-            lg = int(tip[8:-1])*7
-            if lg > 150: lg = 150
-            lstLargDef.append(lg)
-        elif 'blob' in tip:
-            lstLargDef.append(250)
-        else: lstLargDef.append(40)
-    if len(lstLargDef)>0:
-        # La première colonne est masquée
-        lstLargDef[0]=0
-    return lstLargDef
-
 def VerifSelection(parent,dlg,infos=True,mode='modif'):
     # contrôle la selection d'une ligne, puis marque le no dossier et eventuellement texte infos à afficher
     if len(dlg.ctrlOlv.Selection())==0 and mode != 'ajout':
@@ -75,7 +42,7 @@ def VerifSelection(parent,dlg,infos=True,mode='modif'):
         return False
     if len(dlg.ctrlOlv.Selection()) == 0:
         dlg.ctrlOlv.SelectObject(dlg.ctrlOlv.GetObjects()[0])
-    parent.ixsel = parent.ctrlolv.donnees.index(parent.ctrlolv.Selection()[0])
+    parent.ixsel = parent.ctrlolv.innerList.index(parent.ctrlolv.Selection()[0])
     if infos:
         noclient = dlg.ctrlOlv.Selection()[0].noclient
         cloture = dlg.ctrlOlv.Selection()[0].cloture
@@ -284,7 +251,7 @@ class Balance():
                             + xusp.ExtractList(lstChamps,champDeb='IDplanCompte',champFin='Affectation')\
                             + xusp.ExtractList(lstChamps,champDeb='Libellé',champFin='SoldeFin')
         lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstNomsColonnes]
-        lstValDefColonnes = ValeursDefaut(lstNomsColonnes,lstChamps,lstTypes)
+        lstValDefColonnes = ValeursDefaut(lstNomsColonnes,lstTypes)
         lstLargeurColonnes = LargeursDefaut(lstNomsColonnes,lstChamps,lstTypes)
         # mask de la colonne numéro de ligne
         lstLargeurColonnes[2] = 0
@@ -341,11 +308,11 @@ class Balance():
         self.ctrlolv.lstTblHelp = lstHelp
         self.ctrlolv.lstTblChamps = lstChamps
         self.ctrlolv.lstTblCodes = [xusp.SupprimeAccents(x) for x in lstChamps]
-        self.ctrlolv.lstTblValdef = ValeursDefaut(lstChamps,lstChamps,lstTypes)
+        self.ctrlolv.lstTblValdef = ValeursDefaut(lstChamps,lstTypes)
         self.ctrlolv.recordset = recordset
         if len(lstDonnees)>0:
             # selection de la première ligne ou du pointeur précédent
-            self.ctrlolv.SelectObject(self.ctrlolv.donnees[ixsel])
+            self.ctrlolv.SelectObject(self.ctrlolv.innerList[ixsel])
         ret = self.dlgolv.ShowModal()
         return ret
 
@@ -504,7 +471,7 @@ class Balance():
             self.saisie.ShowDlg()
             self.FinSaisie()
         del self.saisie
-        self.ctrlolv.SelectObject(self.ctrlolv.donnees[self.ixsel])
+        self.ctrlolv.SelectObject(self.ctrlolv.innerList[self.ixsel])
 
     def OnChildBtnAction(self,event):
         self.action = 'self.%s(event)' % event.EventObject.actionBtn
@@ -724,15 +691,15 @@ class Ateliers():
         self.ctrlolv.lstTblHelp = lstHelp
         self.ctrlolv.lstTblChamps = self.lstTblChamps
         self.ctrlolv.lstTblCodes = [xusp.SupprimeAccents(x) for x in self.lstTblChamps]
-        self.ctrlolv.lstTblValdef = ValeursDefaut(self.lstTblChamps,self.lstTblChamps,lstTypes)
+        self.ctrlolv.lstTblValdef = ValeursDefaut(self.lstTblChamps,lstTypes)
         self.ctrlolv.recordset = recordset
         if len(lstDonnees) > 0:
             # selection de la première ligne
-            self.ctrlolv.SelectObject(self.ctrlolv.donnees[0])
+            self.ctrlolv.SelectObject(self.ctrlolv.innerList[0])
         ret = wx.ID_OK
         if len(lstDonnees)>0:
             # selection de la première ligne ou du pointeur précédent
-            self.ctrlolv.SelectObject(self.ctrlolv.donnees[ixsel])
+            self.ctrlolv.SelectObject(self.ctrlolv.innerList[ixsel])
         if self.visu:
             ret = self.dlgolv.ShowModal()
         return ret
@@ -760,7 +727,7 @@ class Ateliers():
         champdeb = 'IDMatelier'
         champfin = 'Validation'
         lstEcrChamps = xusp.ExtractList(self.lstTblChamps,champdeb,champfin)
-        lstEcrCodes = [xgl.SupprimeAccents(x) for x in lstEcrChamps]
+        lstEcrCodes = [xusp.SupprimeAccents(x) for x in lstEcrChamps]
 
         kwds = {'pos': (350, 20)}
         kwds['minSize'] = (350, 600)
@@ -829,7 +796,7 @@ class Ateliers():
             mess += "Il faut choisir obligatoirement un atelier dans les possibles"
         if not self.saisie.mode in ['modif','consult']:
             # on continue en vérifiant si la clé n'est pas dans l'OLV d'origine
-            lstOlvDonnees=self.ctrlolv.donnees
+            lstOlvDonnees=self.ctrlolv.innerList
             lstOlvCodes = self.ctrlolv.lstCodesColonnes
             ixdos,ixatel = lstOlvCodes.index('iddossier'),lstOlvCodes.index('idmatelier'),
             for ligne in lstOlvDonnees:
@@ -969,15 +936,15 @@ class Infos():
         self.ctrlolv.lstTblHelp = lstHelp
         self.ctrlolv.lstTblChamps = self.lstTblChamps
         self.ctrlolv.lstTblCodes = [xusp.SupprimeAccents(x) for x in self.lstTblChamps]
-        self.ctrlolv.lstTblValdef = ValeursDefaut(self.lstTblChamps,self.lstTblChamps,lstTypes)
+        self.ctrlolv.lstTblValdef = ValeursDefaut(self.lstTblChamps,lstTypes)
         self.ctrlolv.recordset = recordset
         if len(lstDonnees) > 0:
             # selection de la première ligne
-            self.ctrlolv.SelectObject(self.ctrlolv.donnees[0])
+            self.ctrlolv.SelectObject(self.ctrlolv.innerList[0])
         ret = wx.ID_OK
         if len(lstDonnees)>0:
             # selection de la première ligne ou du pointeur précédent
-            self.ctrlolv.SelectObject(self.ctrlolv.donnees[ixsel])
+            self.ctrlolv.SelectObject(self.ctrlolv.innerList[ixsel])
         if self.visu:
             ret = self.dlgolv.ShowModal()
         return ret
@@ -1004,7 +971,7 @@ class Infos():
         champdeb = 'IDMinfo'
         champfin = 'Texte'
         lstEcrChamps = xusp.ExtractList(self.lstChampsColonnes,champdeb,champfin)
-        lstEcrCodes = [xgl.SupprimeAccents(x) for x in lstEcrChamps]
+        lstEcrCodes = [xusp.SupprimeAccents(x) for x in lstEcrChamps]
 
         kwds = {'pos': (350, 20)}
         kwds['minSize'] = (350, 600)
@@ -1069,7 +1036,7 @@ class Infos():
             mess += "Il faut choisir obligatoirement un info dans les possibles"
         if not self.saisie.mode in ['modif','consult']:
             # on continue en vérifiant si la clé n'est pas dans l'OLV d'origine
-            lstOlvDonnees=self.ctrlolv.donnees
+            lstOlvDonnees=self.ctrlolv.innerList
             lstOlvCodes = self.ctrlolv.lstCodesColonnes
             ixdos,ixatel = lstOlvCodes.index('iddossier'),lstOlvCodes.index('idminfo'),
             for ligne in lstOlvDonnees:
@@ -1242,15 +1209,15 @@ class Produits():
         self.ctrlolv.lstTblHelp = lstHelp
         self.ctrlolv.lstTblChamps = lstChamps
         self.ctrlolv.lstTblCodes = [xusp.SupprimeAccents(x) for x in lstChamps]
-        self.ctrlolv.lstTblValdef = ValeursDefaut(lstChamps,lstChamps,lstTypes)
+        self.ctrlolv.lstTblValdef = ValeursDefaut(lstChamps,lstTypes)
         self.ctrlolv.recordset = recordset
         if len(lstDonnees) > 0:
             # selection de la première ligne
-            self.ctrlolv.SelectObject(self.ctrlolv.donnees[0])
+            self.ctrlolv.SelectObject(self.ctrlolv.innerList[0])
         ret = wx.ID_OK
         if len(lstDonnees)>0:
             # selection de la première ligne ou du pointeur précédent
-            self.ctrlolv.SelectObject(self.ctrlolv.donnees[ixsel])
+            self.ctrlolv.SelectObject(self.ctrlolv.innerList[ixsel])
         if self.visu:
             ret = self.dlgolv.ShowModal()
         return ret
@@ -1279,7 +1246,7 @@ class Produits():
         champfin = 'NoLigne'
         lstTblChamps = dtt.GetChamps(self.table, tous=True)
         lstEcrChamps = xusp.ExtractList(lstTblChamps,champdeb,champfin)
-        lstEcrCodes = [xgl.SupprimeAccents(x) for x in lstEcrChamps]
+        lstEcrCodes = [xusp.SupprimeAccents(x) for x in lstEcrChamps]
 
         kwds = {'pos': (350, 20)}
         kwds['minSize'] = (350, 600)
@@ -1361,7 +1328,7 @@ class Produits():
             mess += "Il faut choisir obligatoirement un atelier et un produit dans les possibles"
         if not self.saisie.mode in ['modif','consult']:
             # on continue en vérifiant si la clé n'est pas dans l'OLV d'origine
-            lstOlvDonnees=self.ctrlolv.donnees
+            lstOlvDonnees=self.ctrlolv.innerList
             lstOlvCodes = self.ctrlolv.lstCodesColonnes
             ixdos,ixatel,ixprod = lstOlvCodes.index('iddossier'),lstOlvCodes.index('idmatelier'),lstOlvCodes.index('idmproduit'),
             for ligne in lstOlvDonnees:
@@ -1545,7 +1512,7 @@ class Affectations():
 
         if len(lstDonnees) > 0:
             # selection de la première ligne
-            self.dlgdossiers.ctrlOlv.SelectObject(self.dlgdossiers.ctrlOlv.donnees[0])
+            self.dlgdossiers.ctrlOlv.SelectObject(self.dlgdossiers.ctrlOlv.innerList[0])
             self.IDdossier = self.ctrlolv.Selection()[0].id
         ret = self.dlgdossiers.ShowModal()
         return ret
@@ -1631,7 +1598,7 @@ class Affectations():
                     wx.MessageBox(ret)
         #ctrlolv.Select(ixsel)
         self.ctrlolv.SetFocus()
-        self.ctrlolv.SelectObject(self.ctrlolv.donnees[ixsel])
+        self.ctrlolv.SelectObject(self.ctrlolv.innerList[ixsel])
         dlg.Destroy()
 
     def OnSelection(self,event):
@@ -1641,31 +1608,31 @@ class Affectations():
         if VerifSelection(self,self.dlgdossiers):
             self.EcranIdent(self.ctrlolv,'modif')
             self.ctrlolv.SetFocus()
-            self.ctrlolv.SelectObject(self.dlgdossiers.ctrlOlv.donnees[self.ixsel])
+            self.ctrlolv.SelectObject(self.dlgdossiers.ctrlOlv.innerList[self.ixsel])
 
     def OnInfos(self):
         if VerifSelection(self,self.dlgdossiers):
             Infos(self)
             self.ctrlolv.SetFocus()
-            self.ctrlolv.SelectObject(self.dlgdossiers.ctrlOlv.donnees[self.ixsel])
+            self.ctrlolv.SelectObject(self.dlgdossiers.ctrlOlv.innerList[self.ixsel])
  
     def OnBalance(self):
         if VerifSelection(self,self.dlgdossiers):
             Balance(self)
             self.ctrlolv.SetFocus()
-            self.ctrlolv.SelectObject(self.dlgdossiers.ctrlOlv.donnees[self.ixsel])
+            self.ctrlolv.SelectObject(self.dlgdossiers.ctrlOlv.innerList[self.ixsel])
 
     def OnAteliers(self):
         if VerifSelection(self,self.dlgdossiers):
             Ateliers(self)
             self.ctrlolv.SetFocus()
-            self.ctrlolv.SelectObject(self.dlgdossiers.ctrlOlv.donnees[self.ixsel])
+            self.ctrlolv.SelectObject(self.dlgdossiers.ctrlOlv.innerList[self.ixsel])
 
     def OnProduits(self):
         if VerifSelection(self,self.dlgdossiers):
             Produits(self)
             self.ctrlolv.SetFocus()
-            self.ctrlolv.SelectObject(self.dlgdossiers.ctrlOlv.donnees[self.ixsel])
+            self.ctrlolv.SelectObject(self.dlgdossiers.ctrlOlv.innerList[self.ixsel])
 
 
 #************************   Pour Test ou modèle  *********************************

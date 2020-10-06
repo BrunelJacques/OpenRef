@@ -82,7 +82,7 @@ class DB():
                             self.cfgParams[cle] = valeur
                 if nomConfig:
                     if not (nomConfig in configs['lstIDconfigs']):
-                        wx.MessageBox("Le nom de config '%s' n'est pas dans la liste lstIDconfigs"%(nomConfig))
+                        wx.MessageBox("Le nom de config '%s' n'est pas dans la liste des accès base de donnée"%(nomConfig))
                         return
                     ix = configs['lstIDconfigs'].index(nomConfig)
                     # on récupére les paramétres dans toutes les configs par le pointeur ix dans les clés
@@ -471,7 +471,7 @@ class DB():
             if condition:
                 condition += " AND %s "%(condID)
             else: condition = condID
-        elif (not condition) or (len(condition.strip()==0)):
+        elif (not condition) or (len(condition.strip())==0):
             # si pas de nom de champ et d'ID, la condition ne doit pas être vide sinon tout va updater
             condition = " FALSE "
         req = "UPDATE %s SET  %s WHERE %s ;" % (nomTable, update, condition)

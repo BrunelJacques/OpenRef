@@ -100,13 +100,13 @@ MATRICE_PARAMS = {
 ("filtres","Filtre des données"): [
     {'name': 'cloture', 'genre': 'Enum', 'label': 'Exercice clôturant',
                     'help': "Choisir un exercice ouvert pour pouvoir saisir, sinon il sera en consultation", 'value':0,
-                    'values': nunoegest.GetClotures(),
+                    'values': [],
                     'ctrlAction':'OnCloture',
                     'size':(300,30)},
     {'name': 'datefact', 'genre': 'Enum', 'label': 'Date facturation',
                     'help': "Date de facturation pour l'export ou pour consulter l'antérieur",
                     'value':0,
-                    'values':nunoegest.GetDatesFactKm(),
+                    'values':[],
                     'ctrlAction': 'OnDateFact',
                     'size':(300,30)},
     {'name': 'vehicule', 'genre': 'Enum', 'label': "Véhicule",
@@ -170,7 +170,7 @@ def GetOlvColonnes(dlg):
             ColumnDefn("Nom Véhicule", 'left', 120, 'nomvehicule',
                        isSpaceFilling=True, isEditable=False),
             ColumnDefn("Type Tiers", 'center', 40, 'typetiers', isSpaceFilling=False,valueSetter='A',
-                       cellEditorCreator=CellEditor.ChoiceEditor,choices=['A analytique', 'T tiers']),
+                       cellEditorCreator=CellEditor.ChoiceEditor,choices=['A analytique','C client','P partenaire' ] ),
             ColumnDefn("Activité", 'center', 60, 'IDtiers', isSpaceFilling=False),
             ColumnDefn("Nom tiers/activité", 'left', 130, 'nomtiers',
                        isSpaceFilling=True, isEditable=False),
@@ -218,6 +218,8 @@ class PNL_params(xgc.PNL_paramsLocaux):
                 'nomfichier':"params",
                 'nomgroupe':"saisieKM"
                 }
+        kwds['matrice'][("filtres","Filtre des données")][0]['values'] = nunoegest.GetClotures()
+        kwds['matrice'][("filtres","Filtre des données")][1]['values'] = nunoegest.GetDatesFactKm()
         super().__init__(parent, **kwds)
         self.Init()
 
@@ -313,6 +315,7 @@ class PNL_corpsOlv(xgte.PNL_corps):
             else:
                 self.ctrlOlv.lstColonnes[ixtiers].isEditable = True
                 self.ctrlOlv.lstColonnes[ixnomtiers].isEditable = False
+            track.typetiers = value[0]
 
         if code in ['kmdeb','kmfin']:
             kmdeb,kmfin = 9999999,0
@@ -434,15 +437,15 @@ class Dialog(xusp.DLG_vide):
         box.SetOneValues('vehicule',self.lstVehicules)
         self.ctrlOlv.dicChoices[self.ctrlOlv.lstCodesColonnes.index('vehicule')]= self.lstVehicules
         self.lstActivites = [x[0]+" "+x[1] for x in self.noegest.GetActivites(lstChamps=['IDanalytique','nom'])]
-        self.noegest.GetConsos()
+        self.noegest.GetConsosKm()
 
     def OnDateFact(self,evt):
         # Charge l'éventuelle saisie antérieure sur cette date
-        self.noegest.GetConsos()
+        self.noegest.GetConsosKm()
 
     def OnVehicule(self,evt):
         # Charge l'éventuelle saisie antérieure sur cette date
-        self.noegest.GetConsos()
+        self.noegest.GetConsosKm()
 
     def OnCtrlJournal(self,evt):
         # tronque pour ne garder que le code journal sur trois caractères maxi

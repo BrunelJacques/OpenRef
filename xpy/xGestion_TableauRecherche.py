@@ -8,6 +8,7 @@
 import wx
 import os
 import xpy.outils.xformat
+import xpy.xGestionDB   as xdb
 from xpy.outils import xbandeau
 from xpy.outils.ObjectListView import FastObjectListView, ColumnDefn, BarreRecherche, OLVEvent, Filter
 from xpy.outils.xconst import *
@@ -21,7 +22,7 @@ class TrackGeneral(object):
         if not(len(donnees) == len(codesColonnes)== len(nomsColonnes) == len(setterValues)):
             wx.MessageBox("Problème de nombre d'occurences!\n%d donnees, %d codes, %d colonnes et %d valeurs défaut"
                           %(len(donnees), len(codesColonnes), len(nomsColonnes), len(setterValues)))
-        for ix in range(len(donnees)):
+        for ix in range(min(len(donnees),len(setterValues))):
             donnee = donnees[ix]
             if setterValues[ix]:
                 if (donnee is None):
@@ -111,6 +112,7 @@ class ListView(FastObjectListView):
 
     def formerTracks(self,db=None):
         if db:
+            print(db,"/",self.matriceOlv,"/",self.filtre)
             self.listeDonnees = self.getDonnees(db=db,matriceOlv=self.matriceOlv,filtre=self.filtre)
         else:
             self.listeDonnees = self.getDonnees(matriceOlv=self.matriceOlv, filtre=self.filtre)
@@ -290,6 +292,7 @@ class PNL_tableau(wx.Panel):
         dicBandeau = dicOlv.pop('dicBandeau',None)
         autoSizer = dicOlv.pop('autoSizer',True)
         self.lstBtns = kwds.pop('lstBtns',None)
+        self.lstActions = kwds.pop('lstActions',None)
         self.dicOnClick = kwds.pop('dicOnClick',None)
         if (not self.lstBtns) :
             #force la présence d'un pied d'écran par défaut
@@ -308,7 +311,6 @@ class PNL_tableau(wx.Panel):
         if 'recherche' in dicOlv:
             self.avecRecherche = dicOlv['recherche']
         else : self.avecRecherche = True
-
 
         #récup des seules clés possibles pour dicOLV
         lstParamsOlv = ['id',
@@ -352,18 +354,61 @@ class PNL_tableau(wx.Panel):
     def __do_layout(self):
         #composition de l'écran selon les composants
         sizerbase = wx.BoxSizer(wx.VERTICAL)
-        sizerhaut = wx.BoxSizer(wx.VERTICAL)
         if self.bandeau:
+            sizerhaut = wx.BoxSizer(wx.VERTICAL)
             sizerhaut.Add(self.bandeau,0,wx.ALL|wx.EXPAND,3)
-        sizerhaut.Add(self.ctrlOlv,10,wx.ALL|wx.EXPAND,3)
+            sizerbase.Add(sizerhaut, 0, wx.EXPAND, 5)
 
-        sizerbase.Add(sizerhaut, 10, wx.EXPAND, 10)
+        sizercentre = wx.BoxSizer(wx.HORIZONTAL)
+        sizercentre.Add(self.ctrlOlv,10,wx.ALL|wx.EXPAND,3)
+        if self.lstActions:
+            sizeractions = wx.StaticBoxSizer(wx.VERTICAL, self, label='Gestion')
+            self.itemsActions = self.GetItemsBtn(self.lstActions)
+            sizeractions.AddMany(self.itemsActions)
+            sizercentre.Add(sizeractions,0,wx.ALL|wx.EXPAND,3)
+        sizerbase.Add(sizercentre, 10, wx.EXPAND, 0)
+
         sizerbase.Add(wx.StaticLine(self), 0, wx.TOP| wx.EXPAND, 3)
+
         sizerpied = wx.FlexGridSizer(rows=1, cols=10, vgap=0, hgap=0)
         if self.avecRecherche:
-            sizerpied.Add(self.barreRecherche, 10, wx.EXPAND|wx.ALIGN_CENTRE_VERTICAL|wx.ALL, 10)
+            sizerpied.Add(self.barreRecherche, 0, wx.EXPAND|wx.ALIGN_CENTRE_VERTICAL, 3)
 
-        sizerpied.Add(self.pnlPied, 20, wx.EXPAND|wx.ALIGN_LEFT, 0)
+        sizerpied.Add(self.pnlPied, 0, wx.EXPAND|wx.ALIGN_LEFT, 0)
+
+        if self.lstBtns:
+            self.itemsBtns = self.GetItemsBtn(self.lstBtns)
+            sizerpied.AddMany(self.itemsBtns)
+        sizerpied.AddGrowableCol(0)
+        sizerbase.Add(sizerpied,0,wx.EXPAND,5)
+        self.SetSizerAndFit(sizerbase)
+        if self.avecRecherche:
+            self.barreRecherche.SetFocus()
+
+    def do_layout(self):
+        #composition de l'écran selon les composants
+        sizerbase = wx.BoxSizer(wx.VERTICAL)
+        if self.bandeau:
+            sizerhaut = wx.BoxSizer(wx.VERTICAL)
+            sizerhaut.Add(self.bandeau,0,wx.ALL|wx.EXPAND,3)
+            sizerbase.Add(sizerhaut, 0, wx.EXPAND, 5)
+
+        sizercentre = wx.BoxSizer(wx.HORIZONTAL)
+        sizercentre.Add(self.ctrlOlv,10,wx.ALL|wx.EXPAND,3)
+        if self.lstActions:
+            sizeractions = wx.StaticBoxSizer(wx.VERTICAL, self, label='Gestion')
+            self.itemsActions = self.GetItemsBtn(self.lstActions)
+            sizeractions.AddMany(self.itemsActions)
+            sizercentre.Add(sizeractions,0,wx.ALL|wx.EXPAND,3)
+        sizerbase.Add(sizercentre, 10, wx.EXPAND, 0)
+
+        sizerbase.Add(wx.StaticLine(self), 0, wx.TOP| wx.EXPAND, 3)
+
+        sizerpied = wx.FlexGridSizer(rows=1, cols=10, vgap=0, hgap=0)
+        if self.avecRecherche:
+            sizerpied.Add(self.barreRecherche, 0, wx.EXPAND|wx.ALIGN_CENTRE_VERTICAL, 3)
+
+        sizerpied.Add(self.pnlPied, 0, wx.EXPAND|wx.ALIGN_LEFT, 0)
 
         if self.lstBtns:
             self.itemsBtns = self.GetItemsBtn(self.lstBtns)
@@ -402,7 +447,6 @@ class PNL_tableau(wx.Panel):
                     else: fonction = self.dicOnClick[code]
                     bouton.Bind(wx.EVT_BUTTON, fonction)
                 lstBtn.append((bouton, 0, wx.ALL | wx.ALIGN_RIGHT, 5))
-
             except:
                 bouton = wx.Button(self, wx.ID_ANY, 'Erreur!')
                 lstBtn.append((bouton, 0, wx.ALL, 5))
@@ -430,7 +474,7 @@ class DLG_tableau(wx.Dialog):
         self.parent = parent
         largeur = dicOlv.pop("largeur", 800)
         hauteur = dicOlv.pop("hauteur", 700)
-        self.db = kwds.pop("db", None)
+        self.db = kwds.pop("db",xdb.DB())
         pnlTableau = dicOlv.pop("pnlTableau",PNL_tableau )
         listArbo=os.path.abspath(__file__).split("\\")
         titre = listArbo[-1:][0] + "/" + self.__class__.__name__
@@ -475,6 +519,13 @@ liste_Colonnes = [
     ColumnDefn("date SQL", 'center', 80, "datesql", valueSetter='2000-01-01',isSpaceFilling = True,
                stringConverter=xpy.outils.xformat.FmtDate)
 ]
+
+# params d'actions: ce sont des boutons placés à droite et non en bas
+lstActions = [('Action1',wx.ID_COPY,'Choix un',"Cliquez pour l'action 1"),
+              ('Action2',wx.ID_CUT,'Choix deux',"Cliquez pour l'action 2")]
+# params des actions ou boutons: name de l'objet, fonction ou texte à passer par eval()
+dicOnClick = {'Action1': lambda evt: wx.MessageBox('ceci active la fonction action1'),
+                'Action2': 'self.parent.Close()',}
 dicOlv = {'listeColonnes':liste_Colonnes,
                 'getDonnees':GetDonnees,
                 'hauteur':650,
@@ -491,7 +542,7 @@ if __name__ == '__main__':
     os.chdir("..")
     dicBandeau = {'titre':"MON TITRE", 'texte':"mon introduction", 'hauteur':15, 'nomImage':"xpy/Images/32x32/Matth.png"}
     dicOlv['dicBandeau'] = dicBandeau
-    exempleframe = DLG_tableau(None,dicOlv=dicOlv,lstBtns= None)
+    exempleframe = DLG_tableau(None,dicOlv=dicOlv,lstActions=lstActions,lstBtns= None,dicOnClick=dicOnClick)
     app.SetTopWindow(exempleframe)
     ret = exempleframe.ShowModal()
     if exempleframe.GetSelection():

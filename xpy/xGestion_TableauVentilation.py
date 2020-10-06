@@ -193,7 +193,7 @@ class DLG_tableau(xgtr.DLG_tableau):
 
 # -- pour tests -----------------------------------------------------------------------------------------------------
 
-def GetDonnees(matrice,filtre = ""):
+def GetDonnees(matriceOlv={},filtre = ""):
     donnees = [
                 [None,wx.DateTime.FromDMY(15, 11, 2018),'2019-04-09',"Bonjour", -30.05939, -10.05939, 0.0,],
                 [None, wx.DateTime.FromDMY(18, 3, 2019), '20/06/2019', "jourwin", 12045.039, 1293.9, 20.40, ],

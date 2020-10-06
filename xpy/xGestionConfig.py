@@ -65,6 +65,7 @@ COLONNES_CONFIGS = {
 def AppelLignesMatrice(categ=None, possibles={}):
     # retourne les lignes de la  matrice de l'argument categ
     # ou la première catégorie si not categ
+    code = None
     label = ''
     lignes = {}
     if possibles:
@@ -75,7 +76,7 @@ def AppelLignesMatrice(categ=None, possibles={}):
                         label = labelCategorie
                         lignes = possibles[(code, labelCategorie)]
                 else:
-                    label = labelCategorie, possibles
+                    label = labelCategorie
                     lignes = possibles[(code, labelCategorie)]
                     break
     return code, label, lignes
