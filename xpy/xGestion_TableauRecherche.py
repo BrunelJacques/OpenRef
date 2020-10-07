@@ -112,7 +112,6 @@ class ListView(FastObjectListView):
 
     def formerTracks(self,db=None):
         if db:
-            print(db,"/",self.matriceOlv,"/",self.filtre)
             self.listeDonnees = self.getDonnees(db=db,matriceOlv=self.matriceOlv,filtre=self.filtre)
         else:
             self.listeDonnees = self.getDonnees(matriceOlv=self.matriceOlv, filtre=self.filtre)
@@ -385,40 +384,6 @@ class PNL_tableau(wx.Panel):
         if self.avecRecherche:
             self.barreRecherche.SetFocus()
 
-    def do_layout(self):
-        #composition de l'écran selon les composants
-        sizerbase = wx.BoxSizer(wx.VERTICAL)
-        if self.bandeau:
-            sizerhaut = wx.BoxSizer(wx.VERTICAL)
-            sizerhaut.Add(self.bandeau,0,wx.ALL|wx.EXPAND,3)
-            sizerbase.Add(sizerhaut, 0, wx.EXPAND, 5)
-
-        sizercentre = wx.BoxSizer(wx.HORIZONTAL)
-        sizercentre.Add(self.ctrlOlv,10,wx.ALL|wx.EXPAND,3)
-        if self.lstActions:
-            sizeractions = wx.StaticBoxSizer(wx.VERTICAL, self, label='Gestion')
-            self.itemsActions = self.GetItemsBtn(self.lstActions)
-            sizeractions.AddMany(self.itemsActions)
-            sizercentre.Add(sizeractions,0,wx.ALL|wx.EXPAND,3)
-        sizerbase.Add(sizercentre, 10, wx.EXPAND, 0)
-
-        sizerbase.Add(wx.StaticLine(self), 0, wx.TOP| wx.EXPAND, 3)
-
-        sizerpied = wx.FlexGridSizer(rows=1, cols=10, vgap=0, hgap=0)
-        if self.avecRecherche:
-            sizerpied.Add(self.barreRecherche, 0, wx.EXPAND|wx.ALIGN_CENTRE_VERTICAL, 3)
-
-        sizerpied.Add(self.pnlPied, 0, wx.EXPAND|wx.ALIGN_LEFT, 0)
-
-        if self.lstBtns:
-            self.itemsBtns = self.GetItemsBtn(self.lstBtns)
-            sizerpied.AddMany(self.itemsBtns)
-        sizerpied.AddGrowableCol(0)
-        sizerbase.Add(sizerpied,0,wx.EXPAND,5)
-        self.SetSizerAndFit(sizerbase)
-        if self.avecRecherche:
-            self.barreRecherche.SetFocus()
-
     def ProprietesOlv(self):
         self.ctrlOlv.Bind(wx.EVT_CONTEXT_MENU, self.ctrlOlv.OnContextMenu)
         self.ctrlOlv.Bind(wx.EVT_LEFT_DCLICK, self.OnDblClick)
@@ -497,7 +462,7 @@ class DLG_tableau(wx.Dialog):
 
 # -- pour tests -----------------------------------------------------------------------------------------------------
 
-def GetDonnees(matriceOlv=None,filtre = ""):
+def GetDonnees(db=None,matriceOlv=None,filtre = ""):
     donnees = [[18, "Bonjour", -1230.05939, -1230.05939, None, None],
                      [19, "Bonsoir", 57.5, 208.99, wx.DateTime.FromDMY(15, 11, 2018), '2019-03-29'],
                      [1, "Jonbour", 0, 209, wx.DateTime.FromDMY(6, 11, 2018), '2019-03-01'],

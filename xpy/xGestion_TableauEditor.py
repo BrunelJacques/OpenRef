@@ -61,6 +61,39 @@ def LargeursDefaut(lstNomsColonnes,lstTypes,IDcache=True):
 
 # ----------- Objets divers ----------------------------------------------------------------
 
+def GetItemsBtn(pnl,lstBtns):
+    # décompactage des paramètres de type bouton, différents constructeurs
+    lstWxBtns = []
+    for btn in lstBtns:
+        # gestion par série :(code, ID, image ou texte, texteToolTip), image ou texte mais pas les deux!
+        if isinstance(btn,(tuple,list)):
+            try:
+                (code,ID,label,tooltip) = btn
+                if isinstance(label,wx.Bitmap):
+                    bouton = wx.BitmapButton(pnl,ID,label)
+                elif isinstance(label,str):
+                    bouton = wx.Button(pnl,ID,label)
+                else: bouton = wx.Button(pnl,ID,'Erreur!')
+                bouton.SetToolTip(tooltip)
+                bouton.name = code
+                #le bouton OK est par défaut, il ferme l'écran DLG
+                if code == 'BtnOK':
+                    bouton.Bind(wx.EVT_BUTTON, pnl.OnBoutonOK)
+                #implémente les fonctions bind transmises, soit par le pointeur soit par eval du texte
+                if pnl.dicOnClick and code in pnl.dicOnClick:
+                    if isinstance(pnl.dicOnClick[code],str):
+                        fonction = lambda evt,code=code: eval(pnl.dicOnClick[code])
+                    else: fonction = pnl.dicOnClick[code]
+                    bouton.Bind(wx.EVT_BUTTON, fonction)
+                lstWxBtns.append((bouton, 0, wx.ALL, 5))
+            except:
+                bouton = wx.Button(pnl, wx.ID_ANY, 'Erreur\nparam!')
+                lstWxBtns.append((bouton, 0, wx.ALL, 5))
+        # gestion par classe Button(parent,**kwds
+        elif isinstance(btn,dict):
+            lstWxBtns.append((Button(pnl,**btn),0,wx.ALL,5))
+    return lstWxBtns
+
 class Button(wx.Button):
     # Enrichissement du wx.Button par l'image, nom, toolTip et Bind
     def __init__(self, parent,**kwds):
@@ -232,7 +265,7 @@ class ListView(ObjectListView):
         if not 'sortable' in kwds: kwds['sortable']=True
         ObjectListView.__init__(self, *args,**kwds)
         # Binds perso
-        self.Bind(OLVEvent.EVT_ITEM_CHECKED, self.OnItemChecked)
+        self.Bind(OLVEvent.EVT_ITEM_CHECKED, self.MAJ_footer())
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
         if self.editMode:
             self.cellEditMode = ObjectListView.CELLEDIT_SINGLECLICK
@@ -243,7 +276,7 @@ class ListView(ObjectListView):
         self.ctrl_footer.dictColFooter = dictColFooter
 
     def MAJ_footer(self):
-        if self.ctrl_footer != None:
+        if self.ctrl_footer and self.pnlfooter:
             self.ctrl_footer.MAJ_totaux()
             self.ctrl_footer.MAJ_affichage()
 
@@ -321,10 +354,6 @@ class ListView(ObjectListView):
 
     def Selection(self):
         return self.GetSelectedObjects()
-
-    def OnItemChecked(self, event):
-        if self.pnlfooter:
-            self.MAJ_footer()
 
     def OnContextMenu(self, event):
         """
@@ -528,9 +557,8 @@ class ListView(ObjectListView):
         self._SelectAndFocus(ix)
         return True
 
-
 class PanelListView(wx.Panel):
-    # Le Panel contiendra le listView et le footer, attention à l'étape généalogique supplémentaire
+    # Panel pour listView et le footer, attention il crée un niveau généalogique supplémentaire (parent.parent)
     def __init__(self, parent, **kwargs):
         id = -1
         self.parent = parent
@@ -539,7 +567,8 @@ class PanelListView(wx.Panel):
         self.dictColFooter = kwargs.pop("dictColFooter", {})
         if not "id" in kwargs: kwargs["id"] = wx.ID_ANY
         if not "style" in kwargs: kwargs["style"] = wx.LC_REPORT|wx.NO_BORDER|wx.LC_HRULES|wx.LC_VRULES
-        kwargs["pnlfooter"]=self
+        if len(self.dictColFooter.keys())>0:
+            kwargs["pnlfooter"]=True
 
         self.buffertracks = None
         self.ctrl_listview = ListView(self,**kwargs)
@@ -690,7 +719,6 @@ class PanelListView(wx.Panel):
         if hasattr(self.parent, 'InitTrackVierge'):
             self.parent.InitTrackVierge(track,trackN1)
 
-
 # ----------- Composition de l'écran -------------------------------------------------------
 class PNL_params(wx.Panel):
     #panel de paramètres de l'application
@@ -712,10 +740,15 @@ class PNL_params(wx.Panel):
         self.SetSizerAndFit(sizerparams)
 
 class PNL_corps(wx.Panel):
-    #panel olv avec habillage optionnel pour des boutons actions (à droite) des infos (bas gauche) et boutons sorties
+    #panel olv avec habillage optionnel pour recherche (en bas), boutons actions (à droite)
     def __init__(self, parent, dicOlv,*args, **kwds):
         hauteur = dicOlv.pop('hauteur',350)
         largeur = dicOlv.pop('largeur',650)
+        getActions = dicOlv.pop('getActions',None)
+        # récupére les éventuels boutons d'actions
+        if getActions:
+            self.lstActions = getActions(self)
+        else: self.lstActions = None
         wx.Panel.__init__(self, parent, *args,  **kwds)
         #ci dessous l'ensemble des autres paramètres possibles pour OLV
         lstParamsOlv = ['id',
@@ -736,9 +769,11 @@ class PNL_corps(wx.Panel):
                         'titreImpression',
                         'orientationImpression',
                         'dictColFooter',
+                        'editMode',
                         'autoAddRow',
                         ]
-        self.avecFooter = ("dictColFooter" in dicOlv)
+        # le footer éventuel doit passer au niveau panel suivant, sinon on ne cherche pas à le transférer
+        self.avecFooter = ('dictColFooter'  in dicOlv)
         if not self.avecFooter : lstParamsOlv.remove('dictColFooter')
         if 'recherche' in dicOlv: self.barreRecherche = dicOlv['recherche']
         else : self.barreRecherche = True
@@ -749,24 +784,32 @@ class PNL_corps(wx.Panel):
             if key in lstParamsOlv:
                  dicOlvOut[key] = valeur
 
-        # choix footer ou pas
         self.olv = PanelListView(self,**dicOlvOut)
         self.ctrlOlv = self.olv.ctrl_listview
+        # choix  barre de recherche ou pas
         if self.barreRecherche:
             self.ctrloutils = CTRL_Outils(self, listview=self.ctrlOlv, afficherCocher=False)
+            self.olv.ctrloutils = self.ctrloutils
         self.ctrlOlv.SetMinSize((largeur,hauteur))
         self.ctrlOlv.MAJ()
         self.Sizer()
 
     def Sizer(self):
         #composition de l'écran selon les composants
-        sizerolv = wx.BoxSizer(wx.VERTICAL)
-        sizerolv.Add(self.olv, 10, wx.EXPAND, 10)
+        sizerbase = wx.BoxSizer(wx.HORIZONTAL)
+        sizercorps = wx.BoxSizer(wx.VERTICAL)
+        sizercorps.Add(self.olv, 10, wx.EXPAND, 10)
         if self.barreRecherche:
-            sizerolv.Add(self.ctrloutils, 0, wx.EXPAND, 10)
-        self.SetSizerAndFit(sizerolv)
+            sizercorps.Add(self.ctrloutils, 0, wx.EXPAND, 10)
+        sizerbase.Add(sizercorps, 10, wx.EXPAND, 10)
+        # ajout des boutons d'actions
+        if self.lstActions:
+            sizeractions = wx.BoxSizer(wx.VERTICAL)
+            sizeractions.AddMany(GetItemsBtn(self,self.lstActions))
+            sizerbase.Add(sizeractions, 0, wx.TOP, 10)
+        self.SetSizerAndFit(sizerbase)
 
-class PNL_Pied(wx.Panel):
+class PNL_pied(wx.Panel):
     #panel infos (gauche) et boutons sorties(droite)
     def __init__(self, parent, dicPied, **kwds):
         self.lanceur = dicPied.pop('lanceur',None)
@@ -783,7 +826,7 @@ class PNL_Pied(wx.Panel):
         self.Sizer()
 
     def Sizer(self,reinit = False):
-        self.itemsBtns = self.GetItemsBtn(self.lstBtns)
+        self.itemsBtns = GetItemsBtn(self,self.lstBtns)
         self.itemsInfos = self.CreateItemsInfos(self.lstInfos)
         nbinfos = len(self.itemsInfos)
         nbcol=(len(self.itemsBtns)+len(self.itemsInfos)+1)
@@ -796,39 +839,6 @@ class PNL_Pied(wx.Panel):
             sizerpied.AddMany(self.itemsBtns)
         sizerpied.AddGrowableCol(nbinfos)
         self.SetSizer(sizerpied)
-
-    def GetItemsBtn(self,lstBtns):
-        # décompactage des paramètres de type bouton, différents constructeurs
-        lstWxBtns = []
-        for btn in lstBtns:
-            # gestion par série :(code, ID, image ou texte, texteToolTip), image ou texte mais pas les deux!
-            if isinstance(btn,(tuple,list)):
-                try:
-                    (code,ID,label,tooltip) = btn
-                    if isinstance(label,wx.Bitmap):
-                        bouton = wx.BitmapButton(self,ID,label)
-                    elif isinstance(label,str):
-                        bouton = wx.Button(self,ID,label)
-                    else: bouton = wx.Button(self,ID,'Erreur!')
-                    bouton.SetToolTip(tooltip)
-                    bouton.name = code
-                    #le bouton OK est par défaut, il ferme l'écran DLG
-                    if code == 'BtnOK':
-                        bouton.Bind(wx.EVT_BUTTON, self.OnBoutonOK)
-                    #implémente les fonctions bind transmises, soit par le pointeur soit par eval du texte
-                    if self.dicOnClick and code in self.dicOnClick:
-                        if isinstance(self.dicOnClick[code],str):
-                            fonction = lambda evt,code=code: eval(self.dicOnClick[code])
-                        else: fonction = self.dicOnClick[code]
-                        bouton.Bind(wx.EVT_BUTTON, fonction)
-                    lstWxBtns.append((bouton, 0, wx.ALL, 5))
-                except:
-                    bouton = wx.Button(self, wx.ID_ANY, 'Erreur\nparam!')
-                    lstWxBtns.append((bouton, 0, wx.ALL, 5))
-            # gestion par classe Button(parent,**kwds
-            elif isinstance(btn,dict):
-                lstWxBtns.append((Button(self,**btn),0,wx.ALL,5))
-        return lstWxBtns
 
     def CreateItemsInfos(self,lstInfos):
         # images ou texte sont retenus
@@ -864,7 +874,7 @@ class DLG_tableau(xusp.DLG_vide):
         self.pnlParams = PNL_params(self, dicParams)
         self.pnlOlv = PNL_corps(self, dicOlv,  **kwds )
         self.ctrlOlv = self.pnlOlv.ctrlOlv
-        self.pnlPied = PNL_Pied(self, dicPied,  **kwds )
+        self.pnlPied = PNL_pied(self, dicPied,  **kwds )
         self.Sizer()
 
     def Sizer(self):

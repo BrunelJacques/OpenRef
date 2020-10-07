@@ -995,9 +995,11 @@ class DLG_vide(wx.Dialog):
     # pour la gestion d'une ligne extraite d'un tableau listctrl ou toute situation pour gérer la matrice après init
     def __init__(self,parent, *args, **kwds):
         self.parent = parent
-        listArbo=os.path.abspath(__file__).split("\\")
-        titre = listArbo[-1:][0] + "/" + self.__class__.__name__
-        super().__init__(None, wx.ID_ANY, *args, title=titre,  style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER , **kwds)
+        name = kwds.pop('name',None)
+        if not name:
+            listArbo=os.path.abspath(__file__).split("\\")
+            name = listArbo[-1:][0]
+        super().__init__(None, wx.ID_ANY, *args, title=name,  style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER , **kwds)
         self.SetBackgroundColour(wx.WHITE)
         self.marge = 10
 

@@ -867,10 +867,10 @@ class CTRL_Ventilation(gridlib.Grid):
         DB.Close()
         return
 
-class PNL_Pied(xgte.PNL_Pied):
+class PNL_pied(xgte.PNL_pied):
     #panel infos (gauche) et boutons sorties(droite)
     def __init__(self, parent, dicPied, **kwds):
-        xgte.PNL_Pied.__init__(self,parent, dicPied, **kwds)
+        xgte.PNL_pied.__init__(self,parent, dicPied, **kwds)
 
 # ---------------------------------------------------------------------------------------------------------------------
 
@@ -1131,7 +1131,7 @@ class Dialog(wx.Dialog):
         txtInfos = "Ventilation non obligatoire\nAffectez ce règlement aux prestations auquelles il se rapporte"
         lstInfos = [wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)), txtInfos]
         dicPied = {'lstBtns': GetBoutons(self), "lstInfos": lstInfos}
-        self.pnlPied = PNL_Pied(self,dicPied)
+        self.pnlPied = PNL_pied(self,dicPied)
 
         self.panel = Panel(self, IDcompte_payeur=IDcompte_payeur, IDreglement=IDreglement)
         self.panel.SetMontantReglement(mttReglement)

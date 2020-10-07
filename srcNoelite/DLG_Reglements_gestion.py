@@ -317,10 +317,10 @@ class PNL_corpsReglements(xgte.PNL_corps):
     def OnDelete(self,noligne,track,parent=None):
         nur.DeleteLigne(self.parent.db,track)
 
-class PNL_Pied(xgte.PNL_Pied):
+class PNL_pied(xgte.PNL_pied):
     #panel infos (gauche) et boutons sorties(droite)
     def __init__(self, parent, dicPied, **kwds):
-        xgte.PNL_Pied.__init__(self,parent, dicPied, **kwds)
+        xgte.PNL_pied.__init__(self,parent, dicPied, **kwds)
 
 class Dialog(wx.Dialog):
     # ------------------- Composition de l'écran de gestion----------
@@ -381,7 +381,7 @@ class Dialog(wx.Dialog):
             self.pnlBandeau = xbandeau.Bandeau(self,TITRE,INTRO,nomImage="xpy/Images/32x32/Matth.png")
             self.pnlParams = PNL_params(self)
             self.pnlOlv = PNL_corpsReglements(self, self.dicOlv)
-            self.pnlPied = PNL_Pied(self, dicPied)
+            self.pnlPied = PNL_pied(self, dicPied)
             self.ctrlOlv = self.pnlOlv.ctrlOlv
 
             # la grille est modifiée selon la coche sans dépôt

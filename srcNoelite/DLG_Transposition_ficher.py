@@ -195,7 +195,7 @@ class PNL_params(xgc.PNL_paramsLocaux):
         super().__init__(parent, **kwds)
         self.Init()
 
-class PNL_corpsOlv(xgte.PNL_corps):
+class PNL_corps(xgte.PNL_corps):
     #panel olv avec habillage optionnel pour des boutons actions (à droite) des infos (bas gauche) et boutons sorties
     def __init__(self, parent, dicOlv,*args, **kwds):
         xgte.PNL_corps.__init__(self,parent,dicOlv,*args,**kwds)
@@ -292,10 +292,10 @@ class PNL_corpsOlv(xgte.PNL_corps):
                 object.appel  = track.appel
                 object.libcpt = track.libcpt
 
-class PNL_Pied(xgte.PNL_Pied):
+class PNL_pied(xgte.PNL_pied):
     #panel infos (gauche) et boutons sorties(droite)
     def __init__(self, parent, dicPied, **kwds):
-        xgte.PNL_Pied.__init__(self,parent, dicPied, **kwds)
+        xgte.PNL_pied.__init__(self,parent, dicPied, **kwds)
 
 class Dialog(xusp.DLG_vide):
     # ------------------- Composition de l'écran de gestion----------
@@ -323,8 +323,8 @@ class Dialog(xusp.DLG_vide):
         # lancement de l'écran en blocs principaux
         self.pnlBandeau = xbandeau.Bandeau(self,TITRE,INTRO,nomImage="xpy/Images/32x32/Matth.png")
         self.pnlParams = PNL_params(self)
-        self.pnlOlv = PNL_corpsOlv(self, self.dicOlv)
-        self.pnlPied = PNL_Pied(self, dicPied)
+        self.pnlOlv = PNL_corps(self, self.dicOlv)
+        self.pnlPied = PNL_pied(self, dicPied)
         self.ctrlOlv = self.pnlOlv.ctrlOlv
         # connextion compta et affichage bas d'écran
         self.compta = self.GetCompta()

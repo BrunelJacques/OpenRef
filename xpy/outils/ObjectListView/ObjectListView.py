@@ -4320,6 +4320,8 @@ class BarreRecherche(wx.SearchCtrl):
         self.ShowCancelButton(len(txtSearch))
         #self.listview.RepopulateList()
         self.listview.Filtrer(txtSearch)
+        if hasattr(self.listview,'MAJ_footer'):
+            self.listview.MAJ_footer()
 
 class CTRL_Outils(wx.Panel):
     def __init__(self, parent, listview=None, texteDefaut="Rechercher...", afficherCocher=False,

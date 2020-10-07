@@ -120,6 +120,23 @@ class Noegest(object):
                 dicPrix[ID] = cout
         return dicPrix
 
+    def GetImmCompos(self,lstChamps):
+        # appel des composants dans les tables immos
+        dlg = self.parent
+        req = """   
+                SELECT %s
+                FROM immobilisations
+                INNER JOIN immosComposants ON immobilisations.IDimmo = immosComposants.IDimmo;
+                """ % (",".join(lstChamps))
+        lstDonnees = []
+        retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetImmCompos')
+        if retour == "ok":
+            lstDonnees = self.db.ResultatReq()
+        dlg.ctrlOlv.listeDonnees = lstDonnees
+        dlg.ctrlOlv.MAJ()
+        dlg.ctrlOlv._FormatAllRows()
+        return
+
     def GetConsosKm(self):
         # appel des consommations de km sur écran Km_saisie
         dlg = self.parent

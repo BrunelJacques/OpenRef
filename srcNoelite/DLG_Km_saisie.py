@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# -------------------------------------------------------------
-# Application :    Noelite, transposition de fichier comptable
-# Usage : Reécrire dans un formatage différent avec fonctions de transposition
+# -------------------------------------------------------------------------------------
+# Application :    Noelite, grille de saisie des conso de km
+# Usage : import d'un saisie excel, puis export d'écritures compables analystiques
 # Auteur:          Jacques BRUNEL
 # Licence:         Licence GNU GPL
-# -------------------------------------------------------------
+# --------------------------------------------------------------------------------------
 
 import wx
 import datetime
@@ -19,7 +19,7 @@ from xpy.outils.ObjectListView  import ColumnDefn, CellEditor
 from xpy.outils                 import xformat,xbandeau,ximport,xexport
 
 #---------------------- Paramètres du programme -------------------------------------
-
+MODULE = 'DLG_Transposition_fichier'
 TITRE = "Saisie des consommations de km"
 INTRO = "Importez un fichier ou saisissez les consommations de km, avant de l'exporter dans un autre format"
 
@@ -223,7 +223,7 @@ class PNL_params(xgc.PNL_paramsLocaux):
         super().__init__(parent, **kwds)
         self.Init()
 
-class PNL_corpsOlv(xgte.PNL_corps):
+class PNL_corps(xgte.PNL_corps):
     #panel olv avec habillage optionnel pour des boutons actions (à droite) des infos (bas gauche) et boutons sorties
     def __init__(self, parent, dicOlv,*args, **kwds):
         xgte.PNL_corps.__init__(self,parent,dicOlv,*args,**kwds)
@@ -367,21 +367,21 @@ class PNL_corpsOlv(xgte.PNL_corps):
                 track.IDtiers = dict['idanalytique']
                 track.nomtiers = dict['nom']
 
-class PNL_Pied(xgte.PNL_Pied):
+class PNL_pied(xgte.PNL_pied):
     #panel infos (gauche) et boutons sorties(droite)
     def __init__(self, parent, dicPied, **kwds):
-        xgte.PNL_Pied.__init__(self,parent, dicPied, **kwds)
+        xgte.PNL_pied.__init__(self,parent, dicPied, **kwds)
 
 class Dialog(xusp.DLG_vide):
     # ------------------- Composition de l'écran de gestion----------
     def __init__(self):
-        super().__init__(None,name='DLG_Transposition_fichier')
+        super().__init__(None,name=MODULE)
         self.ctrlOlv = None
         self.txtInfo =  "Non connecté à une compta"
         self.dicOlv = self.GetParamsOlv()
         self.noegest = nunoegest.Noegest(self)
         self.IDutilisateur = nuutil.GetIDutilisateur()
-        if (not self.IDutilisateur) or not nuutil.VerificationDroitsUtilisateurActuel('consommations_conso','creer'):
+        if (not self.IDutilisateur) or not nuutil.VerificationDroitsUtilisateurActuel('facturation_factures','creer'):
             self.Destroy()
         self.Init()
         self.Sizer()
@@ -403,8 +403,8 @@ class Dialog(xusp.DLG_vide):
         # lancement de l'écran en blocs principaux
         self.pnlBandeau = xbandeau.Bandeau(self,TITRE,INTRO,nomImage="xpy/Images/32x32/Matth.png")
         self.pnlParams = PNL_params(self)
-        self.pnlOlv = PNL_corpsOlv(self, self.dicOlv)
-        self.pnlPied = PNL_Pied(self, dicPied)
+        self.pnlOlv = PNL_corps(self, self.dicOlv)
+        self.pnlPied = PNL_pied(self, dicPied)
         self.ctrlOlv = self.pnlOlv.ctrlOlv
         # connexion compta et affichage bas d'écran
         self.compta = self.GetCompta()
