@@ -12,9 +12,9 @@ import wx
 import srcOpenRef.UTIL_analyses as orua
 import srcOpenRef.UTIL_import as orui
 import xpy.xGestionDB as xdb
-import xpy.xGestion_TableauEditor as xgte
 import unicodedata
 import srcOpenRef.DATA_Tables as dtt
+from xpy.outils     import xformat
 
 CHAMPS_TABLES = {
     '_Balances':['IDdossier','Compte','IDligne','Libellé','MotsCléPrés','Quantités1','Unité1','Quantités2','Unité2',
@@ -405,7 +405,7 @@ def Get_Cout(iddossier,atelier,cout,DBsql,init=True):
 def Set_AtelierVide(iddossier,atelier,DBsql):
     lstChamps, lstTypes, lstHelp = dtt.GetChampsTypes('_Ateliers', tous=True)
     lstTblChamps = lstChamps
-    lstTblValdef = xgte.ValeursDefaut(lstChamps, lstTypes)
+    lstTblValdef = xformat.ValeursDefaut(lstChamps, lstTypes)
     lstTblValdef[lstTblChamps.index('IDdossier')] = iddossier
     lstTblValdef[lstTblChamps.index('IDMatelier')] = atelier
     ret = DBsql.ReqInsert('_Ateliers', lstChamps=lstChamps, lstlstDonnees= lstTblValdef, mess='Insert UTIL_traitement.Set_AtelierVide')
@@ -415,7 +415,7 @@ def Set_AtelierVide(iddossier,atelier,DBsql):
 def Set_ProduitVide(iddossier,atelier,produit,DBsql):
     lstChamps, lstTypes, lstHelp = dtt.GetChampsTypes('_Produits', tous=True)
     lstTblChamps = lstChamps
-    lstTblValdef = xgte.ValeursDefaut( lstChamps, lstTypes)
+    lstTblValdef = xformat.ValeursDefaut( lstChamps, lstTypes)
     lstTblValdef[lstTblChamps.index('IDdossier')] = iddossier
     lstTblValdef[lstTblChamps.index('IDMatelier')] = atelier
     lstTblValdef[lstTblChamps.index('IDMproduit')] = produit
@@ -426,7 +426,7 @@ def Set_ProduitVide(iddossier,atelier,produit,DBsql):
 def Set_CoutVide(iddossier,atelier,cout,DBsql):
     lstChamps, lstTypes, lstHelp = dtt.GetChampsTypes('_Coûts', tous=True)
     lstTblChamps = lstChamps
-    lstTblValdef = xgte.ValeursDefaut( lstChamps, lstTypes)
+    lstTblValdef = xformat.ValeursDefaut( lstChamps, lstTypes)
     lstTblValdef[lstTblChamps.index('IDdossier')] = iddossier
     lstTblValdef[lstTblChamps.index('IDMatelier')] = atelier
     lstTblValdef[lstTblChamps.index('IDMcoût')] = cout

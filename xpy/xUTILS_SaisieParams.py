@@ -11,12 +11,9 @@
 import wx
 import datetime
 import os
-import re
 import wx.propgrid as wxpg
 import copy
-import unicodedata
-import xpy.outils.xformat as xfmt
-from xpy.outils.ObjectListView import ColumnDefn
+from xpy.outils                import xformat
 
 def SetEnableID(matrice,enable=False):
     trouve = False
@@ -128,57 +125,6 @@ def Normalise(genre, name, label, value):
             value = str(value)
     return genre,name,label,value
 
-def NoPunctuationNoSpaces(txt = ''):
-    txt= txt.replace(' ','')
-    punctuation = u"'!\"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~'"
-    regex = re.compile('[%s]' % re.escape(punctuation))
-    return regex.sub(' ', txt)
-
-def SupprimeAccents(texte):
-    # met en minuscule sans accents et sans caractères spéciaux
-    code = ''.join(c for c in unicodedata.normalize('NFD', texte) if unicodedata.category(c) != 'Mn')
-    #code = str(unicodedata.normalize('NFD', texte).encode('ascii', 'ignore'))
-    code = code.lower()
-    code = ''.join(car.lower() for car in code if car not in " %)(.[]',;/\n")
-    return code
-
-def DefColonnes(lstNoms,lstCodes,lstValDef,lstLargeur):
-    # Composition d'une liste de définition de colonnes d'un OLV; remarque faux ami: 'nom, code' == 'label, name'
-    ix=0
-    for lst in (lstCodes,lstValDef,lstLargeur):
-        # complète les listes entrées si nécessaire
-        if lst == None : lst = []
-        if len(lst)< len(lstNoms):
-            lst.extend(['']*(len(lstNoms)-len(lst)))
-    lstColonnes = []
-    for colonne in lstNoms:
-        if isinstance(lstValDef[ix],(str,wx.DateTime)):
-            posit = 'left'
-        else: posit = 'right'
-        # ajoute un converter à partir de la valeur par défaut
-        if isinstance(lstValDef[ix], (float,)):
-            if '%' in colonne:
-                stringConverter = xfmt.FmtPercent
-            else:
-                stringConverter = xfmt.FmtMontant
-        elif isinstance(lstValDef[ix], int):
-            if '%' in colonne:
-                stringConverter = xfmt.FmtPercent
-            else:
-                stringConverter = xfmt.FmtInt
-        elif isinstance(lstValDef[ix], (datetime.date,wx.DateTime)):
-            stringConverter = xfmt.FmtDate
-        else: stringConverter = None
-        if lstLargeur[ix] in ('',None,'None',-1):
-            lstLargeur[ix] = -1
-            isSpaceFilling = True
-        else: isSpaceFilling = False
-        code = lstCodes[ix]
-        lstColonnes.append(ColumnDefn(title=colonne,align=posit,width=lstLargeur[ix],valueGetter=code,valueSetter=lstValDef[ix],
-                                      isSpaceFilling=isSpaceFilling,stringConverter=stringConverter))
-        ix += 1
-    return lstColonnes
-
 def ExtractList(lstin, champDeb=None, champFin=None):
     # Extraction d'une sous liste à partir du contenu des items début et fin
     lstout = []
@@ -202,11 +148,11 @@ def ComposeMatrice(champDeb=None,champFin=None,lstChamps=[],lstTypes=[],lstHelp=
     lstNomsColonnes = ExtractList(lstChamps, champDeb=champDeb, champFin=champFin)
     options = {}
     for key, dic in dicOptions.items():
-        options[SupprimeAccents(key)] = dic
+        options[xformat.SupprimeAccents(key)] = dic
     if lstCodes:
         lstCodesColonnes = lstCodes
     else:
-        lstCodesColonnes = [SupprimeAccents(x) for x in lstNomsColonnes]
+        lstCodesColonnes = [xformat.SupprimeAccents(x) for x in lstNomsColonnes]
     if len(lstTypes) < len(lstChamps) and len(record) == len(lstChamps):
         lstTypes = []
         for valeur in record:
@@ -1039,7 +985,7 @@ class DLG_vide(wx.Dialog):
 
     def OnChildBtnAction(self, event):
         # relais des actions sur les boutons du bas d'écran
-        if self.parent and hasattr(self.parent, 'OnChildBtnAction'):
+        if self.parent != self and hasattr(self.parent, 'OnChildBtnAction'):
             self.parent.OnChildBtnAction(event)
         else:
             action = 'self.%s(event)' % event.EventObject.actionBtn
@@ -1218,7 +1164,6 @@ class FramePanels(wx.Frame):
 
 if __name__ == '__main__':
     app = wx.App(0)
-    print(NoPunctuationNoSpaces("ceci et celà."))
     os.chdir("..")
     dictDonnees = {"bd_reseau": {'serveur': 'my server',
                                  'bdReseau':False,

@@ -16,7 +16,6 @@ WLIBELLE = 100
 COLONNETRI = 2
 
 import wx
-import datetime
 import xpy.outils.xbandeau      as xbd
 import xpy.xGestion_Tableau     as xgt
 import xpy.xUTILS_SaisieParams  as xusp
@@ -25,7 +24,7 @@ import srcNoelite.UTILS_Utilisateurs  as nuu
 import srcNoelite.DLG_Adresses_saisie   as nsa
 import srcNoelite.UTILS_Adresses as nua
 from xpy.outils.ObjectListView import CTRL_Outils
-from xpy.xGestion_TableauEditor import ValeursDefaut, LargeursDefaut
+from xpy.outils         import xformat
 
 def ComposeLstDonnees(record,lstChamps):
     # retourne les données pour colonnes, extraites d'un record défini par une liste de champs
@@ -55,9 +54,9 @@ def GetIndividus():
         wx.MessageBox("Erreur : %s" % retour)
         return 'ko'
     db.Close()
-    lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstNomsColonnes]
-    lstValDefColonnes = ValeursDefaut(lstNomsColonnes, lstTypes)
-    lstLargeurColonnes = LargeursDefaut(lstNomsColonnes, lstTypes)
+    lstCodesColonnes = [xformat.SupprimeAccents(x) for x in lstNomsColonnes]
+    lstValDefColonnes = xformat.ValeursDefaut(lstNomsColonnes, lstTypes)
+    lstLargeurColonnes = xformat.LargeursDefaut(lstNomsColonnes, lstTypes)
     # composition des données du tableau à partir du recordset
     lstDonnees = []
     for record in recordset:
@@ -65,7 +64,7 @@ def GetIndividus():
         lstDonnees.append(ligne)
 
     # matrice OLV
-    lstColonnes = xusp.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
+    lstColonnes = xformat.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
     dicOlv =    {
                 'listeColonnes': lstColonnes,
                 'listeDonnees': lstDonnees,
@@ -101,9 +100,9 @@ def GetFamilles():
         wx.MessageBox("Erreur : %s" % retour)
         return 'ko'
     db.Close()
-    lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstNomsColonnes]
-    lstValDefColonnes = ValeursDefaut(lstNomsColonnes, lstTypes)
-    lstLargeurColonnes = LargeursDefaut(lstNomsColonnes, lstTypes)
+    lstCodesColonnes = [xformat.SupprimeAccents(x) for x in lstNomsColonnes]
+    lstValDefColonnes = xformat.ValeursDefaut(lstNomsColonnes, lstTypes)
+    lstLargeurColonnes = xformat.LargeursDefaut(lstNomsColonnes, lstTypes)
     # composition des données du tableau à partir du recordset
     lstDonnees = []
     for record in recordset:
@@ -111,7 +110,7 @@ def GetFamilles():
         lstDonnees.append(ligne)
 
     # matrice OLV
-    lstColonnes = xusp.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
+    lstColonnes = xformat.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
     dicOlv =    {
                 'listeColonnes': lstColonnes,
                 'listeDonnees': lstDonnees,

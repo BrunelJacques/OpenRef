@@ -9,12 +9,12 @@
 #------------------------------------------------------------------------
 
 import wx
+import datetime
 import srcNoelite.UTILS_Historique  as nuh
 import xpy.xGestion_TableauEditor   as xgte
 import xpy.xGestion_TableauRecherche as xgtr
 import xpy.xUTILS_SaisieParams      as xusp
-import xpy.outils.xformat           as xfor
-import datetime
+from xpy.outils import xformat
 
 SYMBOLE = "€"
 
@@ -32,10 +32,10 @@ def GetMatriceFamilles():
 
     lstTypes = ['INTEGER','INTEGER','VARCHAR(80)','VARCHAR(30)','VARCHAR(100)',
                 'VARCHAR(90)','VARCHAR(120)']
-    lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstNomsColonnes]
-    lstValDefColonnes = xgte.ValeursDefaut(lstNomsColonnes, lstTypes)
-    lstLargeurColonnes = xgte.LargeursDefaut(lstNomsColonnes, lstTypes)
-    lstColonnes = xusp.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
+    lstCodesColonnes = [xformat.SupprimeAccents(x) for x in lstNomsColonnes]
+    lstValDefColonnes = xformat.ValeursDefaut(lstNomsColonnes, lstTypes)
+    lstLargeurColonnes = xformat.LargeursDefaut(lstNomsColonnes, lstTypes)
+    lstColonnes = xformat.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
     return   {
                 'listeColonnes': lstColonnes,
                 'listeChamps':lstChamps,
@@ -120,10 +120,10 @@ def GetMatriceDepots():
     lstNomsColonnes = ['0','numéro', 'date', 'nomDépôt', 'banque', 'nbre', 'total', 'détail', 'observations']
 
     lstTypes = ['INTEGER','INTEGER','VARCHAR(10)','VARCHAR(80)','VARCHAR(130)','VARCHAR(10)','VARCHAR(10)','VARCHAR(170)','VARCHAR(170)']
-    lstCodesColonnes = [xusp.SupprimeAccents(x).lower() for x in lstNomsColonnes]
-    lstValDefColonnes = xgte.ValeursDefaut(lstNomsColonnes, lstTypes)
-    lstLargeurColonnes = xgte.LargeursDefaut(lstNomsColonnes, lstTypes)
-    lstColonnes = xusp.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
+    lstCodesColonnes = [xformat.SupprimeAccents(x).lower() for x in lstNomsColonnes]
+    lstValDefColonnes = xformat.ValeursDefaut(lstNomsColonnes, lstTypes)
+    lstLargeurColonnes = xformat.LargeursDefaut(lstNomsColonnes, lstTypes)
+    lstColonnes = xformat.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
     return   {
                 'listeColonnes': lstColonnes,
                 'listeChamps':lstChamps,
@@ -388,7 +388,7 @@ def ValideLigne(db,track):
 def SetPrestation(track,db):
     # --- Sauvegarde de la prestation ---
     listeDonnees = [
-        ("date", xfor.DatetimeToStr(datetime.date.today(),iso=True)),
+        ("date", xformat.DatetimeToStr(datetime.date.today(),iso=True)),
         ("categorie", track.nature),
         ("label", track.libelle),
         ("montant_initial", track.montant),
@@ -520,21 +520,21 @@ def SetReglement(dlg,track,db):
     listeDonnees = [
         ("IDreglement", track.IDreglement),
         ("IDcompte_payeur", track.IDfamille),
-        ("date", xfor.DatetimeToStr(track.date,iso=True)),
+        ("date", xformat.DatetimeToStr(track.date,iso=True)),
         ("IDmode", IDmode),
         ("numero_piece", track.numero),
         ("montant", track.montant),
         ("IDpayeur", IDpayeur),
         ("observations", track.libelle),
         ("IDcompte", dlg.GetIDbanque()),
-        ("date_saisie", xfor.DatetimeToStr(datetime.date.today(),iso=True)),
+        ("date_saisie", xformat.DatetimeToStr(datetime.date.today(),iso=True)),
         ("IDutilisateur", dlg.IDutilisateur),
     ]
     if dlg.withDepot:
         listeDonnees.append(("IDdepot",dlg.IDdepot))
     attente = 0
     if hasattr(track,'differe'):
-        listeDonnees.append(("date_differe", xfor.DatetimeToStr(track.differe,iso=True)))
+        listeDonnees.append(("date_differe", xformat.DatetimeToStr(track.differe,iso=True)))
         if len(track.differe) > 0:
             attente = 1
     listeDonnees.append(("encaissement_attente",attente))
@@ -592,10 +592,10 @@ class Article(object):
         lstNomsColonnes = ["0","compte","code","libellé"]
 
         lstTypes = ['INTEGER','VARCHAR(8)','VARCHAR(16)','VARCHAR(100)']
-        lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstNomsColonnes]
-        lstValDefColonnes = xgte.ValeursDefaut(lstNomsColonnes, lstTypes)
-        lstLargeurColonnes = xgte.LargeursDefaut(lstNomsColonnes, lstTypes)
-        lstColonnes = xusp.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
+        lstCodesColonnes = [xformat.SupprimeAccents(x) for x in lstNomsColonnes]
+        lstValDefColonnes = xformat.ValeursDefaut(lstNomsColonnes, lstTypes)
+        lstLargeurColonnes = xformat.LargeursDefaut(lstNomsColonnes, lstTypes)
+        lstColonnes = xformat.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
         return   {
                     'listeColonnes': lstColonnes,
                     'listeChamps':lstChamps,
@@ -682,7 +682,7 @@ def SetDepot(dlg,db):
     # cas d'un nouveau depot à créer, retourne l'IDdepot
     IDdepot = None
     listeDonnees = [
-        ("date", xfor.DatetimeToStr(datetime.date.today(), iso=True)),
+        ("date", xformat.DatetimeToStr(datetime.date.today(), iso=True)),
         ("nom", "Saisie règlements via Noelite"),
         ("IDcompte", dlg.GetIDbanque()),
     ]

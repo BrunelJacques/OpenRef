@@ -3,6 +3,8 @@ SYMBOLE = "€"
 
 import wx
 import datetime
+import unicodedata
+from xpy.outils.ObjectListView import ColumnDefn
 
 # Filtres OLV conditions possibles
 CHOIX_FILTRES = {float:[
@@ -55,6 +57,98 @@ CHOIX_FILTRES = {float:[
                             ('INFEGAL', 'inférieur ou égal à '),
                             ('SUPEGAL', 'supérieur ou égal à ')],
 }
+
+# fonction olv
+
+def SupprimeAccents(texte):
+    # met en minuscule sans accents et sans caractères spéciaux
+    code = ''.join(c for c in unicodedata.normalize('NFD', texte) if unicodedata.category(c) != 'Mn')
+    #code = str(unicodedata.normalize('NFD', texte).encode('ascii', 'ignore'))
+    code = code.lower()
+    code = ''.join(car.lower() for car in code if car not in " %)(.[]',;/\n")
+    return code
+
+def GetLstChamps(table=None):
+    return [x for x,y,z in table ]
+
+def GetLstColonnes(table=None):
+    lstNomsColonnes = [x for x, y, z in table]
+    lstTypes = [y for x, y, z in table]
+    lstCodesColonnes = [SupprimeAccents(x) for x in lstNomsColonnes]
+    lstValDefColonnes = ValeursDefaut(lstNomsColonnes, lstTypes)
+    lstLargeurColonnes = LargeursDefaut(lstNomsColonnes, lstTypes)
+    return DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
+
+def DefColonnes(lstNoms,lstCodes,lstValDef,lstLargeur):
+    # Composition d'une liste de définition de colonnes d'un OLV; remarque faux ami: 'nom, code' == 'label, name'
+    ix=0
+    for lst in (lstCodes,lstValDef,lstLargeur):
+        # complète les listes entrées si nécessaire
+        if lst == None : lst = []
+        if len(lst)< len(lstNoms):
+            lst.extend(['']*(len(lstNoms)-len(lst)))
+    lstColonnes = []
+    for colonne in lstNoms:
+        if isinstance(lstValDef[ix],(str,wx.DateTime)):
+            posit = 'left'
+        else: posit = 'right'
+        # ajoute un converter à partir de la valeur par défaut
+        if isinstance(lstValDef[ix], (float,)):
+            if '%' in colonne:
+                stringConverter = FmtPercent
+            else:
+                stringConverter = FmtMontant
+        elif isinstance(lstValDef[ix], int):
+            if '%' in colonne:
+                stringConverter = FmtPercent
+            else:
+                stringConverter = FmtInt
+        elif isinstance(lstValDef[ix], (datetime.date,wx.DateTime)):
+            stringConverter = FmtDate
+        else: stringConverter = None
+        if lstLargeur[ix] in ('',None,'None',-1):
+            lstLargeur[ix] = -1
+            isSpaceFilling = True
+        else: isSpaceFilling = False
+        code = lstCodes[ix]
+        lstColonnes.append(ColumnDefn(title=colonne,align=posit,width=lstLargeur[ix],valueGetter=code,valueSetter=lstValDef[ix],
+                                      isSpaceFilling=isSpaceFilling,stringConverter=stringConverter))
+        ix += 1
+    return lstColonnes
+
+def ValeursDefaut(lstNomsColonnes,lstTypes):
+    # Détermine des valeurs par défaut selon le type des variables
+    lstValDef = [0,]
+    for ix in range(1,len(lstNomsColonnes)):
+        tip = lstTypes[ix].lower()
+        if tip[:3] == 'int': lstValDef.append(0)
+        elif tip[:10] == 'tinyint(1)': lstValDef.append(False)
+        elif tip[:5] == 'float': lstValDef.append(0.0)
+        elif tip[:4] == 'date': lstValDef.append(datetime.date(1900,1,1))
+        else: lstValDef.append('')
+    return lstValDef
+
+def LargeursDefaut(lstNomsColonnes,lstTypes,IDcache=True):
+    # Evaluation de la largeur nécessaire des colonnes selon le type de donnee et la longueur du champ
+    lstLargDef=[]
+    ix =0
+    if IDcache:
+        lstLargDef = [0,]
+        ix = 1
+    for ix in range(ix, len(lstNomsColonnes)):
+        tip = lstTypes[ix]
+        tip = tip.lower()
+        if tip[:3] == 'int': lstLargDef.append(50)
+        elif tip[:5] == 'float': lstLargDef.append(60)
+        elif tip[:4] == 'date': lstLargDef.append(80)
+        elif tip[:7] == 'varchar':
+            lg = int(tip[8:-1])*8
+            if lg > 150: lg = -1
+            lstLargDef.append(lg)
+        elif 'blob' in tip:
+            lstLargDef.append(250)
+        else: lstLargDef.append(40)
+    return lstLargDef
 
 # Conversion wx.Datetime % datetime.date
 def DatetimeToWxdate(date):

@@ -17,9 +17,9 @@ import xpy.xGestionDB as xdb
 import xpy.xUTILS_SaisieParams as xusp
 import xpy.xGestion_Tableau as xgt
 import xpy.xGestion_Ligne as xgl
-import xpy.outils.xformat as xfmt
 import xpy.outils.xselection as xsel
-from xpy.xGestion_TableauEditor import LargeursDefaut, ValeursDefaut
+from xpy.outils                 import xformat
+from xpy.outils.xformat import LargeursDefaut, ValeursDefaut
 
 def Tronque35(txt):
     # tronque les  premiers caractères d'une chaîne
@@ -250,7 +250,7 @@ class Balance():
         lstNomsColonnes =   xusp.ExtractList(lstChamps,champDeb='IDdossier',champFin='IDligne')\
                             + xusp.ExtractList(lstChamps,champDeb='IDplanCompte',champFin='Affectation')\
                             + xusp.ExtractList(lstChamps,champDeb='Libellé',champFin='SoldeFin')
-        lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstNomsColonnes]
+        lstCodesColonnes = [xformat.SupprimeAccents(x) for x in lstNomsColonnes]
         lstValDefColonnes = ValeursDefaut(lstNomsColonnes,lstTypes)
         lstLargeurColonnes = LargeursDefaut(lstNomsColonnes,lstChamps,lstTypes)
         # mask de la colonne numéro de ligne
@@ -262,7 +262,7 @@ class Balance():
             lstDonnees.append(ligne)
 
         # matrice OLV
-        lstColonnes = xusp.DefColonnes(lstNomsColonnes,lstCodesColonnes,lstValDefColonnes,lstLargeurColonnes)
+        lstColonnes = xformat.DefColonnes(lstNomsColonnes,lstCodesColonnes,lstValDefColonnes,lstLargeurColonnes)
         dicOlv = {
                 'lanceur': self,
                 'listeColonnes': lstColonnes,
@@ -307,7 +307,7 @@ class Balance():
         self.ctrlolv = self.dlgolv.ctrlOlv
         self.ctrlolv.lstTblHelp = lstHelp
         self.ctrlolv.lstTblChamps = lstChamps
-        self.ctrlolv.lstTblCodes = [xusp.SupprimeAccents(x) for x in lstChamps]
+        self.ctrlolv.lstTblCodes = [xformat.SupprimeAccents(x) for x in lstChamps]
         self.ctrlolv.lstTblValdef = ValeursDefaut(lstChamps,lstTypes)
         self.ctrlolv.recordset = recordset
         if len(lstDonnees)>0:
@@ -497,7 +497,7 @@ class Balance():
                 cdCateg = categorie
             if 'dbmvt' in  dicDonnees: dbmvt = dicDonnees['dbmvt']
             if 'crmvt' in  dicDonnees: crmvt = dicDonnees['crmvt']
-        soldefin= str(round(xfmt.Nz(soldedeb) - xfmt.Nz(crmvt) + xfmt.Nz(dbmvt),2))
+        soldefin= str(round(xformat.Nz(soldedeb) - xformat.Nz(crmvt) + xformat.Nz(dbmvt),2))
         ddDonnees = {cdCateg:{'soldefin':soldefin}}
         ret = self.saisie.dlg.pnl.SetValeurs(ddDonnees)
         event.Skip()
@@ -595,7 +595,7 @@ class Ateliers():
     def EcranAteliers(self,ixsel=0):
         champsRequete = dtt.GetChamps('_Ateliers')
         champsRequete.extend(['NomAtelier','UnitéCapacité'])
-        self.lstCodesRequete = [xusp.SupprimeAccents(x) for x in champsRequete]
+        self.lstCodesRequete = [xformat.SupprimeAccents(x) for x in champsRequete]
         champsSelect =  [ '_Ateliers.%s'%x for x in dtt.GetChamps('_Ateliers')]
         champsSelect.extend(['mAteliers.NomAtelier','mAteliers.UnitéCapacité'])
         champsSelect = str(champsSelect)[1:-1]
@@ -620,7 +620,7 @@ class Ateliers():
         # la listes ChampsColonnes permet de faire le lien avec la table d'origine en modification
         lstChampsColonnes = ['ix','IDdossier','IDMatelier','Désignation','Capacité','UnitéCapacité','AutreProduit','Subventions',
                              'Comm','Conditionnement','AutresAppros','AutresServices','AmosSpécif',]
-        lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstChampsColonnes]
+        lstCodesColonnes = [xformat.SupprimeAccents(x) for x in lstChampsColonnes]
 
         lstValDefColonnes = [0,0,"","",0.0,"",0.0,0.0,
                             0.0,0.0,0.0,0.0,0.0]
@@ -647,7 +647,7 @@ class Ateliers():
             lstDonnees.append(ligne)
             ix += 1
         # matrice OLV
-        lstColonnes = xusp.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
+        lstColonnes = xformat.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
 
         dicOlv = {
             'lanceur': self,
@@ -690,7 +690,7 @@ class Ateliers():
         self.ctrlolv = self.dlgolv.ctrlOlv
         self.ctrlolv.lstTblHelp = lstHelp
         self.ctrlolv.lstTblChamps = self.lstTblChamps
-        self.ctrlolv.lstTblCodes = [xusp.SupprimeAccents(x) for x in self.lstTblChamps]
+        self.ctrlolv.lstTblCodes = [xformat.SupprimeAccents(x) for x in self.lstTblChamps]
         self.ctrlolv.lstTblValdef = ValeursDefaut(self.lstTblChamps,lstTypes)
         self.ctrlolv.recordset = recordset
         if len(lstDonnees) > 0:
@@ -727,7 +727,7 @@ class Ateliers():
         champdeb = 'IDMatelier'
         champfin = 'Validation'
         lstEcrChamps = xusp.ExtractList(self.lstTblChamps,champdeb,champfin)
-        lstEcrCodes = [xusp.SupprimeAccents(x) for x in lstEcrChamps]
+        lstEcrCodes = [xformat.SupprimeAccents(x) for x in lstEcrChamps]
 
         kwds = {'pos': (350, 20)}
         kwds['minSize'] = (350, 600)
@@ -741,7 +741,7 @@ class Ateliers():
         dicOptions = {'idmatelier': {'enable': False,},}
         # disable de tous les champs de synthèse
         for ix in range(self.lstTblChamps.index('AutreProduit'),self.lstTblChamps.index('CPTAmosSpécif')+1):
-            code = xusp.SupprimeAccents(self.lstTblChamps[ix])
+            code = xformat.SupprimeAccents(self.lstTblChamps[ix])
             if code[:3]=='cpt':
                 dicOptions[code] = {
                     'enable': False,
@@ -846,7 +846,7 @@ class Infos():
     def EcranInfos(self,ixsel=0):
         champsRequete = dtt.GetChamps('_Infos')
         champsRequete.extend(['NomInfo','Type'])
-        self.lstCodesRequete = [xusp.SupprimeAccents(x) for x in champsRequete]
+        self.lstCodesRequete = [xformat.SupprimeAccents(x) for x in champsRequete]
         champsSelect =  [ '_Infos.%s'%x for x in dtt.GetChamps('_Infos')]
         champsSelect.extend(['mInfos.NomInfo','mInfos.Type'])
         champsSelect = str(champsSelect)[1:-1]
@@ -869,7 +869,7 @@ class Infos():
         lstNomsColonnes = ['ix','Dossier','Info','Désignation','Type','Num','Bool','Texte']
         # la listes ChampsColonnes permet de faire le lien avec la table d'origine en modification
         self.lstChampsColonnes = ['ix','IDdossier','IDMinfo','Désignation','Type','Numerique','Bool','Texte']
-        lstCodesColonnes = [xusp.SupprimeAccents(x) for x in self.lstChampsColonnes]
+        lstCodesColonnes = [xformat.SupprimeAccents(x) for x in self.lstChampsColonnes]
 
         lstValDefColonnes = [0,0,"","","",0.0,0,""]
         lstChamps, lstTypes, lstHelp = dtt.GetChampsTypes(self.table,tous=True)
@@ -892,7 +892,7 @@ class Infos():
             lstDonnees.append(ligne)
             ix += 1
         # matrice OLV
-        lstColonnes = xusp.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
+        lstColonnes = xformat.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
 
         dicOlv = {
             'lanceur': self,
@@ -935,7 +935,7 @@ class Infos():
         self.ctrlolv = self.dlgolv.ctrlOlv
         self.ctrlolv.lstTblHelp = lstHelp
         self.ctrlolv.lstTblChamps = self.lstTblChamps
-        self.ctrlolv.lstTblCodes = [xusp.SupprimeAccents(x) for x in self.lstTblChamps]
+        self.ctrlolv.lstTblCodes = [xformat.SupprimeAccents(x) for x in self.lstTblChamps]
         self.ctrlolv.lstTblValdef = ValeursDefaut(self.lstTblChamps,lstTypes)
         self.ctrlolv.recordset = recordset
         if len(lstDonnees) > 0:
@@ -971,7 +971,7 @@ class Infos():
         champdeb = 'IDMinfo'
         champfin = 'Texte'
         lstEcrChamps = xusp.ExtractList(self.lstChampsColonnes,champdeb,champfin)
-        lstEcrCodes = [xusp.SupprimeAccents(x) for x in lstEcrChamps]
+        lstEcrCodes = [xformat.SupprimeAccents(x) for x in lstEcrChamps]
 
         kwds = {'pos': (350, 20)}
         kwds['minSize'] = (350, 600)
@@ -1118,7 +1118,7 @@ class Produits():
     def EcranProduits(self,ixsel=0):
         champsRequete = "IDdossier,IDmatelier,IDmproduit,nomProduitDef,nomProduit,moisRecolte,prodPrincipalDef,surfaceProd,uniteSau,\
         comptes,quantite,uniteQte,ventes,achatAnmx,deltaStock,autreProd,prodPrincipal,TypesProduit,NoLigne,StockFin,Effectif"
-        self.lstCodesRequete = [xusp.SupprimeAccents(x) for x in champsRequete.split(',')]
+        self.lstCodesRequete = [xformat.SupprimeAccents(x) for x in champsRequete.split(',')]
         # appel des produits utilisés dans le dossier pour affichage en tableau
         req = """SELECT _Produits.IDdossier,_Produits.IDMatelier, _Produits.IDMproduit, mProduits.NomProduit, _Produits.NomProdForcé, 
                         mProduits.MoisRécolte, mProduits.ProdPrincipal, _Produits.SurfaceProd, mProduits.UniteSAU,
@@ -1146,7 +1146,7 @@ class Produits():
         lstChampsColonnes = ["ix","IDdossier", "IDMatelier", "IDMproduit", "nomProdCompos", "MoisRécolte", "ProdPrincipal",
                              "SurfaceProd","UnitéSau","Comptes", "Quantité1", "UnitéQté1", "Product", "TypesProduit",
                              "NoLigne", "StockFin","EffectifMoyen"]
-        lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstChampsColonnes]
+        lstCodesColonnes = [xformat.SupprimeAccents(x) for x in lstChampsColonnes]
 
         lstValDefColonnes = [0,0,"","","",0,0,0.0,"",
                            "",0.0,"",0.0,"",0,0.0,0.0]
@@ -1161,7 +1161,7 @@ class Produits():
             product = 0.0
             # calcul du produit
             for prod in [ventes,achatAnmx,deltaStock,autreProd]:
-                product += xfmt.Nz(prod)
+                product += xformat.Nz(prod)
             product = round(product,2)
             if not nomProduit: nomProduit = nomProduitDef
             if not prodPrincipal: prodPrincipal = prodPrincipalDef
@@ -1169,7 +1169,7 @@ class Produits():
                                comptes,quantite,uniteQte,product,TypesProduit,NoLigne,StockFin,Effectif])
             ix += 1
         # matrice OLV
-        lstColonnes = xusp.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
+        lstColonnes = xformat.DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
         dicOlv = {
             'lanceur': self,
             'listeColonnes': lstColonnes,
@@ -1208,7 +1208,7 @@ class Produits():
         self.ctrlolv = self.dlgolv.ctrlOlv
         self.ctrlolv.lstTblHelp = lstHelp
         self.ctrlolv.lstTblChamps = lstChamps
-        self.ctrlolv.lstTblCodes = [xusp.SupprimeAccents(x) for x in lstChamps]
+        self.ctrlolv.lstTblCodes = [xformat.SupprimeAccents(x) for x in lstChamps]
         self.ctrlolv.lstTblValdef = ValeursDefaut(lstChamps,lstTypes)
         self.ctrlolv.recordset = recordset
         if len(lstDonnees) > 0:
@@ -1246,7 +1246,7 @@ class Produits():
         champfin = 'NoLigne'
         lstTblChamps = dtt.GetChamps(self.table, tous=True)
         lstEcrChamps = xusp.ExtractList(lstTblChamps,champdeb,champfin)
-        lstEcrCodes = [xusp.SupprimeAccents(x) for x in lstEcrChamps]
+        lstEcrCodes = [xformat.SupprimeAccents(x) for x in lstEcrChamps]
 
         kwds = {'pos': (350, 20)}
         kwds['minSize'] = (350, 600)
@@ -1447,7 +1447,7 @@ class Affectations():
             return 'ko'
         lstNomsColonnes = ["ID","agc","Noclient","Clôture","nomExploitation","validé","nbreMois","fiscal","ventes",
                            "%affecté","nbElem","Element","Vtes/Elem","filières","productions"]
-        lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstNomsColonnes]
+        lstCodesColonnes = [xformat.SupprimeAccents(x) for x in lstNomsColonnes]
 
         lstValDefColonnes = [0,"","",datetime.date(1900,1,1),"",0,0,"",0.0,
                            0.0,0,"",0.0,"",""]
@@ -1461,7 +1461,7 @@ class Affectations():
             if nbElemCar != 0.0:
                 rendement = -ventes / nbElemCar
             else: rendement = 0.0
-            dtcloture = xfmt.DateSqlToDatetime(cloture)
+            dtcloture = xformat.DateSqlToDatetime(cloture)
             lstDonnees.append([IDdossier,IDagc,exploitation,dtcloture,nomExploitation,valide,nbreMois,fiscal,-ventes,affecT,
                                nbElemCar,elemCar,rendement,filieres,productions])
 
@@ -1469,7 +1469,7 @@ class Affectations():
         if self.topwin:
             self.topWindow.SetStatusText(messBasEcran)
         # matrice OLV
-        lstColonnes = xusp.DefColonnes(lstNomsColonnes,lstCodesColonnes,lstValDefColonnes,lstLargeurColonnes)
+        lstColonnes = xformat.DefColonnes(lstNomsColonnes,lstCodesColonnes,lstValDefColonnes,lstLargeurColonnes)
         # forcer l'alignement à droite des production pour éviter le titre
         colonneprod = lstColonnes[-1]
         colonneprod.stringConverter = Tronque35
@@ -1536,7 +1536,7 @@ class Affectations():
 
         lstChamps, lstTypes, lstHelp = dtt.GetChampsTypes('_Ident',tous=True)
         self.ctrlolv.lstTblChamps = lstChamps
-        self.ctrlolv.lstTblCodes = [xusp.SupprimeAccents(x) for x in lstChamps]
+        self.ctrlolv.lstTblCodes = [xformat.SupprimeAccents(x) for x in lstChamps]
         self.ctrlolv.lstTblHelp = lstHelp
         dictMatrice = {}
         dictDonnees = {}

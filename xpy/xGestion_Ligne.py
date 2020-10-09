@@ -12,11 +12,7 @@ import wx
 import datetime
 import os
 import wx.propgrid as wxpg
-import unicodedata
-import xpy.outils.xformat           as xfmt
-import xpy.xUTILS_SaisieParams      as xusp
-from xpy.outils.ObjectListView import ColumnDefn
-from xpy.xGestion_TableauEditor import ValeursDefaut,LargeursDefaut
+from xpy.outils                 import xformat
 
 def Transpose(matrice,dlColonnes,lddDonnees):
     # Transposition des lignes de la matrice pour présentation colonnes dans le format grille listCtrl
@@ -93,39 +89,6 @@ def Normalise(genre, name, label, value):
             value = str(value)
     return genre,name,label,value
 
-def DefColonnes(lstNoms,lstCodes,lstValDef,lstLargeur):
-    # Composition d'une liste de définition de colonnes d'un OLV; remarque faux ami: 'nom, code' == 'label, name'
-    ix=0
-    for lst in (lstCodes,lstValDef,lstLargeur):
-        # complète les listes entrées si nécessaire
-        if lst == None : lst = []
-        if len(lst)< len(lstNoms):
-            lst.extend(['']*(len(lstNoms)-len(lst)))
-    lstColonnes = []
-    for colonne in lstNoms:
-        if isinstance(lstValDef[ix],(str,wx.DateTime)):
-            posit = 'left'
-        else: posit = 'right'
-        # ajoute un converter à partir de la valeur par défaut
-        if isinstance(lstValDef[ix], (float,)):
-            if '%' in colonne:
-                stringConverter = xfmt.FmtPercent
-            else:
-                stringConverter = xfmt.FmtInt
-        elif isinstance(lstValDef[ix], int):
-            stringConverter = xfmt.FmtInt
-        elif isinstance(lstValDef[ix], (datetime.date,wx.DateTime)):
-            stringConverter = xfmt.FmtDate
-        else: stringConverter = None
-        if lstLargeur[ix] in ('',None,'None',-1):
-            lstLargeur[ix] = -1
-            isSpaceFilling = True
-        else: isSpaceFilling = False
-        lstColonnes.append(ColumnDefn(title=colonne,align=posit,width=lstLargeur[ix],valueGetter=lstCodes[ix],valueSetter=lstValDef[ix],
-                                      isSpaceFilling=isSpaceFilling,stringConverter=stringConverter))
-        ix += 1
-    return lstColonnes
-
 def ExtractList(lstin, champDeb=None, champFin=None):
     # Extraction d'une sous liste à partir du contenu des items début et fin
     lstout = []
@@ -147,11 +110,11 @@ def ComposeMatrice(lstChamps=[],lstTypes=[],lstHelp=[],record=(),dicOptions={},l
     # Retourne une matrice (liste de dic[param]:valeurParam) et  donnees (dic[codechamp]:valeur)
     options = {}
     for key, dic in dicOptions.items():
-        options[xusp.SupprimeAccents(key)] = dic
+        options[xformat.SupprimeAccents(key)] = dic
     if lstCodes:
         lstCodesColonnes = lstCodes
     else:
-        lstCodesColonnes = [xusp.SupprimeAccents(x) for x in lstChamps]
+        lstCodesColonnes = [xformat.SupprimeAccents(x) for x in lstChamps]
     if len(lstTypes) < len(lstChamps) and len(record) == len(lstChamps):
         lstTypes = []
         for valeur in record:
@@ -443,7 +406,7 @@ class PNL_ctrl(wx.Panel):
                 if lgenre in ['int','float']:
                     lvalue = str(lvalue)
                 if lgenre in ['date','time','datetime']:
-                    lvalue = xfmt.DatetimeToStr(lvalue,iso=False)
+                    lvalue = xformat.DatetimeToStr(lvalue,iso=False)
                 self.ctrl.SetValue(lvalue)
             if help:
                 self.ctrl.SetToolTip(help)
@@ -841,8 +804,8 @@ class Gestion_ligne(object):
         lstChamps, lstTypes, lstHelp = datatable.GetChampsTypes(table, tous=True)
         self.lstTblHelp = lstHelp
         self.lstTblChamps = lstChamps
-        self.lstTblCodes = [xusp.SupprimeAccents(x) for x in lstChamps]
-        self.lstTblValdef = ValeursDefaut(lstChamps,lstTypes)
+        self.lstTblCodes = [xformat.SupprimeAccents(x) for x in lstChamps]
+        self.lstTblValdef = xformat.ValeursDefaut(lstChamps,lstTypes)
         self.lstTblValeurs = []
         if ctrlolv:
             self.lstOlvCodes = ctrlolv.lstCodesColonnes
@@ -1067,8 +1030,8 @@ class Gestion_ligne(object):
             valdef = self.ctrlolv.lstTblValdef[ix]
             if not valorigine: valorigine = valdef
             if isinstance(valdef,(int,float)) and champ[:2].lower() != 'id':
-                valeur = xfmt.Nz(valeur)
-                valreste = xfmt.Nz(valorigine) - valeur
+                valeur = xformat.Nz(valeur)
+                valreste = xformat.Nz(valorigine) - valeur
                 if valreste < 0.0 : valreste = 0.0
                 lstMaj.append((champ,valreste))
                 lstIns.append((champ,valeur))

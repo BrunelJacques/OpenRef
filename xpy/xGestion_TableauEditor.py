@@ -16,49 +16,6 @@ from xpy.outils.xconst import *
 import datetime
 import xpy.xUTILS_SaisieParams as xusp
 
-#------------- Fonctions liées aux appels de données pour OLV ------------------------------
-
-def ComposeLstDonnees(record,lstChamps):
-    # retourne les données pour colonnes, extraites d'un record défini par une liste de champs
-    lstdonnees=[]
-    for ix in range(len(lstChamps)):
-        lstdonnees.append(record[ix])
-    return lstdonnees
-
-def ValeursDefaut(lstNomsColonnes,lstTypes):
-    # Détermine des valeurs par défaut selon le type des variables
-    lstValDef = [0,]
-    for ix in range(1,len(lstNomsColonnes)):
-        tip = lstTypes[ix].lower()
-        if tip[:3] == 'int': lstValDef.append(0)
-        elif tip[:10] == 'tinyint(1)': lstValDef.append(False)
-        elif tip[:5] == 'float': lstValDef.append(0.0)
-        elif tip[:4] == 'date': lstValDef.append(datetime.date(1900,1,1))
-        else: lstValDef.append('')
-    return lstValDef
-
-def LargeursDefaut(lstNomsColonnes,lstTypes,IDcache=True):
-    # Evaluation de la largeur nécessaire des colonnes selon le type de donnee et la longueur du champ
-    lstLargDef=[]
-    ix =0
-    if IDcache:
-        lstLargDef = [0,]
-        ix = 1
-    for ix in range(ix, len(lstNomsColonnes)):
-        tip = lstTypes[ix]
-        tip = tip.lower()
-        if tip[:3] == 'int': lstLargDef.append(50)
-        elif tip[:5] == 'float': lstLargDef.append(60)
-        elif tip[:4] == 'date': lstLargDef.append(80)
-        elif tip[:7] == 'varchar':
-            lg = int(tip[8:-1])*8
-            if lg > 150: lg = -1
-            lstLargDef.append(lg)
-        elif 'blob' in tip:
-            lstLargDef.append(250)
-        else: lstLargDef.append(40)
-    return lstLargDef
-
 # ----------- Objets divers ----------------------------------------------------------------
 
 def GetItemsBtn(pnl,lstBtns):

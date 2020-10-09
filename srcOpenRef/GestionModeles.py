@@ -16,7 +16,7 @@ import xpy.xUTILS_SaisieParams as xusp
 import xpy.xGestion_Tableau as xgt
 import xpy.xGestion_Ligne as xgl
 import xpy.outils.xdatatables as xdtt
-from xpy.xGestion_TableauEditor import ValeursDefaut, LargeursDefaut
+from xpy.outils     import xformat
 
 class EcranOlv(object):
     def __init__(self, parent,nomtable='',dbtable=None,title=None):
@@ -31,12 +31,12 @@ class EcranOlv(object):
         self.lstTblChamps, self.lstTblTypes, self.lstTblHelp = [],[],[]
         if dbtable:
             self.lstTblChamps, self.lstTblTypes, self.lstTblHelp = xdtt.GetChampsTypes(dbtable, tous=True)
-            self.lstTblValdef = ValeursDefaut(self.lstTblChamps, self.lstTblTypes)
-            self.lstLargeurColonnes = LargeursDefaut(self.lstTblChamps, self.lstTblTypes)
+            self.lstTblValdef = xformat.ValeursDefaut(self.lstTblChamps, self.lstTblTypes)
+            self.lstLargeurColonnes = xformat.LargeursDefaut(self.lstTblChamps, self.lstTblTypes)
         else:
             self.lstTblChamps = ['*']
             self.lstTblValdef = []
-        self.lstTblCodes = [xusp.SupprimeAccents(x) for x in self.lstTblChamps]
+        self.lstTblCodes = [xformat.SupprimeAccents(x) for x in self.lstTblChamps]
  
         self.req = "SELECT * FROM %s;"%(self.table)
         ret = self.InitSql()
@@ -44,7 +44,7 @@ class EcranOlv(object):
 
     def InitSql(self):
         self.lstReqChamps = self.lstTblChamps
-        self.lstReqCodes = [xusp.SupprimeAccents(x) for x in self.lstReqChamps]
+        self.lstReqCodes = [xformat.SupprimeAccents(x) for x in self.lstReqChamps]
         self.DBsql = xdb.DB()
         retour = "ko"
         if self.DBsql.echec == 0:
@@ -68,7 +68,7 @@ class EcranOlv(object):
         self.lstColChamps = champsCol
         if len(champsCol) == 0: self.lstColChamps = self.lstReqChamps
 
-        self.lstColCodes = [xusp.SupprimeAccents(x) for x in self.lstTblChamps]
+        self.lstColCodes = [xformat.SupprimeAccents(x) for x in self.lstTblChamps]
         self.lstColValDef = valdef
         if len(valdef) < len(self.lstColChamps):
             self.lstColValDef.extend([''* (len(self.lstColChamps)-len(valdef))])
@@ -94,7 +94,7 @@ class EcranOlv(object):
             lstDonnees.append(ligne)
             ix += 1
         # matrice OLV
-        lstColonnes = xusp.DefColonnes(self.lstTblChamps, self.lstColCodes, self.lstColValDef, self.lstColLargeurs)
+        lstColonnes = xformat.DefColonnes(self.lstTblChamps, self.lstColCodes, self.lstColValDef, self.lstColLargeurs)
         self.dicOlv = {
             'lanceur': self,
             'listeColonnes': lstColonnes,
@@ -132,7 +132,7 @@ class EcranOlv(object):
         self.ctrlolv = self.dlgolv.ctrlOlv
         self.ctrlolv.lstTblHelp = self.lstTblHelp
         self.ctrlolv.lstTblChamps = self.lstTblChamps
-        self.ctrlolv.lstTblCodes = [xusp.SupprimeAccents(x) for x in self.lstTblChamps]
+        self.ctrlolv.lstTblCodes = [xformat.SupprimeAccents(x) for x in self.lstTblChamps]
         self.ctrlolv.lstTblValdef = self.lstTblValdef
         self.ctrlolv.recordset = self.recordset
         if len(self.lstDonnees) > 0 and len(self.lstDonnees)> self.ixsel:
@@ -169,7 +169,7 @@ class EcranOlv(object):
         champdeb = self.lstColChamps[ix]
         champfin = self.lstColChamps[-1]
         lstEcrChamps = xusp.ExtractList(self.lstTblChamps,champdeb,champfin)
-        lstEcrCodes = [xusp.SupprimeAccents(x) for x in lstEcrChamps]
+        lstEcrCodes = [xformat.SupprimeAccents(x) for x in lstEcrChamps]
 
         kwds = {'pos': (350, 20)}
         kwds['minSize'] = (350, 600)

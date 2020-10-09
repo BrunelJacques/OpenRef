@@ -174,7 +174,7 @@ DB_TABLES = {
                 ('dteAcquisition','DATE',"date de la première acquisition des éléments de l'immo"),
                 ('compteDotation','VARCHAR(10)',"compte comptable de la dotation aux immos"),
                 ('libelle','VARCHAR(200)',"texte pour les édition ou choix de ligne "),
-                ('etat', 'VARCHAR(5)', "état des immos s'étend à tout l'ensemble immo"),
+                ('etat', 'VARCHAR(5)', "'E'n cours, 'A'mortie, 'C'édée, 'R'ebut,"),
                 ],# fiches immobilisations
 
     'immosComposants':[
@@ -195,7 +195,6 @@ DB_TABLES = {
                 ('cessionDate','DATE',"date de la cession"),
                 ('cessionQte','FLOAT',"qté cédée"),
                 ('cessionValeur','FLOAT',"valeur de la cession"),
-                ('section','VARCHAR(10)',"Deuxième axe analytique"),
                 ('nbrePlaces','FLOAT',"Ne renseigner que pour élément zéro, capacité d'accueil pour véhicules,tentes, batiment "),
                 ('noSerie','VARCHAR(32)',"Immatriculation ou no identifiant"),
                 ('descriptif','TEXT',"déscriptif libre"),

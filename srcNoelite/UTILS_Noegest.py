@@ -13,7 +13,6 @@ import datetime
 import srcNoelite.UTILS_Historique  as nuh
 import xpy.xGestion_TableauEditor   as xgte
 import xpy.xGestion_TableauRecherche as xgtr
-import xpy.xUTILS_SaisieParams       as xusp
 from xpy.outils             import xformat
 from xpy                    import xGestionDB
 from srcNoelite.DB_schema   import DB_TABLES
@@ -120,6 +119,23 @@ class Noegest(object):
                 dicPrix[ID] = cout
         return dicPrix
 
+    def GetComposants(self,IDimmo, lstChamps):
+        # appel des composants d'une immo particulière
+        dlg = self.parent
+        req = """   
+                SELECT %s
+                FROM immosComposants
+                WHERE IDimmo = %s;
+                """ % (",".join(lstChamps),IDimmo)
+        lstDonnees = []
+        retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetComposants')
+        if retour == "ok":
+            lstDonnees = self.db.ResultatReq()
+        dlg.ctrlOlv.listeDonnees = lstDonnees
+        dlg.ctrlOlv.MAJ()
+        dlg.ctrlOlv._FormatAllRows()
+        return
+
     def GetImmCompos(self,lstChamps):
         # appel des composants dans les tables immos
         dlg = self.parent
@@ -200,10 +216,10 @@ class Noegest(object):
 
         # Composition de la matrice de l'OLV Analytiques, retourne un dictionnaire
 
-        lstCodesColonnes = [xusp.SupprimeAccents(x).lower() for x in lstNomsCol]
-        lstValDefColonnes = xgte.ValeursDefaut(lstNomsCol, lstTypes)
-        lstLargeurColonnes = xgte.LargeursDefaut(lstNomsCol, lstTypes,IDcache=False)
-        lstColonnes = xusp.DefColonnes(lstNomsCol, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
+        lstCodesColonnes = [xformat.SupprimeAccents(x).lower() for x in lstNomsCol]
+        lstValDefColonnes = xformat.ValeursDefaut(lstNomsCol, lstTypes)
+        lstLargeurColonnes = xformat.LargeursDefaut(lstNomsCol, lstTypes,IDcache=False)
+        lstColonnes = xformat.DefColonnes(lstNomsCol, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
         return {
             'listeColonnes': lstColonnes,
             'listeChamps': lstChamps,
@@ -226,7 +242,7 @@ class Noegest(object):
         lstNomsCol = kwd.pop('lstNomsCol',['IDanalytique', 'abrégé', 'nom'])
         lstChamps = kwd.pop('lstChamps',['cpta_analytiques.IDanalytique', 'cpta_analytiques.abrege', 'cpta_analytiques.nom'])
         lstTypes = kwd.pop('lstTypes',['varchar(8)', 'varchar(8)', 'varchar(32)'])
-        lstCodesColonnes = [xusp.SupprimeAccents(x).lower() for x in lstNomsCol]
+        lstCodesColonnes = [xformat.SupprimeAccents(x).lower() for x in lstNomsCol]
 
         if not mode: mode = 'normal'
         dicAnalytique = None
