@@ -22,6 +22,13 @@ MODULE = 'DLG_Immos_gestion'
 TITRE = "Gestion des immobilisations"
 INTRO = "Gerez les immobilisations, avant de calculer la dotation et exporter les écritures d'amortissements"
 
+# Infos d'aide en pied d'écran
+DIC_INFOS = {'date':"Flèche droite pour le mois et l'année, Entrée pour valider.\nC'est la date",
+            'tauxlineaire':    "c'est 100 divisé par le nombre d'années d'amortissement",
+            'dotation':     "Cette zone est modifiée automatiquement par le calcul,\nune correction est ephémère",
+            'valeur':      "Montant en €",
+             }
+
 # Info par défaut
 INFO_OLV = "Double clic pour modifier, ou gérer les lignes par les boutons à droite"
 
@@ -98,8 +105,8 @@ DICOLV = {
                       'dotation': {"mode": "total","alignement": wx.ALIGN_RIGHT},
                       },
     'lstChamps': ['immobilisations.compteImmo', 'immosComposants.IDcomposant', 'immobilisations.compteImmo',
-                  'immobilisations.compteDotation','immobilisations.IDanalytique', 'immobilisations.dteAcquisition',
-                  'immobilisations.libelle','immobilisations.etat', 'immosComposants.libComposant',
+                  'immobilisations.compteDotation','immobilisations.IDanalytique', 'immosComposants.dteAcquisition',
+                  'immobilisations.libelle','immosComposants.etat', 'immosComposants.libComposant',
                   'immosComposants.valeur','immosComposants.type', 'immosComposants.tauxLineaire',
                   'immosComposants.amortAnterieur','immosComposants.dotation', 'immosComposants.cessionType'],
     'getActions': GetOlvActions,
@@ -114,50 +121,54 @@ DICOLV = {
 
 #---------------------- Paramètres écran gestion ligne ---------------------------------------
 lTITRE = "Gestion d'un ensemble immobilisé"
-lINTRO = "Gerez les composants d'un immobilisations dans le tableau, ou l'ensemble dans l'écran du haut."
+lINTRO = "Gerez les composants d'une immobilisation dans le tableau, ou l'ensemble dans l'écran du haut."
 
 # Info par défaut
 lINFO_OLV = "Double clic pour modifier une cellule."
 
 # Description des paramètres à définir en haut d'écran pour PNL_params
 lMATRICE_PARAMS = {
-    ("comptes","Comptes"): [
-            {'name': 'cptimmo', 'label': "Immobilisations", 'genre': 'texte', 'size':(200,30),
+    ("comptes","Comptes d'amortissements"): [
+            {'name': 'compteimmo', 'label': "Immobilisation", 'genre': 'texte', 'size':(200,30),
              'help': "Compte du plan comptable pour cet ensemble dans la classe 2"},
-            {'name': 'cptdot', 'label': "Dotations", 'genre': 'texte', 'size': (200, 30),
+            {'name': 'comptedotation', 'label': "Dotation", 'genre': 'texte', 'size': (200, 30),
              'help': "Compte du plan comptable pour cet ensemble dans la classe 68"},
-            {'name': 'section', 'label': "Section analytique", 'genre': 'texte', 'size': (300, 30),
+            {'name': 'idanalytique', 'label': "Section analytique", 'genre': 'texte', 'size': (400, 30),
              'help': "Section analytique s'insérant dans les deux comptes ci dessus",
              'btnLabel': "...", 'btnHelp': "Cliquez pour choisir une section analytique",
              'btnAction': 'OnBtnSection'},
             ],
-    ("ensemble", "Ensemble"): [
-            {'name': 'acquisition', 'label': "Première entrée", 'genre': 'date', 'size':(200,30),
-             'help': "Date de première acquisition d'un élément de cet ensemble"},
-            {'name': 'libelle', 'label': "Libellé", 'genre': 'texte', 'size':(350,30),
+    ("ensemble", "Propriétés de l'ensemble"): [
+            {'name': 'libelle', 'label': "Libellé", 'genre': 'texte', 'size':(500,30),
              'help': "Libellé désignant cet ensemble"},
-            {'name': 'etat', 'label': "Etat global", 'genre': 'texte', 'size':(200,30),
-             'help': "Etat global évalué lors des calculs de dotation, et défini par le composant le moins évolué"},
+            {'name': 'nbreplaces', 'label': "Nombre places", 'genre': 'int', 'size':(200,30),
+             'help': "Capacité ou nombre de places en service (dernière connue"},
+            {'name': 'noserie', 'label': "No de série", 'genre': 'int', 'size':(200,30),
+             'help': "Immatriculation des véhicules ou identification facultative"},
             ]}
 
 # description des boutons en pied d'écran et de leurs actions
 def lGetBoutons(dlg):
     return  [
-                {'name':'btnOK','ID':wx.ID_ANY,'label':"Quitter",'toolTip':"Cliquez ici pour fermer la fenêtre",
-                    'size':(120,35),'image':"xpy/Images/32x32/Quitter.png",'onBtn':dlg.OnFermer}
+                {'name':'btnAbandon','ID':wx.ID_CANCEL,'label':"Abandon",'toolTip':"Cliquez ici pour fermer sans modifs",
+                    'size':(120,36),'image':"xpy/Images/16x16/Abandon.png",'onBtn':dlg.OnAbandon},
+                {'name':'btnOK','ID':wx.ID_ANY,'label':"Valider",'toolTip':"Cliquez ici pour enrgistrer les modifs",
+                    'size':(120,35),'image':"xpy/Images/32x32/Valider.png",'onBtn':dlg.OnValider},
             ]
 
 # paramètre les options de l'OLV
+lcutend = 2
 lDICOLV = {
-    'lstColonnes': xformat.GetLstColonnes(DB_schema.DB_TABLES['immosComposants']),
+    'lstColonnes': xformat.GetLstColonnes(DB_schema.DB_TABLES['immosComposants'],cutend=lcutend),
     'dictColFooter': {'composant': {"mode": "nombre", "alignement": wx.ALIGN_CENTER,'pluriel':"lignes"},
                       'valeur': {"mode": "total","alignement": wx.ALIGN_RIGHT},
-                      'ante': {"mode": "total","alignement": wx.ALIGN_RIGHT},
+                      'amortanterieur': {"mode": "total","alignement": wx.ALIGN_RIGHT},
                       'dotation': {"mode": "total","alignement": wx.ALIGN_RIGHT},
                       },
-    'lstChamps': xformat.GetLstChamps(DB_schema.DB_TABLES['immosComposants']),
+    'lstChamps': xformat.GetLstChamps(DB_schema.DB_TABLES['immosComposants'][:-lcutend]),
+    'lstChmpEns': xformat.GetLstChamps(DB_schema.DB_TABLES['immobilisations']),
     'hauteur': 400,
-    'largeur': 950,
+    'largeur': 1350,
     'checkColonne': False,
     'recherche': True,
     'autoAddRow': True,
@@ -187,18 +198,97 @@ class Pnl_corps(xgte.PNL_corps):
     #panel olv avec habillage optionnel pour des boutons actions (à droite) des infos (bas gauche) et boutons sorties
     def __init__(self, parent, dicOlv,*args, **kwds):
         xgte.PNL_corps.__init__(self,parent,dicOlv,*args,**kwds)
+        self.ctrlOlv.Choices={}
+        self.lstNewReglements = []
+        self.flagSkipEdit = False
+        self.oldRow = None
 
-    def OnAjouter(self,evt):
-        wx.MessageBox("on va ajouter")
-        return
+    def OnEditStarted(self,code):
+        # affichage de l'aide
+        if code in DIC_INFOS.keys():
+            self.parent.pnlPied.SetItemsInfos( DIC_INFOS[code],
+                                               wx.ArtProvider.GetBitmap(wx.ART_FIND, wx.ART_OTHER, (16, 16)))
+        else:
+            self.parent.pnlPied.SetItemsInfos( INFO_OLV,wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
+        row, col = self.ctrlOlv.cellBeingEdited
 
-    def OnModifier(self,evt):
-        wx.MessageBox("on va modifier")
-        return
+        if not self.oldRow: self.oldRow = row
+        if row != self.oldRow:
+            track = self.ctrlOlv.GetObjectAt(self.oldRow)
+            test = self.parent.noegest.ValideLigneComposant(track)
+            if test:
+                track.valide = True
+                self.oldRow = row
+            else:
+                track.valide = False
+        track = self.ctrlOlv.GetObjectAt(row)
+        if code == 'comptefrn':
+            pass
+        # conservation de l'ancienne valeur
+        track.oldValue = None
+        try:
+            eval("track.oldValue = track.%s"%code)
+        except: pass
 
-    def OnSupprimer(self,evt):
-        wx.MessageBox("on va supprimer")
-        return
+    def OnEditFinishing(self,code=None,value=None,parent=None):
+        self.parent.pnlPied.SetItemsInfos( INFO_OLV,wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
+        # flagSkipEdit permet d'occulter les évènements redondants. True durant la durée du traitement
+        row, col = self.ctrlOlv.cellBeingEdited
+        if self.flagSkipEdit : return
+        self.flagSkipEdit = True
+        track = self.ctrlOlv.GetObjectAt(row)
+
+        # si pas de saisie on passe
+        if (not value) or track.oldValue == value:
+            self.flagSkipEdit = False
+            return
+
+        # l'enregistrement de la ligne se fait à chaque saisie pour gérer les montées et descentes
+        okSauve = False
+
+        # Traitement des spécificités selon les zones
+        if code == 'vehicule':
+            # vérification de l'unicité du code saisi
+            dicVehicule = self.parent.noegest.GetVehicule(filtre=value)
+            if dicVehicule:
+                track.IDvehicule = dicVehicule['idanalytique']
+                track.vehicule = dicVehicule['abrege']
+                track.nomvehicule = dicVehicule['nom']
+            else:
+                track.vehicule = ''
+                track.IDvehicule = ''
+                track.nomvehicule = ''
+            if parent:
+                # la modification de la cellule éditée ne doit pas être écrasée par le finish
+                parent.valeur = track.vehicule
+                parent.event.cellValue = track.vehicule
+            track.donnees[col] = track.vehicule
+            self.ctrlOlv.Refresh()
+
+
+        # l'enregistrement de la ligne se fait à chaque saisie pour gérer les montées et descentes
+        self.parent.noegest.ValideLigneComposant(track)
+
+
+        # enlève l'info de bas d'écran
+        self.parent.pnlPied.SetItemsInfos( INFO_OLV,wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
+        self.flagSkipEdit = False
+
+    def OnDelete(self,noligne,track,parent=None):
+        pass
+
+    def OnEditFunctionKeys(self,event):
+        row, col = self.ctrlOlv.cellBeingEdited
+        track = self.ctrlOlv.GetObjectAt(row)
+        code = self.ctrlOlv.lstCodesColonnes[col]
+        if event.GetKeyCode() == wx.WXK_F4 and code == 'vehicule':
+            # F4 Choix
+            dict = self.parent.noegest.GetVehicule(filtre=track.vehicule,mode='F4')
+            if dict:
+                self.OnEditFinishing('vehicule',dict['abrege'])
+                track.vehicule = dict['abrege']
+                track.nomvehicule = dict['nom']
+                track.IDvehicule = dict['idanalytique']
 
 class Pnl_pied(xgte.PNL_pied):
     #panel infos (gauche) et boutons sorties(droite)
@@ -212,6 +302,7 @@ class Dlg_immo(xusp.DLG_vide):
         self.IDimmo = IDimmo
         self.ctrlOlv = None
         self.dicOlv = lDICOLV
+        self.dicOlv['lstColonnes'][1].width = 0
         self.noegest = nunoegest.Noegest(self)
         self.IDutilisateur = nuutil.GetIDutilisateur()
         if (not self.IDutilisateur) or not nuutil.VerificationDroitsUtilisateurActuel('facturation_factures','creer'):
@@ -232,13 +323,14 @@ class Dlg_immo(xusp.DLG_vide):
         self.pnlPied = Pnl_pied(self, dicPied)
         self.ctrlOlv = self.pnlOlv.ctrlOlv
         self.Bind(wx.EVT_CLOSE,self.OnFermer)
-        self.pnlParams.SetValeur('forcer',False)
+        self.noegest.GetEnsemble(self.IDimmo,self.dicOlv['lstChmpEns'],self.pnlParams)
         self.noegest.GetComposants(self.IDimmo,self.dicOlv['lstChamps'])
+
 
     def Sizer(self):
         sizer_base = wx.FlexGridSizer(rows=4, cols=1, vgap=0, hgap=0)
         sizer_base.Add(self.pnlBandeau, 1, wx.TOP | wx.EXPAND, 3)
-        sizer_base.Add(self.pnlParams, 1, wx.TOP | wx.EXPAND, 3)
+        sizer_base.Add(self.pnlParams, 1, wx.TOP , 3)
         sizer_base.Add(self.pnlOlv, 1, wx.TOP | wx.EXPAND, 3)
         sizer_base.Add(self.pnlPied, 0, wx.ALL | wx.EXPAND, 3)
         sizer_base.AddGrowableCol(0)
@@ -289,13 +381,18 @@ class Dlg_immo(xusp.DLG_vide):
             self.ctrlOlv.AddTracks(donNew)
             # test de validité pour changer la couleur de la ligne
             for object in self.ctrlOlv.modelObjects:
-                self.noegest.ValideLigne(object)
-                self.noegest.SauveLigne(object)
+                self.noegest.ValideLigneComposant(object)
             self.ctrlOlv._FormatAllRows()
             self.ctrlOlv.Refresh()
 
     def OnBtnSection(self,event):
         wx.MessageBox("On va chercher")
+
+    def OnAbandon(self,event):
+        self.OnFermer(event)
+
+    def OnValider(self,event):
+        pass
 
 #----------------------- Parties de l'écran d'affichage de la liste--------------------
 
@@ -363,8 +460,7 @@ class DLG_immos(xusp.DLG_vide):
         self.pnlPied = PNL_pied(self, dicPied)
         self.ctrlOlv = self.pnlOlv.ctrlOlv
         self.Bind(wx.EVT_CLOSE,self.OnFermer)
-        self.pnlParams.SetValeur('forcer',False)
-        self.noegest.GetImmCompos(self.dicOlv['lstChamps'])
+        self.noegest.GetImmosComposants(self.dicOlv['lstChamps'])
 
     def Sizer(self):
         sizer_base = wx.FlexGridSizer(rows=4, cols=1, vgap=0, hgap=0)
@@ -432,5 +528,6 @@ if __name__ == '__main__':
     app = wx.App(0)
     os.chdir("..")
     dlg = Dlg_immo(IDimmo = 18)
+    #dlg = DLG_immos()
     dlg.ShowModal()
     app.MainLoop()

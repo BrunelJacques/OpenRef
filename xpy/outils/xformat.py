@@ -68,15 +68,17 @@ def SupprimeAccents(texte):
     code = ''.join(car.lower() for car in code if car not in " %)(.[]',;/\n")
     return code
 
-def GetLstChamps(table=None):
-    return [x for x,y,z in table ]
+def GetLstChamps(table=None,cutend=None):
+    if cutend: cutend = -cutend
+    return [x for x,y,z in table[:cutend] ]
 
-def GetLstColonnes(table=None):
-    lstNomsColonnes = [x for x, y, z in table]
-    lstTypes = [y for x, y, z in table]
+def GetLstColonnes(table=None,cutend=None,IDcache=True):
+    if cutend: cutend = -cutend
+    lstNomsColonnes = [x for x, y, z in table[:cutend]]
+    lstTypes = [y for x, y, z in table[:cutend]]
     lstCodesColonnes = [SupprimeAccents(x) for x in lstNomsColonnes]
     lstValDefColonnes = ValeursDefaut(lstNomsColonnes, lstTypes)
-    lstLargeurColonnes = LargeursDefaut(lstNomsColonnes, lstTypes)
+    lstLargeurColonnes = LargeursDefaut(lstNomsColonnes, lstTypes,IDcache=IDcache)
     return DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
 
 def DefColonnes(lstNoms,lstCodes,lstValDef,lstLargeur):
@@ -89,7 +91,7 @@ def DefColonnes(lstNoms,lstCodes,lstValDef,lstLargeur):
             lst.extend(['']*(len(lstNoms)-len(lst)))
     lstColonnes = []
     for colonne in lstNoms:
-        if isinstance(lstValDef[ix],(str,wx.DateTime)):
+        if isinstance(lstValDef[ix],(str,wx.DateTime,datetime.date)):
             posit = 'left'
         else: posit = 'right'
         # ajoute un converter à partir de la valeur par défaut
@@ -97,7 +99,7 @@ def DefColonnes(lstNoms,lstCodes,lstValDef,lstLargeur):
             if '%' in colonne:
                 stringConverter = FmtPercent
             else:
-                stringConverter = FmtMontant
+                stringConverter = FmtDecimal
         elif isinstance(lstValDef[ix], int):
             if '%' in colonne:
                 stringConverter = FmtPercent
@@ -136,18 +138,20 @@ def LargeursDefaut(lstNomsColonnes,lstTypes,IDcache=True):
         lstLargDef = [0,]
         ix = 1
     for ix in range(ix, len(lstNomsColonnes)):
+        nomcol = lstNomsColonnes[ix]
         tip = lstTypes[ix]
         tip = tip.lower()
         if tip[:3] == 'int': lstLargDef.append(50)
         elif tip[:5] == 'float': lstLargDef.append(60)
         elif tip[:4] == 'date': lstLargDef.append(80)
         elif tip[:7] == 'varchar':
-            lg = int(tip[8:-1])*8
-            if lg > 150: lg = -1
+            lg = int(tip[8:-1])*3
+            if lg <= 16: lg=24
+            if lg > 150:
+                lg = -1
             lstLargDef.append(lg)
-        elif 'blob' in tip:
-            lstLargDef.append(250)
-        else: lstLargDef.append(40)
+        else:
+            lstLargDef.append(-1)
     return lstLargDef
 
 # Conversion wx.Datetime % datetime.date
@@ -294,12 +298,13 @@ def FmtPercent(montant):
 
 def FmtDate(date):
     strdate = ''
-    if date == None or date == wx.DateTime.FromDMY(1,0,1900) or date == '':
+    if date == None or date in (wx.DateTime.FromDMY(1,0,1900),'',datetime.date(1900,1,1)):
         return ''
     if isinstance(date,str):
         date = date.replace('-','/')
         tpldate = date.split('/')
-        if len(tpldate)==3:
+        if date == '00:00:00': strdate = ''
+        elif len(tpldate)==3:
             strdate = ('00'+tpldate[0])[-2:]+'/'+('00'+tpldate[1])[-2:]+'/'+('20'+tpldate[2])[-4:]
         elif len(date) == 6:
             strdate = (date[:2] + '/' + date[2:4] + '/' + '20'+date[4:])
@@ -347,7 +352,7 @@ def Nz(param):
                 tmp +=x
         tmp = tmp.replace(',','.')
         lstval = tmp.split('.')
-        if len(lstval)>=2: tmp = lstval[0] + "." + lstval[1]
+        if len(lstval)>=2: tmp = lstval[0] + '.' + lstval[1]
         param = tmp
     if isinstance(param,int):
         valeur = param
@@ -408,7 +413,7 @@ def IncrementeRef(ref):
     if len(ref) > len(pref):
         nbre = int(Nz(ref))+1
         lgnbre = len(str(nbre))
-        nbrstr = "0"*lgnbre + str(nbre)
+        nbrstr = '0'*lgnbre + str(nbre)
         refout = pref + nbrstr[-lgnbre:]
     else:
         # référence type lettrage
@@ -428,11 +433,11 @@ def FinDeMois(date):
     if isinstance(date,(datetime.date,datetime.datetime)):
         return WxdateToDatetime(action(DatetimeToWxdate(date)))
 
-    if isinstance(date,str) and "/" in date:
+    if isinstance(date,str) and '/' in date:
         date = DateFrToWxdate(date)
         return WxDateToStr(action(date),iso=False)
 
-    if isinstance(date,str) and "-" in date:
+    if isinstance(date,str) and '-' in date:
         date = DateSqlToWxdate(date)
         return WxDateToStr(action(date),iso=True)
 

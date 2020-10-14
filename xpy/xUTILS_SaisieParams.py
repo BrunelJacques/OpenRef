@@ -721,6 +721,7 @@ class TopBoxPanel(wx.Panel):
     def __init__(self, parent, *args, matrice={}, donnees={}, lblbox="Paramètres top", **kwds):
         wx.Panel.__init__(self,parent,*args, **kwds)
         self.parent = parent
+        self.matrice = matrice
         if lblbox:
             cadre_staticbox = wx.StaticBox(self,wx.ID_ANY,label=lblbox)
             self.topbox = wx.StaticBoxSizer(cadre_staticbox,wx.HORIZONTAL)
@@ -734,7 +735,7 @@ class TopBoxPanel(wx.Panel):
                      self.ddDonnees[code] = {}
                 box = BoxPanel(self, wx.ID_ANY, lblbox=label, code = code, lignes=matrice[(code,label)], dictDonnees=self.ddDonnees[code])
                 self.lstBoxes.append(box)
-                self.topbox.Add(box, 1, wx.EXPAND|wx.TOP,7)
+                self.topbox.Add(box, 1, wx.EXPAND|wx.ALL,3)
         self.SetSizerAndFit(self.topbox)
 
     def OnCtrlAction(self,event):
@@ -761,6 +762,19 @@ class TopBoxPanel(wx.Panel):
                 if ret != 'ko':
                     valeur = ret
         return valeur
+
+    def SetLstValeurs(self,lstChamps,lstDonnees):
+        # compose un dict pour SetValeurs
+        ddDonnees = {}
+        champs = [x.lower() for x in lstChamps]
+        for code, label in self.matrice.keys():
+            ddDonnees[code]={}
+            for dicCtrl in self.matrice[(code,label)]:
+                if dicCtrl['name'].lower() in champs:
+                    valeur = lstDonnees[champs.index(dicCtrl['name'].lower())]
+                    name = dicCtrl['name']
+                    ddDonnees[code][name]=valeur
+        self.SetValeurs(ddDonnees)
 
     def SetValeurs(self, ddDonnees):
         for box in self.lstBoxes:

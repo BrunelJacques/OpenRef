@@ -10,11 +10,11 @@
 
 import wx
 import os
-import xpy.outils.xformat
-from xpy.outils.ObjectListView import ObjectListView, ColumnDefn, Footer, CTRL_Outils, OLVEvent,CellEditor
-from xpy.outils.xconst import *
 import datetime
 import xpy.xUTILS_SaisieParams as xusp
+from xpy.outils                 import xformat
+from xpy.outils.ObjectListView  import ObjectListView, ColumnDefn, Footer, CTRL_Outils, OLVEvent,CellEditor
+from xpy.outils.xconst          import *
 
 # ----------- Objets divers ----------------------------------------------------------------
 
@@ -641,8 +641,8 @@ class PanelListView(wx.Panel):
         if hasattr(self.parent, 'OnEditFinishing'):
             self.parent.OnEditFinishing(code,self.valeur,parent=self)
         # stockage de la nouvelle saisie
-        #track.__setattr__(code, self.valeur)
-        #track.donnees[col] = self.valeur
+        track.__setattr__(code, self.valeur)
+        track.donnees[col] = self.valeur
         event.Skip()
 
     def OnEditFinished(self, event):
@@ -857,10 +857,10 @@ if __name__ == '__main__':
         ColumnDefn("clé", 'centre', 60, "cle", valueSetter=True, isSpaceFilling=False ,cellEditorCreator = CellEditor.BooleanEditor),
         ColumnDefn("mot d'ici", 'left', 200, "mot", valueSetter='A saisir', isEditable=True),
         ColumnDefn("nbre", 'right', -1, "nombre", isSpaceFilling=True, valueSetter=0.0,
-                   stringConverter=xpy.outils.xformat.FmtDecimal),
+                   stringConverter=xformat.FmtDecimal),
         ColumnDefn("prix", 'left', 80, "prix", valueSetter=0.0, isSpaceFilling=True,cellEditorCreator = CellEditor.ComboEditor),
         ColumnDefn("date", 'center', 80, "date", valueSetter=wx.DateTime.FromDMY(1, 0, 1900), isSpaceFilling=True,
-                   stringConverter=xpy.outils.xformat.FmtDate),
+                   stringConverter=xformat.FmtDate),
         ColumnDefn("choice", 'center', 40, "choice", valueSetter="mon item",choices=['CHQ','VRT','ESP'], isSpaceFilling=True,
                    cellEditorCreator = CellEditor.ChoiceEditor,)
     ]

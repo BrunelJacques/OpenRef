@@ -72,52 +72,38 @@ class Noegest(object):
         self.cloture = None
         self.ltExercices = None
 
-    def GetExercices(self,where='WHERE  actif = 1'):
-        if self.ltExercices : return self.ltExercices
-        self.ltExercices = []
-        lstChamps = ['date_debut', 'date_fin']
-        req = """   SELECT %s
-                    FROM cpta_exercices
-                    %s                   
-                    """ % (",".join(lstChamps),where)
-        retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetExercices')
-        if retour == "ok":
-            recordset = self.db.ResultatReq()
-            if len(recordset) == 0:
-                wx.MessageBox("Aucun exercice n'est paramétré")
-            for debut,fin in recordset:
-                self.ltExercices.append((xformat.DateSqlToFr(debut),xformat.DateSqlToFr(fin)))
-        return self.ltExercices
+    # ---------------- gestion des immos
 
-    def GetDatesFactKm(self):
-        ldates = ['{:%d/%m/%Y}'.format(datetime.date.today()),]
-        datesNoe = []
-        req =   """   
-                SELECT vehiculesConsos.dtFact
-                FROM vehiculesConsos 
-                INNER JOIN cpta_exercices ON vehiculesConsos.cloture = cpta_exercices.date_fin
-                GROUP BY vehiculesConsos.dtFact;
-                """
-        retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetDatesFactKm')
-        if retour == "ok":
-            recordset = self.db.ResultatReq()
-            datesNoe = [xformat.DateSqlToFr(x[0]) for x in recordset]
-        return ldates + datesNoe
+    def ValideLigneComposant(self, track):
+        track.ligneValide = True
+        track.messageRefus = "Saisie incomplète\n\n"
+        # vérification des éléments saisis
+        if track.valeur < 1.0:
+            track.messageRefus += "Vous devez obligatoirement saisir une valeur positive !\n"
 
-    def GetdicPrixVteKm(self):
-        dicPrix = {}
+        # envoi de l'erreur
+        if track.messageRefus != "Saisie incomplète\n\n":
+            track.ligneValide = False
+        else:
+            track.messageRefus = ""
+        return
+
+    def GetEnsemble(self,IDimmo, lstChamps,pnlParams):
+        # appel du cartouche d'une immo particulière
+        dlg = self.parent
         req = """   
-                SELECT vehiculesCouts.IDanalytique, vehiculesCouts.prixKmVte 
-                FROM vehiculesCouts 
-                INNER JOIN cpta_analytiques ON vehiculesCouts.IDanalytique = cpta_analytiques.IDanalytique
-                WHERE (((vehiculesCouts.cloture) = '%s') AND ((cpta_analytiques.axe)="VEHICULES"))
-                ;"""%xformat.DateFrToSql(self.cloture)
-        retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetPrixVteKm')
+                SELECT %s
+                FROM immobilisations
+                WHERE IDimmo = %s;
+                """ % (",".join(lstChamps),IDimmo)
+        lstDonnees = []
+        retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetEnsemble')
         if retour == "ok":
             recordset = self.db.ResultatReq()
-            for ID, cout in recordset:
-                dicPrix[ID] = cout
-        return dicPrix
+            lstDonnees = list(recordset[0])
+        if len(lstDonnees)>0:
+            pnlParams.SetLstValeurs(lstChamps,lstDonnees)
+        return
 
     def GetComposants(self,IDimmo, lstChamps):
         # appel des composants d'une immo particulière
@@ -130,13 +116,14 @@ class Noegest(object):
         lstDonnees = []
         retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetComposants')
         if retour == "ok":
-            lstDonnees = self.db.ResultatReq()
+            recordset = self.db.ResultatReq()
+            lstDonnees = [list(x) for x in recordset]
         dlg.ctrlOlv.listeDonnees = lstDonnees
         dlg.ctrlOlv.MAJ()
         dlg.ctrlOlv._FormatAllRows()
         return
 
-    def GetImmCompos(self,lstChamps):
+    def GetImmosComposants(self,lstChamps):
         # appel des composants dans les tables immos
         dlg = self.parent
         req = """   
@@ -145,69 +132,16 @@ class Noegest(object):
                 INNER JOIN immosComposants ON immobilisations.IDimmo = immosComposants.IDimmo;
                 """ % (",".join(lstChamps))
         lstDonnees = []
-        retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetImmCompos')
-        if retour == "ok":
-            lstDonnees = self.db.ResultatReq()
-        dlg.ctrlOlv.listeDonnees = lstDonnees
-        dlg.ctrlOlv.MAJ()
-        dlg.ctrlOlv._FormatAllRows()
-        return
-
-    def GetConsosKm(self):
-        # appel des consommations de km sur écran Km_saisie
-        dlg = self.parent
-        box = dlg.pnlParams.GetBox('filtres')
-        dateFact = xformat.DateFrToSql(box.GetOneValue('datefact'))
-        vehicule = box.GetOneValue('vehicule')
-        where =''
-        if dateFact and len(dateFact) > 0:
-            where += "\n            AND (consos.dtFact = '%s')"%dateFact
-        if vehicule and len(vehicule) > 0:
-            where += "\n            AND ( vehic.abrege = '%s')"%vehicule
-
-        lstChamps = ['consos.'+x[0] for x in DB_TABLES["vehiculesConsos"]]
-        lstChamps += ['vehic.abrege','vehic.nom','activ.nom']
-        req = """   
-            SELECT %s
-            FROM (vehiculesConsos AS consos
-            INNER JOIN cpta_analytiques AS vehic ON consos.IDanalytique = vehic.IDanalytique) 
-            LEFT JOIN cpta_analytiques AS activ ON consos.IDtiers = activ.IDanalytique
-            WHERE ((vehic.axe IS NULL OR vehic.axe='VEHICULES') AND (activ.axe IS NULL OR activ.axe = 'ACTIVITES')
-                    %s);
-            """ % (",".join(lstChamps),where)
-        lstDonnees = []
-        retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetConsosKm')
+        retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetImmosComposants')
         if retour == "ok":
             recordset = self.db.ResultatReq()
-            for record in recordset:
-                dicDonnees = xformat.ListToDict(lstChamps,record)
-                if dicDonnees["consos.typeTiers"] != 'A':
-                    lstObs = dicDonnees["consos.observation"].split(" / ")
-                    if len(lstObs) > 1:
-                        dicDonnees["activ.nom"] = lstObs[0]
-                        dicDonnees["consos.observation"] = ('-').join(lstObs[1:])
-                donnees = [
-                    dicDonnees["consos.IDconso"],
-                    dicDonnees["consos.IDanalytique"],
-                    dicDonnees["vehic.abrege"],
-                    dicDonnees["vehic.nom"],
-                    dicDonnees["consos.typeTiers"],
-                    dicDonnees["consos.IDtiers"],
-                    dicDonnees["activ.nom"],
-                    xformat.DateSqlToFr(dicDonnees["consos.dteKmDeb"]),
-                    dicDonnees["consos.kmDeb"],
-                    xformat.DateSqlToFr(dicDonnees["consos.dteKmFin"]),
-                    dicDonnees["consos.kmFin"],
-                    dicDonnees["consos.kmFin"]-dicDonnees["consos.kmDeb"],
-                    dicDonnees["consos.observation"],
-                    ]
-                lstDonnees.append(donnees)
+            lstDonnees = [list(x) for x in recordset]
         dlg.ctrlOlv.listeDonnees = lstDonnees
         dlg.ctrlOlv.MAJ()
-        for object in dlg.ctrlOlv.modelObjects:
-            self.ValideLigne(object)
         dlg.ctrlOlv._FormatAllRows()
         return
+
+    # ---------------- appels des codes analytiques
 
     def GetMatriceAnalytiques(self,axe,lstChamps,lstNomsCol,lstTypes,getDonnees):
         dicBandeau = {'titre': "Choix d'un code analytique: %s"%str(axe),
@@ -302,6 +236,94 @@ class Noegest(object):
             ltAnalytiques = self.db.ResultatReq()
         return ltAnalytiques
 
+    # ---------------- gestion des km à refacturer
+
+    def GetDatesFactKm(self):
+        ldates = ['{:%d/%m/%Y}'.format(datetime.date.today()),]
+        datesNoe = []
+        req =   """   
+                SELECT vehiculesConsos.dtFact
+                FROM vehiculesConsos 
+                INNER JOIN cpta_exercices ON vehiculesConsos.cloture = cpta_exercices.date_fin
+                GROUP BY vehiculesConsos.dtFact;
+                """
+        retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetDatesFactKm')
+        if retour == "ok":
+            recordset = self.db.ResultatReq()
+            datesNoe = [xformat.DateSqlToFr(x[0]) for x in recordset]
+        return ldates + datesNoe
+
+    def GetdicPrixVteKm(self):
+        dicPrix = {}
+        req = """   
+                SELECT vehiculesCouts.IDanalytique, vehiculesCouts.prixKmVte 
+                FROM vehiculesCouts 
+                INNER JOIN cpta_analytiques ON vehiculesCouts.IDanalytique = cpta_analytiques.IDanalytique
+                WHERE (((vehiculesCouts.cloture) = '%s') AND ((cpta_analytiques.axe)="VEHICULES"))
+                ;"""%xformat.DateFrToSql(self.cloture)
+        retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetPrixVteKm')
+        if retour == "ok":
+            recordset = self.db.ResultatReq()
+            for ID, cout in recordset:
+                dicPrix[ID] = cout
+        return dicPrix
+
+    def GetConsosKm(self):
+        # appel des consommations de km sur écran Km_saisie
+        dlg = self.parent
+        box = dlg.pnlParams.GetBox('filtres')
+        dateFact = xformat.DateFrToSql(box.GetOneValue('datefact'))
+        vehicule = box.GetOneValue('vehicule')
+        where =''
+        if dateFact and len(dateFact) > 0:
+            where += "\n            AND (consos.dtFact = '%s')"%dateFact
+        if vehicule and len(vehicule) > 0:
+            where += "\n            AND ( vehic.abrege = '%s')"%vehicule
+
+        lstChamps = ['consos.'+x[0] for x in DB_TABLES["vehiculesConsos"]]
+        lstChamps += ['vehic.abrege','vehic.nom','activ.nom']
+        req = """   
+            SELECT %s
+            FROM (vehiculesConsos AS consos
+            INNER JOIN cpta_analytiques AS vehic ON consos.IDanalytique = vehic.IDanalytique) 
+            LEFT JOIN cpta_analytiques AS activ ON consos.IDtiers = activ.IDanalytique
+            WHERE ((vehic.axe IS NULL OR vehic.axe='VEHICULES') AND (activ.axe IS NULL OR activ.axe = 'ACTIVITES')
+                    %s);
+            """ % (",".join(lstChamps),where)
+        lstDonnees = []
+        retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetConsosKm')
+        if retour == "ok":
+            recordset = self.db.ResultatReq()
+            for record in recordset:
+                dicDonnees = xformat.ListToDict(lstChamps,record)
+                if dicDonnees["consos.typeTiers"] != 'A':
+                    lstObs = dicDonnees["consos.observation"].split(" / ")
+                    if len(lstObs) > 1:
+                        dicDonnees["activ.nom"] = lstObs[0]
+                        dicDonnees["consos.observation"] = ('-').join(lstObs[1:])
+                donnees = [
+                    dicDonnees["consos.IDconso"],
+                    dicDonnees["consos.IDanalytique"],
+                    dicDonnees["vehic.abrege"],
+                    dicDonnees["vehic.nom"],
+                    dicDonnees["consos.typeTiers"],
+                    dicDonnees["consos.IDtiers"],
+                    dicDonnees["activ.nom"],
+                    xformat.DateSqlToFr(dicDonnees["consos.dteKmDeb"]),
+                    dicDonnees["consos.kmDeb"],
+                    xformat.DateSqlToFr(dicDonnees["consos.dteKmFin"]),
+                    dicDonnees["consos.kmFin"],
+                    dicDonnees["consos.kmFin"]-dicDonnees["consos.kmDeb"],
+                    dicDonnees["consos.observation"],
+                    ]
+                lstDonnees.append(donnees)
+        dlg.ctrlOlv.listeDonnees = lstDonnees
+        dlg.ctrlOlv.MAJ()
+        for object in dlg.ctrlOlv.modelObjects:
+            self.ValideLigne(object)
+        dlg.ctrlOlv._FormatAllRows()
+        return
+
     def GetVehicule(self,filtre='', mode=None):
         # choix d'une activité et retour de son dict, mute sert pour automatisme d'affectation
         kwd = {
@@ -361,20 +383,6 @@ class Noegest(object):
         kwd['reqFrom'] = """
             FROM cpta_analytiques"""
         return self.GetAnalytiques(lstChamps,**kwd)
-
-    def ComposeWhereFiltre(self,filtre,lstChamps):
-        whereFiltre = ''
-        if filtre and len(filtre) > 0:
-            texte = ''
-            ordeb = """
-                    ("""
-            for ix in range(len(lstChamps)):
-                texte += "%s %s LIKE '%%%s%%' )"%(ordeb,lstChamps[ix],filtre)
-                ordeb = """
-                    OR ("""
-            whereFiltre = """
-                AND ( %s )"""%(texte)
-        return whereFiltre
 
     def SetConsoKm(self,track):
         dlg = self.parent
@@ -481,7 +489,41 @@ class Noegest(object):
                         },],db=db)
         return
 
+    # ------------------ fonctions diverses
+
+    def ComposeWhereFiltre(self,filtre,lstChamps):
+        whereFiltre = ''
+        if filtre and len(filtre) > 0:
+            texte = ''
+            ordeb = """
+                    ("""
+            for ix in range(len(lstChamps)):
+                texte += "%s %s LIKE '%%%s%%' )"%(ordeb,lstChamps[ix],filtre)
+                ordeb = """
+                    OR ("""
+            whereFiltre = """
+                AND ( %s )"""%(texte)
+        return whereFiltre
+
+    def GetExercices(self, where='WHERE  actif = 1'):
+        if self.ltExercices: return self.ltExercices
+        self.ltExercices = []
+        lstChamps = ['date_debut', 'date_fin']
+        req = """   SELECT %s
+                    FROM cpta_exercices
+                    %s                   
+                    """ % (",".join(lstChamps), where)
+        retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetExercices')
+        if retour == "ok":
+            recordset = self.db.ResultatReq()
+            if len(recordset) == 0:
+                wx.MessageBox("Aucun exercice n'est paramétré")
+            for debut, fin in recordset:
+                self.ltExercices.append((xformat.DateSqlToFr(debut), xformat.DateSqlToFr(fin)))
+        return self.ltExercices
+
     def GetParam(self,cat,name):
+        # récup des paramètres stockés sur le disque
         valeur = None
         dicParams = self.parent.pnlParams.GetValeurs()
         if cat in dicParams:

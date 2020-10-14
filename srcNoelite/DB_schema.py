@@ -171,15 +171,16 @@ DB_TABLES = {
                 ('IDimmo','INTEGER PRIMARY KEY AUTOINCREMENT',"Clé Unique"),
                 ('compteImmo','VARCHAR(10)',"compte comptable de l'immobilisation"),
                 ('IDanalytique','VARCHAR(8)',"Section analytique"),
-                ('dteAcquisition','DATE',"date de la première acquisition des éléments de l'immo"),
                 ('compteDotation','VARCHAR(10)',"compte comptable de la dotation aux immos"),
                 ('libelle','VARCHAR(200)',"texte pour les édition ou choix de ligne "),
-                ('etat', 'VARCHAR(5)', "'E'n cours, 'A'mortie, 'C'édée, 'R'ebut,"),
+                ('nbrePlaces','INTEGER',"capacité d'accueil pour véhicules,tentes, batiment "),
+                ('noSerie','VARCHAR(32)',"Immatriculation ou no identifiant"),
                 ],# fiches immobilisations
 
     'immosComposants':[
                 ('IDcomposant', 'INTEGER PRIMARY KEY AUTOINCREMENT',"Clé Unique"),
                 ('IDimmo', 'INTEGER', "reprise de l'entête immo"),
+                ('dteAcquisition','DATE',"date de l'acquisition de l'élément"),
                 ('libComposant','VARCHAR(200)',"texte pour les édition en ligne"),
                 ('quantite','FLOAT',"quantités fractionnables à la cession"),
                 ('valeur','FLOAT',"valeur d'acquisition"),
@@ -191,12 +192,11 @@ DB_TABLES = {
                 ('coeffDegressif','FLOAT',"taux à appliquer à la VNC"),
                 ('amortAnterieur','FLOAT',"cumul des amortissements à l'ouverture"),
                 ('dotation','FLOAT',"dotation de l'exercice"),
+                ('etat', 'VARCHAR(5)', "'E'n cours, 'A'mortie, 'C'édée, 'R'ebut,"),
                 ('cessionType','VARCHAR(5)',"type de cession (cession partielle crée un nouvel élément)"),
                 ('cessionDate','DATE',"date de la cession"),
                 ('cessionQte','FLOAT',"qté cédée"),
                 ('cessionValeur','FLOAT',"valeur de la cession"),
-                ('nbrePlaces','FLOAT',"Ne renseigner que pour élément zéro, capacité d'accueil pour véhicules,tentes, batiment "),
-                ('noSerie','VARCHAR(32)',"Immatriculation ou no identifiant"),
                 ('descriptif','TEXT',"déscriptif libre"),
                 ('dtMaj','DATE',"Date de dernière modif"),
                 ('user','INTEGER',"ID de l'utilisateur"),],# subdivisions des fiches immobilisations

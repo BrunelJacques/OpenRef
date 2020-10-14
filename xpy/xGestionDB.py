@@ -825,7 +825,7 @@ if __name__ == "__main__":
     app = wx.App()
     os.chdir("..")
     db = DB()
-    print("echec ouverture: ",db.echec)
+    print("test echec ouverture: ",db.echec)
     from srcNoelite.DB_schema import DB_TABLES, DB_IX, DB_PK
     db.CreationTables(dicTables=DB_TABLES)
     db.CreationTousIndex(DB_IX)
