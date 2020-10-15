@@ -4,7 +4,9 @@ SYMBOLE = "€"
 import wx
 import datetime
 import unicodedata
-from xpy.outils.ObjectListView import ColumnDefn
+import srcNoelite.UTILS_Noegest         as nunoegest
+from xpy.outils.ObjectListView  import ColumnDefn
+
 
 # Filtres OLV conditions possibles
 CHOIX_FILTRES = {float:[
@@ -60,12 +62,12 @@ CHOIX_FILTRES = {float:[
 
 # fonction olv
 
-def SupprimeAccents(texte):
+def SupprimeAccents(texte,lower=True):
     # met en minuscule sans accents et sans caractères spéciaux
     code = ''.join(c for c in unicodedata.normalize('NFD', texte) if unicodedata.category(c) != 'Mn')
     #code = str(unicodedata.normalize('NFD', texte).encode('ascii', 'ignore'))
-    code = code.lower()
-    code = ''.join(car.lower() for car in code if car not in " %)(.[]',;/\n")
+    if lower: code = code.lower()
+    code = ''.join(car for car in code if car not in " %)(.[]',;/\n")
     return code
 
 def GetLstChamps(table=None,cutend=None):
@@ -76,7 +78,7 @@ def GetLstColonnes(table=None,cutend=None,IDcache=True):
     if cutend: cutend = -cutend
     lstNomsColonnes = [x for x, y, z in table[:cutend]]
     lstTypes = [y for x, y, z in table[:cutend]]
-    lstCodesColonnes = [SupprimeAccents(x) for x in lstNomsColonnes]
+    lstCodesColonnes = [SupprimeAccents(x,lower=False) for x in lstNomsColonnes]
     lstValDefColonnes = ValeursDefaut(lstNomsColonnes, lstTypes)
     lstLargeurColonnes = LargeursDefaut(lstNomsColonnes, lstTypes,IDcache=IDcache)
     return DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
@@ -446,13 +448,17 @@ def FinDeMois(date):
     return date
 
 if __name__ == '__main__':
+    import os
+    os.chdir("..")
+    app = wx.App(0)
     """
     print(FmtDecimal(1230.05189),FmtDecimal(-1230.05189),FmtDecimal(0))
     print(FmtSolde(8520.547),FmtSolde(-8520.547),FmtSolde(0))
     print(FmtMontant(8520.547),FmtMontant(-8520.547),FmtMontant(0))
-    """
-
     print(FmtDate('01022019'))
+    print(SupprimeAccents("ÊLève!"))
+    """
+    print('ok')
 
 
 
