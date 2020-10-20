@@ -6,7 +6,7 @@ import datetime
 import unicodedata
 from xpy.outils.ObjectListView import ColumnDefn
 
-# fonction pour OLV
+# fonctions pour OLV
 
 def SupprimeAccents(texte,lower=True):
     # met en minuscule sans accents et sans caractères spéciaux
@@ -127,6 +127,7 @@ def CompareModels(original,actuel):
     return lstNews,lstCancels,lstModifs
 
 # Conversion wx.Datetime % datetime.date
+
 def DatetimeToWxdate(date):
     assert isinstance(date, (datetime.datetime, datetime.date))
     tt = date.timetuple()
@@ -142,6 +143,7 @@ def WxdateToDatetime(date):
         return None
 
 # Conversion des dates SQL aaaa-mm-jj
+
 def DateSqlToWxdate(dateiso):
     # Conversion de date récupérée de requête SQL aaaa-mm-jj(ou déjà en datetime) en wx.datetime
     if dateiso == None : return None
@@ -220,7 +222,7 @@ def DatetimeToStr(dte,iso=False):
         else: return "%s/%s/%s"%(dd,mm,yyyy)
     else: return str(dte)
 
-# Formatages poiur OLV -------------------------------------------------------------------------------------
+# Formatages pour OLV -------------------------------------------------------------------------------------
 
 def SetBgColour(self,montant):
     if montant > 0.0:
@@ -315,6 +317,7 @@ def FmtSolde(montant):
     return strMtt
 
 # Diverses fonctions-------------------------------------------------------------------------------------------
+
 def Nz(param):
     # fonction Null devient zero, et extrait les chiffres d'une chaîne pour faire un nombre
     if isinstance(param,str):
