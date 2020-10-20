@@ -260,7 +260,7 @@ class PNL_corpsReglements(xgte.PNL_corps):
 
         # l'enregistrement de la ligne se fait à chaque saisie pour gérer les montées et descentes
         okSauve = False
-        if track.ligneValide:
+        if track.valide:
             okSauve = nur.SauveLigne(self.parent.db,self.parent, track)
 
         # Traitement des spécificités selon les zones
@@ -522,7 +522,7 @@ class Dialog(wx.Dialog):
                 self.InitOlv(withDiffere=False)
                 # les écritures reprises sont censées être valides
                 for item in self.ctrlOlv.modelObjects[:-1]:
-                    item.ligneValide = True
+                    item.valide = True
                 self.ctrlOlv._FormatAllRows()
                 # stockage pour test de saisie
                 self.depotOrigine = self.ctrlOlv.innerList
@@ -534,7 +534,7 @@ class Dialog(wx.Dialog):
 
     def OnImprimer(self,event):
         # test de présence d'écritures non valides
-        lstNonValides = [x for x in self.ctrlOlv.modelObjects if not x.ligneValide and x.IDreglement]
+        lstNonValides = [x for x in self.ctrlOlv.modelObjects if not x.valide and x.IDreglement]
         if len(lstNonValides) > 0:
             ret = wx.MessageBox('Présence de lignes non valides!\n\nCes lignes seront détruites avant impression',
                                 'Confirmez pour continuer', style=wx.OK | wx.CANCEL)
@@ -545,7 +545,7 @@ class Dialog(wx.Dialog):
                                 'Confirmez pour continuer',style=wx.OK|wx.CANCEL)
             if ret != wx.OK: return
         # purge des lignes non valides
-        self.ctrlOlv.modelObjects=[x for x in self.ctrlOlv.modelObjects if hasattr(x,'ligneValide') and x.ligneValide]
+        self.ctrlOlv.modelObjects=[x for x in self.ctrlOlv.modelObjects if hasattr(x,'valide') and x.valide]
         # réaffichage
         self.ctrlOlv.RepopulateList()
         # impression

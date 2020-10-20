@@ -13,11 +13,13 @@ import xpy.xGestionConfig               as xgc
 import xpy.xUTILS_SaisieParams          as xusp
 import srcNoelite.UTILS_Noegest         as nunoegest
 import srcNoelite.UTILS_Utilisateurs    as nuutil
+from copy                       import deepcopy
 from srcNoelite                 import DB_schema
-from xpy.outils.ObjectListView  import ColumnDefn
+from xpy.outils.ObjectListView  import ColumnDefn, CellEditor
 from xpy.outils                 import xformat,xbandeau,ximport,xexport
 
-#---------------------- Paramètres écran affichage ---------------------------------------
+#************************************** Paramètres PREMIER ECRAN ******************************************
+
 MODULE = 'DLG_Immos_gestion'
 TITRE = "Gestion des immobilisations"
 INTRO = "Gerez les immobilisations, avant de calculer la dotation et exporter les écritures d'amortissements"
@@ -119,7 +121,8 @@ DICOLV = {
     'msgIfEmpty':"Aucune immobilisation à afficher !",
     }
 
-#---------------------- Paramètres écran gestion ligne ---------------------------------------
+#************************************ Paramètres ECRAN GESTION LIGNE **************************************
+
 lTITRE = "Gestion d'un ensemble immobilisé"
 lINTRO = "Gerez les composants d'une immobilisation dans le tableau, ou l'ensemble dans l'écran du haut."
 
@@ -143,9 +146,14 @@ lMATRICE_PARAMS = {
              'help': "Libellé désignant cet ensemble"},
             {'name': 'nbreplaces', 'label': "Nombre places", 'genre': 'int', 'size':(200,30),
              'help': "Capacité ou nombre de places en service (dernière connue"},
-            {'name': 'noserie', 'label': "No de série", 'genre': 'int', 'size':(200,30),
+            {'name': 'noserie', 'label': "No de série", 'genre': 'str', 'size':(200,30),
              'help': "Immatriculation des véhicules ou identification facultative"},
-            ]}
+            ],
+    ("infos", "Informations"): [
+            {'name': 'mode', 'label': "", 'genre': 'texte', 'size': (100, 30),
+             'enable':False},
+            ],
+    }
 
 # description des boutons en pied d'écran et de leurs actions
 def lGetBoutons(dlg):
@@ -160,9 +168,9 @@ def lGetBoutons(dlg):
 lcutend = 2
 lDICOLV = {
     'lstColonnes': xformat.GetLstColonnes(DB_schema.DB_TABLES['immosComposants'],cutend=lcutend),
-    'dictColFooter': {'composant': {"mode": "nombre", "alignement": wx.ALIGN_CENTER,'pluriel':"lignes"},
+    'dictColFooter': {'libComposant': {"mode": "nombre", "alignement": wx.ALIGN_CENTER,'pluriel':"lignes"},
                       'valeur': {"mode": "total","alignement": wx.ALIGN_RIGHT},
-                      'amortanterieur': {"mode": "total","alignement": wx.ALIGN_RIGHT},
+                      'amortAnterieur': {"mode": "total","alignement": wx.ALIGN_RIGHT},
                       'dotation': {"mode": "total","alignement": wx.ALIGN_RIGHT},
                       },
     'lstChamps': xformat.GetLstChamps(DB_schema.DB_TABLES['immosComposants'][:-lcutend]),
@@ -176,7 +184,23 @@ lDICOLV = {
     'msgIfEmpty':"Aucune ligne d'immobilisation à afficher !",
     }
 
-#----------------------- Parties de l'écran de gestion d'un ensemble ------------------
+def AdaptDicOlv(dicOlv):
+    # Si dicOlv est construit directement à partir du schéma des tables, il faut personnaliser
+    ix = dicOlv['lstChamps'].index('type')
+    (column,) = ColumnDefn("type", 'centre', 50, 'type',
+                        valueSetter='L',
+                        choices=['L','D','N'],
+                        isSpaceFilling=False,
+                        cellEditorCreator=CellEditor.ChoiceEditor),
+
+    dicOlv['lstColonnes'][ix] = column
+
+    ix = dicOlv['lstChamps'].index('IDimmo')
+    dicOlv['lstColonnes'][ix].width = 0
+    dicOlv['lstColonnes'][ix].isEditable = False
+    return dicOlv
+
+#*********************** Parties de l'écran de gestion d'un ensemble ******************
 
 class Pnl_params(xgc.PNL_paramsLocaux):
     #panel de paramètres de l'application
@@ -301,8 +325,7 @@ class Dlg_immo(xusp.DLG_vide):
         super().__init__(self,name = MODULE)
         self.IDimmo = IDimmo
         self.ctrlOlv = None
-        self.dicOlv = lDICOLV
-        self.dicOlv['lstColonnes'][1].width = 0
+        self.dicOlv = AdaptDicOlv(lDICOLV)
         self.noegest = nunoegest.Noegest(self)
         self.IDutilisateur = nuutil.GetIDutilisateur()
         if (not self.IDutilisateur) or not nuutil.VerificationDroitsUtilisateurActuel('facturation_factures','creer'):
@@ -323,9 +346,21 @@ class Dlg_immo(xusp.DLG_vide):
         self.pnlPied = Pnl_pied(self, dicPied)
         self.ctrlOlv = self.pnlOlv.ctrlOlv
         self.Bind(wx.EVT_CLOSE,self.OnFermer)
-        self.noegest.GetEnsemble(self.IDimmo,self.dicOlv['lstChmpEns'],self.pnlParams)
-        self.noegest.GetComposants(self.IDimmo,self.dicOlv['lstChamps'])
-
+        # placement des données
+        if self.IDimmo:
+            self.noegest.GetEnsemble(self.IDimmo,self.dicOlv['lstChmpEns'],self.pnlParams)
+            self.noegest.GetComposants(self.IDimmo,self.dicOlv['lstChamps'])
+        for object in self.ctrlOlv.modelObjects:
+            self.noegest.ValideLigneComposant(object)
+        self.ctrlOlv._FormatAllRows()
+        self.ctrlOlv.Refresh()
+        # conservation des originaux
+        self.modelOriginal = [deepcopy(x) for x in self.ctrlOlv.modelObjects if not hasattr(x,'vierge')]
+        self.ddParamsOriginal = self.pnlParams.GetValeurs()
+        if self.IDimmo:
+            self.pnlParams.SetValeur('mode','Modification',codeBox='infos')
+        else: self.pnlParams.SetValeur('mode','Création',codeBox='infos')
+        self.pnlParams.Refresh()
 
     def Sizer(self):
         sizer_base = wx.FlexGridSizer(rows=4, cols=1, vgap=0, hgap=0)
@@ -339,52 +374,6 @@ class Dlg_immo(xusp.DLG_vide):
         self.SetSizerAndFit(sizer_base)
         self.CenterOnScreen()
 
-    def GetDonneesIn(self,nomFichier):
-        # importation des donnéees du fichier entrée
-        entrees = None
-        if nomFichier[-4:].lower() == 'xlsx':
-            entrees = ximport.GetFichierXlsx(nomFichier,maxcol=7)
-        elif nomFichier[-3:].lower() == 'xls':
-            entrees = ximport.GetFichierXls(nomFichier,maxcol=7)
-        else: wx.MessageBox("Il faut choisir un fichier .xls ou .xlsx",'NomFichier non reconnu')
-        # filtrage des premières lignes incomplètes
-        entete = None
-        if entrees:
-            for ix in range(len(entrees)):
-                sansNull= [x for x in entrees[ix] if x]
-                if len(sansNull)>5:
-                    entete = entrees[ix]
-                    entrees = entrees[ix + 1:]
-                    break
-        return entete,entrees
-
-    def OnImporter(self,event):
-        """ Open a file"""
-        self.dirname = ''
-        dlg = wx.FileDialog(self, "Choisissez un fichier à importer", self.dirname)
-        nomFichier = None
-        if dlg.ShowModal() == wx.ID_OK:
-            nomFichier = dlg.GetPath()
-        dlg.Destroy()
-        if not nomFichier: return
-        entete,donnees = self.GetDonneesIn(nomFichier)
-        if donnees:
-            donExist = [x.donnees for x in self.ctrlOlv.modelObjects]
-            if len(donExist)>0:
-                ix = self.ctrlOlv.lstCodesColonnes.index('conso')
-                if xformat.Nz(donExist[-1][ix]) == 0:
-                    del donExist[-1]
-                    del self.ctrlOlv.modelObjects[-1]
-            donNew = ComposeFuncImp(self,entete,donnees)
-            self.ctrlOlv.listeDonnees = donExist + donNew
-            # ajout de la ligne dans olv
-            self.ctrlOlv.AddTracks(donNew)
-            # test de validité pour changer la couleur de la ligne
-            for object in self.ctrlOlv.modelObjects:
-                self.noegest.ValideLigneComposant(object)
-            self.ctrlOlv._FormatAllRows()
-            self.ctrlOlv.Refresh()
-
     def OnBtnSection(self,event):
         wx.MessageBox("On va chercher")
 
@@ -392,9 +381,26 @@ class Dlg_immo(xusp.DLG_vide):
         self.OnFermer(event)
 
     def OnValider(self,event):
-        pass
+        ddParams = self.pnlParams.GetValeurs()
+        flag = False
+        for boxname, dict in ddParams.items():
+            for ctrl, value in dict.items():
+                if self.ddParamsOriginal[boxname][ctrl] !=  value:
+                    flag = True
+                    break
+        if len(self.ctrlOlv.modelObjects) == 0 or (len(self.ctrlOlv.modelObjects)==1
+                                                   and self.ctrlOlv.modelObjects[0].vierge):
+            # supprime un ensemble sans composants
+            self.noegest.DelEnsemble(self.IDimmo)
+        elif flag:
+            # le cartouche ensemble a été modifié
+            self.IDimmo = self.noegest.SetEnsemble(self.IDimmo,self.pnlParams)
+        lstNews, lstCancels, lstModifs = xformat.CompareModels(self.modelOriginal,self.ctrlOlv.modelObjects)
+        if (lstNews,lstCancels,lstModifs) != ([],[],[]):
+            self.noegest.SetComposants(self.IDimmo,lstNews,lstCancels,lstModifs,self.dicOlv['lstChamps'])
+        self.OnFermer(event)
 
-#----------------------- Parties de l'écran d'affichage de la liste--------------------
+#*********************** Parties de l'écran d'affichage de la liste *******************
 
 class PNL_params(xgc.PNL_paramsLocaux):
     #panel de paramètres de l'application
@@ -527,7 +533,7 @@ if __name__ == '__main__':
     import os
     app = wx.App(0)
     os.chdir("..")
-    dlg = Dlg_immo(IDimmo = 18)
+    dlg = Dlg_immo(IDimmo=18)
     #dlg = DLG_immos()
     dlg.ShowModal()
     app.MainLoop()

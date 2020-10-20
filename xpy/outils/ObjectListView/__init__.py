@@ -62,6 +62,5 @@ __all__ = [
     "ReportFormat",
     "SortEvent",
     "VirtualObjectListView",
-    "PanelAvecFooter",
     "BarreRecherche",
     "CTRL_Outils"]

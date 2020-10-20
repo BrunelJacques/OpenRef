@@ -7,7 +7,6 @@
 
 import wx
 import os
-import xpy.outils.xformat
 import xpy.xGestionDB   as xdb
 from xpy.outils import xbandeau
 from xpy.outils.ObjectListView import FastObjectListView, ColumnDefn, BarreRecherche, OLVEvent, Filter
@@ -475,14 +474,15 @@ def GetDonnees(db=None,matriceOlv=None,filtre = ""):
     donneesFiltrees = [x for x in donnees if filtre.upper() in x[1].upper() ]
     return donneesFiltrees
 
+import xpy.outils.xformat as xfmt
 liste_Colonnes = [
     ColumnDefn("clé", 'left', 10, "cle",valueSetter=1,isSpaceFilling = True,),
     ColumnDefn("mot d'ici", 'left', 200, "mot",valueSetter=''),
-    ColumnDefn("nbre", 'right', -1, "nombre",isSpaceFilling = True, valueSetter=0.0, stringConverter=xpy.outils.xformat.FmtDecimal),
-    ColumnDefn("prix", 'left', 80, "prix",valueSetter=0.0,isSpaceFilling = True, stringConverter=xpy.outils.xformat.FmtMontant),
-    ColumnDefn("date", 'center', 80, "date",valueSetter=wx.DateTime.FromDMY(1,0,1900),isSpaceFilling = True,  stringConverter=xpy.outils.xformat.FmtDate),
+    ColumnDefn("nbre", 'right', -1, "nombre",isSpaceFilling = True, valueSetter=0.0, stringConverter=xfmt.FmtDecimal),
+    ColumnDefn("prix", 'left', 80, "prix",valueSetter=0.0,isSpaceFilling = True, stringConverter=xfmt.FmtMontant),
+    ColumnDefn("date", 'center', 80, "date",valueSetter=wx.DateTime.FromDMY(1,0,1900),isSpaceFilling = True,  stringConverter=xfmt.FmtDate),
     ColumnDefn("date SQL", 'center', 80, "datesql", valueSetter='2000-01-01',isSpaceFilling = True,
-               stringConverter=xpy.outils.xformat.FmtDate)
+               stringConverter=xfmt.FmtDate)
 ]
 
 # params d'actions: ce sont des boutons placés à droite et non en bas

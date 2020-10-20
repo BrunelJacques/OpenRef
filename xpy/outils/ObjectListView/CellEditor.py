@@ -70,9 +70,9 @@ def GetValideLigne(track):
         # création d'un message par défaut
         if not hasattr(track,'messageRefus'):
             track.messageRefus = "Il faut revoir la saisie,\n\n la ligne n'est pas valide\ndixit CellEditor.GetValideLigne"
-        if not hasattr(track,'ligneValide'):
-            track.ligneValide = True
-        if not track.ligneValide:
+        if not hasattr(track,'valide'):
+            track.valide = True
+        if not track.valide:
             wx.MessageBox(track.messageRefus,style=wx.ICON_ERROR)
             descend = 0
     return descend
@@ -95,7 +95,7 @@ def EnterAction(event,finish = True):
         # ajout éventuel d'une nouvelle ligne
         if row == len(olv.innerList)-1:
             if olv.autoAddRow:
-                if hasattr(olv.innerList[row],'ligneValide') and olv.innerList[row].ligneValide == True:
+                if hasattr(olv.innerList[row],'valide') and olv.innerList[row].valide == True:
                     olv.AutoAddRow()
                     olv.RepopulateList()
             else:
@@ -245,9 +245,9 @@ class EditorRegistry(object):
         self.typeToFunctionMap[int] = self._MakeIntegerEditor
         #self.typeToFunctionMap[int] = self._MakeLongEditor
         self.typeToFunctionMap[float] = self._MakeFloatEditor
-        self.typeToFunctionMap[wx.DateTime] = self._MakeDateEditor
-        self.typeToFunctionMap[datetime.datetime] = self._MakeDateTimeEditor
-        self.typeToFunctionMap[datetime.date] = self._MakeDateEditor
+        self.typeToFunctionMap[wx.DateTime] = self._MakeStringEditor
+        self.typeToFunctionMap[datetime.datetime] = self._MakeStringEditor
+        self.typeToFunctionMap[datetime.date] = self._MakeStringEditor
         self.typeToFunctionMap[datetime.time] = self._MakeTimeEditor
 
     def GetCreatorFunction(self, aValue):

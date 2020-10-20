@@ -598,7 +598,7 @@ class PanelListView(wx.Panel):
             if len(olv.GetSelectedObjects()) > 0:
                 ix = olv.modelObjects.index(olv.GetSelectedObjects()[0])
             for track in self.buffertracks:
-                track.ligneValide = False
+                track.valide = False
                 if hasattr(self.parent,'OnCtrlV'):
                     self.parent.OnCtrlV(track)
                 olv.modelObjects.insert(ix,track)

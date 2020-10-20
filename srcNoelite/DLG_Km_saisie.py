@@ -576,7 +576,7 @@ class Dialog(xusp.DLG_vide):
         nonValides = 0
         # constitution de la liste des données à exporter
         for track in self.ctrlOlv.innerList:
-            if not track.ligneValide:
+            if not track.valide:
                 nonValides +=1
                 continue
             if track.conso == 0: continue

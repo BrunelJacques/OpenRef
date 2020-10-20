@@ -26,8 +26,60 @@ to this observation.
 """
 
 import wx
+import datetime
 import wx.propgrid as wxpg
-import xpy.outils.xformat as xformat
+
+# Filtres OLV conditions possibles
+CHOIX_FILTRES = {float:[
+                            ('EGAL','égal à '),
+                            ('DIFFERENT','différent de '),
+                            ('INF','inférieur à '),
+                            ('INFEGAL','inférieur ou égal à '),
+                            ('SUP','supérieur à '),
+                            ('SUPEGAL','supérieur ou égal à ')],
+                 int:[
+                            ('EGAL','égal à '),
+                            ('DIFFERENT','différent de '),
+                            ('INF','inférieur à '),
+                            ('INFEGAL','inférieur ou égal à '),
+                            ('SUP','supérieur à '),
+                            ('SUPEGAL','supérieur ou égal à ')],
+                 bool:[
+                            ('EGAL','égal à '),
+                            ('DIFFERENT','différent de '),],
+                 wx.DateTime: [
+                            ('EGAL', 'égal à '),
+                            ('DIFFERENT', 'différent de '),
+                            ('INF', 'avant '),
+                            ('INFEGAL', 'avant ou égal à '),
+                            ('SUP', 'après '),
+                            ('SUPEGAL', 'après ou égal à ')],
+                 datetime.date: [
+                            ('EGAL', 'égal à '),
+                            ('DIFFERENT', 'différent de '),
+                            ('INF', 'avant '),
+                            ('INFEGAL', 'avant ou égal à '),
+                            ('SUP', 'après '),
+                            ('SUPEGAL', 'après ou égal à ')],
+                 datetime.datetime: [
+                            ('EGAL', 'égal à '),
+                            ('DIFFERENT', 'différent de '),
+                            ('INF', 'avant '),
+                            ('INFEGAL', 'avant ou égal à '),
+                            ('SUP', 'après '),
+                            ('SUPEGAL', 'après ou égal à ')],
+                 str:[
+                            ('CONTIENT','contient '),
+                            ('CONTIENTPAS','ne contient pas '),
+                            ('COMMENCE','commence par '),
+                            ('DIFFERENT','différent de '),
+                            ('EGAL','égal à '),
+                            ('PASVIDE',"pas à blanc "),
+                            ('VIDE','est à blanc '),
+                            ('DANS','dans la liste '),
+                            ('INFEGAL', 'inférieur ou égal à '),
+                            ('SUPEGAL', 'supérieur ou égal à ')],
+}
 
 def Predicate(predicate):
     """
@@ -227,11 +279,11 @@ class DLG_saisiefiltre(wx.Dialog):
     def GetChoixActions(self,ixColonne):
         choixactions = []
         self.tip = type(self.lstSetterValues[ixColonne])
-        if not self.tip in xformat.CHOIX_FILTRES.keys():
+        if not self.tip in CHOIX_FILTRES.keys():
             nomColonne = self.lstNomsColonnes[ixColonne]
-            wx.MessageBox("Le type '%s' de la colonne '%s' n'est pas 'keys()' de xformat.CHOIX_FILTRES"%(str(self.tip),nomColonne))
+            wx.MessageBox("Le type '%s' de la colonne '%s' n'est pas 'keys()' de CHOIX_FILTRES"%(str(self.tip),nomColonne))
             self.tip = str
-        choixactions = xformat.CHOIX_FILTRES[self.tip]
+        choixactions = CHOIX_FILTRES[self.tip]
         return choixactions
 
     def Etape2(self):
@@ -249,7 +301,7 @@ class DLG_saisiefiltre(wx.Dialog):
 
     def GetDonnees(self):
         codechoix = 'None'
-        for (code,label) in xformat.CHOIX_FILTRES[self.tip]:
+        for (code,label) in CHOIX_FILTRES[self.tip]:
             if label == self.action:
                 codechoix = code
                 break

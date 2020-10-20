@@ -12,7 +12,7 @@ import wx
 import datetime
 import os
 import wx.propgrid as wxpg
-import copy
+from copy                      import deepcopy
 from xpy.outils                import xformat
 
 def SetEnableID(matrice,enable=False):
@@ -402,8 +402,10 @@ class PNL_ctrl(wx.Panel):
             size = (2000, 30)
         self.MaxSize = size
         lg = max(110,len(label)*5+4)
-        self.txt = wx.StaticText(self, wx.ID_ANY, label + " :")
-        self.txt.MinSize = (lg, 25)
+        if label and len(label)>0:
+            self.txt = wx.StaticText(self, wx.ID_ANY, label + " :")
+            self.txt.MinSize = (lg, 25)
+        else: self.txt = wx.StaticText(self, wx.ID_ANY,  "")
 
         # seul le PropertyGrid gère le multichoices, pas le comboBox
         if genre == 'multichoice': genre = 'combo'
@@ -482,7 +484,9 @@ class PNL_ctrl(wx.Panel):
         return self.ctrl.GetValue()
 
     def SetValue(self,value):
-        if self.genre in ('int','float'): value = str(value)
+        if self.genre in ('int','float'):
+            if not value: value = 0
+            value = str(value)
         if self.genre in ('bool','check'):
             try:
                 value = int(value)
@@ -514,9 +518,7 @@ class PNL_ctrl(wx.Panel):
             self.ctrl.SetValue(dlg.GetPath())
         dlg.Destroy()
 
-#**********************************************************************************
-#                   GESTION des COMPOSITIONS DE CONTROLES
-#**********************************************************************************
+#*****************  GESTION des COMPOSITIONS DE CONTROLES **********************************
 
 class PNL_listCtrl(wx.Panel):
     #affichage d'une listeCtrl avec les boutons classiques pour gérer les lignes
@@ -744,11 +746,21 @@ class TopBoxPanel(wx.Panel):
     def OnBtnAction(self,event):
         self.parent.OnChildBtnAction(event)
 
+    def GetLstValeurs(self,):
+        # récupère une liste à partir du ddDonnees
+        lstChamps, lstDonnees = [], []
+        ddDonnees = self.GetValeurs()
+        for code, label in self.matrice.keys():
+            for dicCtrl in self.matrice[(code,label)]:
+                lstChamps.append(dicCtrl['name'])
+                lstDonnees.append(ddDonnees[code][dicCtrl['name']])
+        return lstChamps,lstDonnees
+
     def GetValeurs(self):
         ddDonnees = {}
         for box in self.lstBoxes:
             dic = box.GetValues()
-            ddDonnees[box.code] = dic
+            ddDonnees[box.code] = deepcopy(dic)
         return ddDonnees
 
     def GetValeur(self,name=None,codeBox=None):
@@ -892,7 +904,7 @@ class DLG_listCtrl(wx.Dialog):
             donnees={}
             for (x,y) in ddDonnees.items():
                 donnees[x] = y
-            #donnees = copy.deepcopy(ddDonnees)
+            #donnees = deepcopy(ddDonnees)
             self.lddDonnees.append(donnees)
             self.lddDonnees, self.ltColonnes, self.llItems = Transpose(self.dldMatrice, self.dlColonnes, self.lddDonnees)
             self.pnl.SetValeurs(self.llItems, self.ltColonnes)
@@ -912,7 +924,7 @@ class DLG_listCtrl(wx.Dialog):
         ret = dlgGest.ShowModal()
         if ret == wx.OK:
             ddDonnees = dlgGest.pnl.GetValeurs()
-            #self.lddDonnees[items] = copy.deepcopy(ddDonnees)
+            #self.lddDonnees[items] = deepcopy(ddDonnees)
             self.lddDonnees[items] = ddDonnees
             self.lddDonnees, self.ltColonnes, self.llItems = Transpose(self.dldMatrice, self.dlColonnes, self.lddDonnees)
             self.pnl.SetValeurs(self.llItems, self.ltColonnes)
@@ -928,7 +940,7 @@ class DLG_listCtrl(wx.Dialog):
 
     def OnDupliquer(self,event, items):
         dlgGest = DLG_vide(self, )
-        ddDonnees = copy.deepcopy(self.lddDonnees[items])
+        ddDonnees = deepcopy(self.lddDonnees[items])
         ret = SetEnableID(self.dldMatrice,enable=True)
         if self.gestionProperty:
             dlgGest.pnl = PNL_property(dlgGest, self, matrice=self.dldMatrice)
@@ -939,7 +951,7 @@ class DLG_listCtrl(wx.Dialog):
         ret = dlgGest.ShowModal()
         if ret == wx.OK:
             ddDonnees = dlgGest.pnl.GetValeurs()
-            donnees = copy.deepcopy(ddDonnees)
+            donnees = deepcopy(ddDonnees)
             self.lddDonnees.append(donnees)
             self.lddDonnees, self.ltColonnes, self.llItems = Transpose(self.dldMatrice, self.dlColonnes, self.lddDonnees)
             self.pnl.SetValeurs(self.llItems, self.ltColonnes)

@@ -357,6 +357,8 @@ class DB():
                     val = "%s, " %str(valeur)
                 elif isinstance(valeur, (tuple, list,dict)):
                     val = "'%s', "%str(valeur)[1:-1].replace('\'', '')
+                elif valeur == None or valeur == '':
+                    val = "NULL, "
                 else:
                     val = "'%s', "%str(valeur).replace('\'', '')
                 serie += "%s"%(val)

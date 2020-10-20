@@ -4,63 +4,9 @@ SYMBOLE = "€"
 import wx
 import datetime
 import unicodedata
-import srcNoelite.UTILS_Noegest         as nunoegest
-from xpy.outils.ObjectListView  import ColumnDefn
+from xpy.outils.ObjectListView import ColumnDefn
 
-
-# Filtres OLV conditions possibles
-CHOIX_FILTRES = {float:[
-                            ('EGAL','égal à '),
-                            ('DIFFERENT','différent de '),
-                            ('INF','inférieur à '),
-                            ('INFEGAL','inférieur ou égal à '),
-                            ('SUP','supérieur à '),
-                            ('SUPEGAL','supérieur ou égal à ')],
-                 int:[
-                            ('EGAL','égal à '),
-                            ('DIFFERENT','différent de '),
-                            ('INF','inférieur à '),
-                            ('INFEGAL','inférieur ou égal à '),
-                            ('SUP','supérieur à '),
-                            ('SUPEGAL','supérieur ou égal à ')],
-                 bool:[
-                            ('EGAL','égal à '),
-                            ('DIFFERENT','différent de '),],
-                 wx.DateTime: [
-                            ('EGAL', 'égal à '),
-                            ('DIFFERENT', 'différent de '),
-                            ('INF', 'avant '),
-                            ('INFEGAL', 'avant ou égal à '),
-                            ('SUP', 'après '),
-                            ('SUPEGAL', 'après ou égal à ')],
-                 datetime.date: [
-                            ('EGAL', 'égal à '),
-                            ('DIFFERENT', 'différent de '),
-                            ('INF', 'avant '),
-                            ('INFEGAL', 'avant ou égal à '),
-                            ('SUP', 'après '),
-                            ('SUPEGAL', 'après ou égal à ')],
-                 datetime.datetime: [
-                            ('EGAL', 'égal à '),
-                            ('DIFFERENT', 'différent de '),
-                            ('INF', 'avant '),
-                            ('INFEGAL', 'avant ou égal à '),
-                            ('SUP', 'après '),
-                            ('SUPEGAL', 'après ou égal à ')],
-                 str:[
-                            ('CONTIENT','contient '),
-                            ('CONTIENTPAS','ne contient pas '),
-                            ('COMMENCE','commence par '),
-                            ('DIFFERENT','différent de '),
-                            ('EGAL','égal à '),
-                            ('PASVIDE',"pas à blanc "),
-                            ('VIDE','est à blanc '),
-                            ('DANS','dans la liste '),
-                            ('INFEGAL', 'inférieur ou égal à '),
-                            ('SUPEGAL', 'supérieur ou égal à ')],
-}
-
-# fonction olv
+# fonction pour OLV
 
 def SupprimeAccents(texte,lower=True):
     # met en minuscule sans accents et sans caractères spéciaux
@@ -128,7 +74,7 @@ def ValeursDefaut(lstNomsColonnes,lstTypes):
         if tip[:3] == 'int': lstValDef.append(0)
         elif tip[:10] == 'tinyint(1)': lstValDef.append(False)
         elif tip[:5] == 'float': lstValDef.append(0.0)
-        elif tip[:4] == 'date': lstValDef.append(datetime.date(1900,1,1))
+        elif tip[:4] == 'date': lstValDef.append(wx.DateTime.Today())
         else: lstValDef.append('')
     return lstValDef
 
@@ -155,6 +101,30 @@ def LargeursDefaut(lstNomsColonnes,lstTypes,IDcache=True):
         else:
             lstLargDef.append(-1)
     return lstLargDef
+
+def CompareModels(original,actuel):
+    # retourne les données modifiées dans le modelobject original % actuel
+    lstNews, lstCancels, lstModifs = [], [], []
+    # l'id doit être en première position des données
+    lstIdActuels = [x.donnees[0] for x in actuel]
+    lstIdOriginaux = [x.donnees[0] for x in original]
+    # retrouver l'original dans l'actuel
+    for track in original:
+        if track.donnees[0] in lstIdActuels:
+            ix = lstIdActuels.index(track.donnees[0])
+            if track.donnees == actuel[ix].donnees:
+                continue
+            if not actuel[ix].valide:
+                continue
+            else:
+                lstModifs.append(actuel[ix].donnees)
+        else: lstCancels.append(track.donnees)
+    #repérer les nouveaux
+    for track in actuel:
+        if track.donnees[0] in lstIdOriginaux:
+            continue
+        elif not track.vierge: lstNews.append(track.donnees)
+    return lstNews,lstCancels,lstModifs
 
 # Conversion wx.Datetime % datetime.date
 def DatetimeToWxdate(date):
@@ -250,7 +220,7 @@ def DatetimeToStr(dte,iso=False):
         else: return "%s/%s/%s"%(dd,mm,yyyy)
     else: return str(dte)
 
-# Formatages--------------------------------------------------------------------------------------------------
+# Formatages poiur OLV -------------------------------------------------------------------------------------
 
 def SetBgColour(self,montant):
     if montant > 0.0:

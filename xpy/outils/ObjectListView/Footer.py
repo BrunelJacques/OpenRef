@@ -30,7 +30,11 @@ class Footer(wx.Control):
         self.Refresh()
     
     def MAJ_totaux(self):
-        self.dictTotaux = {}
+        # Normalisation casse des noms de colonne
+        dictColFooter = {}
+        for nomColonne, dictColonne in self.dictColFooter.items():
+            dictColFooter[nomColonne.lower()]=dictColonne
+        self.dictColFooter = dictColFooter
         objects = self.listview.GetCheckedObjects()
         if len(objects) == 0:
             objects = self.listview.innerList

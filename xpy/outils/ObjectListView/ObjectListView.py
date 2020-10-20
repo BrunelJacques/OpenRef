@@ -103,10 +103,10 @@ import operator
 import time
 import six
 import unicodedata
-from xpy.outils.ObjectListView.OLVEvent import *
-from xpy.outils.ObjectListView import OLVEvent
-from xpy.outils.ObjectListView import Filter
-from xpy.outils.ObjectListView import CellEditor
+#from xpy.outils.ObjectListView.OLVEvent import *
+from . import OLVEvent
+from . import Filter
+from . import CellEditor
 
 
 __author__ = "Phillip Piper"
@@ -817,7 +817,7 @@ class ObjectListView(wx.ListCtrl):
             else:
                 item.SetBackgroundColour(self.evenRowsBackColor)
 
-        if self.autoAddRow and (not hasattr(model,'ligneValide') or not model.ligneValide):
+        if self.autoAddRow and (not hasattr(model,'valide') or not model.valide):
             item.SetBackgroundColour(self.newRowsBackColor)
 
         if self.rowFormatter is not None:
@@ -1918,7 +1918,7 @@ class ObjectListView(wx.ListCtrl):
 
         # fire a SortEvent that can be catched by a OLV-using developer
         # who Bind() to this event
-        evt = SortEvent(
+        evt = OLVEvent.SortEvent(
             self,
             self.sortColumnIndex,
             self.sortAscending,
@@ -2220,7 +2220,10 @@ class ObjectListView(wx.ListCtrl):
         if evt.shouldConfigureEditor:
             self.cellEditor.SetFocus()
             if evt.cellValue:
-                self.cellEditor.SetValue(evt.cellValue)
+                value = evt.cellValue
+                if isinstance(value,(wx.DateTime, datetime.date, datetime.datetime)):
+                    value = str(value)[:10]
+                self.cellEditor.SetValue(value)
             self._ConfigureCellEditor(
                 self.cellEditor,
                 evt.cellBounds,
@@ -4253,7 +4256,7 @@ class ColumnDefn(object):
         Set the check state of the given model object
         """
         # Let the world know the check state
-        evt = ItemCheckedEvent(self, modelObject, state)
+        evt = OLVEvent.ItemCheckedEvent(self, modelObject, state)
         # Is there a shorter way to get at the EventHandler?
         if self._EventHandler:
             wx.CallAfter(self._EventHandler.ProcessEvent, evt)
@@ -4481,7 +4484,7 @@ class TrackVierge(object):
     def __init__(self,olv):
         self.donnees = []
         self.vierge = True
-        self.ligneValide = False
+        self.valide = False
         for column in olv.columns:
             value = None
             if column.valueSetter != None:
@@ -4489,6 +4492,8 @@ class TrackVierge(object):
             if value == None and hasattr(olv,'lstSetterValue'):
                 value = olv.lstSetterValue[olv.columns.index(column)]
             self.__setattr__(column.valueGetter, value)
+            if isinstance(value,(wx.DateTime,datetime.date,datetime.datetime)):
+                value = str(value)[:10]
             self.donnees.append(value)
         return
 

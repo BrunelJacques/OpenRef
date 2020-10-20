@@ -340,7 +340,7 @@ def GetNewIDreglement(db,lstID):
     return ID
 
 def ValideLigne(db,track):
-    track.ligneValide = True
+    track.valide = True
     track.messageRefus = "Saisie incomplète\n\n"
 
     # vérification des éléments saisis
@@ -381,7 +381,7 @@ def ValideLigne(db,track):
 
     # envoi de l'erreur
     if track.messageRefus != "Saisie incomplète\n\n":
-        track.ligneValide = False
+        track.valide = False
     else: track.messageRefus = ""
     return
 
@@ -451,7 +451,7 @@ def DelPrestation(track,db):
     return True
 
 def SauveLigne(db,dlg,track):
-    if not track.ligneValide:
+    if not track.valide:
         return False
     if not track.montant or not isinstance(track.montant,float):
         return False
@@ -486,7 +486,7 @@ def DeleteLigne(db,track):
     if track.montant != 0.0:
         # suppression  du réglement et des ventilations
         ret = db.ReqDEL("reglements", "IDreglement", track.IDreglement,affichError=False)
-        if track.ligneValide:
+        if track.valide:
             # --- Mémorise l'action dans l'historique ---
             if ret == 'ok':
                 IDcategorie = 8

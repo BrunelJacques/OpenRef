@@ -75,22 +75,63 @@ class Noegest(object):
     # ---------------- gestion des immos
 
     def ValideLigneComposant(self, track):
-        track.ligneValide = True
+        track.valide = True
         track.messageRefus = "Saisie incomplète\n\n"
+
         # vérification des éléments saisis
-        if track.valeur < 1.0:
+        if (not track.libComposant) or (len(track.libComposant)==0):
+            track.messageRefus += "Vous devez obligatoirement saisir un libellé !\n"
+        if (not track.valeur) or (track.valeur < 1.0):
             track.messageRefus += "Vous devez obligatoirement saisir une valeur positive !\n"
+        if track.type == 'L':
+            if xformat.Nz(track.tauxLineaire) == 0.0 :
+                track.messageRefus += "Vous devez obligatoirement saisir un taux d'amortissement linéaire !\n"
+        elif track.type == 'D':
+            if xformat.Nz(track.coefDegressif) == 0.0 :
+               track.messageRefus += "Vous devez obligatoirement saisir  un taux d'amortissement dégressif !\n"
+        elif track.type != 'N':
+            track.messageRefus += "Vous devez obligatoirement saisir un type d'amortissement !\n"
 
         # envoi de l'erreur
         if track.messageRefus != "Saisie incomplète\n\n":
-            track.ligneValide = False
+            track.valide = False
         else:
             track.messageRefus = ""
         return
 
+    def SetEnsemble(self,IDimmo,pnlParams):
+        # Enregistrement dans la base de l'ensemble
+        lstChampsP, lstDonneesP = pnlParams.GetLstValeurs()
+        lstDonnees = [(lstChampsP[x],lstDonneesP[x]) for x in range(len(lstChampsP))]
+        if IDimmo:
+            ret = self.db.ReqMAJ('immobilisations',lstDonnees[:-1],'IDimmo',IDimmo,mess='UTILS_Noegest.SetEnsemble_maj')
+        else:
+            ret = self.db.ReqInsert('immobilisations', lstChampsP[:-1], [lstDonneesP[:-1],],
+                                    mess='UTILS_Noegest.SetEnsemble_ins')
+            if ret == 'ok':
+                IDimmo = self.db.newID
+        return IDimmo
+
+    def DelEnsemble(self,IDimmo):
+        # Suppression dans la base de l'ensemble en mode silentieux
+        if IDimmo:
+            ret = self.db.ReqDEL('immobilisations','IDimmo',IDimmo,affichError=False)
+        return
+
+    def SetComposants(self,IDimmo,lstNews,lstCancels,lstModifs,lstChamps):
+        # écriture des composants d'une immo particulière dans la base de donnée
+        for donnees in lstNews:
+            donnees[1] = IDimmo
+            self.db.ReqInsert('immosComposants',lstChamps[1:],[donnees[1:],],mess="U_Noegest.SetComposants_ins")
+        for donnees in lstCancels:
+            self.db.ReqDEL('immosComposants','IDcomposant',donnees[0],mess="U_Noegest.SetComposants_del")
+        for donnees in lstModifs:
+            self.db.ReqMAJ('immosComposants',nomChampID='IDcomposant',ID=donnees[0],lstChamps=lstChamps[1:],
+                           lstDonnees=donnees[1:], mess="U_Noegest.SetComposants_maj")
+        return
+
     def GetEnsemble(self,IDimmo, lstChamps,pnlParams):
         # appel du cartouche d'une immo particulière
-        dlg = self.parent
         req = """   
                 SELECT %s
                 FROM immobilisations
@@ -430,7 +471,7 @@ class Noegest(object):
         return ret
 
     def ValideLigne(self, track):
-        track.ligneValide = True
+        track.valide = True
         track.messageRefus = "Saisie incomplète\n\n"
         # vérification des éléments saisis
         try:
@@ -456,13 +497,13 @@ class Noegest(object):
 
         # envoi de l'erreur
         if track.messageRefus != "Saisie incomplète\n\n":
-            track.ligneValide = False
+            track.valide = False
         else:
             track.messageRefus = ""
         return
 
     def SauveLigne(self,track):
-        if not track.ligneValide:
+        if not track.valide:
             return False
         if not track.conso or int(track.conso) == 0:
             return False
@@ -478,7 +519,7 @@ class Noegest(object):
         if xformat.Nz(track.IDconso) != 0 :
             # suppression  de la consommation
             ret = db.ReqDEL("vehiculesConsos", "IDconso", track.IDconso,affichError=False)
-            if track.ligneValide:
+            if track.valide:
                 # --- Mémorise l'action dans l'historique ---
                 if ret == 'ok':
                     IDcategorie = 8
