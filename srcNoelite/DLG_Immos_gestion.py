@@ -24,13 +24,6 @@ MODULE = 'DLG_Immos_gestion'
 TITRE = "Gestion des immobilisations"
 INTRO = "Gerez les immobilisations, avant de calculer la dotation et exporter les écritures d'amortissements"
 
-# Infos d'aide en pied d'écran
-DIC_INFOS = {'date':"Flèche droite pour le mois et l'année, Entrée pour valider.\nC'est la date",
-            'tauxlineaire':    "c'est 100 divisé par le nombre d'années d'amortissement",
-            'dotation':     "Cette zone est modifiée automatiquement par le calcul,\nune correction est ephémère",
-            'valeur':      "Montant en €",
-             }
-
 # Info par défaut
 INFO_OLV = "Double clic pour modifier, ou gérer les lignes par les boutons à droite"
 
@@ -109,7 +102,7 @@ DICOLV = {
     'lstChamps': ['immobilisations.IDimmo', 'immosComposants.IDcomposant', 'immobilisations.compteImmo',
                   'immobilisations.compteDotation','immobilisations.IDanalytique', 'immosComposants.dteAcquisition',
                   'immobilisations.libelle','immosComposants.etat', 'immosComposants.libComposant',
-                  'immosComposants.valeur','immosComposants.type', 'immosComposants.tauxLineaire',
+                  'immosComposants.valeur','immosComposants.type', 'immosComposants.tauxAmort',
                   'immosComposants.amortAnterieur','immosComposants.dotation', 'immosComposants.cessionType'],
     'getActions': GetOlvActions,
     'hauteur': 400,
@@ -130,6 +123,17 @@ lINTRO = "Gerez les composants d'une immobilisation dans le tableau, ou l'ensemb
 
 # Info par défaut
 lINFO_OLV = "Double clic pour modifier une cellule."
+# Infos d'aide en pied d'écran
+lDIC_INFOS = {'dteAcquisition':"Les dates peuvent se saisir 'jjmmaa' ou 'jj/mm/aa' ou 'aaaa-mm-jj'\n"+
+                               "C'est la date d'acquisition du composant",
+            'tauxAmort':    "ATTENTION c'est 100 divisé par le nombre d'années d'amortissement\n"+
+                                "2ans-> 50, 3ans-> 33.33, 5ans-> 20, 7ans-> 14.29, 12ans-> 8.33, 15ans-> 6.67 etc ",
+            'dotation':     "Cette zone est modifiée automatiquement par le calcul,\nune correction est ephémère",
+            'valeur':      "Montant en €",
+            'dteMiseEnService': "On peut saisir jjmmaa\nC'est la date qui détermine le début de l'amortissement",
+            'cessionDate': "Les dates peuvent se saisir 'jjmmaa' ou 'jj/mm/aa' ou 'aaaa-mm-jj'",
+            }
+
 
 # Description des paramètres à définir en haut d'écran pour PNL_params
 lMATRICE_PARAMS = {
@@ -231,8 +235,8 @@ class Pnl_corps(xgte.PNL_corps):
 
     def OnEditStarted(self,code):
         # affichage de l'aide
-        if code in DIC_INFOS.keys():
-            self.parent.pnlPied.SetItemsInfos( DIC_INFOS[code],
+        if code in lDIC_INFOS.keys():
+            self.parent.pnlPied.SetItemsInfos( lDIC_INFOS[code],
                                                wx.ArtProvider.GetBitmap(wx.ART_FIND, wx.ART_OTHER, (16, 16)))
         else:
             self.parent.pnlPied.SetItemsInfos( INFO_OLV,wx.ArtProvider.GetBitmap(wx.ART_INFORMATION, wx.ART_OTHER, (16, 16)))
@@ -413,6 +417,7 @@ class PNL_corps(xgte.PNL_corps):
     #panel olv avec habillage optionnel pour des boutons actions (à droite) des infos (bas gauche) et boutons sorties
     def __init__(self, parent, dicOlv,*args, **kwds):
         xgte.PNL_corps.__init__(self,parent,dicOlv,*args,**kwds)
+        self.ctrlOlv.Bind(wx.EVT_LEFT_DCLICK,self.OnModifier)
 
     def OnAjouter(self,evt):
         row = 0
@@ -547,7 +552,7 @@ if __name__ == '__main__':
     import os
     app = wx.App(0)
     os.chdir("..")
-    dlg = Dlg_immo(IDimmo=3)
-    #dlg = DLG_immos()
+    #dlg = Dlg_immo(IDimmo=3)
+    dlg = DLG_immos()
     dlg.ShowModal()
     app.MainLoop()

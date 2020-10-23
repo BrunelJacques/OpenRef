@@ -10,9 +10,9 @@
 
 import wx
 import datetime
-import srcNoelite.UTILS_Historique  as nuh
-import xpy.xGestion_TableauEditor   as xgte
-import xpy.xGestion_TableauRecherche as xgtr
+import srcNoelite.UTILS_Historique      as nuh
+import srcNoelite.UTILS_Utilisateurs    as nuutil
+import xpy.xGestion_TableauRecherche    as xgtr
 from xpy.outils             import xformat
 from xpy                    import xGestionDB
 from srcNoelite.DB_schema   import DB_TABLES
@@ -84,8 +84,8 @@ class Noegest(object):
         if (not track.valeur) or (track.valeur < 1.0):
             track.messageRefus += "Vous devez obligatoirement saisir une valeur positive !\n"
         if track.type == 'L':
-            if xformat.Nz(track.tauxLineaire) == 0.0 :
-                track.messageRefus += "Vous devez obligatoirement saisir un taux d'amortissement linéaire !\n"
+            if xformat.Nz(track.tauxAmort) == 0.0 :
+                track.messageRefus += "Vous devez obligatoirement saisir un taux d'amortissement!\n"
         elif track.type == 'D':
             if xformat.Nz(track.coefDegressif) == 0.0 :
                track.messageRefus += "Vous devez obligatoirement saisir  un taux d'amortissement dégressif !\n"
@@ -119,14 +119,20 @@ class Noegest(object):
         return
 
     def SetComposants(self,IDimmo,lstNews,lstCancels,lstModifs,lstChamps):
+        champs = lstChamps + ['dtMaj','user']
+        donUser = [xformat.DatetimeToStr(datetime.date.today(), iso=True),
+                   self.GetUser()]
+
         # écriture des composants d'une immo particulière dans la base de donnée
         for donnees in lstNews:
+            donnees += donUser
             donnees[1] = IDimmo
-            self.db.ReqInsert('immosComposants',lstChamps[1:],[donnees[1:],],mess="U_Noegest.SetComposants_ins")
+            self.db.ReqInsert('immosComposants',champs[1:],[donnees[1:],],mess="U_Noegest.SetComposants_ins")
         for donnees in lstCancels:
             self.db.ReqDEL('immosComposants','IDcomposant',donnees[0],mess="U_Noegest.SetComposants_del")
         for donnees in lstModifs:
-            self.db.ReqMAJ('immosComposants',nomChampID='IDcomposant',ID=donnees[0],lstChamps=lstChamps[1:],
+            donnees += donUser
+            self.db.ReqMAJ('immosComposants',nomChampID='IDcomposant',ID=donnees[0],lstChamps=champs[1:],
                            lstDonnees=donnees[1:], mess="U_Noegest.SetComposants_maj")
         return
 
@@ -429,7 +435,6 @@ class Noegest(object):
         return self.GetAnalytiques(lstChamps,**kwd)
 
     def SetConsoKm(self,track):
-        dlg = self.parent
         # --- Sauvegarde de la ligne consommation ---
         dteFacturation = self.GetParam('filtres','datefact')
         if track.observation == None: track.observation = ""
@@ -451,7 +456,7 @@ class Noegest(object):
             ("observation", track.observation),
             ("dtFact", xformat.DateFrToSql(dteFacturation)),
             ("dtMaj", xformat.DatetimeToStr(datetime.date.today(),iso=True)),
-            ("user", dlg.IDutilisateur),
+            ("user", self.GetUser()),
             ]
 
         if not track.IDconso or track.IDconso == 0:
@@ -574,6 +579,11 @@ class Noegest(object):
             if name in dicParams[cat]:
                 valeur = dicParams[cat][name]
         return valeur
+
+    def GetUser(self):
+        dlg = self.parent
+        return dlg.IDutilisateur
+
 
 #------------------------ Lanceur de test  -------------------------------------------
 
