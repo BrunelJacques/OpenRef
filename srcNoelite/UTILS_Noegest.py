@@ -141,9 +141,9 @@ class Noegest(object):
         retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetEnsemble')
         if retour == "ok":
             recordset = self.db.ResultatReq()
-            lstDonnees = list(recordset[0])
-        if len(lstDonnees)>0:
-            pnlParams.SetLstValeurs(lstChamps,lstDonnees)
+            if len(recordset) > 0:
+                lstDonnees = list(recordset[0])
+                pnlParams.SetLstValeurs(lstChamps,lstDonnees)
         return
 
     def GetComposants(self,IDimmo, lstChamps):
@@ -152,7 +152,8 @@ class Noegest(object):
         req = """   
                 SELECT %s
                 FROM immosComposants
-                WHERE IDimmo = %s;
+                WHERE IDimmo = %s
+                ORDER BY dteAcquisition;
                 """ % (",".join(lstChamps),IDimmo)
         lstDonnees = []
         retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetComposants')
@@ -166,6 +167,8 @@ class Noegest(object):
 
     def GetImmosComposants(self,lstChamps):
         # appel des composants dans les tables immos
+        self.db.Close()
+        self.db = xGestionDB.DB()
         dlg = self.parent
         req = """   
                 SELECT %s

@@ -275,17 +275,19 @@ def FmtDate(date):
     if date == None or date in (wx.DateTime.FromDMY(1,0,1900),'',datetime.date(1900,1,1)):
         return ''
     if isinstance(date,str):
-        date = date.replace('-','/')
+        tplansi = date.split('-')
         tpldate = date.split('/')
         if date == '00:00:00': strdate = ''
-        elif len(tpldate)==3:
-            strdate = ('00'+tpldate[0])[-2:]+'/'+('00'+tpldate[1])[-2:]+'/'+('20'+tpldate[2])[-4:]
+        elif len(tplansi)==3:
+            strdate = ('20'+tplansi[0])[-4:]+'-'+('00'+tplansi[1])[-2:]+'-'+('00'+tplansi[2])[-2:]
+        elif len(tpldate) == 3:
+            strdate = ('20' + tplansi[2])[-4:] + '-' + ('00' + tplansi[1])[-2:] + '-' + ('00' + tplansi[0])[-2:]
         elif len(date) == 6:
-            strdate = (date[:2] + '/' + date[2:4] + '/' + '20'+date[4:])
+            strdate = ('20'+date[4:] + '-' + date[2:4] + '-' + date[:2])
         elif len(date) == 8:
-            strdate = (date[:2] + '/' + date[2:4] + '/' + date[4:])
+            strdate = (date[4:] + '-' + date[2:4] + '-' + date[:2])
     else:
-        strdate = DatetimeToStr(date)
+        strdate = DatetimeToStr(date,iso=True)
     return strdate
 
 def FmtCheck(value):

@@ -48,10 +48,10 @@ def GetBoutons(dlg):
     return  [
                 {'name': 'btnDot', 'label': "Calcul\ndotations",
                     'toolTip': "Cliquez ici pour lancer l'importation du fichier de km consommés",
-                    'size': (120, 35), 'image': wx.ART_UNDO,},
+                    'size': (120, 35), 'image': wx.ART_UNDO,'onBtn':dlg.OnCalcul},
                 {'name': 'btnExp', 'label': "Exporter\nfichier",
                     'toolTip': "Cliquez ici pour lancer l'exportation du fichier selon les paramètres que vous avez défini",
-                    'size': (120, 35), 'image': wx.ART_REDO,},
+                    'size': (120, 35), 'image': wx.ART_REDO,'onBtn':dlg.OnExport},
                 {'name':'btnOK','ID':wx.ID_ANY,'label':"Quitter",'toolTip':"Cliquez ici pour fermer la fenêtre",
                     'size':(120,35),'image':"xpy/Images/32x32/Quitter.png",'onBtn':dlg.OnFermer}
             ]
@@ -106,7 +106,7 @@ DICOLV = {
                       'ante': {"mode": "total","alignement": wx.ALIGN_RIGHT},
                       'dotation': {"mode": "total","alignement": wx.ALIGN_RIGHT},
                       },
-    'lstChamps': ['immobilisations.compteImmo', 'immosComposants.IDcomposant', 'immobilisations.compteImmo',
+    'lstChamps': ['immobilisations.IDimmo', 'immosComposants.IDcomposant', 'immobilisations.compteImmo',
                   'immobilisations.compteDotation','immobilisations.IDanalytique', 'immosComposants.dteAcquisition',
                   'immobilisations.libelle','immosComposants.etat', 'immosComposants.libComposant',
                   'immosComposants.valeur','immosComposants.type', 'immosComposants.tauxLineaire',
@@ -114,6 +114,8 @@ DICOLV = {
     'getActions': GetOlvActions,
     'hauteur': 400,
     'largeur': 950,
+    'sortColumnIndex':2,
+    'sortAscending':True,
     'checkColonne': False,
     'recherche': True,
     'autoAddRow': False,
@@ -271,23 +273,12 @@ class Pnl_corps(xgte.PNL_corps):
         okSauve = False
 
         # Traitement des spécificités selon les zones
-        if code == 'vehicule':
-            # vérification de l'unicité du code saisi
-            dicVehicule = self.parent.noegest.GetVehicule(filtre=value)
-            if dicVehicule:
-                track.IDvehicule = dicVehicule['idanalytique']
-                track.vehicule = dicVehicule['abrege']
-                track.nomvehicule = dicVehicule['nom']
-            else:
-                track.vehicule = ''
-                track.IDvehicule = ''
-                track.nomvehicule = ''
-            if parent:
-                # la modification de la cellule éditée ne doit pas être écrasée par le finish
-                parent.valeur = track.vehicule
-                parent.event.cellValue = track.vehicule
-            track.donnees[col] = track.vehicule
-            self.ctrlOlv.Refresh()
+        if code == 'dteAcquisition':
+            if track.old_data != value:
+                track.dteMiseEnService = value
+                ix = self.ctrlOlv.lstCodesColonnes.index('dteMiseEnService')
+                track.donnees[ix] = track.dteMiseEnService
+                self.ctrlOlv.Refresh()
 
 
         # l'enregistrement de la ligne se fait à chaque saisie pour gérer les montées et descentes
@@ -424,15 +415,32 @@ class PNL_corps(xgte.PNL_corps):
         xgte.PNL_corps.__init__(self,parent,dicOlv,*args,**kwds)
 
     def OnAjouter(self,evt):
-        wx.MessageBox("on va ajouter")
+        row = 0
+        if self.ctrlOlv.GetSelectedObject():
+            row =  self.ctrlOlv.modelObjects.index(self.ctrlOlv.GetSelectedObject())
+        dlg = Dlg_immo()
+        dlg.ShowModal()
+        self.parent.noegest.GetImmosComposants(self.parent.dicOlv['lstChamps'])
+        self.ctrlOlv.Select(row)
         return
 
     def OnModifier(self,evt):
-        wx.MessageBox("on va modifier")
+        row = 0
+        if self.ctrlOlv.GetSelectedObject():
+            row =  self.ctrlOlv.modelObjects.index(self.ctrlOlv.GetSelectedObject())
+        if not self.ctrlOlv.GetSelectedObject():
+            wx.MessageBox("Il vous faut sélectionner une ligne pour pouvoir la modifier!!")
+            return
+        track = self.ctrlOlv.GetSelectedObject()
+        IDimmo = track.IDimmo
+        dlg = Dlg_immo(IDimmo=IDimmo)
+        dlg.ShowModal()
+        self.parent.noegest.GetImmosComposants(self.parent.dicOlv['lstChamps'])
+        self.ctrlOlv.Select(row)
         return
 
     def OnSupprimer(self,evt):
-        wx.MessageBox("on va supprimer")
+        wx.MessageBox("Pour supprimer, passez en modification puis supprimez les lignes superflues de l'ensemble")
         return
 
 class PNL_pied(xgte.PNL_pied):
@@ -499,6 +507,12 @@ class DLG_immos(xusp.DLG_vide):
                     break
         return entete,entrees
 
+    def OnExport(self,event):
+        wx.MessageBox("Non développé! ")
+
+    def OnCalcul(self,event):
+        wx.MessageBox("Non développé! ")
+
     def OnImporter(self,event):
         """ Open a file"""
         self.dirname = ''
@@ -533,7 +547,7 @@ if __name__ == '__main__':
     import os
     app = wx.App(0)
     os.chdir("..")
-    dlg = Dlg_immo(IDimmo=18)
+    dlg = Dlg_immo(IDimmo=3)
     #dlg = DLG_immos()
     dlg.ShowModal()
     app.MainLoop()

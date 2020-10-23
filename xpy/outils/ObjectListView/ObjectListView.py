@@ -103,7 +103,6 @@ import operator
 import time
 import six
 import unicodedata
-#from xpy.outils.ObjectListView.OLVEvent import *
 from . import OLVEvent
 from . import Filter
 from . import CellEditor
@@ -259,8 +258,6 @@ class ObjectListView(wx.ListCtrl):
         self.modelObjects = []
         self.innerList = []
         self.columns = []
-        self.sortColumnIndex = -1
-        self.sortAscending = True
         self.smallImageList = None
         self.normalImageList = None
         self.cellEditor = None
@@ -276,9 +273,9 @@ class ObjectListView(wx.ListCtrl):
         self.original = True
 
         self.rowFormatter = kwargs.pop("rowFormatter", None)
-        self.useAlternateBackColors = kwargs.pop(
-            "useAlternateBackColors",
-            True)
+        self.useAlternateBackColors = kwargs.pop("useAlternateBackColors",True)
+        self.sortColumnIndex = kwargs.pop("sortColumnIndex", -1)
+        self.sortAscending = kwargs.pop("sortAscending", True)
         self.sortable = kwargs.pop("sortable", True)
         self.cellEditMode = kwargs.pop("cellEditMode", self.CELLEDIT_NONE)
         self.autoAddRow = kwargs.pop("autoAddRow",False)
@@ -364,7 +361,8 @@ class ObjectListView(wx.ListCtrl):
                 self.AddColumnDefn(ColumnDefn(*x))
             ix +=1
         # Try to preserve the column column
-        self.SetSortColumn(sortCol)
+        sortCol = self.GetSortColumn()
+        self.SetSortColumn(sortCol,resortNow=True)
         if repopulate:
             self.RepopulateList()
 
@@ -1245,8 +1243,7 @@ class ObjectListView(wx.ListCtrl):
         """
         Return the column by which the rows of this control should be sorted
         """
-        if self.sortColumnIndex < 0 or self.sortColumnIndex >= len(
-                self.columns):
+        if self.sortColumnIndex < 0 or self.sortColumnIndex >= len(self.columns):
             return None
         else:
             return self.columns[self.sortColumnIndex]
@@ -1315,7 +1312,7 @@ class ObjectListView(wx.ListCtrl):
         else:
             self.sortColumnIndex = column
         if resortNow:
-            self.SortBy(self.sortColumnIndex)
+            self.SortBy(self.sortColumnIndex,self.sortAscending)
         else:
             self._UpdateColumnSortIndicators()
 
@@ -2009,7 +2006,7 @@ class ObjectListView(wx.ListCtrl):
             return
 
         # Let the world have a chance to sort the model objects
-        evt = SortEvent(
+        evt = OLVEvent.SortEvent(
             self,
             self.sortColumnIndex,
             self.sortAscending,

@@ -661,14 +661,8 @@ class PanelListView(wx.Panel):
     def OnEditFunctionKeys(self, event):
         # Fonction appelée par CellEditor.Validator lors de l'activation d'une touche de fonction
         if self.ctrl_listview.cellBeingEdited:
-            #try:
             self.parent.OnEditFunctionKeys(event)
             event.Skip()
-            """except:
-                row, col = self.ctrl_listview.cellBeingEdited
-                wx.MessageBox(u"Touche <F%d> pressée sur cell (%d,%d)\n\n'error: %s'" % (event.GetKeyCode() - wx.WXK_F1 + 1,
-                                                                                     row, col, sys.exc_info()[0]))
-            """
 
     # Initialisation d'une nouvelle track
     def InitTrackVierge(self,track,trackN1):
@@ -728,6 +722,9 @@ class PNL_corps(wx.Panel):
                         'dictColFooter',
                         'editMode',
                         'autoAddRow',
+                        'sortable',
+                        'sortColumnIndex',
+                        'sortAscending',
                         ]
         # le footer éventuel doit passer au niveau panel suivant, sinon on ne cherche pas à le transférer
         self.avecFooter = ('dictColFooter'  in dicOlv)
