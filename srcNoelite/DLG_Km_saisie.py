@@ -315,7 +315,7 @@ class PNL_corps(xgte.PNL_corps):
             else:
                 self.ctrlOlv.lstColonnes[ixtiers].isEditable = True
                 self.ctrlOlv.lstColonnes[ixnomtiers].isEditable = False
-            track.typetiers = value[0]
+            parent.valeur = value[0]
 
         if code in ['kmdeb','kmfin']:
             kmdeb,kmfin = 9999999,0
@@ -432,7 +432,11 @@ class Dialog(xusp.DLG_vide):
         box = self.pnlParams.GetBox('filtres')
         self.noegest.cloture = box.GetOneValue('cloture')
         lClotures = [x for y, x in self.noegest.GetExercices()]
-        self.exercice = self.noegest.ltExercices[lClotures.index(self.noegest.cloture)]
+        self.exercice = ''
+        try:
+            self.exercice = self.noegest.ltExercices[0]
+            self.exercice = self.noegest.ltExercices[lClotures.index(self.noegest.cloture)]
+        except: pass
         self.lstVehicules = [x[0] for x in self.noegest.GetVehicules(lstChamps=['abrege'])]
         box.SetOneValues('vehicule',self.lstVehicules)
         self.ctrlOlv.dicChoices[self.ctrlOlv.lstCodesColonnes.index('vehicule')]= self.lstVehicules
@@ -500,6 +504,10 @@ class Dialog(xusp.DLG_vide):
                     entete = entrees[ix]
                     entrees = entrees[ix + 1:]
                     break
+        if not entete:
+            wx.MessageBox("Fichier non reconnu!\n\n"+
+                          "Aucune ligne avec 6 cellules non nulles définissant une entête des colonnes!")
+            entrees = None
         return entete,entrees
 
     def GetCompta(self):

@@ -11,9 +11,9 @@
 import wx
 import datetime
 import srcNoelite.UTILS_Historique      as nuh
-import srcNoelite.UTILS_Utilisateurs    as nuutil
+#import srcNoelite.UTILS_Utilisateurs    as nuutil
 import xpy.xGestion_TableauRecherche    as xgtr
-from xpy.outils             import xformat
+from xpy.outils             import xformat, xchoixListe
 from xpy                    import xGestionDB
 from srcNoelite.DB_schema   import DB_TABLES
 
@@ -289,7 +289,7 @@ class Noegest(object):
     # ---------------- gestion des km à refacturer
 
     def GetDatesFactKm(self):
-        ldates = ['{:%d/%m/%Y}'.format(datetime.date.today()),]
+        ldates = ['{:%Y-%m-%d}'.format(datetime.date.today()),]
         datesNoe = []
         req =   """   
                 SELECT vehiculesConsos.dtFact
@@ -300,7 +300,7 @@ class Noegest(object):
         retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetDatesFactKm')
         if retour == "ok":
             recordset = self.db.ResultatReq()
-            datesNoe = [xformat.DateSqlToFr(x[0]) for x in recordset]
+            datesNoe = [x[0] for x in recordset]
         return ldates + datesNoe
 
     def GetdicPrixVteKm(self):
@@ -359,9 +359,9 @@ class Noegest(object):
                     dicDonnees["consos.typeTiers"],
                     dicDonnees["consos.IDtiers"],
                     dicDonnees["activ.nom"],
-                    xformat.DateSqlToFr(dicDonnees["consos.dteKmDeb"]),
+                    dicDonnees["consos.dteKmDeb"],
                     dicDonnees["consos.kmDeb"],
-                    xformat.DateSqlToFr(dicDonnees["consos.dteKmFin"]),
+                    dicDonnees["consos.dteKmFin"],
                     dicDonnees["consos.kmFin"],
                     dicDonnees["consos.kmFin"]-dicDonnees["consos.kmDeb"],
                     dicDonnees["consos.observation"],
@@ -447,7 +447,7 @@ class Noegest(object):
             ("IDconso", track.IDconso),
             ("IDanalytique", track.IDvehicule),
             ("cloture", xformat.DateFrToSql(self.cloture)),
-            ("typeTiers", track.typetiers),
+            ("typeTiers", track.typetiers[:1]),
             ("IDtiers", track.IDtiers),
             ("dteKmDeb", xformat.DateFrToSql(track.dtkmdeb)),
             ("kmDeb", track.kmdeb),
@@ -568,8 +568,20 @@ class Noegest(object):
             if len(recordset) == 0:
                 wx.MessageBox("Aucun exercice n'est paramétré")
             for debut, fin in recordset:
-                self.ltExercices.append((xformat.DateSqlToFr(debut), xformat.DateSqlToFr(fin)))
+                self.ltExercices.append((debut, fin))
         return self.ltExercices
+
+    def ChoixExercice(self):
+        lstExercices = self.GetExercices()
+        dlg = xchoixListe.DialogAffiche(titre="Choix de l'exercice ",
+                 intro="Le choix permettra le calcul des dotations pour cet exercice",
+                 lstDonnees=lstExercices,
+                 lstColonnes=["Début","Fin"],
+                 lstWcol=[150,150],
+                 size=(300,500))
+        if dlg.ShowModal() == wx.ID_OK:
+            return dlg.choix
+        else: return None
 
     def GetParam(self,cat,name):
         # récup des paramètres stockés sur le disque

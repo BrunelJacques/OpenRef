@@ -78,7 +78,7 @@ DICOLV = {
                 ColumnDefn("Cpte Immo", 'centre', 80, 'compteimmo'),
                 ColumnDefn("Cpte Dot", 'center', 70, 'cptedot', ),
                 ColumnDefn("Section", 'left', 60, 'section'),
-                ColumnDefn("Acquisition", 'center', 80, 'acquisition',
+                ColumnDefn("MiseEnServ", 'center', 80, 'miseenservice',
                            stringConverter=xformat.FmtDate,),
                 ColumnDefn("Ensemble", 'center', 120, 'enemble', isSpaceFilling=True),
                 ColumnDefn("Etat", 'left', 30, 'etat'),
@@ -92,7 +92,8 @@ DICOLV = {
                            stringConverter=xformat.FmtDecimal),
                 ColumnDefn("Dotation", 'right', 90, 'dotation',
                            ),
-                ColumnDefn("Cession", 'left', 40, 'cession',),
+                ColumnDefn("Cession", 'left', 40, 'cession',
+                           stringConverter=xformat.FmtDate,),
                 ],
     'dictColFooter': {'composant': {"mode": "nombre", "alignement": wx.ALIGN_CENTER,'pluriel':"lignes"},
                       'valeur': {"mode": "total","alignement": wx.ALIGN_RIGHT},
@@ -100,10 +101,10 @@ DICOLV = {
                       'dotation': {"mode": "total","alignement": wx.ALIGN_RIGHT},
                       },
     'lstChamps': ['immobilisations.IDimmo', 'immosComposants.IDcomposant', 'immobilisations.compteImmo',
-                  'immobilisations.compteDotation','immobilisations.IDanalytique', 'immosComposants.dteAcquisition',
+                  'immobilisations.compteDotation','immobilisations.IDanalytique', 'immosComposants.dteMiseEnService',
                   'immobilisations.libelle','immosComposants.etat', 'immosComposants.libComposant',
                   'immosComposants.valeur','immosComposants.type', 'immosComposants.tauxAmort',
-                  'immosComposants.amortAnterieur','immosComposants.dotation', 'immosComposants.cessionType'],
+                  'immosComposants.amortAnterieur','immosComposants.dotation', 'immosComposants.cessionDate'],
     'getActions': GetOlvActions,
     'hauteur': 400,
     'largeur': 950,
@@ -516,7 +517,38 @@ class DLG_immos(xusp.DLG_vide):
         wx.MessageBox("Non développé! ")
 
     def OnCalcul(self,event):
-        wx.MessageBox("Non développé! ")
+        exercice = self.noegest.ChoixExercice()
+        if exercice:
+            debex = exercice[0]
+            finex = exercice[1]
+            for track in self.ctrlOlv.modelObjects:
+                if not track.taux : continue
+                if not track.typeamo in ('D','L'): continue
+                if not track.ante: track.ante = 0.0
+                vnc = track.valeur - track.ante
+                if track.typeamo == 'D':
+                    tauxdeg = min(41.67,track.taux)
+                    tauxlin = tauxdeg / 1.25
+                    if tauxdeg <= 35 :
+                        tauxlin = tauxdeg / 1.75
+                    if tauxdeg <= 29.16:
+                        tauxlin = tauxdeg / 2.25
+                    if tauxdeg <= 11.84:
+                        tauxlin = 5
+                    basedot = vnc
+                    entree = xformat.DebutDeMois(track.miseenservice)
+                elif track.typeamo == "L":
+                    tauxdeg = 0.0
+                    tauxlin = track.taux
+                    basedot = track.valeur
+                    entree = track.miseenservice
+                proratalin = xformat.ProrataCommercial(track.miseenservice,track.cession,track.miseenservice,finex)
+                amomini = track.valeur * tauxlin * proratalin
+                dotmini = amomini - track.ante
+                prorataex = xformat.ProrataCommercial(entree,track.cession,debex,finex)
+                dotation = max(basedot * tauxdeg * prorataex, dotmini)
+                print(track.miseenservice,track.valeur,"\t",track.taux,"\t",vnc,"\t",dotation,"\t",vnc-dotation)
+                continue
 
     def OnImporter(self,event):
         """ Open a file"""

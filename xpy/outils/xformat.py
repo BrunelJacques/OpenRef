@@ -151,8 +151,8 @@ def DateSqlToWxdate(dateiso):
     if isinstance(dateiso,datetime.date):
         return wx.DateTime.FromDMY(dateiso.day,dateiso.month-1,dateiso.year)
 
-    if isinstance(dateiso,str) and len(dateiso) < 10:
-        return wx.DateTime.FromDMY(int(dateiso[8:10]),int(dateiso[5:7]-1),int(dateiso[:4]))
+    if isinstance(dateiso,str) and len(dateiso) >= 10:
+        return wx.DateTime.FromDMY(int(dateiso[8:10]),int(dateiso[5:7])-1,int(dateiso[:4]))
 
 def DateSqlToDatetime(dateiso):
     # Conversion de date récupérée de requête SQL aaaa-mm-jj (ou déjà en datetime) en datetime
@@ -163,6 +163,10 @@ def DateSqlToDatetime(dateiso):
 
     elif isinstance(dateiso,str) and len(dateiso) >= 10:
         return datetime.date(int(dateiso[:4]),int(dateiso[5:7]),int(dateiso[8:10]))
+
+def DateToDatetime(date):
+    # FmtDate normalise en Iso puis retourne en datetime
+    return DateSqlToDatetime(FmtDate(date))
 
 def DateSqlToFr(dateiso):
     # Conversion de date récupérée de requête SQL aaaa-mm-jj en jj/mm/aaaa
@@ -176,10 +180,9 @@ def DateFrToSql(datefr):
     if not isinstance(datefr, str) : datefr = str(datefr)
     datefr = datefr.strip()
     # normalisation des formats divers
-    datefr = FmtDate(datefr)
+    datesql = FmtDate(datefr)
     # transposition
-    if len(datefr) < 10: return None
-    return '%s-%s-%s'%(datefr[6:10],datefr[3:5],datefr[:2])
+    return datesql
 
 def DateFrToWxdate(datefr):
     # Conversion d'une date chaîne jj?mm?aaaa en wx.datetime
@@ -275,19 +278,26 @@ def FmtDate(date):
     if date == None or date in (wx.DateTime.FromDMY(1,0,1900),'',datetime.date(1900,1,1)):
         return ''
     if isinstance(date,str):
+        date = date.strip()
         tplansi = date.split('-')
         tpldate = date.split('/')
         if date == '00:00:00': strdate = ''
         elif len(tplansi)==3:
             strdate = ('20'+tplansi[0])[-4:]+'-'+('00'+tplansi[1])[-2:]+'-'+('00'+tplansi[2])[-2:]
         elif len(tpldate) == 3:
-            strdate = ('20' + tplansi[2])[-4:] + '-' + ('00' + tplansi[1])[-2:] + '-' + ('00' + tplansi[0])[-2:]
+            if len(date)>8:
+                strdate = (tpldate[2])[:4] + '-' + ('00' + tpldate[1])[-2:] + '-' + ('00' + tpldate[0])[-2:]
+            else:
+                strdate = ('20' + tpldate[2])[:4] + '-' + ('00' + tpldate[1])[-2:] + '-' + ('00' + tpldate[0])[-2:]
         elif len(date) == 6:
             strdate = ('20'+date[4:] + '-' + date[2:4] + '-' + date[:2])
         elif len(date) == 8:
             strdate = (date[4:] + '-' + date[2:4] + '-' + date[:2])
     else:
         strdate = DatetimeToStr(date,iso=True)
+    if not strdate or strdate == '':
+        mess = "Date non transposable : %s"%str(date)
+        raise Exception(mess)
     return strdate
 
 def FmtCheck(value):
@@ -397,30 +407,86 @@ def IncrementeRef(ref):
         refout = LettreSuivante(ref)
     return refout
 
-def FinDeMois(date):
-    # Retourne le dernier jour du mois dans le format reçu
+def BorneMois(dte,fin=True):
     def action(wxdte):
-        # action  calcul fin de mois sur les wx.DateTime
+        # action  calcul début ou fin de mois sur les wx.DateTime
         if isinstance(wxdte,wx.DateTime):
-            dteout = wx.DateTime.FromDMY(1,wxdte.GetMonth()+1,wxdte.GetYear())
-            dteout -= wx.DateSpan(days=1)
+            if fin:
+                dteout = wx.DateTime.FromDMY(1,wxdte.GetMonth()+1,wxdte.GetYear())
+                dteout -= wx.DateSpan(days=1)
+            else:
+                # dte début de mois
+                dteout = wx.DateTime.FromDMY(1,wxdte.GetMonth(),wxdte.GetYear())
             return dteout
         return None
 
-    if isinstance(date,(datetime.date,datetime.datetime)):
-        return WxdateToDatetime(action(DatetimeToWxdate(date)))
+    if isinstance(dte,(datetime.date,datetime.datetime)):
+        return WxdateToDatetime(action(DatetimeToWxdate(dte)))
 
-    if isinstance(date,str) and '/' in date:
-        date = DateFrToWxdate(date)
-        return WxDateToStr(action(date),iso=False)
+    elif isinstance(dte,wx.DateTime):
+        return action(dte)
 
-    if isinstance(date,str) and '-' in date:
-        date = DateSqlToWxdate(date)
-        return WxDateToStr(action(date),iso=True)
+    elif isinstance(dte,str):
+        dte = dte.strip()
+        wxdte = DateSqlToWxdate(FmtDate(dte))
+        if "-" in dte:
+            return WxDateToStr(action(wxdte),iso=True)
+        elif "/" in dte:
+                dtefr = WxDateToStr(action(wxdte), iso=False)
+                if len(dte)> 8:
+                    return dtefr
+                else: return dtefr[:6]+dtefr[8:]
+        else:
+            dtefr = WxDateToStr(action(wxdte), iso=False)
+            dtefr = dtefr.replace('/','')
+            if len(dte) == 6:
+                return dtefr[:4]+dtefr[6:]
+            elif len(dte) == 8:
+                return dtefr
+            else:
+                msg = "Date entrée non convertible : %s"%dte
+                raise Exception(msg)
+    return dte
 
-    if isinstance(date,wx.DateTime):
-        return action(date)
-    return date
+def FinDeMois(date):
+    # Retourne le dernier jour du mois dans le format reçu
+    return BorneMois(date,fin=True)
+
+def DebutDeMois(date):
+    # Retourne le dernier jour du mois dans le format reçu
+    return BorneMois(date,fin=False)
+
+def ProrataCommercial(entree,sortie,debutex,finex):
+    # Prorata d'une présence sur exercice sur la base d'une année commerciale pour un bien entré et sorti
+    # normalisation des dates iso en datetime
+    [entree,sortie,debut,fin] = [DateToDatetime(x) for x in [entree,sortie,debutex,finex]]
+    if not debut or not fin:
+        mess = "Date d'exercices impossibles: du '%s' au '%s'!"%(str(debutex),str(finex))
+        raise Exception(mess)
+    # détermination de la période d'amortissement
+    if not entree: entree = debut
+    if not sortie: sortie = fin
+    if entree > fin: debutAm = fin
+    elif entree > debut : debutAm = entree
+    else: debutAm = debut
+    if sortie < debut: finAm = debut
+    elif sortie < fin : finAm = sortie
+    else: finAm = fin
+
+    def delta360(deb,fin):
+        #nombre de jours d'écart en base 360jours / an
+        def jour30(dte):
+            # arrondi fin de mois en mode 30 jours
+            if dte.day > 30:
+                return 30
+            # le lendemain est-il un changement de mois? pour fin février bissextile ou pas
+            fdm = (dte + datetime.timedelta(days=1)).month - dte.month
+            if fdm >0:
+                return 30
+            return dte.day
+        return 1 + jour30(fin) - jour30(deb) + ((fin.month - deb.month) + ((fin.year - deb.year) * 12)) * 30
+    taux = round(delta360(debutAm,finAm) / 360,6)
+    return taux
 
 if __name__ == '__main__':
     import os
@@ -433,7 +499,8 @@ if __name__ == '__main__':
     print(FmtDate('01022019'))
     print(SupprimeAccents("ÊLève!"))
     """
-    print('ok')
+    dte="15/02/0000"
+    print(DebutDeMois(dte),FinDeMois(dte),type(dte))
 
 
 

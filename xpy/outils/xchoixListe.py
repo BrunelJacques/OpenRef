@@ -576,6 +576,7 @@ if __name__ == u"__main__":
 
     app = wx.App(0)
     import os
+    # remonter de deux niveaux
     os.chdir("..")
     os.chdir("..")
 

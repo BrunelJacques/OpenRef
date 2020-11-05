@@ -7,10 +7,10 @@
 #----------------------------------------------------------------------------
 
 import wx
+import datetime
 import xpy.xUTILS_Config    as xucfg
 import xpy.xGestionConfig   as xgc
 import xpy.xGestionDB       as xdb
-import xpy.xUTILS_SaisieParams          as xusp
 import xpy.xGestion_TableauRecherche    as xgtr
 from xpy.outils             import xexport,xformat
 
@@ -100,7 +100,7 @@ def ComposeFuncExp(dicParams,donnees,champsIn,champsOut):
             elif champ  == 'compte':
                 if not valeur or valeur == '' : valeur = '471'
             elif champ  == 'date':
-                valeur = xformat.DateFrToWxdate(valeur)
+                valeur = xformat.DateSqlToDatetime(valeur)
             elif champ  == 'typepiece':
                 valeur = typepiece
             elif champ  == 'contrepartie':
@@ -176,7 +176,8 @@ FORMATS_EXPORT = {"Quadra via Excel":{  'compta':'quadra',
                                                 {'code': 'compte',  'cat': str, 'lg': 8, 'align': "<"},
                                                 {'code': 'journal',      'cat': str, 'lg': 2, 'align': "<"},
                                                 {'code': 'fol',     'cat': str, 'lg': 3, 'align': "<"},
-                                                {'code': 'date',    'cat': wx.DateTime, 'lg':6, 'fmt': "%d%m%y"},
+                                                #{'code': 'date',    'cat': wx.DateTime, 'lg':6, 'fmt': "%d%m%y"},
+                                                {'code': 'date',    'cat': datetime.date, 'lg':6,'fmt': "{:%d%m%y}" },
                                                 {'code': 'typepiece',     'cat': str, 'lg': 1},
                                                 {'code': 'fil',    'cat': str, 'lg': 20, 'align': ">"},
                                                 {'code': 'sens',    'cat': str, 'lg': 1, 'align': "<"},

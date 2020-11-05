@@ -491,13 +491,16 @@ def TransposeAdresse(adresse=[]):
     # eclate l'adresse fournie en segments contenant un mot clé identifié, puis recompose selon l'ordre normé
     if len(adresse) != 7 or (not isinstance(adresse,(list,tuple))):
         wx.MessageBox("L'adresse reçue n'est pas une liste de six lignes\n\n%s"%str(adresse))
+        return adresse
+    adresse = [x.strip() for x in adresse]
 
     # les quatre lstMots correspondent aux quatre premières lignes de la norme, suivies de cp+ville et pays
     motsBatiment = ["batiment","bâtiment"," bat "," bât ","-bât","-bat"," hall"," entrée", "immeuble"]
-    motsResidence= ["maison de quartier ","résidence","residence"," res.","rés."," res "," rés "," allée "," cour ","le clos ","les clos "]
+    motsResidence= ["maison de quartier ","résidence","residence"," res.","rés."," res "," rés "," allée "," cour ",
+                    "le clos ","les clos "]
     lstMotsBatRes= motsBatiment + motsResidence
     lstMotsAppart=["appt","appartement","appart ","app ","étage","etage"," etg ","escalier"," esc "," apt ",
-                    " log ","logement"," porte "]
+                    " log ","logement"," porte ","service","serv ","rdc","rez "]
     lstMotsRue=["passage","ruelle "," rue "," place "," montée ","square","chemin","avenue","impasse",
                 "boulevard", " bvd ","traverse"," allée "," cour "," route "," chem "," av "," rte "," cours "]
     lstMotsLieux=[" bp "," bp-","bp:","quartier ","lieu dit "," lieudit ","lieu-dit"," zi "]
@@ -598,25 +601,25 @@ def TransposeAdresse(adresse=[]):
     def coupeAvantMot(chaineBrute,mots, corrNoRue=0):
         # retourne deux morceaux de la chaine  séparés par le premier mot trouvé après le début
         """ on peut accoler au mot une correction pour no de rue ou de résidence qui le précède"""
-        chaine = chaineBrute.lower()
+        chaine = chaineBrute.lower().strip()
         lstFragments = []
         posMot = 9999
         motD = None
         motN = None
         motN1 = None
         for mot in mots :
-            motdeb = (mot + "-").strip()[:-1]
-            yamotdeb = (motdeb == chaine[:len(motdeb)])
-            if (mot in chaine) or yamotdeb :
+            motpur = (mot + "-").strip()[:-1]
+            yamotpur = (motpur == chaine[:len(motpur)])
+            if (mot in chaine) or yamotpur :
                 # le mot est dans la chaîne ou au début tronqué de son espace
-                if yamotdeb:
-                    motpres = motdeb
-                else: motpres = mot
+                if yamotpur:
+                    motfocus = motpur
+                else: motfocus = mot
                 # un batiment emporte le no de résidence qui le suit
                 if motD in lstMotsBatRes and mot in motsResidence: corrNoRue = 0
-                newpos = chaine.index(motpres)-corrNoRue
+                newpos = chaine.index(motfocus)-corrNoRue
                 if newpos < posMot and newpos > 0:
-                    posMot = chaine.index(motpres)
+                    posMot = chaine.index(motfocus)
                     motN1 = motN
                     motN = mot
                 else:
@@ -624,18 +627,22 @@ def TransposeAdresse(adresse=[]):
                         motD = mot
                         motN1 = motN
                     else: motN1 = mot
-        # la coupure doit englober le numéro de rue précédent un mot clé de type rue
+        # la coupure doit englober le numéro précédent un mot clé de type rue ou appart
         correctif = 0
-        if motN1 in lstMotsAppart + motsBatiment:
+        if motN in lstMotsAppart + motsBatiment:
             # recherche le début du no de batiment ou d'appartement placé devant en ième
             lstItems = chaine[:posMot].split(" ")
             posChiffre = None
             ix = -1
             # recule en sautant les espaces qui ont fait des items vides
-            while len(lstItems[ix])==0 and ix >= -len(lstItems): ix -= 1
+            while len(lstItems[ix]) == 0 and ix >= -len(lstItems):
+                ix -= 1
             noBat = NoPunctuation(lstItems[ix]).strip()
             tolerance = 6
-            finsmot = (" er","1er","ier","eme","ème")
+            finsmot = (" er","1er","ier","eme","ème","éme")
+            if len(noBat)>0 and len(noBat)<= 3 and noBat[-1].lower()== u"e" :
+                finsmot += (("  "+noBat)[-3:],)
+                tolerance = 2
             if (" "+noBat.lower())[-3:] in finsmot :
                 tolerance += len(noBat)
                 # nobat est soit une abréviation précédée d'un chiffre soit la fin du mot complet
@@ -922,9 +929,15 @@ def DesignationFamille(IDfamille):
 if __name__ == "__main__":
     app = wx.App(0)
     #InitialiseFamilles()
-    texte = "\nl'almanarre-inouïe HALL 3 esc 6 Résidence: du soleil d'avant garde bp:456\nceci\n\nbât 4 355 b Place de l'église\n83160  la valette-du-var au pied du coudon la vallee heureuse\n"
-    #texte = "\n\n\nintro bât 4 Place de l'église\n83160  la valette-du-var au pied du coudon la vallee heureuse\n"
-    lstAdresse = texte.split("\n")
-    ret = SetDBadresse(xdb.DB(),17686,"l'almanarre-inouïe\n\n bât 3 :résidence: du soleil d'avant garde\nbp:456\n83160  la valette-du-var au pied du coudon la vallee heureuse\n")
-    print(GetDBadresse(17686))
+
+    lstAdresse = [  u"1, rue du Belvedere de la Ronce ",
+                    u"bâtiment 5 étage 8",
+                    u"",
+                    u"",
+                    u"83160 plan d'Aups",
+                    u"",u""]
+    ret = TransposeAdresse(lstAdresse)
+
+    for ix in range(7):
+        print((lstAdresse[ix]+u" "*50)[:50],u"\t",ret[ix])
     app.MainLoop()
