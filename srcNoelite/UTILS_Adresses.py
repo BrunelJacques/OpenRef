@@ -643,12 +643,12 @@ def TransposeAdresse(adresse=[]):
             if len(noBat)>0 and len(noBat)<= 3 and noBat[-1].lower()== u"e" :
                 finsmot += (("  "+noBat)[-3:],)
                 tolerance = 2
-            if (" "+noBat.lower())[-3:] in finsmot :
+            if ("   "+noBat.lower())[-3:] in finsmot :
                 tolerance += len(noBat)
                 # nobat est soit une abréviation précédée d'un chiffre soit la fin du mot complet
                 if ord(noBat[0]) in range(48,58):
                     posChiffre = True
-                elif len(noBat) > 8:  posChiffre = True
+                elif len(noBat) > 3:  posChiffre = True
                 elif ix-1 >= -len(lstItems):
                     # nobat est court et ne contenant pas le numéro il est peut être devant
                     ix -=1
@@ -657,11 +657,12 @@ def TransposeAdresse(adresse=[]):
                         # teste présence chiffre
                         if ord(let) in range(48, 58):
                             posChiffre = True
-                            tolerance += 1
+                            tolerance += 3
                 else: posChiffre = False
             # intègre le no devant le batiment
-            if posChiffre and (posMot - chaine.index(noBat) < tolerance) :
-                correctif = posMot - chaine.index(noBat)
+            posNo = chaine.index(noBat)
+            if posChiffre and (posMot - posNo < tolerance) :
+                correctif = posMot - posNo
                 posMot = chaine.index(noBat)
         if motN in lstMotsRue or (motN in motsResidence and not motD):
             # recherche le début du no de rue par découpe en lst
@@ -931,7 +932,7 @@ if __name__ == "__main__":
     #InitialiseFamilles()
 
     lstAdresse = [  u"1, rue du Belvedere de la Ronce ",
-                    u"bâtiment 5 étage 8",
+                    u"bâtiment 5 3 ème étage",
                     u"",
                     u"",
                     u"83160 plan d'Aups",
