@@ -275,7 +275,7 @@ def FmtPercent(montant):
 
 def FmtDate(date):
     strdate = ''
-    if date == None or date in (wx.DateTime.FromDMY(1,0,1900),'',datetime.date(1900,1,1)):
+    if date == None or date in (wx.DateTime.FromDMY(1,0,1900),'',datetime.date(1900,1,1),"1899-12-30"):
         return ''
     if isinstance(date,str):
         date = date.strip()

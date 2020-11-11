@@ -84,7 +84,7 @@ class Noegest(object):
         if (not track.valeur) or (track.valeur < 1.0):
             track.messageRefus += "Vous devez obligatoirement saisir une valeur positive !\n"
         if track.type == 'L':
-            if xformat.Nz(track.tauxAmort) == 0.0 :
+            if xformat.Nz(track.tauxLin) == 0.0 :
                 track.messageRefus += "Vous devez obligatoirement saisir un taux d'amortissement!\n"
         elif track.type == 'D':
             if xformat.Nz(track.coefDegressif) == 0.0 :

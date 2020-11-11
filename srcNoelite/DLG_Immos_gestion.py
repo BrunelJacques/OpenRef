@@ -91,8 +91,8 @@ DICOLV = {
                 ColumnDefn("Amo Antér.", 'right', 90, 'ante', valueSetter=0,
                            stringConverter=xformat.FmtDecimal),
                 ColumnDefn("Dotation", 'right', 90, 'dotation',
-                           ),
-                ColumnDefn("Cession", 'left', 40, 'cession',
+                           stringConverter=xformat.FmtDecimal),
+                ColumnDefn("Cession", 'left', 80, 'cession',
                            stringConverter=xformat.FmtDate,),
                 ],
     'dictColFooter': {'composant': {"mode": "nombre", "alignement": wx.ALIGN_CENTER,'pluriel':"lignes"},
@@ -107,7 +107,7 @@ DICOLV = {
                   'immosComposants.amortAnterieur','immosComposants.dotation', 'immosComposants.cessionDate'],
     'getActions': GetOlvActions,
     'hauteur': 400,
-    'largeur': 950,
+    'largeur': 1300,
     'sortColumnIndex':2,
     'sortAscending':True,
     'checkColonne': False,
@@ -127,11 +127,13 @@ lINFO_OLV = "Double clic pour modifier une cellule."
 # Infos d'aide en pied d'écran
 lDIC_INFOS = {'dteAcquisition':"Les dates peuvent se saisir 'jjmmaa' ou 'jj/mm/aa' ou 'aaaa-mm-jj'\n"+
                                "C'est la date d'acquisition du composant",
-            'tauxAmort':    "ATTENTION c'est 100 divisé par le nombre d'années d'amortissement\n"+
+            'type':    "L pour linéraire, D pour un taux qui sera majoré pour être dégressif\n"+
+                                "N pour non amortissable. Seuls L et D pourront provoquer des dotations par calcul",
+            'tauxLin':    "ATTENTION c'est 100 divisé par le nombre d'années d'amortissement\n"+
                                 "2ans-> 50, 3ans-> 33.33, 5ans-> 20, 7ans-> 14.29, 12ans-> 8.33, 15ans-> 6.67 etc ",
             'dotation':     "Cette zone est modifiée automatiquement par le calcul,\nune correction est ephémère",
             'valeur':      "Montant en €",
-            'dteMiseEnService': "On peut saisir jjmmaa\nC'est la date qui détermine le début de l'amortissement",
+            'miseenservice': "On peut saisir jjmmaa\nC'est la date qui détermine le début de l'amortissement",
             'cessionDate': "Les dates peuvent se saisir 'jjmmaa' ou 'jj/mm/aa' ou 'aaaa-mm-jj'",
             }
 
@@ -199,7 +201,12 @@ def AdaptDicOlv(dicOlv):
                         choices=['L','D','N'],
                         isSpaceFilling=False,
                         cellEditorCreator=CellEditor.ChoiceEditor),
+    dicOlv['lstColonnes'][ix] = column
 
+    ix = dicOlv['lstChamps'].index('tauxAmort')
+    column = dicOlv['lstColonnes'][ix]
+    column.title = "TauxLin"
+    column.valueGetter = "tauxLin"
     dicOlv['lstColonnes'][ix] = column
 
     ix = dicOlv['lstChamps'].index('IDimmo')
@@ -280,9 +287,9 @@ class Pnl_corps(xgte.PNL_corps):
         # Traitement des spécificités selon les zones
         if code == 'dteAcquisition':
             if track.old_data != value:
-                track.dteMiseEnService = value
-                ix = self.ctrlOlv.lstCodesColonnes.index('dteMiseEnService')
-                track.donnees[ix] = track.dteMiseEnService
+                track.miseenservice = value
+                ix = self.ctrlOlv.lstCodesColonnes.index('miseenservice')
+                track.donnees[ix] = track.miseenservice
                 self.ctrlOlv.Refresh()
 
 
@@ -519,36 +526,60 @@ class DLG_immos(xusp.DLG_vide):
     def OnCalcul(self,event):
         exercice = self.noegest.ChoixExercice()
         if exercice:
+            ixdot = self.ctrlOlv.lstCodesColonnes.index('dotation')
+            ixetat = self.ctrlOlv.lstCodesColonnes.index('etat')
+            lstChamps = ['IDcomposant','etat','dotation']
+            lstModifs = []
             debex = exercice[0]
             finex = exercice[1]
             for track in self.ctrlOlv.modelObjects:
+                # si l'état a été forcé la cession n'est pas après l'exercice, on ne dote pas l'exercice
+                if track.etat.upper() in ('R','C') and track.cession <= finex: continue
+                # l'absence de taux le fait non amortissable
                 if not track.taux : continue
                 if not track.typeamo in ('D','L'): continue
                 if not track.ante: track.ante = 0.0
                 vnc = track.valeur - track.ante
+                tauxlin = track.taux
                 if track.typeamo == 'D':
-                    tauxdeg = min(41.67,track.taux)
-                    tauxlin = tauxdeg / 1.25
-                    if tauxdeg <= 35 :
-                        tauxlin = tauxdeg / 1.75
-                    if tauxdeg <= 29.16:
-                        tauxlin = tauxdeg / 2.25
-                    if tauxdeg <= 11.84:
-                        tauxlin = 5
+                    #même en dégressif le taux saisi était celui du linéaire, soit: 1/nbre années
+                    tauxdot = tauxlin
+                    if tauxlin < 50.0 :
+                        tauxdot = tauxlin * 1.25
+                    if tauxlin <= 25.0:
+                        tauxdot = tauxlin * 1.75
+                    if tauxlin <= 16.6:
+                        tauxdot = tauxlin * 2.25
                     basedot = vnc
                     entree = xformat.DebutDeMois(track.miseenservice)
                 elif track.typeamo == "L":
                     tauxdeg = 0.0
-                    tauxlin = track.taux
+                    tauxdot = tauxlin
                     basedot = track.valeur
                     entree = track.miseenservice
-                proratalin = xformat.ProrataCommercial(track.miseenservice,track.cession,track.miseenservice,finex)
-                amomini = track.valeur * tauxlin * proratalin
-                dotmini = amomini - track.ante
+                proratacumul = xformat.ProrataCommercial(track.miseenservice,track.cession,track.miseenservice,finex)
+                # calcul correctif pour le mini dégressif
+                cumulamolin = track.valeur * tauxlin * proratacumul / 100
                 prorataex = xformat.ProrataCommercial(entree,track.cession,debex,finex)
-                dotation = max(basedot * tauxdeg * prorataex, dotmini)
-                print(track.miseenservice,track.valeur,"\t",track.taux,"\t",vnc,"\t",dotation,"\t",vnc-dotation)
-                continue
+                dotcalculex = round(basedot * tauxdot * prorataex / 100,2)
+
+                cumulamosdot = track.ante + dotcalculex
+                if dotcalculex > 0.0 and cumulamolin > cumulamosdot:
+                    correctif = cumulamolin - track.ante - dotcalculex
+                    if correctif > 5:
+                        dotcalculex += correctif
+                dotation = round(min(dotcalculex,vnc),2)
+                # seules les modifs seront enregistrées
+                if track.dotation != dotation:
+                    track.dotation = dotation
+                    track.donnees[ixdot] = dotation
+                    if vnc - dotation <= 0.01:
+                        track.etat = 'A'
+                        track.donnees[ixetat] = 'A'
+                    lstModifs.append([track.IDcomposant,track.etat,track.dotation])
+            if len(lstModifs) > 0:
+                self.noegest.SetComposants(None, [], [], lstModifs, lstChamps)
+            self.ctrlOlv.MAJ()
 
     def OnImporter(self,event):
         """ Open a file"""
