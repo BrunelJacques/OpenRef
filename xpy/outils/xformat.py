@@ -4,7 +4,7 @@ SYMBOLE = "€"
 import wx
 import datetime
 import unicodedata
-from xpy.outils.ObjectListView import ColumnDefn
+from xpy.outils.ObjectListView import ColumnDefn, CellEditor
 
 # fonctions pour OLV
 
@@ -61,8 +61,9 @@ def DefColonnes(lstNoms,lstCodes,lstValDef,lstLargeur):
             isSpaceFilling = True
         else: isSpaceFilling = False
         code = lstCodes[ix]
-        lstColonnes.append(ColumnDefn(title=colonne,align=posit,width=lstLargeur[ix],valueGetter=code,valueSetter=lstValDef[ix],
-                                      isSpaceFilling=isSpaceFilling,stringConverter=stringConverter))
+        lstColonnes.append(ColumnDefn(title=colonne,align=posit,width=lstLargeur[ix],valueGetter=code,
+                                      valueSetter=lstValDef[ix],isSpaceFilling=isSpaceFilling,
+                                      stringConverter=stringConverter))
         ix += 1
     return lstColonnes
 
@@ -273,7 +274,7 @@ def FmtPercent(montant):
     strMtt = '{:}% '.format(int(float(montant)))
     return strMtt
 
-def FmtDate(date):
+def zzFmtDate(date):
     strdate = ''
     if date == None or date in (wx.DateTime.FromDMY(1,0,1900),'',datetime.date(1900,1,1),"1899-12-30"):
         return ''
@@ -299,6 +300,34 @@ def FmtDate(date):
         mess = "Date non transposable : %s"%str(date)
         raise Exception(mess)
     return strdate
+
+def FmtDate(date):
+    strdate = ''
+    if date == None or date in (wx.DateTime.FromDMY(1,0,1900),'',datetime.date(1900,1,1),"1899-12-30"):
+        return ''
+    if isinstance(date,str):
+        date = date.strip()
+        tplansi = date.split('-')
+        tpldate = date.split('/')
+        if date == '00:00:00': strdate = ''
+        elif len(tplansi)==3:
+            strdate = ('20'+tplansi[0])[-4:]+'-'+('00'+tplansi[1])[-2:]+'-'+('00'+tplansi[2])[-2:]
+        elif len(tpldate) == 3:
+            if len(date)>8:
+                strdate = (tpldate[2])[:4] + '-' + ('00' + tpldate[1])[-2:] + '-' + ('00' + tpldate[0])[-2:]
+            else:
+                strdate = ('20' + tpldate[2])[:4] + '-' + ('00' + tpldate[1])[-2:] + '-' + ('00' + tpldate[0])[-2:]
+        elif len(date) == 6:
+            strdate = ('20'+date[4:] + '-' + date[2:4] + '-' + date[:2])
+        elif len(date) == 8:
+            strdate = (date[4:] + '-' + date[2:4] + '-' + date[:2])
+    else:
+        strdate = DatetimeToStr(date,iso=True)
+    if not strdate or strdate == '':
+        mess = "Date non reconnue: %s\n<esc> pour abandonner"%str(date)
+        wx.MessageBox(mess,"Resaisir une date correcte")
+        return ''
+    return DateSqlToFr(strdate)
 
 def FmtCheck(value):
     if value == False:

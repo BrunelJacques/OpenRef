@@ -131,8 +131,10 @@ class TrackGeneral(object):
         for ix in range(len(donnees)):
             donnee = donnees[ix]
             if setterValues[ix]:
+                # prise de la valeur par défaut si pas de donnée
                 if (donnee is None):
                     donnee = setterValues[ix]
+                # le type de la donnée n'est pas celui attendu
                 else:
                     if not isinstance(donnee,type(setterValues[ix])):
                         try:
@@ -140,6 +142,8 @@ class TrackGeneral(object):
                                 donnee = float(donnee)
                             elif type(setterValues[ix]) == str:
                                 donnee = str(donnee)
+                            elif isinstance(setterValues[ix],(wx.DateTime,datetime.date,datetime.datetime,datetime.time)):
+                                donnee = xformat.DateSqlToDatetime(donnee)
                         except : pass
             self.__setattr__(codesColonnes[ix], donnee)
 

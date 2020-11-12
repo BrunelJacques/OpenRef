@@ -143,7 +143,6 @@ class Noegest(object):
                 FROM immobilisations
                 WHERE IDimmo = %s;
                 """ % (",".join(lstChamps),IDimmo)
-        lstDonnees = []
         retour = self.db.ExecuterReq(req, mess='UTILS_Noegest.GetEnsemble')
         if retour == "ok":
             recordset = self.db.ResultatReq()

@@ -42,8 +42,8 @@ def GetBoutons(dlg):
                 {'name': 'btnDot', 'label': "Calcul\ndotations",
                     'toolTip': "Cliquez ici pour lancer l'importation du fichier de km consommés",
                     'size': (120, 35), 'image': wx.ART_UNDO,'onBtn':dlg.OnCalcul},
-                {'name': 'btnExp', 'label': "Exporter\nfichier",
-                    'toolTip': "Cliquez ici pour lancer l'exportation du fichier selon les paramètres que vous avez défini",
+                {'name': 'btnExp', 'label': "Exporter\ndotations",
+                    'toolTip': "Cliquez ici pour lancer l'exportation des dotations vers la compta",
                     'size': (120, 35), 'image': wx.ART_REDO,'onBtn':dlg.OnExport},
                 {'name':'btnOK','ID':wx.ID_ANY,'label':"Quitter",'toolTip':"Cliquez ici pour fermer la fenêtre",
                     'size':(120,35),'image':"xpy/Images/32x32/Quitter.png",'onBtn':dlg.OnFermer}
@@ -288,7 +288,7 @@ class Pnl_corps(xgte.PNL_corps):
         if code == 'dteAcquisition':
             if track.old_data != value:
                 track.miseenservice = value
-                ix = self.ctrlOlv.lstCodesColonnes.index('miseenservice')
+                ix = self.ctrlOlv.lstCodesColonnes.index('dteMiseEnService')
                 track.donnees[ix] = track.miseenservice
                 self.ctrlOlv.Refresh()
 
@@ -613,9 +613,9 @@ class DLG_immos(xusp.DLG_vide):
 
 if __name__ == '__main__':
     import os
-    app = wx.App(0)
+    app = wx.App()
     os.chdir("..")
-    #dlg = Dlg_immo(IDimmo=3)
-    dlg = DLG_immos()
+    dlg = Dlg_immo(IDimmo=3)
+    #dlg = DLG_immos()
     dlg.ShowModal()
     app.MainLoop()

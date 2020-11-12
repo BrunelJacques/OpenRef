@@ -2218,8 +2218,8 @@ class ObjectListView(wx.ListCtrl):
             self.cellEditor.SetFocus()
             if evt.cellValue:
                 value = evt.cellValue
-                if isinstance(value,(wx.DateTime, datetime.date, datetime.datetime)):
-                    value = str(value)[:10]
+                #if isinstance(value,(wx.DateTime, datetime.date, datetime.datetime)):
+                #    value = str(value)[:10]
                 self.cellEditor.SetValue(value)
             self._ConfigureCellEditor(
                 self.cellEditor,
@@ -2238,6 +2238,7 @@ class ObjectListView(wx.ListCtrl):
             defaultEditor)
         self.GetEventHandler().ProcessEvent(evt)
         if self.cellEditor:
+            self.cellEditor.error = None
             self.cellEditor.Show()
             self.cellEditor.Raise()
         else:
@@ -2335,12 +2336,18 @@ class ObjectListView(wx.ListCtrl):
         # Give the world the chance to veto the edit, or to change its characteristics
         rowModel = self.GetObjectAt(rowIndex)
         rowModel.vierge = False
+        value = self.cellEditor.GetValue()
+        if self.cellEditor.error:
+            print(self.cellEditor.error,wx.Bell())
+            self.error = wx.ID_ABORT
+            self.columns[subItemIndex].SetValue(rowModel, rowModel.old_data)
+            self.cellEditor.SetValue(rowModel.old_data)
         evt = OLVEvent.CellEditFinishingEvent(
             self,
             rowIndex,
             subItemIndex,
             rowModel,
-            self.cellEditor.GetValue(),
+            value,
             self.cellEditor,
             False)
         self.GetEventHandler().ProcessEvent(evt)
@@ -2357,6 +2364,7 @@ class ObjectListView(wx.ListCtrl):
         self.GetEventHandler().ProcessEvent(evt)
 
         self._CleanupCellEdit()
+        return
 
     def CancelCellEdit(self):
         """

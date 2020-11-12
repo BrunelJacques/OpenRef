@@ -77,14 +77,17 @@ def GetValideLigne(track):
             descend = 0
     return descend
 
-def EnterAction(event,finish = True):
+def EnterAction(event):
     # Touche enter on détourne l'usage pour un équivalent tab sauf en fin de ligne on passe à la suivante
     olv = event.EventObject.Parent
     row, col = olv.cellBeingEdited
-    if finish:
-        olv.FinishCellEdit()
+    olv.error = None
+    olv.FinishCellEdit()
+    if olv.error:
+        go = 0
+    else: go = 1
     # avancement d'une colonne
-    for ix in range(col+1,olv.ColumnCount):
+    for ix in range(col+go,olv.ColumnCount):
         # saute une cellule non éditable
         if olv.columns[ix].isEditable:
             olv._PossibleStartCellEdit(row,ix)
@@ -245,9 +248,9 @@ class EditorRegistry(object):
         self.typeToFunctionMap[int] = self._MakeIntegerEditor
         #self.typeToFunctionMap[int] = self._MakeLongEditor
         self.typeToFunctionMap[float] = self._MakeFloatEditor
-        self.typeToFunctionMap[wx.DateTime] = self._MakeStringEditor
-        self.typeToFunctionMap[datetime.datetime] = self._MakeStringEditor
-        self.typeToFunctionMap[datetime.date] = self._MakeStringEditor
+        self.typeToFunctionMap[wx.DateTime] = self._MakeDateEditor
+        self.typeToFunctionMap[datetime.datetime] = self._MakeDateTimeEditor
+        self.typeToFunctionMap[datetime.date] = self._MakeDateTimeEditor
         self.typeToFunctionMap[datetime.time] = self._MakeTimeEditor
 
     def GetCreatorFunction(self, aValue):
@@ -296,17 +299,15 @@ class EditorRegistry(object):
 
     @staticmethod
     def _MakeDateTimeEditor(olv, rowIndex, subItemIndex):
-        dte = DateTimeEditor(olv,rowIndex, subItemIndex)
-
+        dte = DateTimeEditor(olv,rowIndex, subItemIndex, validator=NumericValidator("0123456789/-"))
         column = olv.columns[subItemIndex]
         if isinstance(column.stringConverter, basestring):
             dte.formatString = column.stringConverter
-
         return dte
 
     @staticmethod
     def _MakeDateEditor(olv, rowIndex, subItemIndex):
-        dte = DateEditor(olv,rowIndex, subItemIndex)
+        dte = DateEditor(olv,rowIndex, subItemIndex, validator=NumericValidator("0123456789/-"))
         #dte = DateEditor(olv, style=wx.DP_DROPDOWN | wx.DP_SHOWCENTURY | wx.WANTS_CHARS)
         return dte
 
@@ -446,6 +447,7 @@ class BaseCellTextEditor(wx.TextCtrl):
 
     def __init__(self, olv, row, subItemIndex, **kwargs):
         style = wx.TE_PROCESS_ENTER | wx.TE_PROCESS_TAB
+        self.error = None
         # Allow for odd case where parent isn't an ObjectListView
         if hasattr(olv, "columns"):
             if olv.HasFlag(wx.LC_ICON):
@@ -532,89 +534,28 @@ class DateTimeEditor(BaseCellTextEditor):
 
     Slash character can also be '-' or ' '. Consecutive whitespace are collapsed.
 
-    The control accepts these time formats:
-      - '23:59:59'
-      - '11:59:59pm'
-      - '23:59'
-      - '11:59pm'
-      - '11pm'
-
-    The colons are required. The am/pm is case insensitive.
-
     The implementation uses a brute force approach to parsing the data.
     """
     # Acceptable formats:
-    # '31/12/2008', '2008/12/31', '12/31/2008', '31 December 2008', '31 Dec 2008', 'Dec 31 2007'
-    # second line is the same but with two-digit year.
-    # slash character can also be '-' or ' '. Consecutive whitespace are collapsed.
-    STD_DATE_FORMATS = ['%d %m %Y', '%Y %m %d', '%m %d %Y', '%d %B %Y', '%d %b %Y', '%b %d %Y', '%B %d %Y',
-                        '%d %m %y', '%y %m %d', '%m %d %y', '%d %B %y', '%d %b %y', '%b %d %y', '%B %d %y']
-
-    STD_DATE_WITHOUT_YEAR_FORMATS = ['%d %m', '%m %d', '%d %B', '%d %b', '%B %d', '%b %d']
-
-    # Acceptable formats: '23:59:59', '11:59:59pm', '23:59', '11:59pm', '11pm'
-    STD_TIME_FORMATS = ['%H:%M:%S', '%I:%M:%S %p', '%H:%M', '%I:%M %p', '%I %p']
-
-    # These separators are treated as whitespace
-    STD_SEPARATORS = "/-,"
+    # '31/12/2008', '2008-12-31', '31/12/08', '3112', '311208'
 
     def __init__(self, *args, **kwargs):
         BaseCellTextEditor.__init__(self, *args, **kwargs)
         self.formatString = "%X %x"
 
-        self.allDateTimeFormats = []
-        for dtFmt in self.STD_DATE_FORMATS:
-            self.allDateTimeFormats.append(dtFmt)
-            for timeFmt in self.STD_TIME_FORMATS:
-                self.allDateTimeFormats.append("%s %s" % (dtFmt, timeFmt))
-
-        self.allDateTimeWithoutYearFormats = []
-        for dtFmt in self.STD_DATE_WITHOUT_YEAR_FORMATS:
-            self.allDateTimeWithoutYearFormats.append(dtFmt)
-            for timeFmt in self.STD_TIME_FORMATS:
-                self.allDateTimeWithoutYearFormats.append("%s %s" % (dtFmt, timeFmt))
-
     def SetValue(self, value):
         "Put a new value into the editor"
-        if isinstance(value, datetime.datetime):
+        if isinstance(value, (datetime.date)):
+            value = value.strftime(self.formatString)[-10:]
+            self.formatString = "%x"
+        if isinstance(value, (datetime.datetime)):
             value = value.strftime(self.formatString)
         wx.TextCtrl.SetValue(self, value)
 
     def GetValue(self):
         "Get the value from the editor"
-        s = wx.TextCtrl.GetValue(self).strip()
-        return self._ParseDateTime(s)
-
-    def _ParseDateTime(self, s):
-        # Try the installed format string first
-        try:
-            return datetime.datetime.strptime(s, self.formatString)
-        except ValueError:
-            pass
-
-        for x in self.STD_SEPARATORS:
-            s = s.replace(x, " ")
-
-        # Because of the logic of strptime, we have to check shorter patterns first.
-        # For example:
-        #   "31 12" matches "%d %m %y" => datetime(2012, 1, 3, 0, 0) ??
-        # but we want:
-        #   "31 12" to match "%d %m" => datetime(1900, 12, 31, 0, 0)
-        # JPP 4/4/2008 Python 2.5.1
-        for fmt in self.allDateTimeWithoutYearFormats:
-            try:
-                dt = datetime.datetime.strptime(s, fmt)
-                return dt.replace(year=datetime.datetime.today().year)
-            except ValueError:
-                pass
-
-        for fmt in self.allDateTimeFormats:
-            try:
-                return datetime.datetime.strptime(s, fmt)
-            except ValueError:
-                pass
-
-        return None
+        s = wx.TextCtrl.GetValue(self)
+        return DateToDatetime(self,s)
 
 class TimeEditor(BaseCellTextEditor):
     """A text editor that expects and return time values"""
@@ -680,6 +621,46 @@ class NumericValidator(wx.PyValidator):
             wx.Bell()
             return
         event.Skip()
+
+
+def DateToDatetime(parent,date):
+    # après une saisie de date, la transforme en datetime
+    error = None
+    dtdate = None
+    date = date.strip()
+    if date == '':
+        return ''
+    tplansi = date.split('-')
+    tpldate = date.split('/')
+    try:
+        # saisie ansi
+        if len(tplansi)==3:
+            if int(tplansi[0]) <50:
+                tplansi[0] = "20"+tplansi[0]
+            if int(tplansi[0]) <100:
+                tplansi[0] = "19"+tplansi[0]
+            dtdate = datetime.date(int(tplansi[0]),int(tplansi[1]),int(tplansi[2]))
+        # saisie française avec '/'
+        elif len(tpldate) == 3:
+            if int(tpldate[2]) < 40:
+                tpldate[2] = "20" + tpldate[2]
+            if int(tpldate[2]) < 100:
+                tpldate[2] = "19" + tpldate[2]
+            dtdate = datetime.date(int(tpldate[2]), int(tpldate[1]), int(tpldate[0]))
+        # saisie française sans séparateurs
+        elif len(date) == 4:
+            dtdate = datetime.date(datetime.date.today().year,int(date[2:4]), int(date[:2]))
+        elif len(date) == 6:
+            dtdate = datetime.date(2000+int(date[4:6]), int(date[2:4]), int(date[:2]))
+        elif len(date) == 8:
+            dtdate = datetime.date(int(date[4:8]), int(date[2:4]), int(date[:2]))
+        else: error = "Date saisie non reconnue: '%s'"%date
+    except:
+        import sys
+        error = "Erreur:", sys.exc_info()[1]
+    if error:
+        parent.error = error
+    return dtdate
 
 # ============== Auto complete controls =========================================
 
@@ -760,4 +741,4 @@ class AutoCompleteHelper(object):
             wx.CallAfter(self.control.SetSelection, insertIndex, len(newValue))
 
 if __name__ == '__main__':
-    pass
+    print(DateToDatetime('29/2/19'))
