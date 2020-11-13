@@ -100,7 +100,7 @@ class PnlAdresse(wx.Panel):
             ['ville', u"Ville", u"Choix de la ville ou gestion par '...'", u"Obligatoire",["Choisir..."],
             u"Gestion des villes et des codes postaux",self.OnClicVille],
             ['pays', u"Pays étranger",
-                    u"Seulement pour l'étranger, à blanc pour le pays national\nGestion des pays par les villes", u"",],
+                    u"Seulement pour l'étranger, à blanc pour le pays national\nGestion des pays par les villes", "",],
             ['forcer', u"Forcer la saisie", u"Permet de passer outre les contrôles de sortie, procédure exceptionnelle!", ],
         ]
         self.lstColonnes = ["Ville","Code Postal   Pays"]
@@ -495,16 +495,31 @@ class DlgAdresses_saisie(wx.Dialog):
             self.Enregistre()
         elif validee:
             self.panelAdresse.SetAdresse(self.lstAdresse)
-            wx.MessageBox(u"L'adresse vient d'être reformatée !\nValidez à nouveau pour confirmer")
+            mess = ""
+            for x in self.lstAdresse:
+                mess += "      %s\n" % (x)
+            mess += "             'Oui' pour Accepter\n"
+            mess += "             'Non' pour forcer"
+            mesdlg = wx.MessageDialog(None,
+                                      "L'adresse vient d'être reformatée !\n\n%s" % mess,
+                                      caption="aDLG_SaisieAdresse: Validation",
+                                      style=wx.YES_NO | wx.ICON_QUESTION, pos=(20, 20), )
+            ret = mesdlg.ShowModal()
+            if ret == wx.ID_YES:
+                self.Enregistre()
+            if ret == wx.ID_NO:
+                self.panelAdresse.SetAdresse(saisie)
+                self.lstCtrl[self.lstNomsChamps.index("forcer")].ctrl.Enable(True)
+                self.lstCtrl[self.lstNomsChamps.index("forcer")].ctrl.SetValue(True)
         elif nonmodifiee:
             wx.MessageBox(mess+"\n\nPour sortir quand même sans abandonner, vous pouvez cocher la case 'Forcer la saisie'")
 
-if __name__ == u"__main__":
+if __name__ == "__main__":
     app = wx.App(0)
     import os
     os.chdir("..")
     dlg = wx.Frame(None)
     dlg.ID = 60
-    dlg2 = DlgAdresses_saisie(dlg.ID, mode='familles', titre=u"Adresse de %d"%dlg.ID)
+    dlg2 = DlgAdresses_saisie(dlg.ID, mode='familles', titre="Adresse de %d"%dlg.ID)
     dlg2.ShowModal()
     app.MainLoop()

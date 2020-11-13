@@ -567,7 +567,7 @@ def TransposeAdresse(adresse=[]):
                     unique = True
                     for alttips in lstTypes:
                         if len(alttips)>0 and alttips[0] == tip : unique = False
-                    if unique: lstUniques.append(tip)
+                    if unique: lstUniques.append(tip[:3])
                 ix = lstTypes.index(tips)
 
                 priorites = ["lie", "app", "bat", "rue"]
@@ -648,7 +648,7 @@ def TransposeAdresse(adresse=[]):
                 # nobat est soit une abréviation précédée d'un chiffre soit la fin du mot complet
                 if ord(noBat[0]) in range(48,58):
                     posChiffre = True
-                elif len(noBat) > 3:  posChiffre = True
+                elif len(noBat) > 8:  posChiffre = True
                 elif ix-1 >= -len(lstItems):
                     # nobat est court et ne contenant pas le numéro il est peut être devant
                     ix -=1
@@ -657,12 +657,11 @@ def TransposeAdresse(adresse=[]):
                         # teste présence chiffre
                         if ord(let) in range(48, 58):
                             posChiffre = True
-                            tolerance += 3
+                            tolerance += 1
                 else: posChiffre = False
             # intègre le no devant le batiment
-            posNo = chaine.index(noBat)
-            if posChiffre and (posMot - posNo < tolerance) :
-                correctif = posMot - posNo
+            if posChiffre and (posMot - chaine.index(noBat) < tolerance) :
+                correctif = posMot - chaine.index(noBat)
                 posMot = chaine.index(noBat)
         if motN in lstMotsRue or (motN in motsResidence and not motD):
             # recherche le début du no de rue par découpe en lst
@@ -837,10 +836,15 @@ def TransposeAdresse(adresse=[]):
             ligne = poseligne(newadresse,ligne,[2,],ajoutsi=6,coupeok=False)
             if len(ligne)==0:continue
         # priorité aux lignes les plus courtes pour les concatener
-        for ajoutsi in (0,10,20):
+        n = 1
+        # la ligne non tronquée était présente dans l'orginal, on tente la même position
+        if ligne in adresse:
+            n = adresse.index(ligne)
+        for ajoutsi in (0, 10, 20):
             # cherche une ligne vide sans couper, puis avec découpe possible
-            for coupeok in (False,True):
-                ligne = poseligne(newadresse,ligne,[1,3,0],ajoutsi=ajoutsi,coupeok=coupeok)
+            for coupeok in (False, True):
+                ligne = poseligne(newadresse, ligne, [n, 1, 3, 0], ajoutsi=ajoutsi, coupeok=coupeok)
+
                 if len(ligne) == 0: break
             if len(ligne) == 0: break
         if len(ligne) == 0: continue
