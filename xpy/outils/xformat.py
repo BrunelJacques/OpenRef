@@ -75,7 +75,8 @@ def ValeursDefaut(lstNomsColonnes,lstTypes):
         if tip[:3] == 'int': lstValDef.append(0)
         elif tip[:10] == 'tinyint(1)': lstValDef.append(False)
         elif tip[:5] == 'float': lstValDef.append(0.0)
-        elif tip[:4] == 'date': lstValDef.append(wx.DateTime.Today())
+        #elif tip[:4] == 'date': lstValDef.append(wx.DateTime.Today())
+        elif tip[:4] == 'date': lstValDef.append(datetime.date.today())
         else: lstValDef.append('')
     return lstValDef
 
@@ -148,6 +149,9 @@ def WxdateToDatetime(date):
 def DateSqlToWxdate(dateiso):
     # Conversion de date récupérée de requête SQL aaaa-mm-jj(ou déjà en datetime) en wx.datetime
     if dateiso == None : return None
+    # si ce n'est pas une date iso
+    if '/' in dateiso:
+        dateiso = DateFrToSql(dateiso)
 
     if isinstance(dateiso,datetime.date):
         return wx.DateTime.FromDMY(dateiso.day,dateiso.month-1,dateiso.year)
@@ -177,11 +181,15 @@ def DateSqlToFr(dateiso):
     return '%s/%s/%s'%(dateiso[8:10],dateiso[5:7],dateiso[:4])
 
 def DateFrToSql(datefr):
+    if not datefr: return ''
     # Conversion de date string française reçue en formats divers
     if not isinstance(datefr, str) : datefr = str(datefr)
     datefr = datefr.strip()
     # normalisation des formats divers
-    datesql = FmtDate(datefr)
+    datefr = FmtDate(datefr)
+    if len(datefr)!= 10:
+        raise Exception("Date non gérable par DateFrToSql: '%s'"%str(datefr))
+    datesql = datefr[6:10]+'-'+datefr[3:5]+'-'+datefr[:2]
     # transposition
     return datesql
 

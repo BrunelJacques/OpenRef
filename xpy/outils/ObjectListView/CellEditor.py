@@ -44,16 +44,15 @@ Editor Registry
     an editor for a given type.
 """
 
-from builtins import object
-from builtins import range
-
-# si past n'est pas chargé il faut lancer 'pip install future' dans la console à l'emplacement python3
-from past.builtins import basestring
-
 __author__ = "Phillip Piper"
 __date__ = "3 May 2008"
 __version__ = "1.0"
 
+
+# si past n'est pas chargé il faut lancer 'pip install future' dans la console à l'emplacement python3
+from past.builtins import basestring
+from builtins import object
+from builtins import range
 import datetime
 import wx
 import wx.adv

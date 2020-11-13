@@ -2187,10 +2187,11 @@ class ObjectListView(wx.ListCtrl):
 
         # Give the world the chance to veto the edit, or to change its
         # characteristics
+        value = self.lstSetterValues[subItemIndex]
         defaultEditor = self._MakeDefaultCellEditor(
             rowIndex,
             subItemIndex,
-            cellValue)
+            value)
         evt = OLVEvent.CellEditStartingEvent(
             self,
             rowIndex,
