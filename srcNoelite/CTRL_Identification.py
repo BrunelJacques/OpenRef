@@ -74,12 +74,13 @@ def GetListeUsers():
 class AfficheUsers():
     def __init__(self):
         lstUsers = GetListeUsers()
-        lstAffiche = [[x['nom'],x['prenom'],x['profil']] for x in lstUsers]
-        lstColonnes = ["Nom", "Prénom", "Profil"]
-        dlg = xcl.DialogAffiche( titre="Liste des utilisateurs",intro="pour consultation seulement",lstDonnees=lstAffiche,
-                                 lstColonnes=lstColonnes )
-        dlg.ShowModal()
-        dlg.Destroy()
+        if lstUsers:
+            lstAffiche = [[x['nom'],x['prenom'],x['profil']] for x in lstUsers]
+            lstColonnes = ["Nom", "Prénom", "Profil"]
+            dlg = xcl.DialogAffiche( titre="Liste des utilisateurs",intro="pour consultation seulement",lstDonnees=lstAffiche,
+                                     lstColonnes=lstColonnes )
+            dlg.ShowModal()
+            dlg.Destroy()
 
 class CTRL_Bouton_image(wx.Button):
     def __init__(self, parent, id=wx.ID_APPLY, texte="", cheminImage=None):
@@ -132,7 +133,7 @@ class CTRL_mdp(wx.SearchCtrl):
             if txtSearch == dictUtilisateur["mdp"] :
                 # Enregistrement du pseudo et mot de passe
                 cfg = xucfg.ParamUser()
-                self.choix = cfg.GetDict(groupe='USER')
+                self.choix = cfg.GetDict(groupe='USER',close = False)
                 self.choix['pseudo'] =  dictUtilisateur['prenom'] + " " + dictUtilisateur['nom']
                 self.choix['nom'] = dictUtilisateur['nom']
                 self.choix['prenom'] = dictUtilisateur['prenom']
@@ -244,5 +245,6 @@ if __name__ == '__main__':
     dlg = Dialog(None)
     app.SetTopWindow(dlg)
     dlg.ShowModal()
-    print(dlg.GetDictUtilisateur())
+    print(dlg.GetDictUtilisateur()['nom'])
+
     app.MainLoop()

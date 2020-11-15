@@ -163,7 +163,8 @@ class ParamFile():
                 GetListKey(groupe)
                 GetDictGroupe(groupe)
 
-        if self.topWin and close and self.close : self.dictFic.close()
+        if self.topWin and close and self.close :
+            self.dictFic.close()
         return dictDonnees
 
     def SetDict(self,dictEnvoi=None,groupe=None, close=True, memOnly=False):
@@ -210,26 +211,15 @@ class ParamUser(ParamFile):
 # --------------- TESTS ----------------------------------------------------------
 if __name__ == u"__main__":
     app = wx.App(0)
-    print('Fichier Data.Config')
-    cfg = ParamFile('Config',flag='r')
+    cfg = ParamUser()
     DumpFile(cfg.dictFic)
-    print('Fichier UserProfile.UserConfig')
-    cfg = ParamUser('UserConfig', flag = 'r')
-    DumpFile(cfg.dictFic)
+
+    cfgNoelite = ParamFile('Config',path='../srcNoelite/Data',flag='r')
+    cfgOpen = ParamFile('Config',path='../srcOpenRef/Data',flag='r')
+    print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Fichiers Noelite Data.Config')
+    DumpFile(cfgNoelite.dictFic)
+    print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Fichiers Openref Data.Config')
+    DumpFile(cfgOpen.dictFic)
     #cfg = ParamUser('UserConfig', flag='c')
     #cfg.DelDictConfig(groupe='IMPLANTATION')
-
-    """
-    from random import randrange
-    cfg = ParamUser(nomFichier='testConfig', flag = 'r')
-    print("GET :", cfg.GetDict(None,groupe='mongroupe'))
-    cfg = ParamUser(nomFichier='testConfig', flag = 'c')
-    args =({"test1": randrange(0,100), "test2" : 125.77, "test4":{1:10,2:20,3:30}})
-    cfg.SetDict(args,groupe='mongroupe')
-    print("SET :", args)
-    cfg = ParamUser(nomFichier='testConfig', flag = 'r')
-    print("GET :", cfg.GetDict({"test1": 'test1 echoué'},groupe='mongroupe'))
-    cfg = ParamUser(nomFichier='testConfig', flag = 'r')
-    print("GET :", cfg.GetDict(None, None))
-    """
     app.MainLoop()

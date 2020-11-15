@@ -20,12 +20,12 @@ def GetLstChamps(table=None,cutend=None):
     if cutend: cutend = -cutend
     return [x for x,y,z in table[:cutend] ]
 
-def GetLstColonnes(table=None,cutend=None,IDcache=True):
-    if cutend: cutend = -cutend
-    lstNomsColonnes = [x for x, y, z in table[:cutend]]
-    lstTypes = [y for x, y, z in table[:cutend]]
+def GetLstColonnes(table=None,cutend=None,IDcache=True,wxDates=True):
+    # Compose ColumnsDefn selon schéma table, sans champs cutend, format dates et masquer ou pas ID
+    lstNomsColonnes = [x for x, y, z in table[:-cutend]]
+    lstTypes = [y for x, y, z in table[:-cutend]]
     lstCodesColonnes = [SupprimeAccents(x,lower=False) for x in lstNomsColonnes]
-    lstValDefColonnes = ValeursDefaut(lstNomsColonnes, lstTypes)
+    lstValDefColonnes = ValeursDefaut(lstNomsColonnes, lstTypes,wxDates=wxDates)
     lstLargeurColonnes = LargeursDefaut(lstNomsColonnes, lstTypes,IDcache=IDcache)
     return DefColonnes(lstNomsColonnes, lstCodesColonnes, lstValDefColonnes, lstLargeurColonnes)
 
@@ -67,16 +67,19 @@ def DefColonnes(lstNoms,lstCodes,lstValDef,lstLargeur):
         ix += 1
     return lstColonnes
 
-def ValeursDefaut(lstNomsColonnes,lstTypes):
-    # Détermine des valeurs par défaut selon le type des variables
+def ValeursDefaut(lstNomsColonnes,lstTypes,wxDates=True):
+    # Détermine des valeurs par défaut selon le type des variables, précision pour les dates wx ou datetime
+    # la valeur par défaut détermine le cellEditor
     lstValDef = [0,]
     for ix in range(1,len(lstNomsColonnes)):
         tip = lstTypes[ix].lower()
         if tip[:3] == 'int': lstValDef.append(0)
         elif tip[:10] == 'tinyint(1)': lstValDef.append(False)
         elif tip[:5] == 'float': lstValDef.append(0.0)
-        #elif tip[:4] == 'date': lstValDef.append(wx.DateTime.Today())
-        elif tip[:4] == 'date': lstValDef.append(datetime.date.today())
+        elif tip[:4] == 'date':
+            if wxDates:
+                lstValDef.append(wx.DateTime.Today())
+            else: lstValDef.append(datetime.date.today())
         else: lstValDef.append('')
     return lstValDef
 
@@ -432,7 +435,7 @@ def LettreSuivante(lettre=''):
         return new
 
 def IncrementeRef(ref):
-    # incrémente une référence compteur constituée d'un préfixe avec un pseudo nombre ou pas
+    # incrémente une référence compteur constituée d'un préfixe avec un quasi-nombre ou pas
     pref = PrefixeNbre(ref)
     if len(ref) > len(pref):
         nbre = int(Nz(ref))+1

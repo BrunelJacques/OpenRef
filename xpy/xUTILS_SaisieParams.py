@@ -401,7 +401,7 @@ class PNL_ctrl(wx.Panel):
         if not size:
             size = (2000, 30)
         self.MaxSize = size
-        lg = max(110,len(label)*5+4)
+        lg = max(120,len(label)*6+4)
         if label and len(label)>0:
             self.txt = wx.StaticText(self, wx.ID_ANY, label + " :")
             self.txt.MinSize = (lg, 25)
@@ -677,7 +677,7 @@ class BoxPanel(wx.Panel):
     # Get du ctrl nommé
     def GetOneValue(self,name = ''):
         lrad = name.split('.')
-        if lrad == 2:
+        if len(lrad) == 2:
             [code,champ] = lrad
             name = champ
         value = None

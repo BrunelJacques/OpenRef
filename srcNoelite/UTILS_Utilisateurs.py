@@ -139,4 +139,4 @@ if __name__ == '__main__':
     print(VerificationDroits({'IDutilisateur': 2, 'nom': 'LORIOL', 'prenom': 'Isabelle', 'sexe': 'F', 'mdp': 'lor', 'profil': 'administrateur', 'actif': 1, 'droits': None},
                              "parametrage_modes_reglements", "supprimer"))
     print(VerificationDroitsUtilisateurActuel("parametrage_modes_reglements", "supprimer"))
-    print(GetIDutilisateur())
+    print(GetIDutilisateur(),GetDictUtilisateur()['nom'])

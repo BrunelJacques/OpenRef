@@ -3,6 +3,7 @@
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/srcOpenRef/Data" />
+      <excludeFolder url="file://$MODULE_DIR$/venv32" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.7 (OpenRef)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

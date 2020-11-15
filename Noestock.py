@@ -1,22 +1,21 @@
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Noelite.py : Lanceur d'une application Noethys version lite
+# Noestock.py : Lanceur d'une application Noethys version lite
 
 import os
 import wx
 import xpy.xAppli as xAppli
 import xpy.outils.xaccueil as xaccueil
-import srcNoelite.CTRL_Identification as ncident
-import srcNoelite.menu as menu
+import srcNoestock.menu as menu
 
 # Variables incontournables pour xpy
 dictAPPLI = {
-            'NOM_APPLICATION'       : "noelite",
-            'REP_SOURCES'           : "srcNoelite",
+            'NOM_APPLICATION'       : "Noestock",
+            'REP_SOURCES'           : "srcNoestock",
             'REP_DATA'              : "srcNoelite/Data",
             'REP_TEMP'              : "srcNoelite/Temp",
-            'NOM_FICHIER_LOG'       : "logsNoelite.log",
+            'NOM_FICHIER_LOG'       : "logsNoestock.log",
             'OPTIONSCONFIG'         : ['db_prim'],
 }
 
@@ -40,7 +39,7 @@ class MyFrame(xAppli.MainFrame):
                     dicBtn['image'] = (str(self.pathXpy) + "/" + str(dicBtn["image"])).replace("\\","/")
 
         # Crée 'topPanel' et 'topContenu' destroyables
-        self.MakeBureau(pnlTitre=xaccueil.Panel_Titre(self,texte="NOELITE\n\nCompléments Noethys",
+        self.MakeBureau(pnlTitre=xaccueil.Panel_Titre(self,texte="NOESTOCK\n\nGestion des stocks et prix journée",
                                                       pos=(20,30),couleurFond=self.couleur_fond),
                         pnlBtnActions=xaccueil.Panel_Buttons(self,self.ldButtons,couleurFond=self.couleur_fond))
 
@@ -52,23 +51,12 @@ class MyFrame(xAppli.MainFrame):
         # Crée un message initial de bas de fenêtre status bar
         self.CreateStatusBar()
 
-        self.SetStatusText("Noelite est lancé!")
+        self.SetStatusText("Noestock est lancé!")
         self.Show()
-        dlg = ncident.Dialog(self)
-        etat = False
-        if not dlg.echec:
-            self.dicUser = dlg.GetDictUtilisateur()
-            if not self.dicUser:
-                ret = dlg.ShowModal()
-                self.dicUser = dlg.GetDictUtilisateur()
-                if self.dicUser:
-                    etat = True
-        dlg.Destroy()
+        etat = True
         for numMenu in range(1,2):
             self.menu.EnableTop(numMenu, etat)
         self.panelAccueil.EnableBoutons(etat)
-        if not etat:
-            self.SetStatusText("Noelite est lancé sans accès à Noethys!")
 
 class MyApp(wx.App):
     def OnInit(self):

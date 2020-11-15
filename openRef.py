@@ -15,7 +15,7 @@ dictAPPLI = {
             'REP_DATA'              : "srcOpenRef/Data",
             'REP_TEMP'              : "srcOpenRef/Temp",
             'NOM_FICHIER_LOG'       : "logsOpenRef.log",
-            'OPTIONSCONFIG'         : ["db_prim"],
+            'OPTIONSCONFIG'         : ['db_prim'],
             }
 
 class MyFrame(xAppli.MainFrame):

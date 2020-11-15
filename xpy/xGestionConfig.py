@@ -28,6 +28,7 @@ MATRICE_USER = {
 ("choix_config","Choisissez votre configuration"):[
     {'name': 'config', 'genre': 'Enum', 'label': 'Config active',
                         'help': "Le bouton de droite vous permet de créer une nouvelle configuration",
+                        'ctrlAction':'OnCtrlAction',
                         'btnLabel':"...", 'btnHelp':"Cliquez pour gérer les configurations BD"},
     {'name': 'mpUserDB', 'genre': 'Mpass', 'label': 'Mot de Passe Serveur',
                         'help': "C\'est le mot de passe de l'utilisateur BD défini dans la configuration active," +
@@ -38,7 +39,13 @@ MATRICE_USER = {
 }
 # db_prim et db_second pourront être présentes dans dictAPPLI['OPTIONSCONFIG'] et repris dans xGestionDB
 MATRICE_CONFIGS = {
-("db_prim","Accès Base de donnée"): [
+("db_locale", "Base de donnée Locale"): [
+        {'name': 'nomDBlocal', 'genre': 'String', 'label': 'Nom de la  base locale'},
+        {'name': 'typeDBloc', 'genre': 'Enum', 'label': 'Type de Base de donnée',
+                        'help': "Le gestionnaire BD doit être installé sur la station", 'value': 0,
+                        'values': ['SqLite', 'Access','Mysql']},
+    ],
+('db_prim',"Accès Base de donnée Réseau"): [
     {'name': 'ID', 'genre': 'String', 'label': 'Désignation config', 'value': 'config1',
                     'help': "Désignez de manière unique cette configuration"},
     {'name': 'serveur', 'genre': 'String', 'label': 'Path ou Serveur', 'value':'',
@@ -51,14 +58,9 @@ MATRICE_CONFIGS = {
     {'name': 'userDB', 'genre': 'String', 'label': 'Utilisateur BD',
                     'help': "Si nécessaire, utilisateur ayant des droits d'accès à la base de donnée", 'value':'invite'},
     ],
-("db_second", "Base de donnée seconde"): [
-        {'name': 'nomDBlocal', 'genre': 'String', 'label': 'Nom de la  base locale'},
-        {'name': 'typeDBloc', 'genre': 'Enum', 'label': 'Type de Base de donnée',
-                        'help': "Le choix est limité par la programmation", 'value': 0, 'values': ['SqLite', 'Access']},
-    ]
 }
 COLONNES_CONFIGS = {
-    "db_prim": ['ID','serveur','typeDB', 'nameDB', 'userDB'],
+    'db_prim': ['ID','serveur','typeDB', 'nameDB', 'userDB'],
     "db_second": ['nomDBlocal', 'typeDBloc'],
 }
 
@@ -85,6 +87,7 @@ def AppelLignesMatrice(categ=None, possibles={}):
 class DLG_identification(wx.Dialog):
     # Ecran de saisie de paramètres en dialog
     def __init__(self, parent, *args, **kwds):
+
         listArbo=os.path.abspath(__file__).split("\\")
         titre = listArbo[-1:][0] + "/" + self.__class__.__name__
         wx.Dialog.__init__(self, parent, -1,title = titre,
@@ -140,6 +143,7 @@ class DLG_identification(wx.Dialog):
             # choix de la configuration prise dans paramUser
             cfgF = xucfg.ParamFile()
             self.configs= cfgF.GetDict(dictDemande=None, groupe='CONFIGS')
+            self.choix.update(cfgF.GetDict(dictDemande={'config':None}, groupe='CONFIGS', close=False))
             if self.configs and ('lstIDconfigs' in self.configs ) :
                 if self.configs['lstIDconfigs']:
                     # pose dans la grille la valeur de la dernière valeur utilisée
@@ -184,34 +188,43 @@ class DLG_identification(wx.Dialog):
         sc = DLG_saisieConfigs(self)
         if sc.ok :
             sc.ShowModal()
+            # Fichier config dans Data commun à tous
             cfg = xucfg.ParamFile()
             dicvalues = cfg.GetDict({'lstIDconfigs':None}, 'CONFIGS')
             if dicvalues['lstIDconfigs']:
                 self.ctrlConfig.SetOneValues(self.codeConfig, dicvalues['lstIDconfigs'])
             value = sc.GetChoix(idxColonne=0)
             self.ctrlConfig.SetOneValue(self.codeConfig,value)
-            cfg = xucfg.ParamFile()
-            cfg.SetDict({'lastConfig': value}, 'CONFIGS')
-            cfg = xucfg.ParamUser()
-            cfg.SetDict({'config':value}, groupe='USER')
+            # choix de configs user stockées
+            self.SauveConfig()
         else: wx.MessageBox('DLG_saisieConfigs : lancement impossible, cf MATRICE_CONFIGS et  OPTIONSCONFIG')
 
-    def OnFermer(self,event):
-        # enregistre les valeurs de l'utilisateur
+
+    def SauveParamUser(self):
         cfg = xucfg.ParamUser()
         dic = self.ctrlConfig.GetValues()
+        # le choix config sera stocké dans File
+        del dic['config']
         cfg.SetDict(dic, groupe='USER',close=False)
         dic = self.ctrlID.GetValeurs()
         cfg.SetDict(dic['ident'], groupe='IDENT')
+
+    def SauveConfig(self):
+        # configs spécifique user stockées
+        value = self.ctrlConfig.GetOneValue(self.codeConfig)
+        cfg = xucfg.ParamFile()
+        cfg.SetDict({'config': value}, groupe='CONFIGS')
+
+    def OnFermer(self,event):
+        # enregistre les valeurs de l'utilisateur
+        self.SauveParamUser()
         self.EndModal(wx.ID_OK)
 
     def OnCtrlAction(self,event):
         #action evènement Enter sur le contrôle combo, correspond à un changement de choix
-        self.choix = self.ctrlConfig.GetValues()
-        cfg = xucfg.ParamUser()
-        cfg.SetDict(self.choix, groupe='USER')
-        cfg = xucfg.ParamFile()
-        cfg.SetDict({'lastConfig':self.choix}, 'CONFIGS')
+        self.SauveParamUser()
+        self.SauveConfig()
+
 
 # Gestion à partir d'une liste des accès aux bases de données en début d'appli
 class DLG_saisieConfigs(xusp.DLG_listCtrl):
@@ -292,7 +305,7 @@ class DLG_saisieUneConfig(xusp.DLG_vide):
     def __init__(self,nomConfig=None,**kwds):
         super().__init__(self, **kwds)
         # récup de la matrice ayant servi à la gestion des données
-        key = ("db_prim", "Accès Base de donnée")
+        key = ('db_prim', "Accès Base de donnée")
         matrice = {key: MATRICE_CONFIGS[key]}
         # suppose le champ ID en première position
         matrice[key][0]['value'] = nomConfig
