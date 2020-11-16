@@ -12,7 +12,7 @@ import wx
 import os
 import xpy.xGestionConfig as xgc
 import xpy.xUTILS_SaisieParams as xusp
-import xpy.xUTILS_Config as xucfg
+import xpy.xUTILS_Shelve as xucfg
 import xpy.xGestionDB as xdb
 import srcOpenRef.UTIL_import as orui
 import srcOpenRef.UTIL_analyses as orua

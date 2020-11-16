@@ -16,8 +16,10 @@ dictAPPLI = {
             'REP_DATA'              : "srcNoelite/Data",
             'REP_TEMP'              : "srcNoelite/Temp",
             'NOM_FICHIER_LOG'       : "logsNoestock.log",
-            'OPTIONSCONFIG'         : ['db_prim'],
-}
+            'OPTIONSCONFIG'         : 'db_prim',
+            'CHOIXCONFIGS': [('Centralisation',"Base au siège, cible pour les synchronisations et sauvegardes"),
+                             ('Base active', "C'est votre base de travail, peut aussi être la centrale pour live")]
+            }
 
 class MyFrame(xAppli.MainFrame):
     def __init__(self, *args, **kw):

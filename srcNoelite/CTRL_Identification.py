@@ -12,7 +12,7 @@ import sys
 import wx
 import xpy.xGestionDB as xdb
 import xpy.outils.xchoixListe as xcl
-import xpy.xUTILS_Config as xucfg
+import xpy.xUTILS_Shelve as xucfg
 
 def GetListeUsers():
     """ Récupère la liste des utilisateurs et de leurs droits """

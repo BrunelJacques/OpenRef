@@ -11,7 +11,7 @@
 import os
 import wx
 import datetime
-import xpy.xUTILS_Config as xucfg
+import xpy.xUTILS_Shelve as xucfg
 import srcOpenRef.UTIL_traitements as orut
 import xpy.xGestionDB as xdb
 import srcOpenRef.DATA_Tables as dtt

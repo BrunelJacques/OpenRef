@@ -17,7 +17,7 @@ dictAPPLI = {
             'REP_DATA'              : "srcNoelite/Data",
             'REP_TEMP'              : "srcNoelite/Temp",
             'NOM_FICHIER_LOG'       : "logsNoelite.log",
-            'OPTIONSCONFIG'         : ['db_prim'],
+            'OPTIONSCONFIG'         : 'db_prim',
 }
 
 class MyFrame(xAppli.MainFrame):

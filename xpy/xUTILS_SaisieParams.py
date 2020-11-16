@@ -15,6 +15,10 @@ import wx.propgrid as wxpg
 from copy                      import deepcopy
 from xpy.outils                import xformat
 
+OPTIONS_CTRL = ('name', 'label', 'ctrlAction', 'btnLabel', 'btnAction', 'value', 'labels', 'values', 'enable',
+                'genre', 'help','size','txtSize', 'btnHelp')
+OPTIONS_PANEL = ('pos','style','name')
+
 def SetEnableID(matrice,enable=False):
     trouve = False
     if isinstance(matrice,dict):
@@ -203,6 +207,15 @@ def ComposeMatrice(champDeb=None,champFin=None,lstChamps=[],lstTypes=[],lstHelp=
             dicdonnees[code] = record[ix]
     return ldmatrice, dicdonnees
 
+def DicFiltre(dic,options):
+    # ne retient qu'une liste de clés du dictionnaire
+    dicout = {}
+    for kw in options:
+        if kw in dic:
+            dicout[kw] = dic[kw]
+    return dicout
+
+
 #**********************************************************************************
 #                   GESTION des CONTROLES: Grilles ou composition en panel
 #**********************************************************************************
@@ -367,7 +380,8 @@ class PNL_property(wx.Panel):
     #affichage d'une grille property sans autre bouton que sortie
     def __init__(self, parent, topWin, *args, matrice={}, donnees=[], lblbox="Paramètres item_property", **kwds):
         self.parent = parent
-        wx.Panel.__init__(self, parent, *args, **kwds)
+        kw = DicFiltre(kwds,OPTIONS_PANEL)
+        wx.Panel.__init__(self, parent, *args, **kw)
 
         #********************** CTRL PRINCIPAL ***************************************
         self.ctrl = CTRL_property(self,matrice,donnees)
@@ -391,8 +405,9 @@ class PNL_ctrl(wx.Panel):
     """ et en option (code) un bouton d'action permettant de contrôler les saisies
         GetValue retourne la valeur choisie dans le ctrl avec action possible par bouton à droite"""
     def __init__(self, parent, *args, genre='string', name=None, label=None, value= None, labels=[], values=[], help=None,
-                 btnLabel=None, btnHelp=None, btnAction='', ctrlAction='', enable=True, size=None, **kwds):
-        wx.Panel.__init__(self,parent,*args, **kwds)
+                 btnLabel=None, btnHelp=None, size=None, txtSize=100, **kwds):
+        kw = DicFiltre(kwds,OPTIONS_PANEL)
+        wx.Panel.__init__(self,parent,*args, **kw)
         self.value = value
         self.name = name
         if btnLabel :
@@ -401,7 +416,7 @@ class PNL_ctrl(wx.Panel):
         if not size:
             size = (2000, 30)
         self.MaxSize = size
-        lg = max(120,len(label)*6+4)
+        lg = max(txtSize,len(label)*6)
         if label and len(label)>0:
             self.txt = wx.StaticText(self, wx.ID_ANY, label + " :")
             self.txt.MinSize = (lg, 25)
@@ -528,8 +543,8 @@ class PNL_listCtrl(wx.Panel):
         self.ltColonnes = ltColonnes
         self.colonnes = []
         self.lddDonnees = []
-
-        wx.Panel.__init__(self, parent, wx.ID_ANY, *args, **kwds)
+        kw = DicFiltre(kwds,OPTIONS_PANEL)
+        wx.Panel.__init__(self, parent, wx.ID_ANY, *args, **kw)
 
         #********************** Objet principal *******************************
         self.ctrl = wx.ListCtrl(self, wx.ID_ANY, style=wx.LC_REPORT|wx.LC_SINGLE_SEL)
@@ -606,11 +621,11 @@ class PNL_listCtrl(wx.Panel):
 class BoxPanel(wx.Panel):
     # aligne les contrôles définis par la matrice dans une box verticale
     def __init__(self, parent, *args, lblbox="Box", code = '1', lignes=[], dictDonnees={}, **kwds):
-        wx.Panel.__init__(self,parent, *args, **kwds)
+        kw = DicFiltre(kwds,OPTIONS_PANEL)
+        wx.Panel.__init__(self,parent, *args, **kw)
         self.parent = parent
         self.code = code
         self.lstPanels=[]
-        self.champsItem = ('name', 'label', 'ctrlAction', 'btnLabel', 'btnAction', 'value', 'labels', 'values','enable')
         self.dictDonnees = dictDonnees
         if lblbox:
             cadre_staticbox = wx.StaticBox(self, wx.ID_ANY, label=lblbox)
@@ -623,13 +638,19 @@ class BoxPanel(wx.Panel):
         for ligne in lignes:
             kwds={}
             for nom,valeur in ligne.items():
-               kwds[nom] = valeur
+                if nom in OPTIONS_CTRL + OPTIONS_PANEL:
+                    kwds[nom] = valeur
+                else:
+                    possibles = "Liste des possibles: %s"%str(OPTIONS_CTRL)
+                    wx.MessageBox("L'options '%s' de la ligne %s n'est pas reconnue!\n\n%s"%(nom,
+                                                                                        ligne['name'],possibles))
             if 'genre' in ligne:
                 panel = PNL_ctrl(self, **kwds)
                 if ligne['genre'].lower() in ['bool', 'check']:
                     self.UseCheckbox = 1
                 if panel:
-                    for cle in self.champsItem:
+                    for cle in ('name', 'label', 'ctrlAction', 'btnLabel', 'btnAction',
+                                'value', 'labels', 'values','enable'):
                         if not cle in ligne:
                             ligne[cle]=None
                     self.ssbox.Add(panel,1,wx.ALL|wx.EXPAND,0)
@@ -721,7 +742,8 @@ class BoxPanel(wx.Panel):
 class TopBoxPanel(wx.Panel):
     #gestion de pluieurs BoxPanel juxtaposées horizontalement
     def __init__(self, parent, *args, matrice={}, donnees={}, lblbox="Paramètres top", **kwds):
-        wx.Panel.__init__(self,parent,*args, **kwds)
+        kw = DicFiltre(kwds,OPTIONS_PANEL)
+        wx.Panel.__init__(self,parent,*args, **kw)
         self.parent = parent
         self.matrice = matrice
         if lblbox:
@@ -890,6 +912,7 @@ class DLG_listCtrl(wx.Dialog):
         self.SetSizer(topbox)
 
     def OnAjouter(self,event):
+        SetEnableID(self.dldMatrice,enable=True)
         # l'ajout d'une ligne nécessite d'appeler un écran avec les champs en lignes
         dlgGest = DLG_vide(self,)
         if self.gestionProperty:
@@ -914,7 +937,7 @@ class DLG_listCtrl(wx.Dialog):
         # documentation dans dupliquer
         dlgGest = DLG_vide(self, )
         ddDonnees = self.lddDonnees[items]
-        ret = SetEnableID(self.dldMatrice)
+        SetEnableID(self.dldMatrice)
         if self.gestionProperty:
             dlgGest.pnl = PNL_property(dlgGest, self, matrice=self.dldMatrice)
         else:
@@ -1230,20 +1253,20 @@ if __name__ == '__main__':
         }
 
 # Lancement des tests
-    """"""
+    """
     frame_4 = DLG_listCtrl(None,dldMatrice=dictMatrice, dlColonnes={'bd_reseau':['serveur','choix','localisation','nombre'],'ident':['utilisateur']},
                 lddDonnees=[dictDonnees,{"bd_reseau":{'serveur': 'serveur3'}}])
     frame_4.Init()
     app.SetTopWindow(frame_4)
     frame_4.Show()
-    """"""
 
     frame_3 = DLG_vide(None,)
     pnl = PNL_property(frame_3,frame_3,matrice=dictMatrice,donnees=dictDonnees)
     frame_3.Sizer(pnl)
     app.SetTopWindow(frame_3)
     frame_3.Show()
-    """"""
+    """
+    """
     frame_2 = FramePanels(None, )
     frame_2.Position = (500,300)
     frame_2.Show()
@@ -1252,7 +1275,7 @@ if __name__ == '__main__':
     app.SetTopWindow(frame_1)
     frame_1.Position = (50,50)
     frame_1.Show()
-    """"""
+    """
     frame_5 = DLG_monoLigne(None,dldMatrice=dictMatrice,
                 ddDonnees=dictDonnees,gestionProperty=False,minSize=(400,300))
     app.SetTopWindow(frame_5)

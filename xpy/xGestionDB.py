@@ -17,7 +17,7 @@ import win32com.client
 import sqlite3
 import copy
 import datetime
-import xpy.xUTILS_Config as xucfg
+import xpy.xUTILS_Shelve as xucfg
 
 DICT_CONNEXIONS = {}
 
@@ -65,8 +65,8 @@ class DB():
             # appel des params de connexion stockés dans Data
             cfg = xucfg.ParamFile()
             configs= cfg.GetDict(groupe='CONFIGS')
-            if 'config' in choix.keys():
-                nomConfig = choix['config']
+            if 'config' in configs.keys():
+                nomConfig = configs['config']
             else: nomConfig=None
             self.cfgParams = None
             try:
@@ -135,24 +135,27 @@ class DB():
                 self.cfgParams  = DICT_CONNEXIONS[self.IDconnexion]['cfgParams']
                 if self.connexion: self.echec = 0
 
-    def Ping(self,serveur, bis=False):
+    def Ping(self,serveur):
         option = '-n' if sys.platform == 'win32' else ''
         if not serveur or len(serveur) < 3 :
             raise NameError('Pas de nom de serveur fourni dans la commande PING')
-        ret = subprocess.run(['ping', option, '1', '-w', '500', serveur,],
-                             capture_output=True).returncode
+        t1 = datetime.datetime.now()
+        deltasec = 0
+        nbre = 0
+        ret = 1
+        while deltasec < 3 and ret != 0:
+            nbre +=1
+            ret = subprocess.run(['ping', option, '1', '-w', '500', serveur,],
+                                 capture_output=True).returncode
+            t2 = datetime.datetime.now()
+            delta = (t2 - t1)
+            deltasec = delta.seconds + delta.microseconds / 10 ** 6
+        mess = "%d pings en  %.3f secondes" % (nbre,deltasec)
+        print(mess)
         if ret != 0:
-            if not bis:
-                # deusième tentative
-                t1 = datetime.datetime.now()
-                ret = self.Ping(serveur,bis=True)
-                t2 = datetime.datetime.now()
-                if ret != 0:
-                    delta = (t2-t1)
-                    deltasec = delta.seconds + delta.microseconds/10**6
-                    mess = "Délai d'attente ping en secondes: %.3f"%(deltasec)
-                    print(mess)
-                    raise NameError("Pas de réponse du serveur %s à la commande PING\n\n%s"%(serveur,mess))
+            mess = "Time Out %d pings en %.3f secondes "%(nbre,deltasec)
+            print(mess)
+            raise NameError("Pas de réponse du serveur %s à la commande PING\n\n%s"%(serveur,mess))
         return True
 
     def AfficheTestOuverture(self):

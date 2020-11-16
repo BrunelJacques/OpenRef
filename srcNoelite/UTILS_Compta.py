@@ -8,7 +8,7 @@
 
 import wx
 import datetime
-import xpy.xUTILS_Config    as xucfg
+import xpy.xUTILS_Shelve    as xucfg
 import xpy.xGestionConfig   as xgc
 import xpy.xGestionDB       as xdb
 import xpy.xGestion_TableauRecherche    as xgtr

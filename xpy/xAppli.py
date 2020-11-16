@@ -12,7 +12,7 @@ import wx
 import os
 import sys
 import xpy.xUTILS_RapportBugs
-import xpy.xUTILS_Config
+import xpy.xUTILS_Shelve
 import xpy.outils.xaccueil as xaccueil
 
 def CrashReport(dictAppli):
@@ -39,7 +39,7 @@ class MainFrame(wx.Frame):
         if not self.pathXpy in sys.path:
             sys.path = [self.pathXpy] + sys.path
         # le dictionnaire config contiendra  toutes les configurations de l'utilisateur,
-        #       enregistrées dans des fichiers  soit dans profilUser ou dans Data selon xUTILS_Config
+        #       enregistrées dans des fichiers  soit dans profilUser ou dans Data selon xUTILS_Shelve
         self.config = None
         self.dictMenu = None
         self.lstBtnBureau = None
@@ -72,10 +72,10 @@ class MainFrame(wx.Frame):
                 sys.path = [self.pathSrcAppli] + sys.path
             # Vérifie l'existence des répertoires Data et Temp et les crées
             for rep in (self.pathData, self.pathTemp):
-                xpy.xUTILS_Config.CreePath(rep)
+                xpy.xUTILS_Shelve.CreePath(rep)
             for rep in ('pathData', 'pathTemp','pathSrcAppli','pathXpy'):
                 self.dictAppli[rep] = eval('self.'+rep)
-            cfg = xpy.xUTILS_Config.ParamUser()
+            cfg = xpy.xUTILS_Shelve.ParamUser()
             self.config= cfg.SetDict(self.dictAppli, groupe='APPLI')
             return wx.OK
 
@@ -247,7 +247,7 @@ if __name__ == "__main__":
         'REP_DATA': "srcMyAppli/Data",
         'REP_TEMP': "srcMyAppli/Temp",
         'NOM_FICHIER_LOG':"testLOG",
-        'OPTIONSCONFIG': ['db_prim'],
+        'OPTIONSCONFIG': 'db_prim',
         }
     frm.xInit()
     CrashReport(frm.dictAppli)
