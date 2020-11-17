@@ -148,6 +148,25 @@ def TplsToLDDic(recordset,lstChamps,categorie):
         lst.append(dic)
     return lst
 
+def AppelLignesMatrice(categ=None, possibles={}):
+    # retourne les lignes de la  matrice de l'argument categ
+    # ou la première catégorie si not categ
+    code = None
+    label = ''
+    lignes = {}
+    if possibles:
+        for code,labelCategorie in possibles:
+            if isinstance(code, str):
+                if categ:
+                    if categ == code:
+                        label = labelCategorie
+                        lignes = possibles[code]
+                else:
+                    label = labelCategorie
+                    lignes = possibles[code]
+                    break
+    return code, label, lignes
+
 class DLG_import(wx.Dialog):
     # Ecran de saisie de paramètres en dialog
     def __init__(self, parent,multi = False, *args, **kwds):
@@ -1007,7 +1026,7 @@ class DLG_implantation(wx.Dialog):
 if __name__ == '__main__':
     app = wx.App(0)
     os.chdir("..")
-    frame_1 = DLG_import(None,multi=True)
+    frame_1 = DLG_implantation(None)
     frame_1.Position = (50,50)
     app.SetTopWindow(frame_1)
     frame_1.Show()

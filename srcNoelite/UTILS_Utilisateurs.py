@@ -62,7 +62,7 @@ def VerificationDroitsUtilisateurActuel(categorie="", action="", IDactivite="", 
     try :
         topWindow = wx.GetApp().GetTopWindow()
         nomWindow = topWindow.GetName()
-        dictUtilisateur = topWindow.dicUser
+        dictUtilisateur = topWindow.dictUser
     except :
         dictUtilisateur = None
     if not dictUtilisateur:
@@ -84,7 +84,7 @@ def VerificationDroitsUtilisateurActuel(categorie="", action="", IDactivite="", 
 def GetIDutilisateur(afficheMessage=True):
     try :
         topWindow = wx.GetApp().GetTopWindow()
-        dictUtilisateur = topWindow.dicUser
+        dictUtilisateur = topWindow.dictUser
     except :
         dictUtilisateur = None
     if not dictUtilisateur:
@@ -105,7 +105,7 @@ def GetIDutilisateur(afficheMessage=True):
 def GetDictUtilisateur(afficheMessage=True):
     try :
         topWindow = wx.GetApp().GetTopWindow()
-        dictUtilisateur = topWindow.dicUser
+        dictUtilisateur = topWindow.dictUser
     except :
         dictUtilisateur = None
     if not dictUtilisateur:

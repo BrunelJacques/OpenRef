@@ -134,7 +134,8 @@ class CTRL_mdp(wx.SearchCtrl):
                 # Enregistrement du pseudo et mot de passe
                 cfg = xucfg.ParamUser()
                 self.choix = cfg.GetDict(groupe='USER',close = False)
-                self.choix['pseudo'] =  dictUtilisateur['prenom'] + " " + dictUtilisateur['nom']
+                dictUtilisateur['utilisateur'] =  dictUtilisateur['prenom'] + " " + dictUtilisateur['nom']
+                self.choix['utilisateur'] =  dictUtilisateur['utilisateur']
                 self.choix['nom'] = dictUtilisateur['nom']
                 self.choix['prenom'] = dictUtilisateur['prenom']
                 self.choix['IDutilisateur'] =  dictUtilisateur['IDutilisateur']

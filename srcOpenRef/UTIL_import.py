@@ -230,7 +230,7 @@ class ImportComptas(object):
                 dicGI = ListesToDict(lstCle, recordset[0])
                 dicIdent['IDagc'] = self.config['agc']
                 dicIdent['IDexploitation'] = code
-                dicIdent['IDuser'] = self.config['domaine'] + '.'+self.config['utilisateur']+'/'+self.config['pseudo']
+                dicIdent['IDuser'] = self.config['domaine'] + '.'+self.config['utilisateur']+'/'+self.config['utilisateur']
                 dicIdent['IDlocalisation'] = self.config['localis']
                 dicIdent['IDjuridique'] = dicGI['juridique']
                 if dicGI['production']:

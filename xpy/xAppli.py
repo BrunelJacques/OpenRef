@@ -44,6 +44,7 @@ class MainFrame(wx.Frame):
         self.dictMenu = None
         self.lstBtnBureau = None
         self.couleur_fond = wx.Colour(0,240,240)
+        self.dictUser = None
 
     def xInit(self):
         print("Lancement %s"%self.dictAppli['NOM_APPLICATION'])
@@ -247,7 +248,7 @@ if __name__ == "__main__":
         'REP_DATA': "srcMyAppli/Data",
         'REP_TEMP': "srcMyAppli/Temp",
         'NOM_FICHIER_LOG':"testLOG",
-        'OPTIONSCONFIG': 'db_prim',
+        'CODE_CONFIG': 'db_prim',
         }
     frm.xInit()
     CrashReport(frm.dictAppli)

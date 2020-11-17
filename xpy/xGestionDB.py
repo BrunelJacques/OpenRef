@@ -175,17 +175,18 @@ class DB():
             etape = 'Décompactage de la config'
             host = config['serveur']
             port = config['port']
-            user = config['userDB']
+            userdb = config['userDB']
             passwd = config['mpUserDB']
             nomFichier = config['nameDB']
-            self.pseudo = config['pseudo']
-            self.utilisateur = os.environ['USERNAME']
-            self.domaine =  os.environ['USERDOMAIN']
+            # le pseudo est devenu utilisateur et utilisateur devenu username dans topwindows.dictUser
+            #self.pseudo = config['utilisateur']
+            #self.utilisateur = os.environ['USERNAME']
+            #self.domaine =  os.environ['USERDOMAIN']
             etape = 'Ping %s'%(host)
             ret = self.Ping(host)
-            etape = 'Création du connecteur %s - %s - %s - %s'%(host,user,passwd, port)
+            etape = 'Création du connecteur %s - %s - %s - %s'%(host,userdb,passwd, port)
             if self.typeDB == 'mysql':
-                self.connexion = mysql.connector.connect(host=host, user=user, passwd=passwd, port=int(port))
+                self.connexion = mysql.connector.connect(host=host, user=userdb, passwd=passwd, port=int(port))
                 etape = 'Création du curseur, après connexion réussie'
                 self.cursor = self.connexion.cursor(buffered=True)
                 etape = 'premier accès base pour use %s' %nomFichier

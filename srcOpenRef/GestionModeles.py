@@ -15,11 +15,10 @@ import xpy.xGestionDB as xdb
 import xpy.xUTILS_SaisieParams as xusp
 import xpy.xGestion_Tableau as xgt
 import xpy.xGestion_Ligne as xgl
-import xpy.outils.xdatatables as xdtt
 from xpy.outils     import xformat
 
 class EcranOlv(object):
-    def __init__(self, parent,nomtable='',dbtable=None,title=None):
+    def __init__(self, parent,nomtable='',title=None):
         self.table = nomtable
         self.echec = True
         if not title:
@@ -29,8 +28,8 @@ class EcranOlv(object):
         self.ixsel = 0
         # initialisation des propriétés de la table
         self.lstTblChamps, self.lstTblTypes, self.lstTblHelp = [],[],[]
-        if dbtable:
-            self.lstTblChamps, self.lstTblTypes, self.lstTblHelp = xdtt.GetChampsTypes(dbtable, tous=True)
+        if len(self.table)>0:
+            self.lstTblChamps, self.lstTblTypes, self.lstTblHelp = dtt.GetChampsTypes(self.table, tous=True)
             self.lstTblValdef = xformat.ValeursDefaut(self.lstTblChamps, self.lstTblTypes)
             self.lstLargeurColonnes = xformat.LargeursDefaut(self.lstTblChamps, self.lstTblTypes)
         else:
@@ -202,7 +201,7 @@ class EcranOlv(object):
 class Lancement():
     def __init__(self,parent,table):
         if table in dtt.DB_TABLES.keys():
-            ecran = EcranOlv(self,nomtable=table,dbtable=dtt.DB_TABLES[table],title='[GestionModeles].Lancement')
+            ecran = EcranOlv(self,nomtable=table,title='[GestionModeles].Lancement')
             if not ecran.echec:
                 ecran.InitEcran()
         else:

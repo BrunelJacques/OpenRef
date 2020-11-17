@@ -17,7 +17,7 @@ dictAPPLI = {
             'REP_DATA'              : "srcNoelite/Data",
             'REP_TEMP'              : "srcNoelite/Temp",
             'NOM_FICHIER_LOG'       : "logsNoelite.log",
-            'OPTIONSCONFIG'         : 'db_prim',
+            'CODE_CONFIG'         : 'db_prim',
 }
 
 class MyFrame(xAppli.MainFrame):
@@ -57,11 +57,11 @@ class MyFrame(xAppli.MainFrame):
         dlg = ncident.Dialog(self)
         etat = False
         if not dlg.echec:
-            self.dicUser = dlg.GetDictUtilisateur()
-            if not self.dicUser:
+            self.dictUser = dlg.GetDictUtilisateur()
+            if not self.dictUser:
                 ret = dlg.ShowModal()
-                self.dicUser = dlg.GetDictUtilisateur()
-                if self.dicUser:
+                self.dictUser = dlg.GetDictUtilisateur()
+                if self.dictUser:
                     etat = True
         dlg.Destroy()
         for numMenu in range(1,2):
