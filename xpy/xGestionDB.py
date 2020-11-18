@@ -47,7 +47,7 @@ def DateDDEnDateEng(datedd):
 
 class DB():
     # accès à la base de donnees principale
-    def __init__(self, IDconnexion = None, config=None, grpConfig='db_prim', nomFichier=None):
+    def __init__(self, IDconnexion = None, config=None, typeConfig='db_prim', nomFichier=None):
         self.echec = 1
         self.IDconnexion = IDconnexion
         self.nomBase = 'personne!'
@@ -65,8 +65,8 @@ class DB():
             # appel des params de connexion stockés dans Data
             cfg = xucfg.ParamFile()
             configs= cfg.GetDict(groupe='CONFIGS')
-            if 'config' in configs.keys():
-                nomConfig = configs['config']
+            if 'lastConfig' in configs.keys():
+                nomConfig = configs['lastConfig']
             else: nomConfig=None
             self.cfgParams = None
             try:
@@ -81,12 +81,14 @@ class DB():
                         for cle, valeur in choix.items():
                             self.cfgParams[cle] = valeur
                 if nomConfig:
-                    if not (nomConfig in configs['lstIDconfigs']):
-                        wx.MessageBox("Le nom de config '%s' n'est pas dans la liste des accès base de donnée"%(nomConfig))
-                        return
-                    ix = configs['lstIDconfigs'].index(nomConfig)
-                    # on récupére les paramétres dans toutes les configs par le pointeur ix dans les clés
-                    self.cfgParams = configs['lstConfigs'][ix][grpConfig]
+                    if 'lstConfigs' in configs:
+                        lstNomsConfigs = [x[typeConfig]['ID'] for x in configs['lstConfigs']]
+                        if not (nomConfig in lstNomsConfigs):
+                            wx.MessageBox("xDB: Le nom de config '%s' n'est pas dans la liste des accès base de donnée"%(nomConfig))
+                            return
+                        ix = lstNomsConfigs.index(nomConfig)
+                        # on récupére les paramétres dans toutes les configs par le pointeur ix dans les clés
+                        self.cfgParams = configs['lstConfigs'][ix][typeConfig]
                 # on ajoute les choix  de mot passe aux paramètres de la config retenue
                 if self.cfgParams:
                     for cle, valeur in choix.items():
@@ -96,7 +98,7 @@ class DB():
                     else:
                         self.nomBase = self.cfgParams['serveur']+'\\'+self.cfgParams['nameDB']
             except Exception as err:
-                wx.MessageBox("La récup des identifiants de connexion a échoué : \nErreur detectee :%s" % err)
+                wx.MessageBox("xDB: La récup des identifiants de connexion a échoué : \nErreur detectee :%s" % err)
                 self.erreur = err
                 return
             if not self.cfgParams : return
@@ -112,7 +114,7 @@ class DB():
                 self.isNetwork = False
                 self.ConnexionFichierLocal(self.cfgParams)
             else :
-                wx.MessageBox("Le type de Base de Données '%s' n'est pas géré!" % self.typeDB)
+                wx.MessageBox("xDB: Le type de Base de Données '%s' n'est pas géré!" % self.typeDB)
                 return
 
             if self.connexion:
@@ -195,14 +197,15 @@ class DB():
                 # Utilisation
                 self.cursor.execute("USE %s;" % nomFichier)
             else:
-                wx.MessageBox('Accès BD non développé pour %s' %self.typeDB)
+                wx.MessageBox('xDB: Accès BD non développé pour %s' %self.typeDB)
         except Exception as err:
-            wx.MessageBox("La connexion MYSQL a echoué à l'étape: %s, sur l'erreur :\n\n%s" %(etape,err))
+            wx.MessageBox("xDB: La connexion MYSQL a echoué à l'étape: %s, sur l'erreur :\n\n%s" %(etape,err))
             self.erreur = err
         if self.connexion:
             if not (nomFichier,) in listeBases:
                 lstBases = str(listeBases)
-                wx.MessageBox("La base '%s' n'est pas sur le serveur qui porte les bases :\n\n %s" % (nomFichier, lstBases ), style=wx.ICON_STOP)
+                wx.MessageBox("xDB: La base '%s' n'est pas sur le serveur qui porte les bases :\n\n %s" % (nomFichier,
+                                                                                lstBases ), style=wx.ICON_STOP)
                 self.echec = 1
                 self.connexion = None
             self.echec = 0
@@ -211,7 +214,7 @@ class DB():
         """ Version LOCALE avec SQLITE """
         # Vérifie que le fichier sqlite existe bien
         if os.path.isfile(nomFichier) == False:
-            wx.MessageBox("Le fichier local '%s' demande n'est pas present sur le disque dur."%nomFichier)
+            wx.MessageBox("xDB: Le fichier local '%s' demande n'est pas present sur le disque dur."%nomFichier)
             self.echec = 1
             return
         # Initialisation de la connexion
@@ -230,9 +233,9 @@ class DB():
             elif self.typeDB == 'mySqlLocal':
                 self.ConnectMySqlLocal()
             else:
-                wx.MessageBox('Accès DB non développé pour %s' %self.typeDB)
+                wx.MessageBox('xDB: Accès DB non développé pour %s' %self.typeDB)
         except Exception as err:
-            wx.MessageBox("La connexion base de donnée a echoué à l'étape: %s, sur l'erreur :\n\n%s" %(etape,err))
+            wx.MessageBox("xDB: La connexion base de donnée a echoué à l'étape: %s, sur l'erreur :\n\n%s" %(etape,err))
             self.erreur = err
 
     def ConnectAcessADO(self):
@@ -240,7 +243,7 @@ class DB():
            N'est pas compatible access 95, mais lit comme access 2002"""
         # Vérifie que le fichier existe bien
         if os.path.isfile(self.nomBase) == False:
-            wx.MessageBox("Le fichier %s demandé n'est pas present sur le disque dur."% self.nomBase, style = wx.ICON_WARNING)
+            wx.MessageBox("xDB:Le fichier %s demandé n'est pas present sur le disque dur."% self.nomBase, style = wx.ICON_WARNING)
             return
         # Initialisation de la connexion
         try:
@@ -252,13 +255,13 @@ class DB():
             cat.ActiveConnection = self.connexion
             allTables = cat.Tables
             if len(allTables) == 0:
-                wx.MessageBox("La base de donnees %s est présente mais vide " % self.nomBase)
+                wx.MessageBox("xDB:La base de donnees %s est présente mais vide " % self.nomBase)
                 return
             del cat
             self.cursor = win32com.client.Dispatch(r'ADODB.Recordset')
             self.echec = 0
         except Exception as err:
-            wx.MessageBox("La connexion avec la base access %s a echoué : \nErreur détectée :%s" %(self.nomBase,err),
+            wx.MessageBox("xDB:La connexion avec la base access %s a echoué : \nErreur détectée :%s" %(self.nomBase,err),
                           style=wx.ICON_WARNING)
             self.erreur = err
 
@@ -267,7 +270,7 @@ class DB():
         #nécessite : pip install pysqlite
         # Vérifie que le fichier sqlite existe bien
         if os.path.isfile(self.nomBase) == False:
-            wx.MessageBox("Le fichier %s demandé n'est pas present sur le disque dur."% self.nomBase, style = wx.ICON_WARNING)
+            wx.MessageBox("xDB: Le fichier %s demandé n'est pas present sur le disque dur."% self.nomBase, style = wx.ICON_WARNING)
             return
         # Initialisation de la connexion
         try:
@@ -275,7 +278,7 @@ class DB():
             self.cursor = self.connexion.cursor()
             self.echec = 0
         except Exception as err:
-            wx.MessageBox("La connexion avec la base de donnees SQLITE a echoué : \nErreur détectée :%s" % err, style = wx.ICON_WARNING)
+            wx.MessageBox("xDB: La connexion avec la base de donnees SQLITE a echoué : \nErreur détectée :%s" % err, style = wx.ICON_WARNING)
             self.erreur = err
 
     def ExecuterReq(self, req, mess=None, affichError=True):

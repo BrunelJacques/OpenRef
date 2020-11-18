@@ -189,15 +189,33 @@ class ParamFile():
             self.dictFic.close()
         return
 
-    def DelDictConfig(self, groupe=None, close=True):
+    def DelDictConfig(self,cle=None,groupe=None, close=True):
         """ Supprime le dict du fichier de config présent sur le disque """
-        if groupe in self.dictMem:
-                del self.dictMem[groupe]
-             #double enregistrement
-        if groupe in self.dictFic:
-            del self.dictFic[groupe]
-        if close and self.close:
-            self.dictFic.close()
+        def delCle(dict,cle):
+            for grp in dict.keys():
+                ssdic = dict[grp]
+                if cle in ssdic:
+                    dictemp = ssdic
+                    del dictemp[cle]
+                    dict[grp] = dictemp
+        def delGroupe(dict,grp):
+                if grp in dict:
+                    del dict[grp]
+        def delCleGroupe(dict,cle,grp):
+                if grp in dict:
+                    if cle in dict[grp]:
+                        del dict[grp][cle]
+
+        if hasattr(self,'dictMem'): lstDict = (self.dictMem, self.dictFic)
+        else : lstDict = (self.dictFic)
+
+        for item in lstDict:
+            if cle and groupe:
+                delCleGroupe(item,cle,groupe)
+            elif groupe:
+                delGroupe(item,groupe)
+            elif cle:
+                delCle(item,cle)
         return
 
 class ParamUser(ParamFile):
@@ -214,12 +232,13 @@ if __name__ == u"__main__":
     cfg = ParamUser()
     DumpFile(cfg.dictFic)
 
-    cfgNoelite = ParamFile('Config',path='../srcOpenRef/Data',flag='r')
-    cfgOpen = ParamFile('Config',path='../srcOpenRef/Data',flag='r')
+    cfgNoelite  = ParamFile('Config',path='../srcNoelite/Data',flag='r')
+    cfgOpen     = ParamFile('Config',path='../srcOpenRef/Data',flag='r')
     print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Fichiers Noelite Data.Config')
+    # del de clés
+    #cfg.DelDictConfig(groupe='APPLI')
     DumpFile(cfgNoelite.dictFic)
-    print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Fichiers Openref Data.Config')
-    DumpFile(cfgOpen.dictFic)
+    #print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Fichiers Openref Data.Config')
+    #DumpFile(cfgOpen.dictFic)
     #cfg = ParamUser('UserConfig', flag='c')
-    #cfg.DelDictConfig(groupe='IMPLANTATION')
     app.MainLoop()

@@ -690,9 +690,12 @@ class BoxPanel(wx.Panel):
     # Set pour tous les ctrl nommés dans le dictionnaire de données
     def SetValues(self,dictDonnees):
         for panel in self.lstPanels:
-            [code, champ] = panel.ctrl.nameCtrl.split('.')
-            if champ in dictDonnees:
-                panel.SetValue(dictDonnees[champ])
+            if panel.ctrl.nameCtrl in dictDonnees:
+                panel.SetValue(dictDonnees[panel.ctrl.nameCtrl])
+            else:
+                (box, champ) = panel.ctrl.nameCtrl.split('.')
+                if champ in dictDonnees:
+                    panel.SetValue(dictDonnees[champ])
         return
 
     # Get du ctrl nommé
@@ -718,7 +721,8 @@ class BoxPanel(wx.Panel):
                 ok = True
                 break
         if  not ok:
-            wx.MessageBox("Impossible de trouver '%s'"%name,"Echec %s.SetOneValue"%self.GrandParent.Name)
+            wx.MessageBox("Impossible de trouver le ctrl '%s'"%name,
+                          "Echec: %s/%s.SetOneValue"%(self.GrandParent.Name,self.Parent))
         return
 
     # SetChoices du ctrl nommé
@@ -888,8 +892,24 @@ class DLG_listCtrl(wx.Dialog):
         self.btn.Bind(wx.EVT_BUTTON, self.OnFermer)
         self.btnEsc = BTN_esc(self,action=self.OnBtnEsc)
         self.MinSize = (400, 300)
+        self.dlgGest = None
+
+    def InitDlgGestion(self):
+        # permet d'intervenir avant le lancement de Init
+        self.dlgGest = DLG_vide(self,)
+        if self.gestionProperty:
+            self.dlgGest.pnl = PNL_property(self.dlgGest, self, matrice=self.dldMatrice, lblbox='Ajout d\'une ligne')
+        else:
+            self.dlgGest.pnl = TopBoxPanel(self.dlgGest, matrice=self.dldMatrice, lblbox='Ajout d\'une ligne')
+
+    def SizerDlgGestion(self):
+        self.dlgGest.Sizer(self.dlgGest.pnl)
+
 
     def Init(self):
+        if not self.dlgGest:
+            self.InitDlgGestion()
+            self.SizerDlgGestion()
         if self.dldMatrice != {}:
             # transposition avant appel du listCtrl
             self.lddDonnees, self.ltColonnes, self.llItems\
@@ -914,16 +934,11 @@ class DLG_listCtrl(wx.Dialog):
     def OnAjouter(self,event):
         SetEnableID(self.dldMatrice,enable=True)
         # l'ajout d'une ligne nécessite d'appeler un écran avec les champs en lignes
-        dlgGest = DLG_vide(self,)
-        if self.gestionProperty:
-            dlgGest.pnl = PNL_property(dlgGest, self, matrice=self.dldMatrice, lblbox='Ajout d\'une ligne')
-        else:
-            dlgGest.pnl = TopBoxPanel(dlgGest, matrice=self.dldMatrice, lblbox='Ajout d\'une ligne')
-        dlgGest.Sizer(dlgGest.pnl)
-        ret = dlgGest.ShowModal()
+        self.dlgGest.Sizer(self.dlgGest.pnl)
+        ret = self.dlgGest.ShowModal()
         if ret == wx.OK:
             #récupération des valeurs saisies
-            ddDonnees = dlgGest.pnl.GetValeurs()
+            ddDonnees = self.dlgGest.pnl.GetValeurs()
             donnees={}
             for (x,y) in ddDonnees.items():
                 donnees[x] = y
@@ -931,28 +946,23 @@ class DLG_listCtrl(wx.Dialog):
             self.lddDonnees.append(donnees)
             self.lddDonnees, self.ltColonnes, self.llItems = Transpose(self.dldMatrice, self.dlColonnes, self.lddDonnees)
             self.pnl.SetValeurs(self.llItems, self.ltColonnes)
-        dlgGest.Destroy()
+        #self.dlgGest.Destroy()
 
     def OnModifier(self,event, items):
         # documentation dans dupliquer
-        dlgGest = DLG_vide(self, )
         ddDonnees = self.lddDonnees[items]
         SetEnableID(self.dldMatrice)
-        if self.gestionProperty:
-            dlgGest.pnl = PNL_property(dlgGest, self, matrice=self.dldMatrice)
-        else:
-            dlgGest.pnl = TopBoxPanel(dlgGest, matrice=self.dldMatrice, lblbox='Modification d\'une ligne')
-        dlgGest.pnl.SetValeurs(ddDonnees)
-        dlgGest.Sizer(dlgGest.pnl)
-        ret = dlgGest.ShowModal()
+        self.dlgGest.pnl.SetValeurs(ddDonnees)
+        #self.dlgGest.Sizer(self.dlgGest.pnl)
+        ret = self.dlgGest.ShowModal()
         if ret == wx.OK:
-            ddDonnees = dlgGest.pnl.GetValeurs()
+            ddDonnees = self.dlgGest.pnl.GetValeurs()
             #self.lddDonnees[items] = deepcopy(ddDonnees)
             self.lddDonnees[items] = ddDonnees
             self.lddDonnees, self.ltColonnes, self.llItems = Transpose(self.dldMatrice, self.dlColonnes, self.lddDonnees)
             self.pnl.SetValeurs(self.llItems, self.ltColonnes)
         self.pnl.ctrl.Select(items)
-        dlgGest.Destroy()
+        #self.dlgGest.Destroy()
 
     def OnSupprimer(self,event,items):
         # documentation dans dupliquer
@@ -962,23 +972,18 @@ class DLG_listCtrl(wx.Dialog):
         self.pnl.SetValeurs(self.llItems, self.ltColonnes)
 
     def OnDupliquer(self,event, items):
-        dlgGest = DLG_vide(self, )
         ddDonnees = deepcopy(self.lddDonnees[items])
         ret = SetEnableID(self.dldMatrice,enable=True)
-        if self.gestionProperty:
-            dlgGest.pnl = PNL_property(dlgGest, self, matrice=self.dldMatrice)
-        else:
-            dlgGest.pnl = TopBoxPanel(dlgGest, matrice=self.dldMatrice, lblbox='Modification d\'une ligne')
-        dlgGest.pnl.SetValeurs(ddDonnees)
-        dlgGest.Sizer(dlgGest.pnl)
-        ret = dlgGest.ShowModal()
+        self.dlgGest.pnl.SetValeurs(ddDonnees)
+        self.dlgGest.Sizer(self.dlgGest.pnl)
+        ret = self.dlgGest.ShowModal()
         if ret == wx.OK:
-            ddDonnees = dlgGest.pnl.GetValeurs()
+            ddDonnees = self.dlgGest.pnl.GetValeurs()
             donnees = deepcopy(ddDonnees)
             self.lddDonnees.append(donnees)
             self.lddDonnees, self.ltColonnes, self.llItems = Transpose(self.dldMatrice, self.dlColonnes, self.lddDonnees)
             self.pnl.SetValeurs(self.llItems, self.ltColonnes)
-        dlgGest.Destroy()
+        #self.dlgGest.Destroy()
 
     def OnFermer(self, event):
         return self.Close()
@@ -997,25 +1002,25 @@ class DLG_vide(wx.Dialog):
         super().__init__(None, wx.ID_ANY, *args, title=name,  style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER , **kwds)
         self.SetBackgroundColour(wx.WHITE)
         self.marge = 10
+        self.btn = None
 
         #****************Exemple de Chaînage à faire passer au sizer*****************
         #self.pnl = PNL_property(self, parent, *args, matrice = matrice, **kwds )
         #****************************************************************************
 
-    def Bouton(self,parent):
+    def Bouton(self,parent, btnLabel = 'OK'):
         # bouton 'ok' par défaut
-        btnLabel = 'OK'
         btn = wx.Button(self, wx.ID_ANY, btnLabel)
         btn.Bind(wx.EVT_BUTTON, parent.OnFermer)
         return btn
 
-    def Sizer(self,panel,bouton=None):
+    def Sizer(self,panel):
+        # Le panel contient l'essentiel de l'écran, bouton peut être aussi un sizer de boutons en bas
         self.pnl = panel
-        if bouton:
-            self.btn = bouton
-        else: self.btn = self.Bouton(self)
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.pnl, 1, wx.EXPAND | wx.ALL, self.marge)
+        if not self.btn:
+            self.btn = self.Bouton(self)
         sizer.Add(self.btn, 0,  wx.RIGHT|wx.ALIGN_RIGHT,20)
         sizer.SetSizeHints(self)
         self.SetSizer(sizer)

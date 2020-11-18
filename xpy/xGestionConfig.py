@@ -27,13 +27,7 @@ MATRICE_IDENT = {
     ],
 }
 MATRICE_USER = {
-("choix_config","Choisissez votre configuration"):[
-    {'name': 'config', 'genre': 'Enum', 'label': 'Config active',
-                        'help': "Le bouton de droite vous permet de créer une nouvelle configuration",
-                        'ctrlAction':'OnCtrlConfig',
-                        'btnLabel':"...", 'btnHelp':"Cliquez pour gérer les configurations BD",
-                        'btnAction':"OnBtnConfig",
-                        'txtSize': 120},
+("infos_user","Infos utilisateur"):[
     {'name': 'mpUserDB', 'genre': 'Mpass', 'label': 'Mot de Passe Serveur',
                         'help': "C\'est le mot de passe de l'utilisateur BD défini dans la configuration active," +
                                 "\nce n'est pas celui de votre pseudo, qui vous sera demandé au lancement de l'appli",
@@ -44,9 +38,17 @@ MATRICE_USER = {
                         'txtSize': 120},
     ]
 }
-# db_prim et db_second pourront être présentes dans dictAPPLI['CODE_CONFIG'] et repris dans xGestionDB
+MATRICE_CHOIX_CONFIG = {
+("infos_config","Infos partagées"):[
+     {'name': 'config', 'genre': 'Enum', 'label': 'Données actives',
+                        'help': "Le bouton de droite vous permet de créer une nouvelle configuration",
+                        'ctrlAction':'OnCtrlConfig',
+                        'btnLabel':"...", 'btnHelp':"Cliquez pour gérer les configurations d'accès aux données",
+                        'btnAction':"OnBtnConfig",
+                        'txtSize': 120},]}
+# db_prim et db_simple sont des types de config, pourront être présentes dans dictAPPLI['TYPE_CONFIG'] et xGestionDB
 MATRICE_CONFIGS = {
-    ('db_prim', "Acccès à la base principale"): [
+    ('db_prim', "Acccès à une base avec authentification"): [
     {'name': 'ID', 'genre': 'String', 'label': 'Désignation config', 'value': 'config1',
                     'help': "Désignez de manière unique cette configuration"},
     {'name': 'serveur', 'genre': 'String', 'label': 'Path ou Serveur', 'value':'',
@@ -61,7 +63,7 @@ MATRICE_CONFIGS = {
     {'name': 'userDB', 'genre': 'String', 'label': 'Utilisateur BD',
                     'help': "Si nécessaire, utilisateur ayant des droits d'accès à la base de donnée", 'value':'invite'},
     ],
-    ('db_simple',"Accès  base locale"): [
+    ('db_simple',"Accès à une base locale"): [
         {'name': 'ID', 'genre': 'String', 'label': 'Désignation config', 'value': 'config1',
                         'help': "Désignez de manière unique cette configuration"},
         {'name': 'serveur', 'genre': 'String', 'label': 'Path ou Serveur', 'value': '',
@@ -73,21 +75,6 @@ MATRICE_CONFIGS = {
                          'help': "Base de donnée présente sur le serveur"},
     ],
 }
-
-IMPLANTATIONS = {
-'quadratus':{
-        'LCtraitements':'//srvprint/qappli/quadra/datadouble',
-        'La Crau':      '//srvprint/qappli/quadra/database',
-        'AlpesMed':     '//srvtse/qappli$/quadra/database',
-        'Bastia':     '../qappli/quadra/database',
-        'Local (all agc)':        'c:/quadra/database'},}
-
-# la clé des agences est la désignation d'une agc, les valeurs une implantation (implantations propres à cette agc)
-AGENCES = {
-    'prov':['LCtraitements','La Crau'],
-    'alpes':['AlpesMed'],
-    'corse':['Bastia'],
-    'ANY':['Local (all agc)']}
 
 def AppelLignesMatrice(categ=None, possibles={}):
     # retourne les lignes de la  matrice de l'argument categ
@@ -120,129 +107,143 @@ def GetCleMatrice(code,matrice):
             break
     return cle
 
+# Panel de gestion des configurations
+class ChoixConfig(xusp.BoxPanel):
+    def __init__(self,parent,lblbox, codebox, lignes, dictDonnees):
+        #style = wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER
+        size = (50,250)
+        # le codebox n'étant pas visible, on écrase le label devant le contrôle
+        lignes[0]['label'] = codebox
+        xusp.BoxPanel.__init__(self, parent, lblbox=lblbox, code=codebox, lignes=lignes,
+                               dictDonnees=dictDonnees,size=size)
+        self.Name = codebox+"."+lignes[0]['name']
+
 # Ecran d'identification
 class DLG_identification(wx.Dialog):
     # Ecran de saisie de paramètres en dialog
     def __init__(self, parent, **kwds):
         style = kwds.pop('style',wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
         size = kwds.pop('size',(400,650))
-        self.optionsConfig = kwds.pop('optionsConfig',None)
+        self.typeConfig = kwds.pop('typeConfig',None)
         listArbo=os.path.abspath(__file__).split("\\")
         titre = listArbo[-1:][0] + "/" + self.__class__.__name__
-
-        wx.Dialog.__init__(self, parent, -1,title = titre,
-                           style=style,size = size)
-
+        wx.Dialog.__init__(self, parent, -1,title = titre, style=style,size = size)
         self.parent = parent
-
-
-        try :
-            self.topWindow = wx.GetApp().GetTopWindow()
-            nomWindow = self.topWindow.GetName()
-            if nomWindow :
-                # il y a une frame en top windows on va l'utiliser comme tampon mémoire
-                self.topWin = True
-        except : self.topWin=False
-
-
-        cadre_staticbox = wx.StaticBox(self, -1, label='identification')
-        topbox = wx.StaticBoxSizer(cadre_staticbox, wx.VERTICAL)
-        self.btn = xusp.BTN_fermer(self)
-        self.btn.Bind(wx.EVT_BUTTON, self.OnFermer)
-        self.btnTest = xusp.BTN_action(self,help='Test de la connexion réseau',image=wx.Bitmap("xpy/Images/100x30/Bouton_tester.png"))
-        self.btnTest.Bind(wx.EVT_BUTTON, self.OnTest)
 
         # Récup du code de la description des champs pour une configuration
         lstcode = GetLstCodesMatrice(MATRICE_CONFIGS)
-        if not self.optionsConfig:
-            self.optionsConfig = lstcode[0]
-        if self.parent and 'CODE_CONFIG' in self.parent.dictAppli:
-            self.optionsConfig = self.parent.dictAppli['CODE_CONFIG']
-            if not (self.optionsConfig in lstcode):
-                wx.MessageBox("L'option '%s' n'est pas dans MATRICECONFIGS " % (self.optionsConfig))
+        if not self.typeConfig:
+            self.typeConfig = lstcode[0]
+        if self.parent and 'TYPE_CONFIG' in self.parent.dictAppli:
+            self.typeConfig = self.parent.dictAppli['TYPE_CONFIG']
+            if not (self.typeConfig in lstcode):
+                wx.MessageBox("L'option '%s' n'est pas dans MATRICECONFIGS " % (self.typeConfig))
 
-        def AffichID():
-            #Affichage de l'identification IDENT partie grisée, et dernière CHOIX_CONFIG (non grisée)
-            self.ctrlID = xusp.CTRL_property(self, matrice=MATRICE_IDENT, enable=False)
-            # précharge les dernières valeurs de l'utilisateurs de toutes les clé du groupe IDENT
-            ddDonnees = {}
-            valeurs = {}
-            ident = None
-            try:
-                utilisateur = self.parent.dictUser['utilisateur']
-            except : utilisateur = None
-            for (code,label), lignes in MATRICE_IDENT.items():
-                for ligne in  lignes:
-                    if ligne['name'].lower() in ('username', 'user'):
-                        valeurs[ligne['name']] = os.environ['USERNAME']
-                        ident = code
-                    if ligne['name'].lower() in ('userdomain','domaine', 'workgroup'):
-                        try:
-                            valeurs[ligne['name']] = os.environ['USERDOMAIN']
-                        except:
-                            import platform
-                            valeurs[ligne['name']] = platform.node()
-                    if ligne['name'].lower() in ('utilisateur',):
-                        valeurs[ligne['name']] = utilisateur
-                        ident = code
+        ddDonnees = {}
+        valeurs = {}
+        ident = None
+        self.btnTest = xusp.BTN_action(self,help='Test de la connexion réseau',
+                                       image=wx.Bitmap("xpy/Images/100x30/Bouton_tester.png"))
+        self.btnTest.Bind(wx.EVT_BUTTON, self.OnTest)
 
-            if ident:
-                ddDonnees[ident] = valeurs
-                self.ctrlID.SetValeurs(ddDonnees=ddDonnees)
+        #  IDENT :  appel de l'identification IDENT partie grisée -----------------------------------------------------
+        try:
+            utilisateur = self.parent.dictUser['utilisateur']
+        except : utilisateur = None
+        for (code,label), lignes in MATRICE_IDENT.items():
+            for ligne in  lignes:
+                if ligne['name'].lower() in ('username', 'user'):
+                    valeurs[ligne['name']] = os.environ['USERNAME']
+                    ident = code
+                if ligne['name'].lower() in ('userdomain','domaine', 'workgroup'):
+                    try:
+                        valeurs[ligne['name']] = os.environ['USERDOMAIN']
+                    except:
+                        import platform
+                        valeurs[ligne['name']] = platform.node()
+                if ligne['name'].lower() in ('utilisateur',):
+                    valeurs[ligne['name']] = utilisateur
+                    ident = code
 
-            code,label,lignes = AppelLignesMatrice(None, MATRICE_USER)
+        self.ctrlID = xusp.CTRL_property(self, matrice=MATRICE_IDENT, enable=False)
+        if ident:
+            ddDonnees[ident] = valeurs
+            self.ctrlID.SetValeurs(ddDonnees=ddDonnees)
+
+        # CONFIGS : appel du modèle des configurations ----------------------------------------------------------------
+        codeBox,labelBox,lignes = AppelLignesMatrice(None, MATRICE_CHOIX_CONFIG)
+        # Composition des choix de configurations selon l'implantation
+        self.lstChoixConfigs = []
+        if self.parent and 'CHOIX_CONFIGS' in self.parent.dictAppli:
+            lstchoix = self.parent.dictAppli['CHOIX_CONFIGS']
+            for codeBox,labelBox in lstchoix:
+                self.lstChoixConfigs.append(ChoixConfig(self, labelBox, codeBox, lignes, {}))
+        else:
             # le nom de la configuration c'est le premier champ décrit dans la matrice
-            self.codeConfig = code + '.' + lignes[0]['name']
-            ###self.codeConfig = lignes[0]['name']
+            self.lstChoixConfigs.append(ChoixConfig(self, labelBox, codeBox, lignes, {}))
 
-            # simple texte
-            self.titre =wx.StaticText(self, -1, "Accès à la base de donnée principale")
+        # choix de la configuration prise dans paramFile
+        cfgF = xucfg.ParamFile()
+        grpConfig = cfgF.GetDict(dictDemande=None, groupe='CONFIGS')
+        self.lstIDconfigs = []
+        if 'lstConfigs' in grpConfig:
+            for config in grpConfig['lstConfigs']:
+                for typconf in config:
+                    if self.typeConfig == typconf:
+                        self.lstIDconfigs.append(config[typconf]['ID'])
+        choixConfigs = grpConfig.pop('choixConfigs',{})
 
-            # contrôle gérant la saisie des paramètres de config
-            self.ctrlConfig = xusp.BoxPanel(self, wx.ID_ANY, lblbox=label, code=code, lignes=lignes, dictDonnees={})
-            # adressage dans le fichier par défaut dans profilUser
-            cfg = xucfg.ParamUser()
-            # lecture des valeurs préalablement utilisées
-            self.choix= cfg.GetDict(dictDemande=None, groupe='USER', close=False)
-            self.dictAppli= cfg.GetDict(dictDemande=None, groupe='APPLI')
-            if self.dictAppli == {}:
-                self.dictAppli = self.parent.dictAppli
+        # alimente la liste des choix possibles
+        for ctrlConfig in self.lstChoixConfigs:
+            ctrlConfig.SetOneValues(ctrlConfig.Name,self.lstIDconfigs)
+            if ctrlConfig.Name in choixConfigs:
+                ctrlConfig.SetOneValue(ctrlConfig.Name,choixConfigs[ctrlConfig.Name])
 
-            # choix de la configuration prise dans paramUser
-            cfgF = xucfg.ParamFile()
-            self.configs= cfgF.GetDict(dictDemande=None, groupe='CONFIGS')
-            self.choix.update(cfgF.GetDict(dictDemande={'config':None}, groupe='CONFIGS', close=False))
-            if self.configs and ('lstIDconfigs' in self.configs ) :
-                if self.configs['lstIDconfigs']:
-                    # pose dans la grille la valeur de la dernière valeur utilisée
-                    self.ctrlConfig.SetOneValues(self.codeConfig, self.configs['lstIDconfigs'])
-            #pose dans la grille de saisie, les valeurs lues dans profilUser
-            self.ctrlConfig.SetValues(self.choix)
-            topbox.Add(self.ctrlID, 0,wx.ALL | wx.EXPAND, 5)
+        # SEPARATEUR : simple texte
+        self.titre =wx.StaticText(self, -1, "Eléments de connexion")
+
+        # USER : contrôle gérant la saisie des paramètres de connexion (USER) ----------------------------------------
+        code,label,lignes = AppelLignesMatrice(None, MATRICE_USER)
+        self.ctrlConnect = xusp.BoxPanel(self, wx.ID_ANY, lblbox=label, code=code, lignes=lignes, dictDonnees={})
+
+        # recherche dans profilUser
+        cfg = xucfg.ParamUser()
+        # lecture des valeurs préalablement utilisées
+        choixUser= cfg.GetDict(dictDemande=None, groupe='USER', close=False)
+        self.dictAppli= cfg.GetDict(dictDemande=None, groupe='APPLI')
+        if self.dictAppli == {}:
+            self.dictAppli = self.parent.dictAppli
+        #pose dans la grille de saisie, les valeurs lues dans profilUser
+        self.ctrlConnect.SetValues(choixUser)
+
+        self.Sizer()
+
+    def Sizer(self):
+        # Bouton sortie de pied d'écran
+        self.btn = xusp.BTN_fermer(self)
+        self.btn.Bind(wx.EVT_BUTTON, self.OnFermer)
+        # Déroulé de la composition
+        cadre_staticbox = wx.StaticBox(self, -1, label='identification')
+        topbox = wx.StaticBoxSizer(cadre_staticbox, wx.VERTICAL)
+        topbox.Add(self.ctrlID, 0,wx.ALL | wx.EXPAND, 5)
+        topbox.Add((20,20), 0, wx.ALIGN_TOP, 0)
+        topbox.Add(self.titre, 0, wx.LEFT, 60)
+        for ctrlConfig in self.lstChoixConfigs:
             topbox.Add((20,20), 0, wx.ALIGN_TOP, 0)
-            topbox.Add(self.titre, 0, wx.LEFT, 60)
-            topbox.Add((20,20), 0, wx.ALIGN_TOP, 0)
-            topbox.Add(self.ctrlConfig, 0, wx.ALIGN_TOP| wx.EXPAND, 0)
-            topbox.Add((40,40), 0, wx.EXPAND, 0)
-            piedbox = wx.BoxSizer(wx.HORIZONTAL)
-            piedbox.Add(self.btnTest, 0, 0, 0)
-            piedbox.Add(self.btn, 0, wx.RIGHT, 11)
-            topbox.Add(piedbox, 0, wx.ALIGN_RIGHT, 0)
-
-        AffichID()
+            topbox.Add(ctrlConfig, 0, wx.ALIGN_TOP | wx.EXPAND, 0)
+        topbox.Add((20,20), 0, wx.ALIGN_TOP, 0)
+        topbox.Add(self.ctrlConnect, 0, wx.ALIGN_TOP| wx.EXPAND, 0)
+        topbox.Add((40,40), 0, wx.EXPAND, 0)
+        piedbox = wx.BoxSizer(wx.HORIZONTAL)
+        piedbox.Add(self.btnTest, 0, 0, 0)
+        piedbox.Add(self.btn, 0, wx.RIGHT, 11)
+        topbox.Add(piedbox, 0, wx.ALIGN_RIGHT, 0)
         self.SetSizer(topbox)
 
     def OnTest(self,event):
-        self.OnCtrlAction(None)
-        DB = xdb.DB(grpConfig=self.optionsConfig)
-        style = wx.ICON_WARNING
-        try:
-            nomBase = DB.nomBase
-            if DB.echec == 0: style = wx.ICON_INFORMATION
-            retour = ['avec succès', '!!!!!!!! SANS SUCCES !!!!!!!\n'][DB.echec]
-            mess = "L'accès à la base '%s' s'est réalisé %s" % (nomBase, retour)
-        except: mess = "Désolé "
-        wx.MessageBox(mess,style=style)
+        self.OnCtrlConfig(None)
+        DB = xdb.DB(typeConfig=self.typeConfig)
+        DB.AfficheTestOuverture()
 
     def OnCtrlPseudo(self,event):
         cle = GetCleMatrice('utilisateur',MATRICE_IDENT)
@@ -269,6 +270,7 @@ class DLG_identification(wx.Dialog):
 
     def OnBtnAction(self, event):
         # relais des actions sur les boutons associés aux ctrls
+        #ctrl = event.EventObject.GrandParent
         action = 'self.%s(event)' % event.EventObject.actionBtn
         try:
             eval(action)
@@ -278,27 +280,26 @@ class DLG_identification(wx.Dialog):
             "Echec sur lancement de l'action bouton")
 
     def OnBtnConfig(self,event):
+        ctrl = event.EventObject.GrandParent
         # sur clic du bouton pour élargir le choix de la combo
-        sc = DLG_saisieConfigs(self,optionsConfig=self.optionsConfig)
+        sc = DLG_listeConfigs(self,select=ctrl.GetOneValue(ctrl.Name),typeConfig=self.typeConfig)
         if sc.ok :
             sc.ShowModal()
-            # Fichier config dans Data commun à tous
-            cfg = xucfg.ParamFile()
-            dicvalues = cfg.GetDict({'lstIDconfigs':None}, 'CONFIGS')
-            if dicvalues['lstIDconfigs']:
-                self.ctrlConfig.SetOneValues(self.codeConfig, dicvalues['lstIDconfigs'])
+            if len(self.lstIDconfigs) >1:
+                ctrl.SetOneValues(ctrl.Name,self.lstIDconfigs)
             value = sc.GetChoix(idxColonne=0)
-            self.ctrlConfig.SetOneValue(self.codeConfig,value)
+            ctrl.SetOneValue(ctrl.Name,value)
             # choix de configs user stockées
             self.SauveConfig()
-        else: wx.MessageBox('DLG_saisieConfigs : lancement impossible, cf MATRICE_CONFIGS et  CODE_CONFIG')
+        else: wx.MessageBox('DLG_listeConfigs : lancement impossible, cf MATRICE_CONFIGS et  TYPE_CONFIG')
 
     def SauveParamUser(self):
-        # sauve Config et ID dans le registre de la session
+        # sauve ID dans le registre de la session
         cfg = xucfg.ParamUser()
-        dic = self.ctrlConfig.GetValues()
-        # le choix config sera stocké dans File
-        del dic['config']
+        dic = {}
+        for ctrlConfig in self.lstChoixConfigs:
+            dic.update(ctrlConfig.GetValues())
+        dic.update(self.ctrlConnect.GetValues())
         cfg.SetDict(dic, groupe='USER',close=False)
         dic = self.ctrlID.GetValeurs()
         cfg.SetDict(dic['ident'], groupe='IDENT')
@@ -306,8 +307,13 @@ class DLG_identification(wx.Dialog):
     def SauveConfig(self):
         # sauve les configs sur appli/data local
         cfg = xucfg.ParamFile()
-        value = self.ctrlConfig.GetOneValue(self.codeConfig)
-        cfg.SetDict({'config': value}, groupe='CONFIGS')
+        dicvalue = {}
+        for ctrl in self.lstChoixConfigs:
+            value = ctrl.GetOneValue(ctrl.Name)
+            dicvalue[ctrl.Name] =  value
+        dicchoix = {'choixConfigs':dicvalue}
+        dicchoix['lastConfig'] = value
+        cfg.SetDict(dicchoix, groupe='CONFIGS')
 
     def OnFermer(self,event):
         # enregistre les valeurs de l'utilisateur
@@ -316,130 +322,54 @@ class DLG_identification(wx.Dialog):
             self.EndModal(wx.ID_OK)
         else: self.Destroy()
 
-class zzDLG_implantation(wx.Dialog):
-    # Ecran de saisie de paramètres de bases de données
-    def __init__(self, parent, *args, **kwds):
-        listArbo=os.path.abspath(__file__).split("\\")
-        titre = listArbo[-1:][0] + "/" + self.__class__.__name__
-        wx.Dialog.__init__(self, parent, -1,title = titre,
-                           style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
-        self.parent = parent
-        cadre_staticbox = wx.StaticBox(self, -1)
-        topbox = wx.StaticBoxSizer(cadre_staticbox, wx.VERTICAL)
-        self.btn = xusp.BTN_fermer(self)
-        self.btn.Bind(wx.EVT_BUTTON, self.OnFermer)
-        self.btnTest = xusp.BTN_action(self,help='Test de la connexion réseau',image=wx.Bitmap("xpy/Images/100x30/Bouton_tester.png"))
-        self.btnTest.Bind(wx.EVT_BUTTON, self.OnTest)
-
-        def Affiche():
-            # récupère le premier groupe de paramètres à afficher dans la grille
-            code,label,lignes = AppelLignesMatrice(None, MATRICE_CONFIGS)
-            # le nom de la configuration c'est le premier champ décrit dans la matrice
-            #self.codeConfig = code + '.' + lignes[0]['name']
-
-            # simple texte
-            self.titre =wx.StaticText(self, -1, "Accès aux bases compta")
-
-            # contrôle gérant la saisie des paramètres de config
-            self.ctrlConfig = xusp.BoxPanel(self, -1, lblbox=label, code=code, lignes=lignes, dictDonnees={})
-            self.choix = self.ctrlConfig.GetValues()
-
-            # adressage dans le fichier par défaut dans profilUser
-            cfg = xucfg.ParamUser()
-            self.choix= cfg.GetDict(dictDemande=None, groupe='IMPLANTATION', close=False)
-
-            self.ctrlConfig.SetValues(self.choix)
-
-            topbox.Add(self.titre, 0, wx.LEFT, 60)
-            topbox.Add((20,20), 0, wx.ALIGN_TOP, 0)
-            topbox.Add(self.ctrlConfig, 0, wx.ALIGN_TOP, 0)
-            topbox.Add((40,40), 0, wx.ALIGN_TOP, 0)
-            piedbox = wx.BoxSizer(wx.HORIZONTAL)
-            piedbox.Add(self.btnTest, 0, 0, 0)
-            piedbox.Add(self.btn, 0, wx.RIGHT, 11)
-            topbox.Add(piedbox, 0, 0, 0)
-
-        Affiche()
-        self.SetSizerAndFit(topbox)
-
-    def OnTest(self,event):
-        self.OnCtrlAction(None)
-        DB = xdb.DB(config = self.choix)
-        style = wx.ICON_WARNING
-        try:
-            #si le constructeur est passé, la variable echec peut être restée à True
-            nomBase = DB.nomBase
-            if DB.echec == 0: style = wx.ICON_INFORMATION
-            retour = ['avec succès','!!!!!!!! SANS SUCCES !!!!!!!\n'][DB.echec]
-            mess = "L'accès à la base '%s' s'est réalisé %s"%(nomBase,retour)
-        except: mess = "Désolé il y a un problème "
-        DB.Close()
-        wx.MessageBox(mess,style=style)
-
-    def OnFermer(self,event):
-        # enregistre les valeurs de l'utilisateur, puis ferme
-        self.OnCtrlAction(None)
-        self.Destroy()
-
-    def OnCtrlAction(self,event):
-        #action evènement Enter sur le contrôle combo, correspond à un changement de choix
-        pass
-
 # Gestion à partir d'une liste des accès aux bases de données en début d'appli
-class DLG_saisieConfigs(xusp.DLG_listCtrl):
+class DLG_listeConfigs(xusp.DLG_listCtrl):
     # Ecran de saisie de paramètres en dialog
     def __init__(self, parent, *args, **kwds):
-        optionsConfig = kwds.pop('optionsConfig',None)
+        typeConfig = kwds.pop('typeConfig',None)
+        select = kwds.pop('select',None)
         super().__init__(parent, *args, **kwds)
         self.parent = parent
         self.dlColonnes = {}
         self.lddDonnees = []
+        self.lstIDconfigs = []
         self.exLstConfigs = []
         self.dldMatrice = {}
         # composition des paramètres
         # seuls les paragraphes option choisis par l'appli et présents dans MATRICE_CONFIGS seront appelés.
         self.gestionProperty = False
         self.ok = False
-        cle = GetCleMatrice(optionsConfig,MATRICE_CONFIGS)
+        cle = GetCleMatrice(typeConfig,MATRICE_CONFIGS)
         self.dldMatrice[cle] = MATRICE_CONFIGS[cle]
-        self.dlColonnes[optionsConfig] = [x ['name'] for x in MATRICE_CONFIGS[cle]]
+        self.dlColonnes[typeConfig] = [x ['name'] for x in MATRICE_CONFIGS[cle]]
         cfg = xucfg.ParamFile()
         dic= cfg.GetDict(None,'CONFIGS')
         if 'lstConfigs' in dic:
             newlst = []
             if dic['lstConfigs']:
                for dicligne in dic['lstConfigs']:
-                   if optionsConfig in dicligne:
+                   if typeConfig in dicligne:
                        newlst.append(dicligne)
+                       self.lstIDconfigs.append(dicligne[typeConfig]['ID'])
                    else: self.exLstConfigs.append(dicligne)
                self.lddDonnees = newlst
         # paramètres pour self.pnl contenu principal de l'écran
         self.kwds['lblbox'] = 'Configurations disponibles'
         self.MinSize = (400,300)
         if self.dldMatrice != {}:
+            self.InitDlgGestion()
+            self.dlgGest.btn = self.Boutons(self.dlgGest)
+            self.SizerDlgGestion()
             self.Init()
             self.ok = True
-            if 'config' in self.parent.choix:
-                choix = self.parent.choix['config']
-            else: choix = 0
-            if 'lstIDconfigs' in dic:
-                lst = dic['lstIDconfigs']
-                if choix in lst:
-                    ix = lst.index(choix)
+            if 'lstConfigs' in dic:
+                if select in self.lstIDconfigs:
+                    ix = self.lstIDconfigs.index(select)
                     self.pnl.ctrl.Select(ix)
                     self.pnl.ctrl.SetItemState(ix,wx.LIST_STATE_SELECTED,wx.LIST_STATE_SELECTED)
 
     def OnFermer(self, event):
-        configs = []
-        #constitution de la liste des noms de configs (première colonne)
-        for ligne in self.exLstConfigs + self.lddDonnees:
-            for cle, valeurs  in ligne.items():
-                if 'ID' in valeurs.keys():
-                   conf = valeurs['ID']
-            configs.append(conf)
-
         cfg = xucfg.ParamFile()
-        cfg.SetDict({'lstIDconfigs': configs}, 'CONFIGS', close=False )
         cfg.SetDict({'lstConfigs':self.exLstConfigs + self.lddDonnees}, 'CONFIGS')
         return self.Close()
 
@@ -458,17 +388,32 @@ class DLG_saisieConfigs(xusp.DLG_listCtrl):
         else: choix=''
         return choix
 
+    def OnTest(self,event):
+        dicParam = event.EventObject.Parent.pnl.lstBoxes[0].GetValues()
+        DB = xdb.DB(config=dicParam['ID'],typeConfig=self.parent.typeConfig)
+        DB.AfficheTestOuverture()
+
+    def Boutons(self,dlg):
+        btnOK = wx.Button(dlg, wx.ID_ANY, 'Valider')
+        btnOK.Bind(wx.EVT_BUTTON, dlg.OnFermer)
+        btnTest = wx.Button(dlg, wx.ID_ANY, 'Tester')
+        btnTest.Bind(wx.EVT_BUTTON, self.OnTest)
+        boxBoutons = wx.BoxSizer(wx.HORIZONTAL)
+        boxBoutons.Add(btnTest, 0,  wx.RIGHT,20)
+        boxBoutons.Add(btnOK, 0,  wx.RIGHT,20)
+        return boxBoutons
+
 # Gestion d'un accès config_base de donnée particulier
 class DLG_saisieUneConfig(xusp.DLG_vide):
     def __init__(self,nomConfig=None,**kwds):
         super().__init__(self, **kwds)
         # récup de la matrice ayant servi à la gestion des données
-        optionsConfig = kwds.pop('optionsConfig',None)
-        if not optionsConfig:
+        typeConfig = kwds.pop('typeConfig',None)
+        if not typeConfig:
             lstcode = GetLstCodesMatrice(MATRICE_CONFIGS)
-            optionsConfig = lstcode[0]
-        key = (optionsConfig,"Paramètres BD de l'accès à la compta")
-        matrice = {key: MATRICE_CONFIGS[GetCleMatrice(optionsConfig,MATRICE_CONFIGS)]}
+            typeConfig = lstcode[0]
+        key = (typeConfig,"Paramètres BD de l'accès à la compta")
+        matrice = {key: MATRICE_CONFIGS[GetCleMatrice(typeConfig,MATRICE_CONFIGS)]}
         # suppose le champ ID en première position
         matrice[key][0]['value'] = nomConfig
         # grise le champ ID
@@ -481,6 +426,10 @@ class DLG_saisieUneConfig(xusp.DLG_vide):
 
     def GetConfig(self):
         return self.pnl.GetValeurs()['db_prim']
+
+    def OnTest(self,event):
+        DB = xdb.DB(config=self.Name,typeConfig=self.GrandParent.typeConfig)
+        DB.AfficheTestOuverture()
 
 # Gestion de paramètres à partir d'une liste, la matrice est définie après l'init
 class DLG_saisieParams(xusp.DLG_listCtrl):
@@ -604,7 +553,7 @@ class xFrame(wx.Frame):
 if __name__ == '__main__':
     app = wx.App(0)
     os.chdir("..")
-    frame_1 = DLG_identification(None,optionsConfig='db_prim')
+    frame_1 = DLG_identification(None,typeConfig='db_prim')
     #frame_1 = xFrame(None, matrice={('db_prim','Test xframe'): MATRICE_CONFIGS['db_prim']})
     #frame_1 = DLG_implantation(None)
     app.SetTopWindow(frame_1)

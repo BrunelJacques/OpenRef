@@ -16,9 +16,9 @@ dictAPPLI = {
             'REP_DATA'              : "srcNoelite/Data",
             'REP_TEMP'              : "srcNoelite/Temp",
             'NOM_FICHIER_LOG'       : "logsNoestock.log",
-            'CODE_CONFIG'         : 'db_prim',
-            'IMPLANTATIONS': [('Centralisation',"Base au siège, cible pour les synchronisations et sauvegardes"),
-                             ('Base active', "C'est votre base de travail, peut aussi être la centrale pour live")]
+            'TYPE_CONFIG'           : 'db_prim',
+            'CHOIX_CONFIGS': [('Centralisation',"Base au siège, cible pour les synchro et sauvegarde"),
+                             ('Donnees', "Base de travail, peut être la centrale  en mode connecté")]
             }
 
 class MyFrame(xAppli.MainFrame):
