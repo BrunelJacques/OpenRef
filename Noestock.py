@@ -50,10 +50,7 @@ class MyFrame(xAppli.MainFrame):
         # Activer le menu décrit dans  PATH_SOURCES/menu.py
         test = os.getcwd()
         self.MakeMenuBar()
-        # Crée un message initial de bas de fenêtre status bar
-        self.CreateStatusBar()
 
-        self.SetStatusText("Noestock est lancé!")
         self.Show()
         etat = True
         for numMenu in range(1,2):

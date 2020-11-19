@@ -12,7 +12,7 @@ import srcNoelite.menu as menu
 
 # Variables incontournables pour xpy
 dictAPPLI = {
-            'NOM_APPLICATION'       : "noelite",
+            'NOM_APPLICATION'       : "Noelite",
             'REP_SOURCES'           : "srcNoelite",
             'REP_DATA'              : "srcNoelite/Data",
             'REP_TEMP'              : "srcNoelite/Temp",
@@ -49,10 +49,6 @@ class MyFrame(xAppli.MainFrame):
         # Activer le menu décrit dans  PATH_SOURCES/menu.py
         test = os.getcwd()
         self.MakeMenuBar()
-        # Crée un message initial de bas de fenêtre status bar
-        self.CreateStatusBar()
-
-        self.SetStatusText("Noelite est lancé!")
         self.Show()
         dlg = ncident.Dialog(self)
         etat = False
@@ -67,6 +63,9 @@ class MyFrame(xAppli.MainFrame):
         for numMenu in range(1,2):
             self.menu.EnableTop(numMenu, etat)
         self.panelAccueil.EnableBoutons(etat)
+        if hasattr(self,'dictUser') and self.dictUser:
+            self.messageStatus += ",  Utilisateur: %s" % (self.dictUser['utilisateur'])
+        self.SetStatusText(self.messageStatus)
         if not etat:
             self.SetStatusText("Noelite est lancé sans accès à Noethys!")
 

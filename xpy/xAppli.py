@@ -13,7 +13,8 @@ import os
 import sys
 import xpy.xUTILS_RapportBugs
 import xpy.xUTILS_Shelve
-import xpy.outils.xaccueil as xaccueil
+import xpy.outils.xaccueil  as xaccueil
+import xpy.xUTILS_Shelve    as xucfg
 
 def CrashReport(dictAppli):
     # Crash report
@@ -48,7 +49,6 @@ class MainFrame(wx.Frame):
 
     def xInit(self):
         print("Lancement %s"%self.dictAppli['NOM_APPLICATION'])
-
         print(self.pathXpy)
         os.chdir(self.pathXpy)
         os.chdir('..')
@@ -67,17 +67,33 @@ class MainFrame(wx.Frame):
         if not nbModules > 0:
             wx.MessageBox("Aucun module présent dans %s"%self.pathSrcAppli, 'Lancement impossible', wx.OK | wx.ICON_STOP)
             return None
+        # des modules sont présents on continue
         else:
             # Ajoute le path des modules spécifiques pour les imports
             if not self.pathSrcAppli in sys.path:
                 sys.path = [self.pathSrcAppli] + sys.path
             # Vérifie l'existence des répertoires Data et Temp et les crées
             for rep in (self.pathData, self.pathTemp):
-                xpy.xUTILS_Shelve.CreePath(rep)
+                xucfg.CreePath(rep)
             for rep in ('pathData', 'pathTemp','pathSrcAppli','pathXpy'):
                 self.dictAppli[rep] = eval('self.'+rep)
-            cfg = xpy.xUTILS_Shelve.ParamUser()
-            self.config= cfg.SetDict(self.dictAppli, groupe='APPLI')
+            cfgU = xucfg.ParamUser()
+            self.config= cfgU.SetDict(self.dictAppli, groupe='APPLI')
+
+            # appel de la configuration base de données dans paramFile
+            cfgF = xucfg.ParamFile()
+            grpConfig = cfgF.GetDict(dictDemande=None, groupe='CONFIGS')
+            choixConfigs = grpConfig.pop('choixConfigs', {})
+            lstConfigs = [choixConfigs[x] for x in choixConfigs.keys()]
+            if len(lstConfigs) == 0:
+                lstConfigs.append("Non défini")
+            if len(lstConfigs[-1]) == 0:
+                lstConfigs.append("à redéfinir")
+            messBD = "  données: %s"%(lstConfigs[-1])
+            # Crée un message initial de bas de fenêtre status bar
+            self.CreateStatusBar()
+            self.messageStatus = "%s est lancé!   %s"%(self.dictAppli['NOM_APPLICATION'],messBD)
+            self.SetStatusText(self.messageStatus)
             return wx.OK
 
     def MakeHello(self,message):

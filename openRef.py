@@ -32,9 +32,6 @@ class MyFrame(xAppli.MainFrame):
 
         # Activer le menu décrit dans  PATH_SOURCES/menu.py
         self.MakeMenuBar()
-        # Crée un message initial de bas de fenêtre status bar
-        self.CreateStatusBar()
-        self.SetStatusText("OpenRef sur %s"%self.dictAppli['REP_SOURCES'])
         self.Show()
         #self.SaisieConfig()
 

@@ -150,6 +150,7 @@ class DLG_identification(wx.Dialog):
         try:
             utilisateur = self.parent.dictUser['utilisateur']
         except : utilisateur = None
+
         for (code,label), lignes in MATRICE_IDENT.items():
             for ligne in  lignes:
                 if ligne['name'].lower() in ('username', 'user'):
@@ -186,11 +187,13 @@ class DLG_identification(wx.Dialog):
         cfgF = xucfg.ParamFile()
         grpConfig = cfgF.GetDict(dictDemande=None, groupe='CONFIGS')
         self.lstIDconfigs = []
+        self.lastConfig = "Non defini"
         if 'lstConfigs' in grpConfig:
             for config in grpConfig['lstConfigs']:
                 for typconf in config:
                     if self.typeConfig == typconf:
                         self.lstIDconfigs.append(config[typconf]['ID'])
+            self.lastConfig = grpConfig['lastConfig']
         choixConfigs = grpConfig.pop('choixConfigs',{})
 
         # alimente la liste des choix possibles
@@ -308,16 +311,29 @@ class DLG_identification(wx.Dialog):
         # sauve les configs sur appli/data local
         cfg = xucfg.ParamFile()
         dicvalue = {}
+        value = "Non défini"
         for ctrl in self.lstChoixConfigs:
             value = ctrl.GetOneValue(ctrl.Name)
             dicvalue[ctrl.Name] =  value
         dicchoix = {'choixConfigs':dicvalue}
         dicchoix['lastConfig'] = value
+        self.lastConfig = value
         cfg.SetDict(dicchoix, groupe='CONFIGS')
 
     def OnFermer(self,event):
         # enregistre les valeurs de l'utilisateur
         self.SauveParamUser()
+        pseudo = self.ctrlConnect.GetOneValue('pseudo')
+        dic = self.ctrlID.GetValeurs()
+        utilisateur = dic['ident']['utilisateur']
+        if utilisateur == '': utilisateur = 'Non défini'
+        utilisateur = "- Utilisateur: '%s' / '%s'"%(utilisateur, pseudo)
+        topWindow = wx.GetApp().GetTopWindow()
+        if hasattr(topWindow,'messageStatus'):
+            topWindow.messageStatus = "%s -  données: '%s' %s" % (self.dictAppli['NOM_APPLICATION'],
+                                                                           self.lastConfig,
+                                                                           utilisateur)
+            topWindow.SetStatusText(topWindow.messageStatus)
         if self.IsModal():
             self.EndModal(wx.ID_OK)
         else: self.Destroy()
