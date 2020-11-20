@@ -972,14 +972,14 @@ class DLG_listCtrl(wx.Dialog):
         self.pnl.SetValeurs(self.llItems, self.ltColonnes)
 
     def OnDupliquer(self,event, items):
-        ddDonnees = deepcopy(self.lddDonnees[items])
+        ddDonnees = self.lddDonnees[items].copy()
         ret = SetEnableID(self.dldMatrice,enable=True)
         self.dlgGest.pnl.SetValeurs(ddDonnees)
-        self.dlgGest.Sizer(self.dlgGest.pnl)
+        #self.dlgGest.Sizer(self.dlgGest.pnl)
         ret = self.dlgGest.ShowModal()
         if ret == wx.OK:
             ddDonnees = self.dlgGest.pnl.GetValeurs()
-            donnees = deepcopy(ddDonnees)
+            donnees = ddDonnees.copy()
             self.lddDonnees.append(donnees)
             self.lddDonnees, self.ltColonnes, self.llItems = Transpose(self.dldMatrice, self.dlColonnes, self.lddDonnees)
             self.pnl.SetValeurs(self.llItems, self.ltColonnes)
@@ -1258,12 +1258,12 @@ if __name__ == '__main__':
         }
 
 # Lancement des tests
-    """
     frame_4 = DLG_listCtrl(None,dldMatrice=dictMatrice, dlColonnes={'bd_reseau':['serveur','choix','localisation','nombre'],'ident':['utilisateur']},
                 lddDonnees=[dictDonnees,{"bd_reseau":{'serveur': 'serveur3'}}])
     frame_4.Init()
     app.SetTopWindow(frame_4)
     frame_4.Show()
+    """
 
     frame_3 = DLG_vide(None,)
     pnl = PNL_property(frame_3,frame_3,matrice=dictMatrice,donnees=dictDonnees)
@@ -1280,10 +1280,10 @@ if __name__ == '__main__':
     app.SetTopWindow(frame_1)
     frame_1.Position = (50,50)
     frame_1.Show()
-    """
     frame_5 = DLG_monoLigne(None,dldMatrice=dictMatrice,
                 ddDonnees=dictDonnees,gestionProperty=False,minSize=(400,300))
     app.SetTopWindow(frame_5)
     frame_5.Position = (200,20)
     frame_5.Show()
+    """
     app.MainLoop()

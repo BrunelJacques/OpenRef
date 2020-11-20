@@ -416,7 +416,7 @@ class DLG_listeConfigs(xusp.DLG_listCtrl):
 
     def OnTest(self,event):
         dicParam = event.EventObject.Parent.pnl.lstBoxes[0].GetValues()
-        DB = xdb.DB(config=dicParam['ID'],typeConfig=self.parent.typeConfig)
+        DB = xdb.DB(config=dicParam,typeConfig=self.parent.typeConfig)
         DB.AfficheTestOuverture()
 
     def Boutons(self,dlg):
@@ -429,7 +429,7 @@ class DLG_listeConfigs(xusp.DLG_listCtrl):
         boxBoutons.Add(btnOK, 0,  wx.RIGHT,20)
         return boxBoutons
 
-# Gestion d'un accès config_base de donnée particulier
+# Gestion d'un accès config_base de donnée particulier, sans passer par listeConfigs
 class DLG_saisieUneConfig(xusp.DLG_vide):
     def __init__(self,nomConfig=None,**kwds):
         super().__init__(self, **kwds)
@@ -452,10 +452,6 @@ class DLG_saisieUneConfig(xusp.DLG_vide):
 
     def GetConfig(self):
         return self.pnl.GetValeurs()['db_prim']
-
-    def OnTest(self,event):
-        DB = xdb.DB(config=self.Name,typeConfig=self.GrandParent.typeConfig)
-        DB.AfficheTestOuverture()
 
 # Gestion de paramètres à partir d'une liste, la matrice est définie après l'init
 class DLG_saisieParams(xusp.DLG_listCtrl):
