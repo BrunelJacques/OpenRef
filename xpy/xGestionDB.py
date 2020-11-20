@@ -61,12 +61,17 @@ class DB():
             self.connexion = None
             # appel des params de connexion stockés dans UserProfile
             cfg = xucfg.ParamUser()
-            choix= cfg.GetDict(groupe='USER')
+            grpUSER= cfg.GetDict(groupe='USER')
+            grpAPPLI = cfg.GetDict(groupe='APPLI')
+            nomAppli = grpAPPLI.pop('NOM_APPLICATION',None)
             # appel des params de connexion stockés dans Data
             cfg = xucfg.ParamFile()
-            configs= cfg.GetDict(groupe='CONFIGS')
-            if 'lastConfig' in configs.keys():
-                nomConfig = configs['lastConfig']
+            grpCONFIGS= cfg.GetDict(groupe='CONFIGS')
+            # recherche du nom de configuration par défaut, cad la dernière des choix
+            if 'choixConfigs' in grpCONFIGS:
+                if nomAppli and nomAppli in grpCONFIGS['choixConfigs'].keys():
+                    if 'lastConfig' in grpCONFIGS['choixConfigs'][nomAppli].keys():
+                        nomConfig = grpCONFIGS['choixConfigs'][nomAppli]['lastConfig']
             else: nomConfig=None
             self.cfgParams = None
             try:
@@ -78,20 +83,20 @@ class DB():
                     elif isinstance(config,dict):
                         nomConfig = None
                         self.cfgParams = copy.deepcopy(config)
-                        for cle, valeur in choix.items():
+                        for cle, valeur in grpUSER.items():
                             self.cfgParams[cle] = valeur
                 if nomConfig:
-                    if 'lstConfigs' in configs:
-                        lstNomsConfigs = [x[typeConfig]['ID'] for x in configs['lstConfigs']]
+                    if 'lstConfigs' in grpCONFIGS:
+                        lstNomsConfigs = [x[typeConfig]['ID'] for x in grpCONFIGS['lstConfigs']]
                         if not (nomConfig in lstNomsConfigs):
                             wx.MessageBox("xDB: Le nom de config '%s' n'est pas dans la liste des accès base de donnée"%(nomConfig))
                             return
                         ix = lstNomsConfigs.index(nomConfig)
                         # on récupére les paramétres dans toutes les configs par le pointeur ix dans les clés
-                        self.cfgParams = configs['lstConfigs'][ix][typeConfig]
-                # on ajoute les choix  de mot passe aux paramètres de la config retenue
+                        self.cfgParams = grpCONFIGS['lstConfigs'][ix][typeConfig]
+                # on ajoute les choix pris dans grpUSER,  pour mot passe, aux paramètres de la config retenue
                 if self.cfgParams:
-                    for cle, valeur in choix.items():
+                    for cle, valeur in grpUSER.items():
                         self.cfgParams[cle] = valeur
                     if self.cfgParams['serveur'][-1:] in ('/','\\'):
                         self.nomBase = self.cfgParams['serveur']+self.cfgParams['nameDB']

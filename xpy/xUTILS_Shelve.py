@@ -190,32 +190,35 @@ class ParamFile():
         return
 
     def DelDictConfig(self,cle=None,groupe=None, close=True):
-        """ Supprime le dict du fichier de config présent sur le disque """
-        def delCle(dict,cle):
-            for grp in dict.keys():
-                ssdic = dict[grp]
-                if cle in ssdic:
-                    dictemp = ssdic
-                    del dictemp[cle]
-                    dict[grp] = dictemp
-        def delGroupe(dict,grp):
-                if grp in dict:
-                    del dict[grp]
-        def delCleGroupe(dict,cle,grp):
-                if grp in dict:
-                    if cle in dict[grp]:
-                        del dict[grp][cle]
+        """ Supprime le itemdic du fichier de config présent sur le disque """
+        def delCle(itemdic,cle):
+            for grp in itemdic.keys():
+                ssdic = itemdic[grp]
+                if cle in ssdic.keys():
+                    del ssdic[cle]
+        def delGroupe(itemdic,grp):
+                if grp in itemdic:
+                    del itemdic[grp]
+        def delCleGroupe(itemdic,cle,grp):
+                if grp in itemdic:
+                    if cle in itemdic[grp]:
+                        del itemdic[grp][cle]
 
         if hasattr(self,'dictMem'): lstDict = (self.dictMem, self.dictFic)
-        else : lstDict = (self.dictFic)
+        else : lstDict = (self.dictFic,)
 
         for item in lstDict:
+            itemdic = {}
+            for key in item.keys():
+                itemdic[key]=item[key]
             if cle and groupe:
-                delCleGroupe(item,cle,groupe)
+                delCleGroupe(itemdic,cle,groupe)
             elif groupe:
                 delGroupe(item,groupe)
             elif cle:
                 delCle(item,cle)
+            for key in item.keys():
+                item[key]=itemdic[key]
         return
 
 class ParamUser(ParamFile):
@@ -236,7 +239,7 @@ if __name__ == u"__main__":
     cfgOpen     = ParamFile('Config',path='../srcOpenRef/Data',flag='r')
     print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Fichiers Noelite Data.Config')
     # del de clés
-    #cfg.DelDictConfig(groupe='APPLI')
+    #cfgNoelite.DelDictConfig(cle='Noestock',groupe='CONFIGS')
     DumpFile(cfgNoelite.dictFic)
     #print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Fichiers Openref Data.Config')
     #DumpFile(cfgOpen.dictFic)

@@ -79,9 +79,9 @@ def GetFichierCsv(nomFichier,delimiter="\t",detect=True):
 if __name__ == '__main__':
     app = wx.App(0)
     os.chdir("..")
-    donnees = GetFichierCsv("c:/temp/fichierTestPointVirgule.csv")
+    donnees = GetFichierCsv("../srcNoestock/Versions.txt")
     #donnees = GetFichierXls("c:/temp/FichierTest.xls")
 
-    print(donnees[9])
+    print(donnees[0])
     app.MainLoop()
 

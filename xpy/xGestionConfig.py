@@ -171,6 +171,15 @@ class DLG_identification(wx.Dialog):
             ddDonnees[ident] = valeurs
             self.ctrlID.SetValeurs(ddDonnees=ddDonnees)
 
+        # recherche dans profilUser ----------------------------------------------------------------------------------
+        cfg = xucfg.ParamUser()
+        # lecture des valeurs préalablement utilisées
+        choixUser= cfg.GetDict(dictDemande=None, groupe='USER', close=False)
+        dictAppli= cfg.GetDict(dictDemande=None, groupe='APPLI')
+        if dictAppli == {}:
+            dictAppli = self.parent.dictAppli
+        self.nomAppli = dictAppli['NOM_APPLICATION']
+
         # CONFIGS : appel du modèle des configurations ----------------------------------------------------------------
         codeBox,labelBox,lignes = AppelLignesMatrice(None, MATRICE_CHOIX_CONFIG)
         # Composition des choix de configurations selon l'implantation
@@ -187,20 +196,25 @@ class DLG_identification(wx.Dialog):
         cfgF = xucfg.ParamFile()
         grpConfig = cfgF.GetDict(dictDemande=None, groupe='CONFIGS')
         self.lstIDconfigs = []
-        self.lastConfig = "Non defini"
         if 'lstConfigs' in grpConfig:
             for config in grpConfig['lstConfigs']:
                 for typconf in config:
                     if self.typeConfig == typconf:
                         self.lstIDconfigs.append(config[typconf]['ID'])
-            self.lastConfig = grpConfig['lastConfig']
-        choixConfigs = grpConfig.pop('choixConfigs',{})
-
+        ddchoixConfigs = grpConfig.pop('choixConfigs',{})
+        # les choix de config sont stockés par application car Data peut être commun à plusieurs
+        if not (self.nomAppli in ddchoixConfigs):
+            ddchoixConfigs[self.nomAppli]= {}
+        choixConfigs = ddchoixConfigs[self.nomAppli]
         # alimente la liste des choix possibles
         for ctrlConfig in self.lstChoixConfigs:
             ctrlConfig.SetOneValues(ctrlConfig.Name,self.lstIDconfigs)
             if ctrlConfig.Name in choixConfigs:
                 ctrlConfig.SetOneValue(ctrlConfig.Name,choixConfigs[ctrlConfig.Name])
+        # last config sera affichée en 'Fermer' si pas modifiée
+        if 'lastConfig' in choixConfigs:
+            self.lastConfig = choixConfigs['lastConfig']
+        else: self.lastConfig = ''
 
         # SEPARATEUR : simple texte
         self.titre =wx.StaticText(self, -1, "Eléments de connexion")
@@ -209,13 +223,6 @@ class DLG_identification(wx.Dialog):
         code,label,lignes = AppelLignesMatrice(None, MATRICE_USER)
         self.ctrlConnect = xusp.BoxPanel(self, wx.ID_ANY, lblbox=label, code=code, lignes=lignes, dictDonnees={})
 
-        # recherche dans profilUser
-        cfg = xucfg.ParamUser()
-        # lecture des valeurs préalablement utilisées
-        choixUser= cfg.GetDict(dictDemande=None, groupe='USER', close=False)
-        self.dictAppli= cfg.GetDict(dictDemande=None, groupe='APPLI')
-        if self.dictAppli == {}:
-            self.dictAppli = self.parent.dictAppli
         #pose dans la grille de saisie, les valeurs lues dans profilUser
         self.ctrlConnect.SetValues(choixUser)
 
@@ -309,30 +316,33 @@ class DLG_identification(wx.Dialog):
 
     def SauveConfig(self):
         # sauve les configs sur appli/data local
-        cfg = xucfg.ParamFile()
-        dicvalue = {}
+        dicconfigs = {}
         value = "Non défini"
         for ctrl in self.lstChoixConfigs:
             value = ctrl.GetOneValue(ctrl.Name)
-            dicvalue[ctrl.Name] =  value
-        dicchoix = {'choixConfigs':dicvalue}
-        dicchoix['lastConfig'] = value
+            dicconfigs[ctrl.Name] =  value
+        dicconfigs['lastConfig'] = value
         self.lastConfig = value
-        cfg.SetDict(dicchoix, groupe='CONFIGS')
+        #récupère l'ensemble des choix existants antérieurement
+        cfgF = xucfg.ParamFile()
+        grpConfig = cfgF.GetDict(groupe='CONFIGS')
+        dicchoix = grpConfig.pop('choixConfigs',{})
+        # actualise seulement ceux de l'application
+        dicchoix[self.nomAppli] = dicconfigs
+        grpConfig['choixConfigs'] = dicchoix
+        cfgF.SetDict(grpConfig, groupe='CONFIGS')
 
     def OnFermer(self,event):
         # enregistre les valeurs de l'utilisateur
         self.SauveParamUser()
-        pseudo = self.ctrlConnect.GetOneValue('pseudo')
         dic = self.ctrlID.GetValeurs()
         utilisateur = dic['ident']['utilisateur']
-        if utilisateur == '': utilisateur = 'Non défini'
-        utilisateur = "- Utilisateur: '%s' / '%s'"%(utilisateur, pseudo)
+        if utilisateur == '': utilisateur = 'local'
+        utilisateur = "- Utilisateur: '%s'"%(utilisateur)
         topWindow = wx.GetApp().GetTopWindow()
         if hasattr(topWindow,'messageStatus'):
-            topWindow.messageStatus = "%s -  données: '%s' %s" % (self.dictAppli['NOM_APPLICATION'],
-                                                                           self.lastConfig,
-                                                                           utilisateur)
+            messBD = "données: '%s', utilisateur: %s"%(self.lastConfig,utilisateur)
+            topWindow.messageStatus = "%s | %s"%(topWindow.nomVersion,messBD)
             topWindow.SetStatusText(topWindow.messageStatus)
         if self.IsModal():
             self.EndModal(wx.ID_OK)
@@ -358,8 +368,8 @@ class DLG_listeConfigs(xusp.DLG_listCtrl):
         cle = GetCleMatrice(typeConfig,MATRICE_CONFIGS)
         self.dldMatrice[cle] = MATRICE_CONFIGS[cle]
         self.dlColonnes[typeConfig] = [x ['name'] for x in MATRICE_CONFIGS[cle]]
-        cfg = xucfg.ParamFile()
-        dic= cfg.GetDict(None,'CONFIGS')
+        cfgF = xucfg.ParamFile()
+        dic= cfgF.GetDict(None,'CONFIGS')
         if 'lstConfigs' in dic:
             newlst = []
             if dic['lstConfigs']:
@@ -385,8 +395,8 @@ class DLG_listeConfigs(xusp.DLG_listCtrl):
                     self.pnl.ctrl.SetItemState(ix,wx.LIST_STATE_SELECTED,wx.LIST_STATE_SELECTED)
 
     def OnFermer(self, event):
-        cfg = xucfg.ParamFile()
-        cfg.SetDict({'lstConfigs':self.exLstConfigs + self.lddDonnees}, 'CONFIGS')
+        cfgF = xucfg.ParamFile()
+        cfgF.SetDict({'lstConfigs':self.exLstConfigs + self.lddDonnees}, 'CONFIGS')
         return self.Close()
 
     def GetChoix(self, idxColonne = 0):

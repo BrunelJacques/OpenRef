@@ -13,8 +13,9 @@ import os
 import sys
 import xpy.xUTILS_RapportBugs
 import xpy.xUTILS_Shelve
-import xpy.outils.xaccueil  as xaccueil
 import xpy.xUTILS_Shelve    as xucfg
+from  xpy.outils import xaccueil,ximport
+
 
 def CrashReport(dictAppli):
     # Crash report
@@ -82,17 +83,18 @@ class MainFrame(wx.Frame):
 
             # appel de la configuration base de données dans paramFile
             cfgF = xucfg.ParamFile()
-            grpConfig = cfgF.GetDict(dictDemande=None, groupe='CONFIGS')
-            choixConfigs = grpConfig.pop('choixConfigs', {})
-            lstConfigs = [choixConfigs[x] for x in choixConfigs.keys()]
-            if len(lstConfigs) == 0:
-                lstConfigs.append("Non défini")
-            if len(lstConfigs[-1]) == 0:
-                lstConfigs.append("à redéfinir")
-            messBD = "  données: %s"%(lstConfigs[-1])
+            grpCONFIGS = cfgF.GetDict(dictDemande=None, groupe='CONFIGS')
+            nomAppli = self.dictAppli['NOM_APPLICATION']
+            nomConfig = ''
+            if 'choixConfigs' in grpCONFIGS:
+                if nomAppli and nomAppli in grpCONFIGS['choixConfigs'].keys():
+                    if 'lastConfig' in grpCONFIGS['choixConfigs'][nomAppli].keys():
+                        nomConfig = grpCONFIGS['choixConfigs'][nomAppli]['lastConfig']
+            messBD = "données: '%s'"%(nomConfig)
             # Crée un message initial de bas de fenêtre status bar
             self.CreateStatusBar()
-            self.messageStatus = "%s est lancé!   %s"%(self.dictAppli['NOM_APPLICATION'],messBD)
+            self.nomVersion = "%s %s"%(self.dictAppli['NOM_APPLICATION'],xaccueil.GetVersion(self))
+            self.messageStatus = "%s |  %s"%(self.nomVersion,messBD)
             self.SetStatusText(self.messageStatus)
             return wx.OK
 

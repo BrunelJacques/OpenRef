@@ -14,6 +14,15 @@ from xpy.outils import ximport
 
 COULEUR_FOND = wx.Colour(176,153,203)
 
+
+def GetVersion(topwindows):
+    chemin = topwindows.dictAppli['REP_SOURCES']
+    fichier = ximport.GetFichierCsv(chemin + '/Versions.txt')
+    version = None
+    if fichier and len(fichier) > 0:
+        version = fichier[0][0]
+    return version
+
 class Button(wx.Button):
     # Enrichissement du wx.Button par l'image, nom, toolTip et Bind
     def __init__(self, parent,**kwds):
@@ -162,7 +171,7 @@ class Panel_Titre(wx.Panel):
         self.SetForegroundColour(couleurFond)
         self.label = wx.StaticText(self, -1, texte, pos=posLabel)
         self.label.SetFont(wx.Font(tailleFont, wx.DEFAULT, wx.NORMAL, wx.NORMAL, 0, ""))
-        self.version = self.GetVersion()
+        self.version = GetVersion(self.parent)
         if self.version:
             self.ctrlVersion = wx.StaticText(self, -1, self.version)
             self.ctrlVersion.SetFont(wx.Font(tailleFont/2, wx.DEFAULT, wx.NORMAL, wx.NORMAL, 0, ""))
@@ -178,13 +187,6 @@ class Panel_Titre(wx.Panel):
         grid_sizer.Add(sizer_right)
         self.SetSizer(grid_sizer)
 
-    def GetVersion(self):
-        chemin = self.parent.dictAppli['REP_SOURCES']
-        fichier = ximport.GetFichierCsv(chemin + '/Versions.txt')
-        version = None
-        if fichier and len(fichier)>0:
-            version = fichier[0][0]
-        return version
 
 class Panel_Buttons(wx.Panel):
     def __init__(self, parent,lstButtons=[],sizeFont=12,sizeBmp=80,couleurFond=None,

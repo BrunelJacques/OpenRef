@@ -29,9 +29,6 @@ class MyFrame(xAppli.MainFrame):
         self.MakeHello("TopPanel de " + self.dictAppli['NOM_APPLICATION'])
         # Activer le menu décrit dans  PATH_SOURCES/menu.py
         self.MakeMenuBar()
-        # Crée un message initial de bas de fenêtre status bar
-        self.CreateStatusBar()
-        self.SetStatusText("xPY roule pour vous!")
         self.Show()
         ret = self.SaisieConfig()
         #self.ConnexionReseau()
