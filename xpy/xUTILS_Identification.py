@@ -11,8 +11,10 @@
 import sys
 import wx
 import xpy.xGestionDB as xdb
-import xpy.outils.xchoixListe as xcl
-import xpy.xUTILS_Shelve as xucfg
+import xpy.outils.xchoixListe as xchoixliste
+import xpy.xUTILS_Shelve as xu_shelve
+import xpy.xGestionConfig as xGestionConfig
+import xpy.xUTILS_SaisieParams as xusp
 
 def GetListeUsers():
     """ Récupère la liste des utilisateurs et de leurs droits """
@@ -77,8 +79,9 @@ class AfficheUsers():
         if lstUsers:
             lstAffiche = [[x['nom'],x['prenom'],x['profil']] for x in lstUsers]
             lstColonnes = ["Nom", "Prénom", "Profil"]
-            dlg = xcl.DialogAffiche( titre="Liste des utilisateurs",intro="pour consultation seulement",lstDonnees=lstAffiche,
-                                     lstColonnes=lstColonnes )
+            dlg = xchoixliste.DialogAffiche(titre="Liste des utilisateurs",intro="pour consultation seulement",
+                                            lstDonnees=lstAffiche,
+                                            lstColonnes=lstColonnes )
             dlg.ShowModal()
             dlg.Destroy()
 
@@ -132,7 +135,7 @@ class CTRL_mdp(wx.SearchCtrl):
         for dictUtilisateur in listeUtilisateurs :
             if txtSearch == dictUtilisateur["mdp"] :
                 # Enregistrement du pseudo et mot de passe
-                cfg = xucfg.ParamUser()
+                cfg = xu_shelve.ParamUser()
                 self.choix = cfg.GetDict(groupe='USER',close = False)
                 dictUtilisateur['utilisateur'] =  dictUtilisateur['prenom'] + " " + dictUtilisateur['nom']
                 self.choix['utilisateur'] =  dictUtilisateur['utilisateur']
@@ -160,6 +163,7 @@ class CTRL_mdp(wx.SearchCtrl):
 # --------------------------- DLG de saisie de mot de passe ----------------------------
 
 class Dialog(wx.Dialog):
+    # Affiche la liste des utilisateur
     def __init__(self, parent, id=-1, title="Identification"):
         wx.Dialog.__init__(self, parent, id, title, name="DLG_mdp")
         self.parent = parent
@@ -173,10 +177,15 @@ class Dialog(wx.Dialog):
             self.dictUtilisateur = self.listeUtilisateurs[0]
         else:
             DB = xdb.DB()
+            self.dictAppli = DB.dictAppli
+            self.grpConfigs = DB.grpConfigs
             if DB.echec:
-                ret = self.parent.SaisieConfig()
+                dlg = xGestionConfig.DLG_identification(self)
+                ret = dlg.ShowModal()
                 if ret == wx.ID_OK:
                     DB = xdb.DB()
+                    self.dictAppli = DB.dictAppli
+                    self.grpConfigs = DB.grpConfigs
                     if DB.echec:
                         self.echec = True
                 else: self.echec = True
@@ -187,8 +196,13 @@ class Dialog(wx.Dialog):
             if not self.echec:
                 self.listeUtilisateurs = GetListeUsers()
             self.dictUtilisateur = None
-
+            lstIDconfigs = xGestionConfig.GetIDconfigs(self.grpConfigs)
             self.staticbox = wx.StaticBox(self, -1, "")
+            kwd = {'genre':'combo', 'name':"configs",'label':"Base de donnée d'authentification",'labels':[],
+                   'values':lstIDconfigs,
+                    'help':"Choisissez la base de donnée qui servira à vous authentifier",
+                    'size':(250,60), 'txtSize': 10}
+            self.comboConfigs = xusp.PNL_ctrl(self,**kwd)
             self.label = wx.StaticText(self, -1, "Veuillez saisir votre mot de passe Noethys :")
             self.ctrl_mdp = CTRL_mdp(self, listeUtilisateurs=self.listeUtilisateurs, modeDLG=True)
         
@@ -203,11 +217,11 @@ class Dialog(wx.Dialog):
         self.ctrl_mdp.SetMinSize((300, -1))
 
     def __do_layout(self):
-        grid_sizer_base = wx.FlexGridSizer(rows=3, cols=1, vgap=0, hgap=0)
-        
+        grid_sizer_base = wx.FlexGridSizer(rows=4, cols=1, vgap=0, hgap=0)
+        # combo de choix de config
+        grid_sizer_base.Add(self.comboConfigs, 0, wx.ALL| wx.EXPAND, 10)
         # Intro
         grid_sizer_base.Add(self.label, 0, wx.ALL, 10)
-        
         # Staticbox
         staticbox = wx.StaticBoxSizer(self.staticbox, wx.HORIZONTAL)
         grid_sizer_contenu = wx.FlexGridSizer(rows=2, cols=1, vgap=2, hgap=2)
@@ -242,10 +256,11 @@ if __name__ == '__main__':
     app = wx.App(0)
     import os
     os.chdir("..")
-    ret = AfficheUsers()
+    #ret = AfficheUsers()
     dlg = Dialog(None)
     app.SetTopWindow(dlg)
-    dlg.ShowModal()
-    print(dlg.GetDictUtilisateur()['nom'])
+    ret = dlg.ShowModal()
+    if ret == wx.ID_OK:
+        print(dlg.GetDictUtilisateur()['nom'])
 
     app.MainLoop()

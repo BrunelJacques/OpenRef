@@ -404,8 +404,8 @@ class PNL_ctrl(wx.Panel):
     # Panel contenant un contrôle ersatz d'une ligne de propertyGrid
     """ et en option (code) un bouton d'action permettant de contrôler les saisies
         GetValue retourne la valeur choisie dans le ctrl avec action possible par bouton à droite"""
-    def __init__(self, parent, *args, genre='string', name=None, label=None, value= None, labels=[], values=[], help=None,
-                 btnLabel=None, btnHelp=None, size=None, txtSize=100, **kwds):
+    def __init__(self, parent, *args, genre='string', name=None, label=None, value= None, labels=[], values=[],
+                 help=None, btnLabel=None, btnHelp=None, size=None, txtSize=100, **kwds):
         kw = DicFiltre(kwds,OPTIONS_PANEL)
         wx.Panel.__init__(self,parent,*args, **kw)
         self.value = value

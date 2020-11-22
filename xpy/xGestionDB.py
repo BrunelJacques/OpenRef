@@ -54,6 +54,8 @@ class DB():
         self.isNetwork = False
         self.lstTables = None
         self.lstIndex = None
+        self.grpConfigs = None
+        self.dictAppli = None
         if nomFichier:
             self.OuvertureFichierLocal(nomFichier)
             return
@@ -61,12 +63,14 @@ class DB():
             self.connexion = None
             # appel des params de connexion stockés dans UserProfile
             cfg = xucfg.ParamUser()
-            grpUSER= cfg.GetDict(groupe='USER')
-            grpAPPLI = cfg.GetDict(groupe='APPLI')
+            grpUSER= cfg.GetDict(groupe='USER',close=False)
+            grpAPPLI = cfg.GetDict(groupe='APPLI',close=False)
+            self.dictAppli = grpAPPLI
             nomAppli = grpAPPLI.pop('NOM_APPLICATION',None)
             # appel des params de connexion stockés dans Data
             cfg = xucfg.ParamFile()
             grpCONFIGS= cfg.GetDict(groupe='CONFIGS')
+            self.grpConfigs = grpCONFIGS
             # recherche du nom de configuration par défaut, cad la dernière des choix
             if 'choixConfigs' in grpCONFIGS:
                 if nomAppli and nomAppli in grpCONFIGS['choixConfigs'].keys():
@@ -174,6 +178,59 @@ class DB():
         except:
             mess = "Désolé "
         wx.MessageBox(mess, style=style)
+
+    def OuvertureFichierReseau(self, nomFichier, suffixe):
+        """ Version RESEAU avec MYSQL """
+        try:
+            # Récupération des paramètres de connexion
+            pos = nomFichier.index("[RESEAU]")
+            paramConnexions = nomFichier[:pos]
+            port, host, user, passwd = paramConnexions.split(";")
+            nomFichier = nomFichier[pos:].replace("[RESEAU]", "")
+            nomFichier = nomFichier.lower()
+
+            # Info sur connexion MySQL
+            # print "IDconnexion=", self.IDconnexion, "Interface MySQL =", INTERFACE_MYSQL
+
+            # usage de  "mysql.connector":
+            self.connexion = mysql.connector.connect(host=host, user=user, passwd=passwd, port=int(port),
+                                                     use_unicode=True, pool_name="mypool2%s" % suffixe,
+                                                     pool_size=3)
+
+            self.cursor = self.connexion.cursor()
+
+            # Ouverture ou création de la base MySQL
+            ##            listeDatabases = self.GetListeDatabasesMySQL()
+            ##            if nomFichier in listeDatabases :
+            ##                # Ouverture Database
+            ##                self.cursor.execute("USE %s;" % nomFichier)
+            ##            else:
+            ##                # Création Database
+            ##                if self.modeCreation == True :
+            ##                    self.cursor.execute("CREATE DATABASE IF NOT EXISTS %s CHARSET utf8 COLLATE utf8_unicode_ci;" % nomFichier)
+            ##                    self.cursor.execute("USE %s;" % nomFichier)
+            ##                else :
+            ##                    #print "La base de donnees '%s' n'existe pas." % nomFichier
+            ##                    self.echec = 1
+            ##                    return
+
+            # Création
+            if self.modeCreation == True:
+                self.cursor.execute(
+                    "CREATE DATABASE IF NOT EXISTS %s CHARSET utf8 COLLATE utf8_unicode_ci;" % nomFichier)
+
+            # Utilisation
+            if nomFichier not in ("", None, "_data"):
+                self.cursor.execute("USE %s;" % nomFichier)
+
+        except Exception as err:
+            print( "La connexion avec la base de donnees MYSQL a echouee. Erreur :")
+            print(err, )
+            self.erreur = err
+            self.echec = 1
+            # AfficheConnexionOuvertes()
+        else:
+            self.echec = 0
 
     def ConnexionFichierReseau(self,config):
         self.connexion = None

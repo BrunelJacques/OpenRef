@@ -107,6 +107,16 @@ def GetCleMatrice(code,matrice):
             break
     return cle
 
+def GetIDconfigs(configs,typeconfig=None):
+    lstIDconfigs = []
+    if 'lstConfigs' in configs:
+        for config in configs['lstConfigs']:
+            for typconf in config:
+                if (not typeconfig) or (typeconfig == typconf):
+                    lstIDconfigs.append(config[typconf]['ID'])
+    return lstIDconfigs
+
+
 # Panel de gestion des configurations
 class ChoixConfig(xusp.BoxPanel):
     def __init__(self,parent,lblbox, codebox, lignes, dictDonnees):
@@ -194,14 +204,9 @@ class DLG_identification(wx.Dialog):
 
         # choix de la configuration prise dans paramFile
         cfgF = xucfg.ParamFile()
-        grpConfig = cfgF.GetDict(dictDemande=None, groupe='CONFIGS')
-        self.lstIDconfigs = []
-        if 'lstConfigs' in grpConfig:
-            for config in grpConfig['lstConfigs']:
-                for typconf in config:
-                    if self.typeConfig == typconf:
-                        self.lstIDconfigs.append(config[typconf]['ID'])
-        ddchoixConfigs = grpConfig.pop('choixConfigs',{})
+        grpConfigs = cfgF.GetDict(dictDemande=None, groupe='CONFIGS')
+        self.lstIDconfigs = GetIDconfigs(grpConfigs,self.typeConfig)
+        ddchoixConfigs = grpConfigs.pop('choixConfigs',{})
         # les choix de config sont stockés par application car Data peut être commun à plusieurs
         if not (self.nomAppli in ddchoixConfigs):
             ddchoixConfigs[self.nomAppli]= {}
@@ -325,12 +330,12 @@ class DLG_identification(wx.Dialog):
         self.lastConfig = value
         #récupère l'ensemble des choix existants antérieurement
         cfgF = xucfg.ParamFile()
-        grpConfig = cfgF.GetDict(groupe='CONFIGS')
-        dicchoix = grpConfig.pop('choixConfigs',{})
+        grpConfigs = cfgF.GetDict(groupe='CONFIGS')
+        dicchoix = grpConfigs.pop('choixConfigs',{})
         # actualise seulement ceux de l'application
         dicchoix[self.nomAppli] = dicconfigs
-        grpConfig['choixConfigs'] = dicchoix
-        cfgF.SetDict(grpConfig, groupe='CONFIGS')
+        grpConfigs['choixConfigs'] = dicchoix
+        cfgF.SetDict(grpConfigs, groupe='CONFIGS')
 
     def OnFermer(self,event):
         # enregistre les valeurs de l'utilisateur

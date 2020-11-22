@@ -9,8 +9,10 @@
 #------------------------------------------------------------------------
 
 import wx
-from  srcNoelite import DLG_Km_saisie, DLG_Transposition_ficher, CTRL_Identification, \
+from  srcNoelite import DLG_Km_saisie, DLG_Transposition_ficher, \
     DLG_Reglements_gestion, DLG_Adresses_gestion
+from xpy import xUTILS_Identification
+
 
 """ Paramétrage de la construction de la barre de menus """
 class MENU():
@@ -23,36 +25,36 @@ class MENU():
         # Première colonne
         {"code": "&params\tCtrl-P", "label": ("Paramètres_et_outils"), "items": [
             {"code": "config", "label": ("&Accès aux Bases de données\tCtrl-A"),
-             "infobulle": (u"Reconfigurer l'accès à la base de données principale"),
+             "infobulle": ("Reconfigurer l'accès à la base de données principale"),
              "image": "Images/16x16/Utilisateur_reseau.png",
              "action": "On_config", "genre": wx.ITEM_NORMAL},
             "-",
-        {"code": "utilisateurs", "label": (u"Utilisateurs"), "infobulle": (u"Paramétrage des utilisateurs"),
+        {"code": "utilisateurs", "label": ("Utilisateurs"), "infobulle": ("Paramétrage des utilisateurs"),
          "image": "Images/16x16/Personnes.png", "action": "On_utilisateurs"},
         "-",
-        {"code": "transpose", "label": (u"Transposition fichier"),
-                "infobulle": (u"Outil de reformatage d'un fichier pour la compta"),
+        {"code": "transpose", "label": ("Transposition fichier"),
+                "infobulle": ("Outil de reformatage d'un fichier pour la compta"),
         "image": "Images/16x16/Conversion.png", "action": "On_transpose"},
-        {"code": "kmSaisie", "label": (u"Saisie-import des km véhicules"),
-                "infobulle": (u"Outil d'import et de saisie pour refacturer les km pour la compta analytique"),
+        {"code": "kmSaisie", "label": ("Saisie-import des km véhicules"),
+                "infobulle": ("Outil d'import et de saisie pour refacturer les km pour la compta analytique"),
         "image": "Images/16x16/Conversion.png", "action": "On_kmSaisie"},
         "-",
-        {"code": "quitter", "label": (u"Quitter"), "infobulle": (u"Fin de travail Noelite"),
+        {"code": "quitter", "label": ("Quitter"), "infobulle": ("Fin de travail Noelite"),
          "image": "Images/16x16/Quitter.png", "action": "xQuitter"},
         ]},
         # deuxième colonne
         {"code": "&params\tCtrl-P", "label": ("Actions_Noethys"), "items": [
             {"code": "modifAdresses", "label": ("&Modification d'adresses Individus\tCtrl-I"),
-             "infobulle": (u"Gestion de l'adresses de rattachement des personnes (soit la leur soit celle de leur hébergeur"),
+             "infobulle": ("Gestion de l'adresses de rattachement des personnes (soit la leur soit celle de leur hébergeur"),
              "image": "Images/16x16/Editeur_email.png",
              "action": "On_Adresses_individus", "genre": wx.ITEM_NORMAL},
             {"code": "modifAdressesF", "label": ("&Modification d'adresses Familles\tCtrl-F"),
-             "infobulle": (u"Gestion des adresses des familles, mais pas de tous les individus de la famille"),
+             "infobulle": ("Gestion des adresses des familles, mais pas de tous les individus de la famille"),
              "image": "Images/16x16/Editeur_email.png",
              "action": "On_Adresses_familles", "genre": wx.ITEM_NORMAL},
             "-",
             {"code": "gestionReglements", "label": ("&Gestion des règlements\tCtrl-R"),
-             "infobulle": (u"Gestion de bordereau de règlements : remise de chèques, arrivée de virements, de dons..."),
+             "infobulle": ("Gestion de bordereau de règlements : remise de chèques, arrivée de virements, de dons..."),
              "image": "Images/16x16/Impayes.png",
              "action": "On_reglements_bordereau", "genre": wx.ITEM_NORMAL},
         ]}
@@ -66,15 +68,15 @@ class MENU():
         #appelé pour construire une page d'accueil, même structure que les items du menu pour gérer des boutons
         lstItems = [
             {"code": "modifAdresses", "label": ("&Modification d'adresses Individus"),
-             "infobulle": (u"Gestion de l'adresses de rattachement des personnes (soit la leur soit celle de leur hébergeur"),
+             "infobulle": ("Gestion de l'adresses de rattachement des personnes (soit la leur soit celle de leur hébergeur"),
              "image": "Images/80x80/Adresse.png",
              "action": self.menuClass.On_Adresses_individus, "genre": wx.ITEM_NORMAL},
             {"code": "modifAdressesF", "label": ("&Modification d'adresses Familles"),
-             "infobulle": (u"Gestion des adresses des familles, mais pas de tous les individus de la famille"),
+             "infobulle": ("Gestion des adresses des familles, mais pas de tous les individus de la famille"),
              "image": "Images/80x80/Adresse-famille.jpg",
              "action": self.menuClass.On_Adresses_familles, "genre": wx.ITEM_NORMAL},
             {"code": "gestionReglements", "label": ("&Gestion des règlements"),
-             "infobulle": (u"Gestion de bordereau de règlements : remise de chèques, arrivée de virements, de dons..."),
+             "infobulle": ("Gestion de bordereau de règlements : remise de chèques, arrivée de virements, de dons..."),
              "image": "Images/80x80/Euro.png",
              "action": self.menuClass.On_reglements_bordereau, "genre": wx.ITEM_NORMAL},
         ]
@@ -98,7 +100,7 @@ class MENU():
         ret = self.parent.SaisieConfig()
 
     def On_utilisateurs(self,event):
-        CTRL_Identification.AfficheUsers()
+        xUTILS_Identification.AfficheUsers()
 
     def On_transpose(self,event):
         dlg = DLG_Transposition_ficher.Dialog()

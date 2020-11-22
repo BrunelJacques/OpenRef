@@ -6,8 +6,9 @@
 import os
 import wx
 import xpy.xAppli as xAppli
+import xpy.xUTILS_Identification as ncident
+#import srcNoelite.CTRL_Identification as ncident
 import xpy.outils.xaccueil as xaccueil
-import srcNoelite.CTRL_Identification as ncident
 import srcNoelite.menu as menu
 
 # Variables incontournables pour xpy
