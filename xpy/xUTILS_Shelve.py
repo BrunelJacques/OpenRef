@@ -234,14 +234,10 @@ if __name__ == u"__main__":
     app = wx.App(0)
     cfg = ParamUser()
     DumpFile(cfg.dictFic)
-
-    cfgNoelite  = ParamFile('Config',path='../srcNoelite/Data',flag='r')
     cfgOpen     = ParamFile('Config',path='../srcOpenRef/Data',flag='r')
-    print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Fichiers Noelite Data.Config')
     # del de clés
-    #cfgNoelite.DelDictConfig(cle='Noestock',groupe='CONFIGS')
-    DumpFile(cfgNoelite.dictFic)
-    #print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Fichiers Openref Data.Config')
-    #DumpFile(cfgOpen.dictFic)
+    #cfgOpen.DelDictConfig(cle=None,groupe='CONFIGS')
+    print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Fichiers Openref Data.Config')
+    DumpFile(cfgOpen.dictFic)
     #cfg = ParamUser('UserConfig', flag='c')
     app.MainLoop()
