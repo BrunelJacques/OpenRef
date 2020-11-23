@@ -129,7 +129,7 @@ class ChoixConfig(xusp.BoxPanel):
         self.Name = codebox+"."+lignes[0]['name']
 
 # Ecran d'identification
-class DLG_identification(wx.Dialog):
+class DLG_implantation(wx.Dialog):
     # Ecran de saisie de paramètres en dialog
     def __init__(self, parent, **kwds):
         style = kwds.pop('style',wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
@@ -580,7 +580,7 @@ class xFrame(wx.Frame):
 if __name__ == '__main__':
     app = wx.App(0)
     os.chdir("..")
-    frame_1 = DLG_identification(None,typeConfig='db_prim')
+    frame_1 = DLG_implantation(None,typeConfig='db_prim')
     #frame_1 = xFrame(None, matrice={('db_prim','Test xframe'): MATRICE_CONFIGS['db_prim']})
     #frame_1 = DLG_implantation(None)
     app.SetTopWindow(frame_1)

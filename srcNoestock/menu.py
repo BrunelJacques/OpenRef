@@ -128,7 +128,8 @@ class MENU():
         #CTRL_Identification.AfficheUsers()
 
     def On_identification(self,event):
-        pass
+        dlg = xUTILS_Identification.Dialog(None)
+        dlg.ShowModal()
     def On_gesBases(self,event):
         pass
     def On_gesTables(self,event):

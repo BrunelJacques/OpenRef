@@ -16,15 +16,22 @@ import xpy.xUTILS_Shelve as xu_shelve
 import xpy.xGestionConfig as xGestionConfig
 import xpy.xUTILS_SaisieParams as xusp
 
-def GetListeUsers():
-    """ Récupère la liste des utilisateurs et de leurs droits """
+def GetUserLocal():
+    # vient de Noethys, non encore utilisée
     argStart = sys.argv
     # lancement avec des arguments, le premier est l'user
     if len(argStart)>1:
         user = argStart[1]
-        return [{"IDutilisateur": "local", "nom": user, "prenom": "en Local", "sexe": "M", "mdp": "local",
+    # récup l'user systeme
+    else:
+        import os
+        os.environ['USERNAME']
+    return [{"IDutilisateur": "local", "nom": user, "prenom": "en Local", "sexe": "M", "mdp": "local",
                         "profil": "", "actif": True, "droits": {}},]
 
+
+def GetListeUsers():
+    """ Récupère la liste des utilisateurs et de leurs droits """
     DB = xdb.DB()
     if DB.echec:
         return False
@@ -94,18 +101,16 @@ class CTRL_Bouton_image(wx.Button):
         self.SetInitialSize()
 
 class CTRL_mdp(wx.SearchCtrl):
-    def __init__(self, parent, listeUtilisateurs=[], size=(-1, -1), modeDLG=False):
+    def __init__(self, parent, listeUtilisateurs=[], size=(-1, -1)):
         wx.SearchCtrl.__init__(self, parent, size=size, style=wx.TE_PROCESS_ENTER | wx.TE_PASSWORD)
         self.parent = parent
         self.listeUtilisateurs = listeUtilisateurs
-        self.modeDLG = modeDLG
-        self.SetDescriptiveText(u"code_perso")
-        
+        self.SetDescriptiveText("Votre mot de passe")
+
         # Options
-        self.ShowSearchButton(True)
+
         self.SetCancelBitmap(wx.Bitmap("xpy/Images/16x16/Interdit.png", wx.BITMAP_TYPE_PNG))
         self.SetSearchBitmap(wx.Bitmap("xpy/Images/16x16/Cadenas.png", wx.BITMAP_TYPE_PNG))
-        
         # Binds
         self.Bind(wx.EVT_SEARCHCTRL_SEARCH_BTN, self.OnSearch)
         self.Bind(wx.EVT_SEARCHCTRL_CANCEL_BTN, self.OnCancel)
@@ -127,12 +132,8 @@ class CTRL_mdp(wx.SearchCtrl):
 
     def Recherche(self):
         txtSearch = self.GetValue()
-        if self.modeDLG == True :
-            listeUtilisateurs = self.listeUtilisateurs
-        else:
-            listeUtilisateurs = self.GetGrandParent().listeUtilisateurs
         # Recherche de l'utilisateur
-        for dictUtilisateur in listeUtilisateurs :
+        for dictUtilisateur in self.listeUtilisateurs :
             if txtSearch == dictUtilisateur["mdp"] :
                 # Enregistrement du pseudo et mot de passe
                 cfg = xu_shelve.ParamUser()
@@ -146,75 +147,64 @@ class CTRL_mdp(wx.SearchCtrl):
                 self.choix['profil'] = dictUtilisateur['profil']
                 cfg.SetDict(self.choix, groupe='USER')
 
-                # Version pour la DLG du dessous
-                if self.modeDLG == True :
-                    self.GetParent().ChargeUtilisateur(dictUtilisateur)
+                if hasattr(self.parent,'ChargeUtilisateur'):
+                    self.parent.ChargeUtilisateur(dictUtilisateur)
                     self.SetValue("")
                     break
-                # Version pour la barre Identification de la page d'accueil
-                if self.modeDLG == False :
-                    mainFrame = self.GetGrandParent()
-                    if mainFrame.GetName() == "general" :
-                        mainFrame.ChargeUtilisateur(dictUtilisateur)
-                        self.SetValue("")
-                        break
-        self.Refresh() 
+        self.Refresh()
 
 # --------------------------- DLG de saisie de mot de passe ----------------------------
 
 class Dialog(wx.Dialog):
     # Affiche la liste des utilisateur
-    def __init__(self, parent, id=-1, title="Identification"):
+    def __init__(self, parent, id=-1, title="xUTILS_Identification"):
         wx.Dialog.__init__(self, parent, id, title, name="DLG_mdp")
         self.parent = parent
         self.echec = False
         self.dictUtilisateur = None
         self.listeUtilisateurs = []
-        argStart = sys.argv
-        # lancement avec des arguments, le premier est l'user
-        if len(argStart) > 1:
+        DB = xdb.DB()
+        self.dictAppli = DB.dictAppli
+        self.grpConfigs = DB.grpConfigs
+        if DB.echec:
+            dlg = xGestionConfig.DLG_implantation(self)
+            ret = dlg.ShowModal()
+            if ret == wx.ID_OK:
+                DB = xdb.DB()
+                self.dictAppli = DB.dictAppli
+                self.grpConfigs = DB.grpConfigs
+                if DB.echec:
+                    self.echec = True
+            else: self.echec = True
+        # l'identification n'a de sens qu'en réseau
+        if not DB.isNetwork:
+            self.echec = True
+        DB.Close()
+        if not self.echec:
             self.listeUtilisateurs = GetListeUsers()
-            self.dictUtilisateur = self.listeUtilisateurs[0]
-        else:
-            DB = xdb.DB()
-            self.dictAppli = DB.dictAppli
-            self.grpConfigs = DB.grpConfigs
-            if DB.echec:
-                dlg = xGestionConfig.DLG_identification(self)
-                ret = dlg.ShowModal()
-                if ret == wx.ID_OK:
-                    DB = xdb.DB()
-                    self.dictAppli = DB.dictAppli
-                    self.grpConfigs = DB.grpConfigs
-                    if DB.echec:
-                        self.echec = True
-                else: self.echec = True
-            # l'identification n'a de sens qu'en réseau
-            if not DB.isNetwork:
-                self.echec = True
-            DB.Close()
-            if not self.echec:
-                self.listeUtilisateurs = GetListeUsers()
-            self.dictUtilisateur = None
-            lstIDconfigs = xGestionConfig.GetIDconfigs(self.grpConfigs)
-            self.staticbox = wx.StaticBox(self, -1, "")
-            kwd = {'genre':'combo', 'name':"configs",'label':"Base de donnée d'authentification",'labels':[],
-                   'values':lstIDconfigs,
-                    'help':"Choisissez la base de donnée qui servira à vous authentifier",
-                    'size':(250,60), 'txtSize': 10}
-            self.comboConfigs = xusp.PNL_ctrl(self,**kwd)
-            self.label = wx.StaticText(self, -1, "Veuillez saisir votre mot de passe Noethys :")
-            self.ctrl_mdp = CTRL_mdp(self, listeUtilisateurs=self.listeUtilisateurs, modeDLG=True)
-        
-            self.bouton_annuler = CTRL_Bouton_image(self, id=wx.ID_CANCEL, texte="Annuler", cheminImage="xpy/Images/32x32/Annuler.png")
+        self.dictUtilisateur = None
+        lstIDconfigs = xGestionConfig.GetIDconfigs(self.grpConfigs)
 
-            self.__set_properties()
-            self.__do_layout()
-            self.ctrl_mdp.SetFocus()
+        # composition de l'écran
+        self.staticbox = wx.StaticBox(self, -1, "Authentification")
+        self.comboConfigs = xusp.PNL_ctrl(self,
+                                          **{'genre': 'combo', 'name': "configs",
+                                                   'label': "Base de donnée d'authentification", 'labels': [],
+                                                   'values': lstIDconfigs,
+                                                   'help': "Choisissez la base de donnée qui servira à vous authentifier",
+                                                   'size': (250, 60), 'txtSize': 10}
+                                          )
+        self.label = wx.StaticText(self, -1, "Veuillez saisir votre mot de passe Noethys :")
+        self.ctrl_mdp = CTRL_mdp(self, listeUtilisateurs=self.listeUtilisateurs)
+
+        self.bouton_annuler = CTRL_Bouton_image(self, id=wx.ID_CANCEL, texte="Annuler", cheminImage="xpy/Images/32x32/Annuler.png")
+
+        self.__set_properties()
+        self.__do_layout()
+        self.ctrl_mdp.SetFocus()
         
     def __set_properties(self):
-        self.bouton_annuler.SetToolTip("Cliquez ici pour annuler")
-        self.ctrl_mdp.SetMinSize((300, -1))
+        self.bouton_annuler.SetToolTip("Cliquez ici pour abandonner")
 
     def __do_layout(self):
         grid_sizer_base = wx.FlexGridSizer(rows=4, cols=1, vgap=0, hgap=0)
