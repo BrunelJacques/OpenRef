@@ -615,7 +615,8 @@ class ImportComptas(object):
                     if isinstance(valeur, (int,float)) : numerique = valeur
                     IDMinfo = cle
                     lstDonnees.append((IDdossier, IDMinfo,numerique,vf,texte))
-                ret = self.DBsql.ReqInsert('_Infos',lstChamps,lstDonnees,mess = 'UTIL_import.Stockage.InsertOpenRef._Infos')
+                if len(lstDonnees)>0:
+                    ret = self.DBsql.ReqInsert('_Infos',lstChamps,lstDonnees,mess = 'UTIL_import.Stockage.InsertORef._Infos')
 
             #def InsertOpenRef, fin
 

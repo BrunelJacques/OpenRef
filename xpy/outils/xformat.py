@@ -249,10 +249,13 @@ def SetBgColour(self,montant):
 
 def FmtDecimal(montant):
     if isinstance(montant,str): montant = montant.replace(',','.')
-    if montant == None or montant == '' or float(montant) == 0:
-        return ""
-    strMtt = '{:,.2f} '.format(float(montant))
-    strMtt = strMtt.replace(',',' ')
+    try:
+        if montant == None or montant == '' or float(montant) == 0:
+            return ""
+        strMtt = '{:,.2f} '.format(float(montant))
+        strMtt = strMtt.replace(',',' ')
+    except Exception as err:
+        strMtt = str(montant)
     return strMtt
 
 def FmtInt(montant):
