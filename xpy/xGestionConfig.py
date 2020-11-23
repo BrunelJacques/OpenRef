@@ -107,15 +107,18 @@ def GetCleMatrice(code,matrice):
             break
     return cle
 
-def GetIDconfigs(configs,typeconfig=None):
+def GetLstConfigs(configs,typeconfig=None):
     lstIDconfigs = []
+    lstConfigsOK = []
+    lstConfigsKO = []
     if 'lstConfigs' in configs:
         for config in configs['lstConfigs']:
             for typconf in config:
                 if (not typeconfig) or (typeconfig == typconf):
                     lstIDconfigs.append(config[typconf]['ID'])
-    return lstIDconfigs
-
+                    lstConfigsOK.append(config)
+                else: lstConfigsKO.append(config)
+    return lstIDconfigs,lstConfigsOK,lstConfigsKO
 
 # Panel de gestion des configurations
 class ChoixConfig(xusp.BoxPanel):
@@ -128,7 +131,7 @@ class ChoixConfig(xusp.BoxPanel):
                                dictDonnees=dictDonnees,size=size)
         self.Name = codebox+"."+lignes[0]['name']
 
-# Ecran d'identification
+# Ecran d'identification et d'implantation
 class DLG_implantation(wx.Dialog):
     # Ecran de saisie de paramètres en dialog
     def __init__(self, parent, **kwds):
@@ -205,7 +208,8 @@ class DLG_implantation(wx.Dialog):
         # choix de la configuration prise dans paramFile
         cfgF = xucfg.ParamFile()
         grpConfigs = cfgF.GetDict(dictDemande=None, groupe='CONFIGS')
-        self.lstIDconfigs = GetIDconfigs(grpConfigs,self.typeConfig)
+        # filtrage des des configs selon type retenu
+        self.lstIDconfigs, self.lstConfigsOK, self.lstConfigsKO = GetLstConfigs(grpConfigs,self.typeConfig)
         ddchoixConfigs = grpConfigs.pop('choixConfigs',{})
         # les choix de config sont stockés par application car Data peut être commun à plusieurs
         if not (self.nomAppli in ddchoixConfigs):
@@ -364,7 +368,7 @@ class DLG_listeConfigs(xusp.DLG_listCtrl):
         self.dlColonnes = {}
         self.lddDonnees = []
         self.lstIDconfigs = []
-        self.exLstConfigs = []
+        self.lstConfigsKO = []
         self.dldMatrice = {}
         # composition des paramètres
         # seuls les paragraphes option choisis par l'appli et présents dans MATRICE_CONFIGS seront appelés.
@@ -374,16 +378,10 @@ class DLG_listeConfigs(xusp.DLG_listCtrl):
         self.dldMatrice[cle] = MATRICE_CONFIGS[cle]
         self.dlColonnes[typeConfig] = [x ['name'] for x in MATRICE_CONFIGS[cle]]
         cfgF = xucfg.ParamFile()
-        dic= cfgF.GetDict(None,'CONFIGS')
-        if 'lstConfigs' in dic:
-            newlst = []
-            if dic['lstConfigs']:
-               for dicligne in dic['lstConfigs']:
-                   if typeConfig in dicligne:
-                       newlst.append(dicligne)
-                       self.lstIDconfigs.append(dicligne[typeConfig]['ID'])
-                   else: self.exLstConfigs.append(dicligne)
-               self.lddDonnees = newlst
+        grpConfigs= cfgF.GetDict(None,'CONFIGS')
+        if 'lstConfigs' in grpConfigs:
+            self.lstIDconfigs, lstConfigsOK, lstConfigsKO = GetLstConfigs(grpConfigs,typeConfig)
+            self.lddDonnees = lstConfigsOK
         # paramètres pour self.pnl contenu principal de l'écran
         self.kwds['lblbox'] = 'Configurations disponibles'
         self.MinSize = (400,300)
@@ -393,7 +391,7 @@ class DLG_listeConfigs(xusp.DLG_listCtrl):
             self.SizerDlgGestion()
             self.Init()
             self.ok = True
-            if 'lstConfigs' in dic:
+            if 'lstConfigs' in grpConfigs:
                 if select in self.lstIDconfigs:
                     ix = self.lstIDconfigs.index(select)
                     self.pnl.ctrl.Select(ix)
@@ -401,7 +399,7 @@ class DLG_listeConfigs(xusp.DLG_listCtrl):
 
     def OnFermer(self, event):
         cfgF = xucfg.ParamFile()
-        cfgF.SetDict({'lstConfigs':self.exLstConfigs + self.lddDonnees}, 'CONFIGS')
+        cfgF.SetDict({'lstConfigs':self.lstConfigsKO + self.lddDonnees}, 'CONFIGS')
         return self.Close()
 
     def GetChoix(self, idxColonne = 0):

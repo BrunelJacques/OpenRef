@@ -158,7 +158,7 @@ class CTRL_mdp(wx.SearchCtrl):
 class Dialog(wx.Dialog):
     # Affiche la liste des utilisateur
     def __init__(self, parent, id=-1, title="xUTILS_Identification"):
-        wx.Dialog.__init__(self, parent, id, title, name="DLG_mdp")
+        wx.Dialog.__init__(self, parent, id, title, name="DLG_mdp",style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
         self.parent = parent
         self.echec = False
         self.dictUtilisateur = None
@@ -183,39 +183,45 @@ class Dialog(wx.Dialog):
         if not self.echec:
             self.listeUtilisateurs = GetListeUsers()
         self.dictUtilisateur = None
-        lstIDconfigs = xGestionConfig.GetIDconfigs(self.grpConfigs)
+        lstIDconfigs,lstConfigs,lstConfigsKO = xGestionConfig.GetLstConfigs(self.grpConfigs)
 
         # composition de l'écran
         self.staticbox = wx.StaticBox(self, -1, "Authentification")
+        self.txtIntro = wx.StaticText(self, -1, "Vous serez identifié par votre seul mot de passe.\n"+
+                                      "Choisissez une base de donnée du réseau !")
+        self.txtConfigs = wx.StaticText(self, -1, "Base d'authentification:")
         self.comboConfigs = xusp.PNL_ctrl(self,
                                           **{'genre': 'combo', 'name': "configs",
-                                                   'label': "Base de donnée d'authentification", 'labels': [],
                                                    'values': lstIDconfigs,
                                                    'help': "Choisissez la base de donnée qui servira à vous authentifier",
-                                                   'size': (250, 60), 'txtSize': 10}
+                                                   'size': (250, 60)}
                                           )
-        self.label = wx.StaticText(self, -1, "Veuillez saisir votre mot de passe Noethys :")
-        self.ctrl_mdp = CTRL_mdp(self, listeUtilisateurs=self.listeUtilisateurs)
+        self.txtMdp = wx.StaticText(self, -1, "Utilisateur:")
+        self.ctrlMdp = CTRL_mdp(self, listeUtilisateurs=self.listeUtilisateurs)
 
-        self.bouton_annuler = CTRL_Bouton_image(self, id=wx.ID_CANCEL, texte="Annuler", cheminImage="xpy/Images/32x32/Annuler.png")
+        self.bouton_annuler = CTRL_Bouton_image(self, id=wx.ID_CANCEL, texte="Annuler",
+                                                cheminImage="xpy/Images/32x32/Annuler.png")
 
         self.__set_properties()
         self.__do_layout()
-        self.ctrl_mdp.SetFocus()
+        self.ctrlMdp.SetFocus()
         
     def __set_properties(self):
+        self.txtConfigs.SetForegroundColour((100,100,100))
+        self.txtIntro.SetForegroundColour(wx.BLUE)
         self.bouton_annuler.SetToolTip("Cliquez ici pour abandonner")
 
     def __do_layout(self):
         grid_sizer_base = wx.FlexGridSizer(rows=4, cols=1, vgap=0, hgap=0)
-        # combo de choix de config
-        grid_sizer_base.Add(self.comboConfigs, 0, wx.ALL| wx.EXPAND, 10)
-        # Intro
-        grid_sizer_base.Add(self.label, 0, wx.ALL, 10)
+
+        grid_sizer_base.Add(self.txtIntro, 0, wx.ALL| wx.EXPAND, 10)
         # Staticbox
         staticbox = wx.StaticBoxSizer(self.staticbox, wx.HORIZONTAL)
-        grid_sizer_contenu = wx.FlexGridSizer(rows=2, cols=1, vgap=2, hgap=2)
-        grid_sizer_contenu.Add(self.ctrl_mdp, 1, wx.EXPAND, 0)
+        grid_sizer_contenu = wx.FlexGridSizer(rows=4, cols=1, vgap=2, hgap=2)
+        grid_sizer_contenu.Add(self.txtConfigs, 0, wx.TOP, 10)
+        grid_sizer_contenu.Add(self.comboConfigs,  1, wx.LEFT|wx.ALIGN_LEFT|wx.EXPAND, 20)
+        grid_sizer_contenu.Add(self.txtMdp,  0, wx.TOP, 20 )
+        grid_sizer_contenu.Add(self.ctrlMdp, 1, wx.LEFT|wx.ALIGN_LEFT|wx.EXPAND, 30)
         grid_sizer_contenu.AddGrowableCol(0)
         staticbox.Add(grid_sizer_contenu, 1, wx.ALL|wx.EXPAND, 10)
         grid_sizer_base.Add(staticbox, 1, wx.LEFT|wx.RIGHT|wx.EXPAND, 10)
