@@ -1,2 +1,2 @@
 Version 1.1.1.1 (23/11/2020)
-- Maintenance à minima de l'outil suite à l'évolution xpy
+- Modèle minimaliste à titre d'exemple
